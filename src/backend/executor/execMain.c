@@ -2105,6 +2105,8 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 						break;
 				}
 			}
+
+	SIMPLE_FAULT_INJECTOR("func_init_plan_end");
 }
 
 /*
