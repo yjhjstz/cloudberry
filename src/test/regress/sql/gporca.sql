@@ -3591,6 +3591,19 @@ select c from mix_func_cast();
 create table DatumSortedSet_core (a int, b character varying NOT NULL) distributed by (a);
 explain select * from DatumSortedSet_core where b in (NULL, NULL);
 ---------------------------------------------------------------------------------
+-- the query with empty CTE producer target list should fall back to Postgres
+-- optimizer without any error on build without asserts
+drop table if exists empty_cte_tl_test;
+create table empty_cte_tl_test(id int);
+
+set optimizer_trace_fallback = on;
+with cte as (
+  select from empty_cte_tl_test
+)
+select * 
+from empty_cte_tl_test
+where id in(select id from cte);
+reset optimizer_trace_fallback;
 
 -- start_ignore
 DROP SCHEMA orca CASCADE;
