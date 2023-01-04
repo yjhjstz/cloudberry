@@ -955,7 +955,6 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 
 		/* Validate the StdRdOptions parsed or error out */
 		validateAppendOnlyRelOptions(stdRdOptions->blocksize,
-									 gp_safefswritesize,
 									 stdRdOptions->compresslevel,
 									 stdRdOptions->compresstype,
 									 stdRdOptions->checksum,
