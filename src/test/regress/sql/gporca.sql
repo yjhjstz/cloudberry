@@ -3600,6 +3600,7 @@ WITH conf AS (
     WHERE name = 'LDFLAGS_EX')
 select * from conf;
 
+reset optimizer_trace_fallback;
 -- start_ignore
 DROP SCHEMA orca CASCADE;
 -- end_ignore
