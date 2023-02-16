@@ -143,8 +143,7 @@ aocs_beginscan_internal_vec(Relation relation,
 								 &scan->checksum,
 								 NULL);
 
-	GetAppendOnlyEntryAuxOids(RelationGetRelid(relation),
-							  scan->appendOnlyMetaDataSnapshot,
+	GetAppendOnlyEntryAuxOids(relation,
 							  NULL, NULL, NULL,
 							  &visimaprelid, &visimapidxid);
 
