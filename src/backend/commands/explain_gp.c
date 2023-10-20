@@ -57,6 +57,8 @@ typedef struct CdbExplain_StatInst
 	double		nloops;			/* # of run cycles for this node */
 	double		nfiltered1;
 	double		nfiltered2;
+	bool		prf_work;
+	double		nfilteredPRF;
 	double		execmemused;	/* executor memory used (bytes) */
 	double		workmemused;	/* work_mem actually used (bytes) */
 	double		workmemwanted;	/* work_mem to avoid workfile i/o (bytes) */
@@ -1001,6 +1003,8 @@ cdbexplain_collectStatsFromNode_rt(PlanState *planstate, CdbExplain_SendStatCtx 
 	si->nloops = instr->nloops;
 	si->nfiltered1 = instr->nfiltered1;
 	si->nfiltered2 = instr->nfiltered2;
+	si->prf_work     = instr->prf_work;
+	si->nfilteredPRF = instr->nfilteredPRF;
 	si->workmemused = instr->workmemused;
 	si->workmemwanted = instr->workmemwanted;
 	si->workfileCreated = instr->workfileCreated;
@@ -1305,6 +1309,8 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 		instr->nloops = nodeAcc->nsimax->nloops;
 		instr->nfiltered1 = nodeAcc->nsimax->nfiltered1;
 		instr->nfiltered2 = nodeAcc->nsimax->nfiltered2;
+		instr->prf_work     = nodeAcc->nsimax->prf_work;
+		instr->nfilteredPRF = nodeAcc->nsimax->nfilteredPRF;
 		instr->execmemused = nodeAcc->nsimax->execmemused;
 		instr->workmemused = nodeAcc->nsimax->workmemused;
 		instr->workmemwanted = nodeAcc->nsimax->workmemwanted;
