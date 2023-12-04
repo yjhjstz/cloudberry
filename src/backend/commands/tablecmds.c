@@ -15067,8 +15067,9 @@ ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId, char *cmd,
 				irel = index_open(indoid, AccessShareLock);
 			}
 
-			/* replace it with my own */
-			stmt->oldNode = irel->rd_node.relNode;
+			/* If it is for the current index, replace the relnode with my own. */
+			if (strcmp(stmt->idxname, irel->rd_rel->relname.data) == 0)
+				stmt->oldNode = irel->rd_node.relNode;
 		}
 
 		if (irel != NULL)
