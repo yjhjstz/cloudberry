@@ -3586,6 +3586,12 @@ select a from mix_func_cast();
 select b from mix_func_cast();
 select c from mix_func_cast();
 
+---------------------------------------------------------------------------------
+-- Test ALL NULL scalar array compare 
+create table DatumSortedSet_core (a int, b character varying NOT NULL) distributed by (a);
+explain select * from DatumSortedSet_core where b in (NULL, NULL);
+---------------------------------------------------------------------------------
+
 -- start_ignore
 DROP SCHEMA orca CASCADE;
 -- end_ignore
