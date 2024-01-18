@@ -768,3 +768,9 @@ full join ( select r.id1, r.id2 from t_issue_10315 r group by r.id1, r.id2 ) tq_
 on (coalesce(t.id1) = tq_all.id1  and t.id2 = tq_all.id2) ;
 
 drop table t_issue_10315;
+
+-- Test that left-anti-semi-join not-in works with netowrk types
+CREATE TABLE inverse (cidr inet);
+INSERT INTO inverse values ('192.168.100.199');
+explain SELECT 1 FROM inverse WHERE NOT (cidr <<= ANY(SELECT * FROM inverse));
+SELECT 1 FROM inverse WHERE NOT (cidr <<= ANY(SELECT * FROM inverse));
