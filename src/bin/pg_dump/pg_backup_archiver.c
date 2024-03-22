@@ -3168,6 +3168,12 @@ _doSetFixedOutputState(ArchiveHandle *AH)
 	else
 		ahprintf(AH, "SET row_security = off;\n");
 
+	/*
+	 * Ensure that the setting is on, so that we don't error out while trying
+	 * to restore TRIGGERS from GP6 to GP7.
+	 */
+	ahprintf(AH, "SET gp_enable_statement_trigger = on;\n");
+
 	ahprintf(AH, "\n");
 }
 
