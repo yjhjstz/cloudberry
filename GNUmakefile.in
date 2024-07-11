@@ -10,11 +10,6 @@ include $(top_builddir)/src/Makefile.global
 
 $(call recurse,all install,src config)
 
-debug = ""
-
-ifeq ($(enable_debug), yes)
-	debug = "debug"	
-endif
 
 all:
 	$(MAKE) -C contrib/auto_explain all
@@ -38,18 +33,15 @@ ifeq ($(with_openssl), yes)
 	$(MAKE) -C contrib/sslinfo all
 endif
 ifeq ($(enable_vectorization), yes)
-	chmod +x dependencies.sh  && ./dependencies.sh vectorization ${debug}
 	$(MAKE) -C contrib/vectorization all
 endif
 ifeq ($(enable_pax), yes)
 	$(MAKE) -C contrib/pax_storage all
 endif
 ifeq ($(enable_gophermeta), yes)
-	chmod +x dependencies.sh  && ./dependencies.sh gopher ${debug}
 	$(MAKE) -C contrib/pg_gophermeta all
 endif
 ifeq ($(enable_datalake), yes)
-	chmod +x dependencies.sh  && ./dependencies.sh datalake ${debug}
 	$(MAKE) -C contrib/datalake_fdw all
 	$(MAKE) -C contrib/hive_connector all
 	$(MAKE) -C contrib/datalake_proxy all
@@ -129,6 +121,15 @@ ifeq ($(enable_dfs_tablespace), yes)
 endif
 	$(MAKE) -C gpMgmt $@
 	$(MAKE) -C gpcontrib $@
+ifneq ($(wildcard thirdparty/include),)
+	cp -rP thirdparty/include/* ${includedir}
+endif
+ifneq ($(wildcard thirdparty/lib),)
+	cp -rP thirdparty/lib/* ${libdir}
+endif
+ifneq ($(wildcard thirdparty/bin),)
+	$(INSTALL_PROGRAM) thirdparty/bin/* ${bindir}
+endif
 	+@echo "Cloudberry Database installation complete."
 
 install-docs:

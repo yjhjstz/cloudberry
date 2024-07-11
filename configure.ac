@@ -946,13 +946,13 @@ AC_MSG_RESULT([checking whether to build with preload datalake ... $enable_datal
 AC_SUBST(enable_datalake)
 
 #
-# dfs_tablespace preload
+# dfs-tablespace preload
 #
-PGAC_ARG_BOOL(enable, dfs_tablespace, no,
-              [enable preload dfs_tablespace],
+PGAC_ARG_BOOL(enable, dfs-tablespace, no,
+              [enable preload dfs-tablespace],
               [AC_DEFINE(USE_DFS_TABLESPACE, 1,
-                         [Define to 1 to preload dfs_tablespace])])
-AC_MSG_RESULT([checking whether to build with preload datalake ... $enable_dfs_tablespace])
+                         [Define to 1 to preload dfs-tablespace])])
+AC_MSG_RESULT([checking whether to build with preload dfs-tablespace ... $enable_dfs_tablespace])
 AC_SUBST(enable_dfs_tablespace)
 
 #
@@ -978,21 +978,6 @@ PGAC_ARG_BOOL(enable, perfmon, no,
                          [Define to 1 to support perfmon])])
 AC_MSG_RESULT([checking whether to build with perfmon support ... $enable_perfmon])
 AC_SUBST(enable_perfmon)
-
-if [ "${prefix}" = "NONE" ];then
-  export LDFLAGS+=" -L${ac_default_prefix}/lib"
-  export CPPFLAGS+=" -I${ac_default_prefix}/include"
-else
-  export LDFLAGS+=" -L${prefix}/lib"
-  export CPPFLAGS+=" -I${prefix}/include"
-fi
-echo  "Message User set CPPFLAGS = $CPPFLAGS";
-
-DEPENDENCIES_IN="dependencies.sh.in"
-DEPENDENCIES_SH="dependencies.sh"
-if grep '##' $DEPENDENCIES_IN > /dev/null 2>&1 ; then
-  sed "s,##.*##,${prefix:-${ac_default_prefix}}," $DEPENDENCIES_IN > $DEPENDENCIES_SH
-fi
 
 #
 # Include directories
@@ -3172,6 +3157,35 @@ echo >src/include/stamp-ext-h
 
 AC_CONFIG_HEADERS([src/interfaces/ecpg/include/ecpg_config.h],
                   [echo >src/interfaces/ecpg/include/stamp-h])
+
+# CBDB dependency
+PWD_STR=`pwd`
+dependency_dir=${PWD_STR}/"thirdparty"
+
+DEPENDENCIES_IN="dependencies.sh.in"
+DEPENDENCIES_SH="dependencies.sh"
+if grep '##' $DEPENDENCIES_IN > /dev/null 2>&1 ; then
+  sed "s,##.*##,${dependency_dir}," $DEPENDENCIES_IN > $DEPENDENCIES_SH
+fi
+
+debug=""
+if test "$enable_debug" = yes; then
+	debug="debug"	
+fi
+
+chmod +x dependencies.sh
+if test "$enable_vectorization" = yes; then
+  ./dependencies.sh vectorization ${debug}
+fi
+if test "$enable_gophermeta" = yes; then
+  ./dependencies.sh gopher ${debug}
+fi
+if test "$enable_datalake" = yes; then
+  ./dependencies.sh datalake ${debug}
+fi
+LDFLAGS="$LDFLAGS -L${dependency_dir}/lib"
+CPPFLAGS="$CPPFLAGS -I${dependency_dir}/include"
+# CBDB dependency
 
 AC_OUTPUT
 # The configure args contain '-Wl,-rpath,\$$ORIGIN`, when it falls

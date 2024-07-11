@@ -2,9 +2,7 @@
 
 #set GPHOME for libraries install
 set -eo pipefail
-export GPHOME="##prefix##"
-echo  "Message user set GPHOME = $GPHOME";
-
+export BUILD_INSTALL_DIRECTORY="##prefix##"
 # Get the dependences libraries.
 
 # Arrow and orc dependeny, depend the newest commit of arrow for default.
@@ -45,10 +43,10 @@ HASHDATA_PARQUET_CONAN_VERSION=${HASHDATA_PARQUET_CONAN_VERSION:-parquet/0.0.1@h
 # clickhouse-libgsasl
 HASHDATA_CLICKHOUSE_LIBGSASL_CONAN_VERSION=${HASHDATA_CLICKHOUSE_LIBGSASL_CONAN_VERSION:-clickhouse_libgsasl/7.9.7@hashdata/cbdb_"${OS}"_"${ARCH}"_"${BUILD_TYPE}"}
 
-if [ ${GPHOME} ]; then
-  BUILD_INSTALL_DIRECTORY="${GPHOME}"
+if [ ${BUILD_INSTALL_DIRECTORY} ]; then
+  echo -e "\e[0Ksection_start:`date +%s`:install_conan_dependencies\r\e[0KInfo: Install dependency in ${BUILD_INSTALL_DIRECTORY}"
 else
-  echo -e "\e[0Ksection_start:`date +%s`:install_conan_dependencies\r\e[0KError: set GPHOME enviroment variable first!!"
+  echo -e "\e[0Ksection_start:`date +%s`:install_conan_dependencies\r\e[0KError: set BUILD_INSTALL_DIRECTORY enviroment variable first!!"
   exit 1
 fi
 
@@ -102,7 +100,6 @@ include, * -> ${BUILD_INSTALL_DIRECTORY}/include
 EOF
 
   conan install /tmp/ --install-folder=${BUILD_INSTALL_DIRECTORY} --update || true
-  chmod 0755 "${BUILD_INSTALL_DIRECTORY}"/bin/* || true
 }
 
 echo -e "\e[0Ksection_start:`date +%s`:install_conan_dependencies\r\e[0KInstall arrow、orc、gopher、liboss2、libhdfs3..."
