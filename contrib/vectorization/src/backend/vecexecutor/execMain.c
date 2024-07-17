@@ -590,6 +590,7 @@ build_cast_expression(FuncExpr *opexpr, PlanBuildContext *pcontext)
 			to_type = GARROW_DATA_TYPE(garrow_int32_data_type_new());
 			break;
 		}
+		case F_NUMERIC_INT2:
 		case F_NUMERIC_INT4:
 		case F_NUMERIC_INT8:
 		{
