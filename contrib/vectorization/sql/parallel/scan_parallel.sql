@@ -1,0 +1,13 @@
+set default_table_access_method = ao_column;
+set vector.enable_vectorization = on;
+set enable_parallel = on;
+set optimizer = off;
+create table t1(c1 int, c2 int) with(parallel_workers=2);
+insert into t1 select i, i+1 from generate_series(1, 100000) i;
+analyze t1;
+set local optimizer = off;
+set local gp_enable_multiphase_limit = off;
+set local enable_parallel = on;
+explain(costs off, locus) select * from t1 order by c2 asc limit 3;
+reset enable_parallel;
+reset optimizer;

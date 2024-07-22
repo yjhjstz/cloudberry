@@ -1,0 +1,38 @@
+set default_table_access_method = ao_column;
+set vector.enable_vectorization = on;
+set enable_parallel = on;
+set optimizer = off;
+create table t1(c1 int, c2 int) with(parallel_workers=2);
+
+
+insert into t1 select i, i+1 from generate_series(1, 100000) i;
+analyze t1;
+set local optimizer = off;
+WARNING:  SET LOCAL can only be used in transaction blocks
+set local gp_enable_multiphase_limit = off;
+WARNING:  SET LOCAL can only be used in transaction blocks
+set local enable_parallel = on;
+WARNING:  SET LOCAL can only be used in transaction blocks
+explain(costs off, locus) select * from t1 order by c2 asc limit 3;
+                   QUERY PLAN                    
+-------------------------------------------------
+ Limit
+   Locus: Entry
+   ->  Gather Motion 6:1  (slice1; segments: 6)
+         Locus: Entry
+         Merge Key: c2
+         ->  Limit
+               Locus: HashedWorkers
+               Parallel Workers: 2
+               ->  Sort
+                     Locus: HashedWorkers
+                     Parallel Workers: 2
+                     Sort Key: c2
+                     ->  Parallel Seq Scan on t1
+                           Locus: HashedWorkers
+                           Parallel Workers: 2
+ Optimizer: Postgres query optimizer
+(16 rows)
+
+reset enable_parallel;
+reset optimizer;

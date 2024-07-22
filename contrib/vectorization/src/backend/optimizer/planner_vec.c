@@ -631,6 +631,12 @@ is_plan_vectorable(Plan* plan, List *rtable)
 	if (!is_plan_vectorable(plan->righttree, rtable))
 		return false;
 
+	if (plan->parallel_aware)
+	{
+		elog(DEBUG2, "Fallback to non-vectorization; Query with parallel.");
+		return false;
+	}
+
 	switch (nodeTag(plan))
 	{
 		/* Check plan node to fallback unvectorable cases: */

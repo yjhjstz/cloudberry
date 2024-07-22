@@ -94,3 +94,6 @@ test: join/join
 
 # test subqueryscan
 test: subquery/subquery
+
+# test parallel with vectorization
+test: parallel/scan_parallel
