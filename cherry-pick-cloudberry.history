@@ -1,6 +1,11 @@
 Record the cherry-pick history from Cloudberry(github), make it easy
 to find the start commit for cherry-pick.
 
+Author: Zijie Zhang <foreyes_1002@163.com>
+Date: Thu Jul 23 21:17:33 CST 2024
+cherry-pick start commit: 1b1335233042b0bd1606ebc88861ee58f5a54544
+cherry-pick end commit: 7bda69676d5e96ca4349038c25143c3c09393300
+
 Author: Zhang Wenchao <zhangwenchao@hashdata.cn>
 Date: Thu Jul 19 23:41:33 CST 2024
 cherry-pick start commit: a31ea51260f0511688d75718b495ce3820b7e89c
