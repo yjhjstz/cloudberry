@@ -52,6 +52,8 @@
 #include "utils/guc_vec.h"
 #include "utils/wrapper.h"
 #include "utils/fmgr_vec.h"
+#include "comm/pax_rel.h"
+#include "transform.h"
 
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -69,6 +71,14 @@
 #define NUMERIC_SUB 1725
 #define VEC_NUMERIC_MAX_PRECISION 35
 
+#include <sys/stat.h>
+#include <sys/file.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <regex.h>
+
 planner_hook_type           planner_prev = NULL;
 
 static void arrow_aggref_adapter(List *targetlist);
@@ -83,8 +93,20 @@ static bool is_sort_collation_vectorable(Sort *sort);
 static bool fallback_distinct_junk(Plan *plan);
 static bool fallback_nested_loop_jointype(Plan *plan);
 static bool joinclauses_type_different(Expr *node, void *context);
+static bool processFunction(int pid, int queryid);
+static  bool GloablprocessFunction(int pid);
+typedef struct PreNodeContext
+{
+	Node *plannedStmt;
+	Node *parent_node;
+	List *hashkeys;
+}PreNodeContext;
+
+static bool leftjoin_pull_antijoin(Node *node, PreNodeContext *context);
+
 static bool
 is_foreign_scan_vectorable(ForeignScan *foreignscan);
+static bool is_seventy_two_control(const char *query_string);
 
 static char* vector_foreign_data_wapper_whitelist[] =
 {
@@ -303,33 +325,33 @@ generate_plan(Query *parse, const char *query_string, int cursorOptions, ParamLi
 	return result;
 }
 
-
 PlannedStmt *
 planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, ParamListInfo boundParams)
 {
 	PlannedStmt *result;
-	PlannedStmt *origin_result;
 	bool optimizer_origin;
-	extern bool optimizer;
 	extern bool force_vectorization;
-	
-	optimizer_origin = optimizer;
+	const int64 orca_spilling_mem_threshold = 1000LL * 1204 * 1024 * 1024;
 
+	optimizer_origin = optimizer;
+	if (enable_vector_optimizer)
+		optimizer_spilling_mem_threshold = optimizer ? orca_spilling_mem_threshold : 0;
 	result = generate_plan(parse, query_string, cursorOptions, boundParams);
 
 	/* fallback for prepare and execute */
 	/* fallback for cursor */
-	if (!enable_vectorization  || \
-			boundParams || cursorOptions != CURSOR_OPT_PARALLEL_OK)
+	if (!enable_vectorization || boundParams || cursorOptions != CURSOR_OPT_PARALLEL_OK)
+	{
 		return result;
-	
+	}
+
 	init_vector_types();
 	if (!try_vectorize_plan(result) && force_vectorization) {
 		PG_TRY();
 		{
 			optimizer = !optimizer;
-			origin_result = result;
-			
+			if (enable_vector_optimizer)
+				optimizer_spilling_mem_threshold = optimizer ? orca_spilling_mem_threshold : 0;
 			result = generate_plan(parse, query_string, cursorOptions, boundParams); 
 		}
 		PG_FINALLY();
@@ -337,8 +359,9 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 			optimizer = optimizer_origin;
 			if(!try_vectorize_plan(result))
 			{
+				optimizer_spilling_mem_threshold = 0.0;
+				result = generate_plan(parse, query_string, cursorOptions, boundParams);
 				elog(DEBUG2, "Fallback to non-vectorization; current plan cannot be vectorized");
-				result = origin_result;
 			}
 			else
 			{
@@ -346,11 +369,35 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 			}
 		}
 		PG_END_TRY();
-		
+	}
 
+	if (enable_vector_optimizer && enable_vector_memory_resource && is_seventy_two_control(query_string))
+	{
+		int loop = 0;
+		while(++loop < 1500)
+		{
+			bool status = processFunction(getpid(), 172);
+			if (status)
+				break;
+			else
+				sleep(0.1);
+		}
 	}
 
 	return result;
+}
+
+static bool 
+is_seventy_two_control(const char *query_string)
+{
+	regex_t	 regex;
+	int	     r;
+	r = regcomp(&regex, seventy_two_control_partten, 0);
+	if (r)
+		return false;
+	r = regexec(&regex, query_string, 0, NULL, 0);
+	regfree(&regex);
+	return REG_NOERROR == r;
 }
 
 /*
@@ -360,8 +407,13 @@ bool
 try_vectorize_plan(PlannedStmt *result)
 {
 	bool vectorable;
+	int loop = 0;
 	Plan *plan_copy;
 	VectorExtensionContext *ext_ctx = NULL;
+	PreNodeContext context;
+	context.plannedStmt = (Node *)result;
+	context.parent_node = NULL;
+	context.hashkeys = NIL;
 
 	plan_copy = copyObject(result->planTree);
 	
@@ -371,12 +423,29 @@ try_vectorize_plan(PlannedStmt *result)
 	if (!vectorable)
 		return false;
 
+	if (enable_vector_optimizer)
+		leftjoin_pull_antijoin((Node *)plan_copy, &context);
 	ext_ctx = (VectorExtensionContext *) palloc(sizeof(VectorExtensionContext));
 	ext_ctx->base.type = T_ExtensibleNode;
 	ext_ctx->base.extnodename = pstrdup(VECTOR_EXTENSION_CONTEXT);
 	result->extensionContext = lappend(result->extensionContext, (ExtensibleNode *)ext_ctx);
 	result->planTree = plan_copy;
 
+	if (enable_vector_optimizer && enable_vector_memory_resource)
+	{
+		if (control_global_memory_resource > 1)
+		{
+			loop = 0;
+			while(++loop < 1500)
+			{
+				bool status = GloablprocessFunction(getpid());
+				if (status)
+					break;
+				else
+					sleep(0.1);
+			}
+		}
+	}
 	/* after vectorization, should reassign plan node id */
 	assign_plannode_id(result);
 
@@ -447,7 +516,6 @@ vectorize_plan_mutator(Node *node, void *context)
 		if (!mutated->righttree)
 			match_replace_tl(mutated->targetlist, mutated->lefttree->targetlist);
 		/* Fixme: replace for qual should be supported */
-		//match_replace_tl(mutated->qual, mutated->lefttree->targetlist);
 	}
 	return (Node *) mutated;
 }
@@ -1369,4 +1437,551 @@ joinclauses_type_different(Expr *node, void *context)
 		break;
 	}
 	return expression_tree_walker((Node *) node, joinclauses_type_different, context);
+}
+
+static bool
+is_attribute_nonnullable(Oid relationOid, AttrNumber attrNumber)
+{
+	HeapTuple	attributeTuple;
+	Form_pg_attribute attribute;
+	bool		result = true;
+
+	attributeTuple = SearchSysCache2(ATTNUM,
+									 ObjectIdGetDatum(relationOid),
+									 Int16GetDatum(attrNumber));
+	if (!HeapTupleIsValid(attributeTuple))
+		return false;
+
+	attribute = (Form_pg_attribute) GETSTRUCT(attributeTuple);
+
+	if (attribute->attisdropped)
+		result = false;
+
+	if (!attribute->attnotnull)
+		result = false;
+
+	ReleaseSysCache(attributeTuple);
+
+	return result;
+}
+
+static bool
+traverse_is_join_key(Node *node, int varno)
+{
+	if (node == NULL)
+		return NULL;
+
+	switch (nodeTag(node))
+	{
+		case T_Var:
+			{
+				Var *var = (Var *) node;
+				if (var->varattno == varno)
+					return true;
+			}
+			break;
+		default:
+			return false;
+			break;
+	}
+
+	return false;
+}
+
+static bool
+loop_targetlist(List *targetList, int varattno, PreNodeContext *context)
+{
+	ListCell *cell = NULL;
+	TargetEntry *targetEntry = NULL;
+	Var *var = NULL;
+	bool status = false;
+	if (!targetList)
+		return status;
+
+	foreach(cell, targetList)
+	{
+		targetEntry = (TargetEntry *) lfirst(cell);
+
+		if (IsA(targetEntry->expr, Var))
+		{
+			var = (Var *)targetEntry->expr;
+
+			if (var->varno == INNER_VAR || var->varno == OUTER_VAR)
+			{
+				return status;
+			}
+			else if (var->varattno == varattno)
+			{
+				status = is_attribute_nonnullable(targetEntry->resorigtbl, varattno);
+
+				if (status && context->hashkeys)
+				{
+					ListCell	*l;
+					foreach(l, context->hashkeys)
+					{
+						status = traverse_is_join_key(lfirst(l), targetEntry->resno);
+						if (status)
+						{
+							return status;
+						}
+					}
+				}
+				else
+					return status;
+			}
+		}
+	}
+
+	return status;
+}
+
+static bool
+check_targetlist(Node *node, int varattno, PreNodeContext *context)
+{
+	switch (nodeTag(node))
+	{
+		case T_SeqScan:
+			{
+				SeqScan *seqscan = (SeqScan *)node;
+				return loop_targetlist(seqscan->plan.targetlist, varattno, context);
+			}
+			break;
+		case T_Motion:
+			{
+				Motion *motion = (Motion *)node;
+				return loop_targetlist(motion->plan.targetlist, varattno, context);
+			}
+			break;
+		case T_HashJoin:
+			{
+				HashJoin *join = (HashJoin *)node;
+				return loop_targetlist(join->join.plan.targetlist, varattno, context);
+			}
+		case T_Hash:
+			{
+				Hash *hash = (Hash *)node;
+				context->hashkeys = hash->hashkeys;
+				return loop_targetlist(hash->plan.targetlist, varattno, context);
+			}
+		default:
+			break;
+	}
+	return false;
+}
+
+static bool isProcessExists(pid_t pid)
+{
+	char command[128] = {"\0"};
+	sprintf(command, "ps -ef | grep %d | grep -v grep", pid);
+
+	FILE* fp = popen(command, "r");
+	if (fp == NULL)
+		return false;
+
+	char buffer[128]= {"\0"};
+	bool exists = false;
+
+	while (fgets(buffer, sizeof(buffer), fp) != NULL)
+	{
+		exists = true;
+		break;
+	}
+
+	pclose(fp);
+
+	return exists;
+}
+
+static bool processFunction(int pid, int queryid)
+{
+	char dirPath[100] = "/tmp/cloudberry";
+	int max_muti_process = control_memory_resource < 8 ? control_memory_resource : 1;
+	char lockFilePath[100] = {"\0"};
+	int process_id ;
+	int lockFile;
+	char* line = NULL;
+	size_t lineLen = 0;
+	ssize_t bytesRead;
+	int existing_processes = 0;
+	int not_existing_processes = 0;
+	long currPos = 0;
+	int processBuffer[20] = {0};
+	bool status = false;
+
+	snprintf(lockFilePath, sizeof(lockFilePath), "%s/%d.lock", dirPath, queryid);
+
+	if (access(dirPath, F_OK) != 0)
+	{
+	#ifdef DEBUG
+	elog(INFO,"Create path %s",dirPath);
+	#endif
+	mkdir(dirPath, 0777);
+	}
+
+    
+	lockFile = open(lockFilePath, O_RDWR | O_CREAT, 0666);
+	if (lockFile == -1)
+	{
+	#ifdef DEBUG
+	elog(INFO,"Open file error :%d pid:%d",lockFile,pid);
+	#endif
+		return status;
+	}
+
+	if (flock(lockFile, LOCK_EX | LOCK_NB) == -1)
+	{
+	#ifdef DEBUG
+	elog(INFO,"Open file lock  error pid %d",pid);
+	#endif
+	return status;
+	}
+	#ifdef DEBUG
+	elog(INFO,"max_muti_process is %d",max_muti_process);
+	#endif
+
+	while ((bytesRead = getline(&line, &lineLen, fdopen(lockFile, "r"))) != -1)
+	{
+		process_id = atoi(line);
+
+		char procPath[100] = {"\0"};
+		snprintf(procPath, sizeof(procPath), "/proc/%d", process_id);
+		if (access(procPath, F_OK) == 0 /*|| isProcessExists(process_id)*/)
+		{
+			if (process_id == pid)
+				status =  true;
+			else
+			{
+				processBuffer[existing_processes] =  process_id;
+				++existing_processes;
+				#ifdef DEBUG
+				elog(INFO,"existing_processes ++");
+				#endif
+			}
+		}
+		else
+		{
+			++not_existing_processes;
+			#ifdef DEBUG
+			elog(INFO,"Not exist process++");
+			#endif
+		}
+
+		currPos = lseek(lockFile, 0, SEEK_CUR);
+		free(line);
+	}
+
+	if (not_existing_processes > 0)
+	{
+		if(ftruncate(lockFile, 0) == -1)
+			elog(INFO,"Ftruncate is error");
+		lseek(lockFile, 0, SEEK_SET);
+		for (int i = 0; i < existing_processes; i++)
+		{
+			char buffer[100] = {"\0"};
+			int size = snprintf(buffer, sizeof(buffer), "%d\n",processBuffer[i]);
+			#ifdef DEBUG
+			elog(INFO,"Write process :%s",buffer);
+			#endif
+			write(lockFile, buffer, size);
+		}
+		#ifdef DEBUG
+		elog(INFO,"All exsit process in stask is %d",existing_processes);
+		#endif
+	}
+	else
+	{
+		existing_processes = 0;
+		int file = open(lockFilePath, O_RDONLY);
+		if (file == -1)
+		{
+			return -1;
+		}
+
+		char buffer[256] = {"\0"};
+
+		while (read(file, buffer, sizeof(buffer)) > 0)
+		{
+			char* token = strtok(buffer, "\n");
+			while (token != NULL)
+			{
+				int process_id = atoi(token);
+				if(0 != process_id && isProcessExists(process_id))
+				{
+					processBuffer[existing_processes] =  process_id;
+					++existing_processes;
+				}
+				#ifdef DEBUG
+				elog(INFO,"Line %d\n", existing_processes);
+				#endif
+					token = strtok(NULL, "\n");
+			}
+		}
+	
+	}
+	
+	if (existing_processes < max_muti_process)
+	{
+		status = true;
+		char buffer[100] = {"\0"};
+		int size = snprintf(buffer, sizeof(buffer), "%d\n", pid);
+		#ifdef DEBUG
+		elog(INFO,"Write self process :%s",buffer);
+		#endif
+		write(lockFile, buffer, size);
+	}
+	flock(lockFile, LOCK_UN);
+
+	close(lockFile);
+	return status;
+}
+
+static bool GloablprocessFunction(int pid)
+{
+	int queryid = 200;
+	char dirPath[100] = "/tmp/cloudberry";
+	int max_muti_process = control_global_memory_resource <= 10 ? control_global_memory_resource
+																: 4;
+	char lockFilePath[100] = {"\0"};
+	int process_id ;
+	int lockFile;
+	char* line = NULL;
+	size_t lineLen = 0;
+	ssize_t bytesRead;
+	int existing_processes = 0;
+	int not_existing_processes = 0;
+	long currPos = 0;
+	int processBuffer[20] = {0};
+	bool status = false;
+
+	snprintf(lockFilePath, sizeof(lockFilePath), "%s/%d.lock", dirPath, queryid);
+
+	if (access(dirPath, F_OK) != 0)
+	{
+	#ifdef DEBUG
+	elog(INFO,"Create path %s",dirPath);
+	#endif
+	mkdir(dirPath, 0777);
+	}
+
+    
+	lockFile = open(lockFilePath, O_RDWR | O_CREAT, 0666);
+	if (lockFile == -1)
+	{
+	#ifdef DEBUG
+	elog(INFO,"Open file error :%d pid:%d",lockFile,pid);
+	#endif
+		return status;
+	}
+
+	if (flock(lockFile, LOCK_EX | LOCK_NB) == -1)
+	{
+	#ifdef DEBUG
+	elog(INFO,"Open file lock  error pid %d",pid);
+	#endif
+	return status;
+	}
+	#ifdef DEBUG
+	elog(INFO,"max_muti_process is %d",max_muti_process);
+	#endif
+
+	while ((bytesRead = getline(&line, &lineLen, fdopen(lockFile, "r"))) != -1)
+	{
+		process_id = atoi(line);
+
+		char procPath[100] = {"\0"};
+		snprintf(procPath, sizeof(procPath), "/proc/%d", process_id);
+		if (access(procPath, F_OK) == 0 /*|| isProcessExists(process_id)*/)
+		{
+			if (process_id == pid)
+				status =  true;
+			else
+			{
+				processBuffer[existing_processes] =  process_id;
+				++existing_processes;
+				#ifdef DEBUG
+				elog(INFO,"existing_processes ++");
+				#endif
+			}
+		}
+		else
+		{
+			++not_existing_processes;
+			#ifdef DEBUG
+			elog(INFO,"Not exist process++");
+			#endif
+		}
+
+		currPos = lseek(lockFile, 0, SEEK_CUR);
+		free(line);
+	}
+
+	if (not_existing_processes > 0)
+	{
+		if(ftruncate(lockFile, 0) == -1)
+			elog(INFO,"Ftruncate is error");
+		lseek(lockFile, 0, SEEK_SET);
+		for (int i = 0; i < existing_processes; i++)
+		{
+			char buffer[100] = {"\0"};
+			int size = snprintf(buffer, sizeof(buffer), "%d\n",processBuffer[i]);
+			#ifdef DEBUG
+			elog(INFO,"Write process :%s",buffer);
+			#endif
+			write(lockFile, buffer, size);
+		}
+		#ifdef DEBUG
+		elog(INFO,"All exsit process in stask is %d",existing_processes);
+		#endif
+	}
+	else
+	{
+		existing_processes = 0;
+		int file = open(lockFilePath, O_RDONLY);
+		if (file == -1)
+		{
+			return -1;
+		}
+
+		char buffer[256] = {"\0"};
+
+		while (read(file, buffer, sizeof(buffer)) > 0)
+		{
+			char* token = strtok(buffer, "\n");
+			while (token != NULL)
+			{
+				int process_id = atoi(token);
+				if(0 != process_id && isProcessExists(process_id))
+				{
+					processBuffer[existing_processes] =  process_id;
+					++existing_processes;
+				}
+				#ifdef DEBUG
+				elog(INFO,"Line %d\n", existing_processes);
+				#endif
+					token = strtok(NULL, "\n");
+			}
+		}
+	
+	}
+	
+	if (existing_processes < max_muti_process)
+	{
+		status = true;
+		char buffer[100] = {"\0"};
+		int size = snprintf(buffer, sizeof(buffer), "%d\n", pid);
+		#ifdef DEBUG
+		elog(INFO,"Write self process :%s",buffer);
+		#endif
+		write(lockFile, buffer, size);
+	}
+	flock(lockFile, LOCK_UN);
+
+	close(lockFile);
+	return status;
+}
+
+
+static bool
+traverse_is_attribute_nonnullable(Node *node, int varattno, PreNodeContext *context)
+{
+	bool status = false;
+
+	if (node == NULL)
+	{
+		return status;
+	}
+
+	if (outerPlan(node) != NULL)
+	{
+		if (IsA(node, HashJoin))
+			status = check_targetlist((Node *)innerPlan(node), varattno, context);
+		else
+			status = check_targetlist((Node *)outerPlan(node), varattno, context);
+
+		if (status)
+			return status;
+	}
+	else
+	{
+		status = check_targetlist(node, varattno, context);
+
+		return status;
+	}
+
+	if (IsA(node, HashJoin))
+		return traverse_is_attribute_nonnullable((Node *)innerPlan(node), varattno, context);
+	else
+		return traverse_is_attribute_nonnullable((Node *)outerPlan(node), varattno, context);
+}
+
+static bool
+leftjoin_pull_antijoin(Node *node, PreNodeContext *context)
+{
+	bool NeedPull = false;
+
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, Result))
+	{
+		int find_varattnol = 0;
+		List *targetList = NULL;
+		ListCell *cell = NULL;
+		TargetEntry *targetEntry = NULL;
+		Result *result = (Result *)node;
+		List *qualList = result->plan.qual;
+		HashJoin *join = NULL;
+		Expr * expr = NULL;
+		NullTest  *nt = NULL;
+		Var * var = NULL;
+
+		if (qualList && list_length(qualList) == 1 && IsA(outerPlan(node), HashJoin))
+		{
+			join = (HashJoin *)outerPlan(node);
+			expr = (Expr *)linitial(qualList);
+
+			if (IsA(expr, NullTest))
+			{
+				nt = (NullTest *) expr;
+				if (nt->nulltesttype == IS_NULL && join->join.jointype == JOIN_LEFT)
+				{
+					var = (Var *)nt->arg;
+					find_varattnol = var->varattno;
+					if (traverse_is_attribute_nonnullable(node, var->varattnosyn, context))
+						NeedPull = true;
+				}
+			}
+		}
+
+		if (NeedPull && context->parent_node)
+		{
+			targetList = join->join.plan.targetlist;
+			outerPlan(context->parent_node) = outerPlan(node);
+
+			foreach(cell, targetList)
+			{
+				targetEntry = (TargetEntry *) lfirst(cell);
+
+				if (targetEntry->resno == find_varattnol)
+				{
+					if (IsA(targetEntry->expr, Var))
+					{
+						var = (Var *)targetEntry->expr;
+
+						if (var->varno == INNER_VAR)
+						{
+							targetList = list_delete_ptr(targetList, targetEntry);
+						}
+					}
+				}
+			}
+
+			join->join.jointype = JOIN_ANTI;
+		}
+	}
+
+	if ((IsA(node, HashJoin) || IsA(node, Motion)) && IsA(outerPlan(node), Result))
+		context->parent_node = node;
+
+	return plan_tree_walker(node, leftjoin_pull_antijoin, context, true);
 }

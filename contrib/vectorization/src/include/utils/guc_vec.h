@@ -20,10 +20,22 @@ extern bool enable_vectorization;
 /* whether to force vectorization, and if neither orca nor non-ORCA 
 supports vectors, use the optimizer originally set*/
 extern bool force_vectorization;
+/* optimize better plan for tpcds */
+extern bool enable_vector_optimizer;
 /* min concatenate rows */
 extern int min_concatenate_rows;
 /* min redistribute motion handle rows */
 extern int min_redistribute_handle_rows;
+/* partition top k */
+extern int partition_top_k;
+extern int min_redistribute_handle_rows;
+extern int control_memory_resource;
+extern int control_global_memory_resource;
+extern int take_thread_num;
+extern bool two_phase_take;
+extern bool gather_motion_take;
+/* enable execution resources */
+extern bool enable_vector_memory_resource;
 void assign_enable_vectorization(bool newval, void *extra);
 /* merge some small arrow plans into a big one if true */
 extern bool enable_arrow_plan_merge;

@@ -69,7 +69,6 @@ ExecVecSort(PlanState *pstate)
 	{
 		ExecEagerFreeVecSort(node);
 	}
-
 	return slot;
 }
 
@@ -98,7 +97,6 @@ ExecInitVecSort(Sort *node, EState *estate, int eflags)
 	sortstate->ss.ps.plan = (Plan *) node;
 	sortstate->ss.ps.state = estate;
 	sortstate->ss.ps.ExecProcNode = ExecVecSort;
-	vsortstate->started = false;
 
 	/*
 	 * We must have random access to the sort output to do backward scan or
@@ -213,7 +211,7 @@ ExecEndVecSort(SortState *node)
 	SO1_printf("ExecEndVecSort: %s\n",
 			   "shutting down sort node");
 
-	/* release tuple schema */
+    /* release tuple schema */
 	FreeVecSchema(node->ss.ps.ps_ResultTupleSlot);
 
 	ExecEagerFreeVecSort(node);
@@ -266,6 +264,55 @@ ExecVecSortRestrPos(SortState *node)
 	tuplesort_restorepos((Tuplesortstate *) node->tuplesortstate);
 }
 
+void
+ExecReScanVecSort(SortState *node)
+{
+	PlanState  *outerPlan = outerPlanState(node);
+
+	/*
+	 * If we haven't sorted yet, just return. If outerplan's chgParam is not
+	 * NULL then it will be re-scanned by ExecProcNode, else no reason to
+	 * re-scan it at all.
+	 */
+	if (!node->sort_Done)
+		return;
+
+	/* must drop pointer to sort result tuple */
+	ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
+
+	/*
+	 * If subnode is to be rescanned then we forget previous sort results; we
+	 * have to re-read the subplan and re-sort.  Also must re-sort if the
+	 * bounded-sort parameters changed or we didn't select randomAccess.
+	 *
+	 * Otherwise we can just rewind and rescan the sorted output.
+	 */
+	if (outerPlan->chgParam != NULL ||
+		node->bounded != node->bounded_Done ||
+		node->bound != node->bound_Done ||
+		!node->randomAccess ||
+		(node->tuplesortstate == NULL))
+	{
+		node->sort_Done = false;
+
+		if (node->tuplesortstate != NULL)
+		{
+			vecsort_end((VecTuplesortstate *) node->tuplesortstate);
+			node->tuplesortstate = NULL;
+		}
+
+		/*
+		 * if chgParam of subnode is not null then plan will be re-scanned by
+		 * first ExecProcNode.
+		 */
+		if (outerPlan->chgParam == NULL)
+			ExecReScan(outerPlan); /* FIXME: we will move cbdb code(execAmi.c) in the future */
+	}
+	else
+		vecsort_rescan((VecTuplesortstate *) node->tuplesortstate);
+}
+
+
 /*
  * ExecVecSortExplainEnd
  *      Called before ExecutorEnd to finish EXPLAIN ANALYZE reporting.
@@ -280,14 +327,29 @@ ExecVecSortExplainEnd(PlanState *planstate, struct StringInfoData *buf)
 static void
 ExecEagerFreeVecSort(SortState *node)
 {
-	VecSortState *vnode = (VecSortState *) node;
 	/* clean out the tuple table */
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
 
 	/* must drop pointer to sort result tuple */
 	ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
 
-	FreeVecExecuteState(&vnode->estate);
+	if (node->tuplesortstate != NULL)
+	{
+		/*
+		 * Save stats like in ExecVecSortExplainEnd, so that we can display
+		 * them later in EXPLAIN ANALYZE.
+		 */
+		vecsort_get_stats(node->tuplesortstate,
+						  &node->sortstats);
+		if (node->ss.ps.instrument)
+		{
+			node->ss.ps.instrument->workfileCreated = (node->sortstats.spaceType == SORT_SPACE_TYPE_DISK);
+			node->ss.ps.instrument->workmemused = node->sortstats.workmemused;
+		}
+
+		vecsort_end((VecTuplesortstate *) node->tuplesortstate);
+		node->tuplesortstate = NULL;
+	}
 }
 
 void

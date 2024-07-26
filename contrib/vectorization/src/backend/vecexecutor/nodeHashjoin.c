@@ -56,7 +56,7 @@ ExecInitVecHashJoin(HashJoin *node, EState *estate, int eflags)
 	hjstate->js.ps.plan = (Plan *) node;
 	hjstate->js.ps.state = estate;
 	hjstate->reuse_hashtable = (eflags & EXEC_FLAG_REWIND) != 0;
-
+	vhjstate->skip = false;
 	/*
 	 * If eflag contains EXEC_FLAG_REWIND,
 	 * then this node is not eager free safe.
@@ -267,7 +267,7 @@ ExecVecHashJoin(PlanState *pstate)
 		}	
 
 		rows = GetNumRows(slot);
-		if (rows <= max_batch_size)
+		if (rows <= max_batch_size || vnode->skip)
 			return slot;
 
 		vnode->result_slot = slot;

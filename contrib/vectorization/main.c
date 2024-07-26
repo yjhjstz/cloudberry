@@ -10,6 +10,7 @@
  */
 #include "postgres.h"
 #include "access/printtup_vec.h"
+#include "cdb/cdbvars.h"
 #include "utils/guc.h"
 #include "optimizer/planner.h"
 
@@ -17,11 +18,17 @@
 #include "hook/hook.h"
 #include "utils/am_vec.h"
 #include "optimizer/planner_vec.h"
+#include "tcop/tcopprot.h"
 #include "vecnodes/nodes.h"
 #include "vecexecutor/executor.h"
 #include "vecexecutor/nodeShareInputScan.h"
 
+#include "transform.h"
+
 PG_MODULE_MAGIC;
+
+exec_simple_query_hook_type exec_simple_query_hook_prev = NULL;
+static void exec_simple_query_vec(const char *query_string);
 
 void		_PG_init(void);
 
@@ -40,7 +47,7 @@ _PG_init(void)
     DefineCustomBoolVariable("vector.enable_vectorization",
                              "Enables the planner's use of vectorized plans."
                              "Notice: gp_interconnect_queue_depth and gp_interconnect_snd_queue_depth"
-                             "will be set to 64 when vectorization is enabled,"
+                             "will be set to 4096 when vectorization is enabled,"
                              "and restore to default value when disabled.",
                              NULL,
                              &enable_vectorization,
@@ -48,6 +55,14 @@ _PG_init(void)
                              PGC_USERSET,
 							 GUC_GPDB_NEED_SYNC,
                              NULL, assign_enable_vectorization, NULL);
+    DefineCustomBoolVariable("vector.enable_vector_optimizer",
+							 "This guc enables optimizing better plan for vectorization",
+							 NULL,
+							 &enable_vector_optimizer,
+							 false,
+							 PGC_USERSET,
+							 GUC_GPDB_NO_SYNC,
+							 NULL, NULL, NULL);
     DefineCustomBoolVariable("vector.force_vectorization",
                              "Force the planner's use of vectorized plans."
                              "If the plan produced by the current optimizer does not support vectorization, "
@@ -86,6 +101,71 @@ _PG_init(void)
                              PGC_USERSET,
 							 GUC_GPDB_NEED_SYNC,
                              NULL, NULL, NULL);
+    DefineCustomIntVariable("vector.partition_top_k",
+                            "Partition selecter for WindowAgg sort",
+                            NULL,
+                            &partition_top_k,
+                            0,
+                            0, 10000000,
+                            PGC_USERSET,
+                            GUC_GPDB_NEED_SYNC,
+                            NULL, NULL, NULL);
+    DefineCustomIntVariable("vector.take_thread_num",
+                            "take thread for sort",
+                            NULL,
+                            &take_thread_num,
+                            0,
+                            0, 10000000,
+                            PGC_USERSET,
+                            GUC_GPDB_NEED_SYNC,
+                            NULL, NULL, NULL);
+    DefineCustomBoolVariable("vector.two_phase_take",
+                             "take phase for take",
+                             NULL,
+                             &two_phase_take,
+                             false,
+                             PGC_USERSET,
+                             GUC_GPDB_NEED_SYNC,
+                             NULL, NULL, NULL);
+    DefineCustomBoolVariable("vector.gather_motion_take",
+                             "take for gather motion",
+                             NULL,
+                             &gather_motion_take,
+                             false,
+                             PGC_USERSET,
+                             GUC_GPDB_NEED_SYNC,
+                             NULL, NULL, NULL);
+    DefineCustomIntVariable("vector.control_memory_resource",
+                            "minimal execution resources",
+                            NULL,
+                            &control_memory_resource,
+                            6,
+                            1, 8,
+                            PGC_USERSET,
+                            GUC_GPDB_NEED_SYNC,
+                            NULL, NULL, NULL);
+
+    DefineCustomIntVariable("vector.control_global_memory_resource",
+                            "global max execution resources",
+                            NULL,
+                            &control_global_memory_resource,
+                            1,
+                            1, 10,
+                            PGC_USERSET,
+                            GUC_GPDB_NEED_SYNC,
+                            NULL, NULL, NULL);
+
+    DefineCustomBoolVariable("vector.enable_vector_memory_resource",
+                             "enable execution resources",
+                             NULL,
+                             &enable_vector_memory_resource,
+                             false,
+                             PGC_USERSET,
+                             GUC_GPDB_NEED_SYNC,
+                             NULL, NULL, NULL);
+
+    exec_simple_query_hook_prev = exec_simple_query_hook;
+    exec_simple_query_hook = exec_simple_query_vec;
 
     planner_prev = planner_hook; 
     planner_hook = planner_hook_wrapper;
@@ -111,6 +191,21 @@ _PG_init(void)
 
 }
 
+static void
+exec_simple_query_vec(const char *query_string)
+{
+	if (enable_vector_optimizer && enable_vectorization && Gp_role == GP_ROLE_DISPATCH)
+	{
+		const char **query_string_ref = &query_string;
+		try_transform_sql(query_string_ref);
+		exec_simple_query(*query_string_ref);
+		restore_gucs();
+	}
+	else if (exec_simple_query_hook_prev)
+		exec_simple_query_hook_prev(query_string);
+	else
+		exec_simple_query(query_string);
+}
 
 PG_FUNCTION_INFO_V1(vector_stddev_in);
 PG_FUNCTION_INFO_V1(vector_stddev_out);

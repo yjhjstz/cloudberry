@@ -74,7 +74,7 @@ ExecVecAgg(PlanState *pstate)
 		}
 
 		rows = GetNumRows(slot);
-		if (rows <= max_batch_size)
+		if (rows <= max_batch_size || vnode->skip)
 		{
 			return slot;
 		}
@@ -154,7 +154,7 @@ ExecInitVecAgg(Agg *node, EState *estate, int eflags)
 	vaggstate->state = NULL;
 	vaggstate->rbs = NULL;
 	vaggstate->source_schema = NULL;
-
+	vaggstate->skip = false;
 	aggstate->aggcontexts = (ExprContext **)
 		palloc0(sizeof(ExprContext *) * numGroupingSets);
 

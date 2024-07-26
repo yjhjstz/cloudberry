@@ -196,7 +196,6 @@ pg_numeric_to_numeric128_scalar(Datum datum, int32 typmod)
 
 	pfree(str);
 	return garrow_move_ptr(ret);
-	return ret;
 }
 
 GArrowScalar *
@@ -278,7 +277,7 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 			bool isnull;
 			GError *error = NULL;
 			GArrowType arrtype;
-			g_autoptr(GArrowArray) array;
+			g_autoptr(GArrowArray) array = NULL;
 
 			arr = DatumGetArrayTypeP(datum);
 			arrtype = PGTypeToArrowID(arr->elemtype);

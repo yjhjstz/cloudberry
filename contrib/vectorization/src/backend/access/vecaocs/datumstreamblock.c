@@ -56,6 +56,9 @@ CopyNumeric(uint8 *datump, ColDesc *coldesc, int alllen)
 
 	Numeric numeric = DatumGetNumeric(PointerGetDatum(datump));	
 	numeric_short_to_decimal(numeric, data, alllen);
+	if (VARATT_IS_EXTENDED((struct varlena *) DatumGetPointer(datump)))
+		pfree(numeric);
+
 	coldesc->currows++;
 }
 

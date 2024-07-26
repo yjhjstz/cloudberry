@@ -189,7 +189,6 @@ ExecInitVecLimit(Limit *node, EState *estate, int eflags)
 	LimitState *limitstate;
 	VecLimitState *vlimitstate;
 	Plan	   *outerPlan;
-	PlanState *child_node;
 
 	/* check for unsupported flags */
 	Assert(!(eflags & EXEC_FLAG_MARK));
@@ -226,7 +225,6 @@ ExecInitVecLimit(Limit *node, EState *estate, int eflags)
 	 */
 	outerPlan = outerPlan(node);
 	outerPlanState(limitstate) = VecExecInitNode(outerPlan, estate, eflags);
-	child_node = outerPlanState(limitstate);
 
 	/*
 	 * initialize child expressions

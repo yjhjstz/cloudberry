@@ -824,6 +824,39 @@ ExecInitVecMotion(Motion *node, EState *estate, int eflags)
 	vmotionstate->vecslot = ExecInitExtraTupleSlot(estate, tupDesc, &TTSOpsVecTuple);
 	vmotionstate->hashExprsGandivaNodes = NULL;
 	vmotionstate->hash_projector = NULL;
+	
+	if (node->motionType == MOTIONTYPE_HASH && outerPlanState(motionstate))
+	{
+		Node *node_ = (Node *) outerPlanState(motionstate);
+		
+		switch (nodeTag(node_))
+		{
+			case T_SeqScanState:
+				{
+					VecSeqScanState *seqscan = (VecSeqScanState *)node_;
+
+					seqscan->skip = true;
+					seqscan->rows = 60000;
+				}
+				break;
+			case T_HashJoinState:
+				{
+					VecHashJoinState *join = (VecHashJoinState *)node_;
+					join->skip = true;
+				}
+				break;
+			case T_AggState:
+				{
+					VecAggState *agg = (VecAggState *)node_;
+					agg->skip = true;
+				}
+				break;
+			default:
+				break;
+		}
+		
+						
+	}
 
 	return motionstate;
 }
@@ -1075,13 +1108,14 @@ execVecMotionUnsortedReceiver(MotionState *node)
 static bool
 IsFullConcate(int rows)
 {
-	return rows >= min_redistribute_handle_rows;
+	return rows >= min_redistribute_handle_rows + 1;
 }
 
 static void
 ConcatenateDistributeBatches(TupleTableSlot **slot, PlanState  *outerNode, bool *isnull)
 {
 	int totalRows = 0;
+	int recvRows = 0;
 	g_autoptr(GArrowRecordBatch) concatenateBatch = NULL;
 	GList *rbs = NULL;
 	GError *error = NULL;
@@ -1092,22 +1126,29 @@ ConcatenateDistributeBatches(TupleTableSlot **slot, PlanState  *outerNode, bool 
 		return ;
 
 	totalRows += garrow_record_batch_get_n_rows(VECSLOT(outerTupleSlot)->tts_recordbatch);
-	if (totalRows >= min_redistribute_handle_rows)
+	if (totalRows >= min_redistribute_handle_rows + 1)
+	{
 		return;
-
+	}
+	if (totalRows != 0)
+		rbs = garrow_list_append_ptr(rbs, VECSLOT(outerTupleSlot)->tts_recordbatch);
 	while (true)
 	{
-		rbs = garrow_list_append_ptr(rbs, VECSLOT(outerTupleSlot)->tts_recordbatch);
-		if (IsFullConcate(totalRows))
+		if (0 != recvRows)
+			rbs = garrow_list_append_ptr(rbs, VECSLOT(outerTupleSlot)->tts_recordbatch);
+		if (IsFullConcate(totalRows)) {
 			break;
+		}
 		outerTupleSlot =  ExecProcNode(outerNode);
 		if (TupIsNull(outerTupleSlot))
 		{
 			*isnull = true;
 			break;
 		}
-		totalRows += garrow_record_batch_get_n_rows(VECSLOT(outerTupleSlot)->tts_recordbatch);
+		recvRows= garrow_record_batch_get_n_rows(VECSLOT(outerTupleSlot)->tts_recordbatch);
+		totalRows += recvRows;
 	}
+
 	concatenateBatch = garrow_record_batch_concatenate(rbs, &error);
 	if (error)
 		elog(ERROR, "Failed to concatenate the motion node input batches, cause: %s", error->message);
@@ -1124,7 +1165,8 @@ execVecMotionSender(MotionState *node)
 	Motion	   *motion = (Motion *) node->ps.plan;
 	bool		done = false;
 	bool IsNull = false;
-
+	int pre_max_batch_size;
+	pre_max_batch_size = max_batch_size;
 #ifdef MEASURE_MOTION_TIME
 	struct timeval time1;
 	struct timeval time2;
@@ -1142,7 +1184,14 @@ execVecMotionSender(MotionState *node)
 	{
 		/* grab TupleTableSlot from our child. */
 		outerNode = outerPlanState(node);
-		if (likely(min_redistribute_handle_rows < 1 || motion->motionType != MOTIONTYPE_HASH))
+		
+		if (motion->motionType == MOTIONTYPE_HASH && IsA(outerNode, SeqScanState))
+		{
+			max_batch_size = 60000;	
+			outerTupleSlot = ExecProcNode(outerNode);
+			max_batch_size = pre_max_batch_size;
+		}
+		else if (true)
 			outerTupleSlot = ExecProcNode(outerNode);
 		else
 		{
@@ -1379,6 +1428,7 @@ execVecMotionSortedReceiver(MotionState *node)
 	g_autoptr(GArrowTableBatchReader) reader = NULL;
 	g_autoptr(GError) error = NULL;
 	g_autoptr(GArrowSchema) schema = NULL;
+	g_autoptr(GArrowTakeOptions) options = NULL;
 
 	int i;
 	int cur_index = 0;
@@ -1464,7 +1514,11 @@ execVecMotionSortedReceiver(MotionState *node)
 	array = garrow_array_builder_finish(
 			GARROW_ARRAY_BUILDER(builder), &error);
 
-	ret_table = garrow_table_take(table, array, NULL, &error);
+	if (gather_motion_take)
+		options = garrow_take_options_new(false, true);
+	else
+		options = NULL;
+	ret_table = garrow_table_take(table, array, options, &error);
 	if (error)
 		elog(ERROR, "table take error for merge sort: %s", error->message);
 
@@ -1572,7 +1626,7 @@ execVecMotionSortedReceiverFirstTime(MotionState *node)
 static bool
 IsMatchStrategy(int rows)
 {
-	return rows >= min_concatenate_rows;
+	return rows >= min_concatenate_rows + 1;
 }
 
 static GArrowRecordBatch *
@@ -1584,6 +1638,7 @@ ConcatenateBatches(MotionState *node, int route)
 	g_autoptr(GArrowRecordBatch) batch = NULL;
 	g_autoptr(GArrowRecordBatch) concatenateBatch = NULL;
 	int totalRows = 0;
+	int recvRows = 0;
 	GList *rbs = NULL;
 	GError *error = NULL;
 	List *tuples = NIL;
@@ -1594,14 +1649,17 @@ ConcatenateBatches(MotionState *node, int route)
 	if (!inputTuple)
 		return NULL;
 	inputBatch = DeserializeMinimalTuple(inputTuple, true);
+	return garrow_move_ptr(inputBatch);
 	totalRows += garrow_record_batch_get_n_rows(inputBatch);
-	if (totalRows >= min_concatenate_rows)
+	if (totalRows >= min_concatenate_rows + 1)
 	{
 		return garrow_move_ptr(inputBatch);
 	}
-	
-	while (true) {
+	if (totalRows >= 1)
 		rbs = garrow_list_append_ptr(rbs, inputBatch);
+	while (true) {
+		if (0 != recvRows)
+			rbs = garrow_list_append_ptr(rbs, inputBatch);
 		if (IsMatchStrategy(totalRows)) {
 			break;
 		}
@@ -1614,7 +1672,8 @@ ConcatenateBatches(MotionState *node, int route)
 			break;
 		tuples = lappend(tuples, inputTuple);
 		inputBatch = DeserializeMinimalTuple(inputTuple, false);
-		totalRows += garrow_record_batch_get_n_rows(inputBatch);
+		recvRows = garrow_record_batch_get_n_rows(inputBatch);
+		totalRows += recvRows;
 	}
 	concatenateBatch = garrow_record_batch_concatenate(rbs, &error);
 	garrow_list_free_ptr(&rbs);

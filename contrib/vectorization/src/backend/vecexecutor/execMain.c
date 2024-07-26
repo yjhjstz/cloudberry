@@ -28,6 +28,7 @@
 #include "vecexecutor/execslot.h"
 #include "vecexecutor/executor.h"
 #include "utils/numeric.h"
+
 typedef struct VecAggInfo
 {
 	Aggref *aggref;
@@ -191,7 +192,7 @@ static GArrowExpression *build_text_join(List *args, PlanBuildContext *pcontext)
 static GArrowExpression *build_is_distinct_expression(DistinctExpr *dex, PlanBuildContext *pcontext);
 static GArrowExpression *build_null_if_expression(NullIfExpr *dex, PlanBuildContext *pcontext);
 static GArrowExecuteNode*
-build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan,  GArrowExecuteNode *input, PlanBuildContext *pcontext);
+build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan, GArrowExecuteNode *input);
 static GArrowExpression *
 build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type, int32 typmod);
 static void
@@ -2529,6 +2530,7 @@ BuildProject(List *targetList, List *qualList, GArrowExecuteNode *input, PlanBui
 		g_autoptr(GArrowExecuteNode) aggregation_input = NULL;
 		g_autoptr(GArrowExecuteNode) aggregation = NULL;
 		List *agginfos = pcontext->agginfos;
+
 		/* build project for aggregate input */
 		aggregation_input = BuildAggProject(targetList, agginfos, current, pcontext);
 		if (aggregation_input)
@@ -2585,7 +2587,7 @@ BuildProject(List *targetList, List *qualList, GArrowExecuteNode *input, PlanBui
 	if (IsA(pcontext->planstate->plan, Sort))
 	{
 		g_autoptr(GArrowExecuteNode) sort = NULL;
-		sort = build_orderby_node(pcontext->planstate, pcontext->plan, current, pcontext);
+		sort = build_orderby_node(pcontext->planstate, pcontext->plan, current);
 		garrow_store_ptr(current, sort);
 	}
 
@@ -2873,7 +2875,7 @@ build_winagg_project_options(List *targetList, List *aggInfos, PlanBuildContext 
 			orderby_keys = garrow_list_append_ptr(orderby_keys, key);
 		}
 
-		pcontext->orderby_sortoption = garrow_sort_options_new(orderby_keys);
+		pcontext->orderby_sortoption = garrow_sort_options_new(orderby_keys, partition_top_k, take_thread_num, two_phase_take);
 		garrow_list_free_ptr(&orderby_keys);
 		pfree(sortKey.orders);
 		pfree(sortKey.nulls_first);
@@ -3145,7 +3147,7 @@ rewrite_tl_keys(List *targetList, PlanBuildContext *pcontext)
 
 
 static GArrowExecuteNode*
-build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan,  GArrowExecuteNode *input, PlanBuildContext *pcontext)
+build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan,  GArrowExecuteNode *input)
 {
 	int nkeys;
 	GList *sort_keys = NULL;
@@ -3163,7 +3165,7 @@ build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan,  GArrowExecute
 
 	/* sort option */
 	sort_keys = build_sort_keys(planstate, schema);
-	sortoption = garrow_sort_options_new(sort_keys);
+	sortoption = garrow_sort_options_new(sort_keys, partition_top_k, take_thread_num, two_phase_take);
 	orderby_options = garrow_orderby_node_options_new(sortoption);
 	orderby_node = garrow_execute_plan_build_orderby_node(plan, input, orderby_options, &error);
 	if (error)

@@ -26,4 +26,3 @@ CREATE TYPE pg_ext_aux.stddev(
 
 CREATE TYPE pg_ext_aux.arrow_avg_int_bytea AS (sum int, count int);
 
-

@@ -302,6 +302,116 @@ create_sort_keys(SortSupport ssup,
 	return lkey;
 }
 
+void
+vecsort_performsort(VecTuplesortstate *state)
+{
+	g_autoptr(GError) error = NULL;
+	gboolean rs;
+
+
+	switch (state->status)
+	{
+		case TSS_INITIAL:
+			rs = garrow_execute_plan_start(GARROW_EXECUTE_PLAN(state->plan), &error);
+			if (!rs || error)
+				elog(ERROR, "Execute plan for vector sort error: %s.", error->message);
+			garrow_execute_plan_wait(GARROW_EXECUTE_PLAN(state->plan));
+			state->status = TSS_SORTEDINMEM;
+			break;
+		default:
+			elog(ERROR, "invalid vector sort state");
+			break;
+	}
+}
+
+/*
+ * Fetch the next vector tuple in either forward or back direction.
+ * If successful, put tuple in slot and return TRUE; else, clear the slot
+ * and return FALSE.
+ */
+bool 
+vecsort_gettupleslot(VecTuplesortstate *state, bool forward, TupleTableSlot *slot)
+{
+	g_autoptr(GArrowRecordBatch) batch;
+	g_autoptr(GError) error = NULL;
+
+	batch = garrow_record_batch_reader_read_next(state->sinkreader, &error);
+
+	slot = ExecStoreBatch(slot, batch);
+	if (batch)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
+/*
+ * tuplesort_free
+ *
+ *	Internal routine for freeing resources of tuplesort.
+ */
+static void
+tuplesort_free(VecTuplesortstate *state)
+{
+	/* context swap probably not needed, but let's be safe */
+	MemoryContext oldcontext = MemoryContextSwitchTo(state->sortcontext);
+
+	/* free arrow plan*/
+	ARROW_FREE(GArrowExecutePlan, &state->plan);
+	ARROW_FREE(GArrowRecordBatchReader, &state->sinkreader);
+
+	/*
+	 * Delete temporary "tape" files, if any.
+	 *
+	 * Note: want to include this in reported total cost of sort, hence need
+	 * for two #ifdef TRACE_SORT sections.
+	 */
+	if (state->tapeset)
+		LogicalTapeSetClose(state->tapeset);
+
+	/* Free any execution state created for CLUSTER case */
+	if (state->estate != NULL)
+	{
+		ExprContext *econtext = GetPerTupleExprContext(state->estate);
+
+		ExecDropSingleTupleTableSlot(econtext->ecxt_scantuple);
+		FreeExecutorState(state->estate);
+	}
+
+	MemoryContextSwitchTo(oldcontext);
+
+	/*
+	 * Free the per-sort memory context, thereby releasing all working memory.
+	 */
+	MemoryContextReset(state->sortcontext);
+}
+
+/*
+ * tuplesort_end
+ *
+ *	Release resources and clean up.
+ *
+ * NOTE: after calling this, any pointers returned by tuplesort_getXXX are
+ * pointing to garbage.  Be careful not to attempt to use or free such
+ * pointers afterwards!
+ */
+void
+vecsort_end(VecTuplesortstate *state)
+{
+	tuplesort_free(state);
+
+	/*
+	 * Free the main memory context, including the Tuplesortstate struct
+	 * itself.
+	 */
+	MemoryContextDelete(state->maincontext);
+}
+
+
 /*
  * tuplesort_updatemax
  *
@@ -399,4 +509,87 @@ vecsort_get_stats(VecTuplesortstate *state,
 			stats->sortMethod = SORT_TYPE_STILL_IN_PROGRESS;
 			break;
 	}
+}
+
+
+/*
+ * vecsort_set_bound
+ *
+ *	Advise tuplesort that at most the first N result tuples are required.
+ *
+ * Must be called before inserting any tuples.  (Actually, we could allow it
+ * as long as the sort hasn't spilled to disk, but there seems no need for
+ * delayed calls at the moment.)
+ *
+ * This is a hint only. The tuplesort may still return more tuples than
+ * requested.  Parallel leader tuplesorts will always ignore the hint.
+ */
+void
+vecsort_set_bound(VecTuplesortstate *state, int64 bound)
+{
+	/* Assert we're called before loading any tuples */
+	Assert(state->status == TSS_INITIAL && state->memtupcount == 0);
+	/* Can't set the bound twice, either */
+	Assert(!state->bounded);
+	/* Also, this shouldn't be called in a parallel worker */
+	Assert(!WORKER(state));
+
+	/* Parallel leader allows but ignores hint */
+	if (LEADER(state))
+		return;
+
+	/* We want to be able to compute bound * 2, so limit the setting */
+	if (bound > (int64) (INT_MAX / 2))
+		return;
+
+	state->bounded = true;
+	state->bound = (int) bound;
+
+	/*
+	 * Bounded sorts are not an effective target for abbreviated key
+	 * optimization.  Disable by setting state to be consistent with no
+	 * abbreviation support.
+	 */
+	state->sortKeys->abbrev_converter = NULL;
+	if (state->sortKeys->abbrev_full_comparator)
+		state->sortKeys->comparator = state->sortKeys->abbrev_full_comparator;
+
+	/* Not strictly necessary, but be tidy */
+	state->sortKeys->abbrev_abort = NULL;
+	state->sortKeys->abbrev_full_comparator = NULL;
+}
+
+/*
+ * vecsort_rescan		- rewind and replay the scan
+ */
+void
+vecsort_rescan(VecTuplesortstate *state)
+{
+	MemoryContext oldcontext = MemoryContextSwitchTo(state->sortcontext);
+
+	Assert(state->randomAccess);
+
+	switch (state->status)
+	{
+		case TSS_SORTEDINMEM:
+			state->current = 0;
+			state->eof_reached = false;
+			state->markpos_offset = 0;
+			state->markpos_eof = false;
+			break;
+		case TSS_SORTEDONTAPE:
+			LogicalTapeRewindForRead(state->tapeset,
+									 state->result_tape,
+									 0);
+			state->eof_reached = false;
+			state->markpos_block = 0L;
+			state->markpos_offset = 0;
+			state->markpos_eof = false;
+			break;
+		default:
+			elog(ERROR, "invalid tuplesort state");
+			break;
+	}
+
+	MemoryContextSwitchTo(oldcontext);
 }

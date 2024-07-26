@@ -48,6 +48,8 @@ typedef struct VecSeqScanState
 	struct AOCSScanDescData *ss_currentScanDesc_aocs;
 	VecDesc   	vecdesc;
 	ResDesc   	resdesc;
+	bool skip;
+	int rows;
 } VecSeqScanState;
 
 typedef struct VecForeignScanState
@@ -125,7 +127,6 @@ typedef struct VecSortState
 	VecExecuteState estate;
 
 	bool		skip; /* true if upper node is groupagg, sort done in groupagg */
-	bool 		started;
 } VecSortState;
 
 typedef struct VecAppendState
@@ -193,7 +194,7 @@ typedef struct VecAggState
 	bool	streaming;
 	int		streamgroups; /* the number of the groups per batch */
 	int		curgroups;  /* the number of the groups in GroupByNode currently */
-
+	bool skip ;
 
 } VecAggState;
 
@@ -439,6 +440,7 @@ typedef struct VecHashJoinState
 	GList *semi_anti_filter;
 	int left_attr_in_joinqual;
 	int right_attr_in_joinqual;
+	bool skip ;
 } VecHashJoinState;
 
 typedef struct VecHashState

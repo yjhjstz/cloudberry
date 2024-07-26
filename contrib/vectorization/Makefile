@@ -20,8 +20,9 @@ COMMON = $(ACCESS)/common
 CDB = $(BACKENDS)/cdb
 MOTION = $(CDB)/vecmotion
 SORT = $(BACKENDS)/utils/sort
+DIRTY = src/dirty
 
-SUBDIRS = $(VHEAP) $(ARROW) $(AOCS) $(COMMON) $(AM) $(HOOK) $(PLAN) $(MISC) $(EXECUTOR) $(MOTION) $(SORT) $(CDB)
+SUBDIRS = $(VHEAP) $(ARROW) $(AOCS) $(COMMON) $(AM) $(HOOK) $(PLAN) $(MISC) $(EXECUTOR) $(MOTION) $(SORT) $(CDB) $(DIRTY)
 SRC := $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c))
 OBJS = main.o $(patsubst %.c,%.o,$(SRC))
 
@@ -34,7 +35,7 @@ PG_CPPFLAGS = -I$(libpq_srcdir)
 
 PG_REGRESS = $(top_builddir)/src/test/regress/pg_regress
 
-PG_CFLAGS += -I$(VECHEADERS) 
+PG_CFLAGS += -I$(VECHEADERS) -I$(DIRTY) 
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

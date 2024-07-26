@@ -25,19 +25,28 @@ bool enable_vectorization = false;
 
 bool force_vectorization = false;
 
+bool enable_vector_optimizer = false;
+
 /* deciding whether to merge arrow plan */
 bool enable_arrow_plan_merge = false;
 
 int min_concatenate_rows = 0;
 int min_redistribute_handle_rows = 0;
+int partition_top_k = 0;
+int take_thread_num = 0;
+bool two_phase_take = false;
+bool gather_motion_take = false;
+int control_memory_resource = 5;
+int control_global_memory_resource = 5;
+bool enable_vector_memory_resource = false;
 
 void
 assign_enable_vectorization(bool newval, void *extra)
 {
 	if (newval == true)
 	{
-		Gp_interconnect_queue_depth = 64;
-		Gp_interconnect_snd_queue_depth = 64;
+		Gp_interconnect_queue_depth = 4096;
+		Gp_interconnect_snd_queue_depth = 4096;
 	}
 	else
 	{
