@@ -333,12 +333,14 @@ gophermeta_main(Datum main_arg)
     }
 
     int64 capacity = (int64)gopher_local_capacity_mb * 1024 * 1024;
+    int64 blockSize = (int64)gopher_local_blocksize_mb * 1024 * 1024;
     /* Start Gopher Meta store service, it's an forever loop to response meta requests. */
     elog(LOG, "GopherMeta workDir = %s, gopher_local_capacity_mb=%d, capacity = %ld",
         workDir, gopher_local_capacity_mb, capacity);
 
     gopherOssServerConfig ossConfig;
     ossConfig.mCapacity = capacity;
+    ossConfig.blockSize = blockSize;
 	ossConfig.socketPath = NULL;
 	ossConfig.socketName = socketDir;
 	ossConfig.socketPlasmaName = plasmaSocketDir;

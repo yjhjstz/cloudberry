@@ -2,11 +2,14 @@
 #include <iostream>
 
 extern "C" {
+#include "postgres.h"
+
 #include "utils/elog.h"
 #include "miscadmin.h"
+#include "utils/guc.h"
 }
 
-#define GOPHER_BLOCK_SIZE (1024 * 1024 * 8)
+#define GOPHER_BLOCK_SIZE (1024 * 1024 * gopher_local_blocksize_mb)
 
 namespace Datalake {
 namespace Internal {

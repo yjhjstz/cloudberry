@@ -443,6 +443,8 @@ bool		gp_log_endpoints = false;
 /* optional reject to  parse ambigous 5-digits date in YYYMMDD format */
 bool		gp_allow_date_field_width_5digits = false;
 
+int			gopher_local_blocksize_mb = 16;
+
 static const struct config_enum_entry gp_log_format_options[] = {
 	{"text", 0},
 	{"csv", 1},
@@ -3370,6 +3372,15 @@ struct config_int ConfigureNamesInt_gp[] =
 		&gp_gxid_prefetch_num,
 		8192, 512, INT_MAX,
 		NULL, NULL, NULL
+	},
+	{
+		{"gopher_local_blocksize_mb", PGC_SIGHUP, CUSTOM_OPTIONS,
+			gettext_noop("The local cache blocksize in MB of GopherMeta process."),
+			NULL,
+			GUC_SUPERUSER_ONLY | GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&gopher_local_blocksize_mb,
+		16, 8, 1024, NULL, NULL
 	},
 	{
 		{"gp_dbid", PGC_POSTMASTER, PRESET_OPTIONS,

@@ -627,6 +627,8 @@ extern bool gp_log_endpoints;
 
 extern bool gp_allow_date_field_width_5digits;
 
+extern int	gopher_local_blocksize_mb;
+
 typedef enum
 {
 	INDEX_CHECK_NONE,

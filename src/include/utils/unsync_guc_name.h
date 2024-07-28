@@ -606,3 +606,4 @@
 		"cluster_key_command",
 		"file_encryption_method",
 		"tde_force_switch",
+		"gopher_local_blocksize_mb",

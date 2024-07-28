@@ -6,12 +6,13 @@
 #include "src/provider/common/config.h"
 #include "src/dlproxy/uriparser.h"
 #include "utils/plancache.h"
+#include "utils/guc.h"
 
 struct List;
 struct FileScanTask;
 struct ExternalTableMetadata;
 
-#define BLOCK_SIZE (1024 * 1024 * 8)
+#define BLOCK_SIZE (1024 * 1024 * gopher_local_blocksize_mb)
 
 typedef struct ReaderInitInfo
 {
