@@ -100,6 +100,7 @@ include, * -> ${BUILD_INSTALL_DIRECTORY}/include
 EOF
 
   conan install /tmp/ --install-folder=${BUILD_INSTALL_DIRECTORY} --update || true
+  chmod 0755 "${BUILD_INSTALL_DIRECTORY}"/bin/* || true
 }
 
 echo -e "\e[0Ksection_start:`date +%s`:install_conan_dependencies\r\e[0KInstall arrow、orc、gopher、liboss2、libhdfs3..."
