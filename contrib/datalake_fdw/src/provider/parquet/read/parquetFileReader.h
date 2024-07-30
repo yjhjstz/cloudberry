@@ -51,6 +51,11 @@ public:
         return state;
     }
 
+    int getFileColumns()
+    {
+        return num_columns;
+    }
+
 private:
     readOption options;
     int num_row_groups;

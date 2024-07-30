@@ -52,7 +52,7 @@ bool avroRead::checkSchema(const avro::ValidSchema &dataSchema)
         return false;
     }
     AttrNumber dataColumn = data->leaves();
-    if (ncolumns != dataColumn + nPartitionKey)
+    if (ncolumns < dataColumn + nPartitionKey)
     {
         return false;
     }

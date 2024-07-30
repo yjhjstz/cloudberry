@@ -203,10 +203,17 @@ bool parquetRead::getRow(Datum *values, bool *nulls)
 
 bool parquetRead::convertToDatum(Datum *values, bool *nulls)
 {
-	int nColumnsInFile = ncolumns - nPartitionKey;
-    for (int i = 0; i < nColumnsInFile; i++)
+	int nColumnsToRead = ncolumns - nPartitionKey;
+    int nColumnsInFile = fileReader.getFileColumns();
+    for (int i = 0; i < nColumnsToRead; i++)
     {
-        if (options.nPartitionKey <= 0 && !options.includes_columns[i]) {
+        if (options.nPartitionKey <= 0 && !options.includes_columns[i])
+        {
+            nulls[i] = true;
+            continue;
+        }
+        if (i >= nColumnsInFile)
+        {
             nulls[i] = true;
             continue;
         }

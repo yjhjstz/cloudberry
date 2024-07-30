@@ -38,6 +38,9 @@ public:
 
     void setTransactionTable(bool transaction);
 
+    // Get the number of columns in the ORC file
+    int getDataColumnsNum();
+
     ORC_UNIQUE_PTR<orc::Reader> reader;
     ORC_UNIQUE_PTR<orc::RowReader> rowReader;
     ORC_UNIQUE_PTR<orc::ColumnVectorBatch> batch;

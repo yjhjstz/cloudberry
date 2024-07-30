@@ -32,6 +32,8 @@ private:
 
 	arrow::Status recordBatchAddColumn(int mpp_index, int batch_index, std::string partitionkey, Datum mpp_datum, int nrows);
 
+	arrow::Status recordBatchAddNullColumn(int mpp_index, int batch_index, std::string filed_name, int nrows);
+
 	arrow::MemoryPool* pool;
 	std::shared_ptr<arrow::RecordBatch> out;
 	struct ArrowRecordBatch c_batch{};

@@ -50,6 +50,15 @@ void orcReadInterface::setTransactionTable(bool transaction)
     transactionTable = transaction;
 }
 
+int orcReadInterface::getDataColumnsNum()
+{
+    if (transactionTable)
+    {
+        return reader->getType().getSubtype(5)->getSubtypeCount();
+    }
+    return reader->getType().getSubtypeCount();
+}
+
 void orcReadInterface::getStripes()
 {
     for (uint64_t i = 0; i < reader->getNumberOfStripes(); ++i)

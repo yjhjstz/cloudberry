@@ -11,6 +11,7 @@
 #include <avro/LogicalType.hh>
 #include <avro/Node.hh>
 #include <avro/Schema.hh>
+#include <arrow/type.h>
 #include <stdio.h>
 #include <iostream>
 
@@ -28,6 +29,10 @@ public:
 	virtual std::string getColTypeName(unsigned int type);
 
 	virtual std::string getTypeMappingSupported();
+
+	std::shared_ptr<arrow::DataType> getArrowDataType(unsigned int type);
+
+	std::shared_ptr<arrow::ArrayBuilder> getArrowBuilder(unsigned int type);
 };
 
 class ORCLogicalType : public logicalTypeBase

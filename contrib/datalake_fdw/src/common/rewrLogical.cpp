@@ -97,6 +97,9 @@ void readLogical::initializeColumnValue()
 	MemoryContext oldContext = MemoryContextSwitchTo(scanstate->initcontext);
 	List *constraints;
 	List *attNums = scanstate->options->hiveOption->attNums;
+	int maxPartitionIdx = 0;
+	int minPartitionIdx = 0;
+	ListCell *lc;
 
 	if (!scanstate->options->hiveOption->hivePartitionKey)
 	{
@@ -110,6 +113,32 @@ void readLogical::initializeColumnValue()
 	}
 
 	nPartitionKey = list_length(attNums);
+
+	// Partition key must be at the end of the table
+	if (nPartitionKey > 0)
+	{
+		foreach(lc, attNums)
+		{
+			int att = lfirst_int(lc);
+			if (att < 0)
+			{
+				elog(ERROR, "get attNums error value %d", att);
+			}
+			if (maxPartitionIdx == 0 || maxPartitionIdx < att)
+			{
+				maxPartitionIdx = att;
+			}
+			if (minPartitionIdx == 0 || minPartitionIdx > att)
+			{
+				minPartitionIdx = att;
+			}
+		}
+		if (ncolumns - nPartitionKey >= minPartitionIdx || maxPartitionIdx < ncolumns)
+		{
+			elog(ERROR, "external table internal error. partition key index %d-%d "
+				"are not at the end of the table %d-%d", minPartitionIdx, maxPartitionIdx, ncolumns - nPartitionKey + 1, ncolumns);
+		}
+	}
 
 	nDefaults = initializeDefaultMap(attNums,
 						constraints,

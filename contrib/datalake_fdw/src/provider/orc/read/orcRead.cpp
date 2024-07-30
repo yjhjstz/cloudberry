@@ -173,6 +173,7 @@ bool orcRead::getStripeFromBigFile(metaInfo info)
 			elog(LOG, "External table LOG, file %s format is not orc skip it.", info.fileName.c_str());
 			return true;
 		}
+
 		curFileName = info.fileName;
 		for (uint64_t i = 0; i < fileReader.readInterface.reader->getNumberOfStripes(); i++)
 		{
@@ -220,8 +221,8 @@ bool orcRead::getRow(Datum *values, bool *nulls)
 			}
 			else
 			{
-				int nColumnsInFile = ncolumns - nPartitionKey;
-				fileReader.read(tupdesc, values, nulls, tupleIndex, nColumnsInFile);
+				int nColumnsToRead = ncolumns - nPartitionKey;
+				fileReader.read(tupdesc, values, nulls, tupleIndex, nColumnsToRead);
 				tupleIndex++;
 				return true;
 			}
@@ -245,8 +246,10 @@ bool orcRead::getNextGroup()
 		fileReader.readInterface.rowReader.reset();
 		if (stripeIndex < (int)fileReader.readInterface.tempStripes.size())
 		{
-			int nColumnsInFile = ncolumns - nPartitionKey;
-			fileReader.readInterface.setRowReadOptions(attrs_used, nColumnsInFile);
+			// Read all columns in file when ncolumns > nColumnsInFile
+			// Read the first ncolumns column when ncolumns <= nColumnsInFile
+			int nColumnsToRead = std::min(fileReader.readInterface.getDataColumnsNum(), static_cast<int>(ncolumns));
+			fileReader.readInterface.setRowReadOptions(attrs_used, nColumnsToRead);
 			fileReader.readInterface.createRowReader(fileReader.readInterface.tempStripes[stripeIndex]->getOffset(),
 				fileReader.readInterface.tempStripes[stripeIndex]->getLength());
 			fileReader.readInterface.getTransactionTableType();

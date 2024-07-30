@@ -1036,6 +1036,137 @@ select count(*) from hive_test_8;
     35
 (1 row)
 
+-- The columns of the table are more than the columns of the file
+DROP FOREIGN TABLE IF EXISTS hive_test_9;
+NOTICE:  foreign table "hive_test_9" does not exist, skipping
+select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_9', 'paa_cluster', 'hive_test_9', 'foreign_server');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+select * from hive_test_9 order by id, name, m, n, more1, more2;
+ id |    name     | more1 | more2 | m | n  
+----+-------------+-------+-------+---+----
+  1 | 23423       |       |       | 3 | aa
+  1 | fsdf        |       |       | 2 | cc
+  2 | rewrwe      |       |       | 2 | cc
+  2 | werwer      |       |       | 3 | cc
+  3 | 2345fsd     |       |       | 2 | dd
+  3 | 2345gagefsd |       |       | 3 | cc
+  4 | 46346       |       |       | 3 | dd
+  4 | trewtaf     |       |       | 2 | ee
+  5 | agasdg      |       |       | 3 | ee
+  5 | fdsfsdfwe   |       |       | 2 | ff
+  6 | rewrwr3r2   |       |       | 1 | bb
+  7 | fdsfsf      |       |       | 1 | bb
+  8 | ddddbbbb    |       |       | 1 | aa
+  9 | bbbbcccc    |       |       | 1 | aa
+ 10 | aaaaabbbb   |     2 | more1 | 1 | aa
+ 10 | aaaaabbbb   |       |       | 1 | aa
+ 10 | aaaaabbbb   |     1 | more2 | 4 | aa
+(17 rows)
+
+select count(*) from hive_test_9;
+ count 
+-------
+    17
+(1 row)
+
+select count(more1) from hive_test_9;
+ count 
+-------
+     2
+(1 row)
+
+select more1 from hive_test_9 order by more1;
+ more1 
+-------
+     1
+     2
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+(17 rows)
+
+select more2, more1 from hive_test_9 order by more2, more1;
+ more2 | more1 
+-------+-------
+ more1 |     2
+ more2 |     1
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+(17 rows)
+
+select more1, more2, m, n from hive_test_9 order by more1, more2, m, n;
+ more1 | more2 | m | n  
+-------+-------+---+----
+     1 | more2 | 4 | aa
+     2 | more1 | 1 | aa
+       |       | 1 | aa
+       |       | 1 | aa
+       |       | 1 | aa
+       |       | 1 | bb
+       |       | 1 | bb
+       |       | 2 | cc
+       |       | 2 | cc
+       |       | 2 | dd
+       |       | 2 | ee
+       |       | 2 | ff
+       |       | 3 | aa
+       |       | 3 | cc
+       |       | 3 | cc
+       |       | 3 | dd
+       |       | 3 | ee
+(17 rows)
+
+select more1, more2, id, name from hive_test_9 order by more1, more2, id, name;
+ more1 | more2 | id |    name     
+-------+-------+----+-------------
+     1 | more2 | 10 | aaaaabbbb
+     2 | more1 | 10 | aaaaabbbb
+       |       |  1 | 23423
+       |       |  1 | fsdf
+       |       |  2 | rewrwe
+       |       |  2 | werwer
+       |       |  3 | 2345fsd
+       |       |  3 | 2345gagefsd
+       |       |  4 | 46346
+       |       |  4 | trewtaf
+       |       |  5 | agasdg
+       |       |  5 | fdsfsdfwe
+       |       |  6 | rewrwr3r2
+       |       |  7 | fdsfsf
+       |       |  8 | ddddbbbb
+       |       |  9 | bbbbcccc
+       |       | 10 | aaaaabbbb
+(17 rows)
+
 DROP FOREIGN TABLE IF EXISTS hive_type_test_1;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_2;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_3;
@@ -1054,6 +1185,7 @@ DROP FOREIGN TABLE IF EXISTS hive_test_5;
 DROP FOREIGN TABLE IF EXISTS hive_test_6;
 DROP FOREIGN TABLE IF EXISTS hive_test_7;
 DROP FOREIGN TABLE IF EXISTS hive_test_8;
+DROP FOREIGN TABLE IF EXISTS hive_test_9;
 set datalake.external_table_limit_segment_num = 2;
 -- hive partition tinyint
 DROP FOREIGN TABLE IF EXISTS hive_type_test_1;
@@ -2060,6 +2192,137 @@ select count(*) from hive_test_8;
     35
 (1 row)
 
+-- The columns of the table are more than the columns of the file
+DROP FOREIGN TABLE IF EXISTS hive_test_9;
+NOTICE:  foreign table "hive_test_9" does not exist, skipping
+select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_9', 'paa_cluster', 'hive_test_9', 'foreign_server');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+select * from hive_test_9 order by id, name, m, n, more1, more2;
+ id |    name     | more1 | more2 | m | n  
+----+-------------+-------+-------+---+----
+  1 | 23423       |       |       | 3 | aa
+  1 | fsdf        |       |       | 2 | cc
+  2 | rewrwe      |       |       | 2 | cc
+  2 | werwer      |       |       | 3 | cc
+  3 | 2345fsd     |       |       | 2 | dd
+  3 | 2345gagefsd |       |       | 3 | cc
+  4 | 46346       |       |       | 3 | dd
+  4 | trewtaf     |       |       | 2 | ee
+  5 | agasdg      |       |       | 3 | ee
+  5 | fdsfsdfwe   |       |       | 2 | ff
+  6 | rewrwr3r2   |       |       | 1 | bb
+  7 | fdsfsf      |       |       | 1 | bb
+  8 | ddddbbbb    |       |       | 1 | aa
+  9 | bbbbcccc    |       |       | 1 | aa
+ 10 | aaaaabbbb   |     2 | more1 | 1 | aa
+ 10 | aaaaabbbb   |       |       | 1 | aa
+ 10 | aaaaabbbb   |     1 | more2 | 4 | aa
+(17 rows)
+
+select count(*) from hive_test_9;
+ count 
+-------
+    17
+(1 row)
+
+select count(more1) from hive_test_9;
+ count 
+-------
+     2
+(1 row)
+
+select more1 from hive_test_9 order by more1;
+ more1 
+-------
+     1
+     2
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+(17 rows)
+
+select more2, more1 from hive_test_9 order by more2, more1;
+ more2 | more1 
+-------+-------
+ more1 |     2
+ more2 |     1
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+       |      
+(17 rows)
+
+select more1, more2, m, n from hive_test_9 order by more1, more2, m, n;
+ more1 | more2 | m | n  
+-------+-------+---+----
+     1 | more2 | 4 | aa
+     2 | more1 | 1 | aa
+       |       | 1 | aa
+       |       | 1 | aa
+       |       | 1 | aa
+       |       | 1 | bb
+       |       | 1 | bb
+       |       | 2 | cc
+       |       | 2 | cc
+       |       | 2 | dd
+       |       | 2 | ee
+       |       | 2 | ff
+       |       | 3 | aa
+       |       | 3 | cc
+       |       | 3 | cc
+       |       | 3 | dd
+       |       | 3 | ee
+(17 rows)
+
+select more1, more2, id, name from hive_test_9 order by more1, more2, id, name;
+ more1 | more2 | id |    name     
+-------+-------+----+-------------
+     1 | more2 | 10 | aaaaabbbb
+     2 | more1 | 10 | aaaaabbbb
+       |       |  1 | 23423
+       |       |  1 | fsdf
+       |       |  2 | rewrwe
+       |       |  2 | werwer
+       |       |  3 | 2345fsd
+       |       |  3 | 2345gagefsd
+       |       |  4 | 46346
+       |       |  4 | trewtaf
+       |       |  5 | agasdg
+       |       |  5 | fdsfsdfwe
+       |       |  6 | rewrwr3r2
+       |       |  7 | fdsfsf
+       |       |  8 | ddddbbbb
+       |       |  9 | bbbbcccc
+       |       | 10 | aaaaabbbb
+(17 rows)
+
 DROP FOREIGN TABLE IF EXISTS hive_type_test_1;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_2;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_3;
@@ -2078,3 +2341,4 @@ DROP FOREIGN TABLE IF EXISTS hive_test_5;
 DROP FOREIGN TABLE IF EXISTS hive_test_6;
 DROP FOREIGN TABLE IF EXISTS hive_test_7;
 DROP FOREIGN TABLE IF EXISTS hive_test_8;
+DROP FOREIGN TABLE IF EXISTS hive_test_9;

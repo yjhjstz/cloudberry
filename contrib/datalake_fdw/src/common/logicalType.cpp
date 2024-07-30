@@ -1,4 +1,7 @@
 #include "logicalType.h"
+#include "arrow/array/builder_base.h"
+#include "arrow/array/builder_primitive.h"
+#include "arrow/array/builder_decimal.h"
 
 
 extern "C" {
@@ -52,6 +55,81 @@ std::string logicalTypeBase::getColTypeName(unsigned int type)
 std::string logicalTypeBase::getTypeMappingSupported()
 {
 	return "";
+}
+
+std::shared_ptr<arrow::DataType> logicalTypeBase::getArrowDataType(unsigned int type)
+{
+	switch (type) 
+	{
+		case BOOLOID:
+			return arrow::boolean();
+		case BYTEAOID:
+		case NUMERICOID:
+			return arrow::numeric128();
+		case CHAROID:
+			return arrow::int8();
+		case TIMEOID:
+		case TIMESTAMPOID:
+		case TIMESTAMPTZOID:
+			return arrow::timestamp(arrow::TimeUnit::MICRO);
+		case INT8OID:
+			return arrow::int64();
+		case INT2OID:
+			return arrow::int16();
+		case DATEOID:
+			return arrow::date32();
+		case INT4OID:
+			return arrow::int32();
+		case BPCHAROID:
+		case VARCHAROID:
+		case TEXTOID:
+			return arrow::utf8();
+		case TIDOID:
+			return arrow::int64();
+		case FLOAT4OID:
+			return arrow::float32();
+		case FLOAT8OID:
+			return arrow::float64();
+		default:
+			return arrow::null();
+	}
+}
+
+std::shared_ptr<arrow::ArrayBuilder> logicalTypeBase::getArrowBuilder(unsigned int type)
+{
+	switch (type) 
+	{
+		case BOOLOID:
+			return std::make_shared<arrow::BooleanBuilder>();
+		case BYTEAOID:
+		case NUMERICOID:
+			return std::make_shared<arrow::Numeric128Builder>(arrow::numeric128());
+		case CHAROID:
+			return std::make_shared<arrow::Int8Builder>();
+		case TIMEOID:
+		case TIMESTAMPOID:
+		case TIMESTAMPTZOID:
+			return std::make_shared<arrow::TimestampBuilder>(arrow::timestamp(arrow::TimeUnit::MICRO), arrow::default_memory_pool());
+		case TIDOID:
+		case INT8OID:
+			return std::make_shared<arrow::Int64Builder>();
+		case INT2OID:
+			return std::make_shared<arrow::Int8Builder>();
+		case DATEOID:
+			return std::make_shared<arrow::Date32Builder>();
+		case INT4OID:
+			return std::make_shared<arrow::Int32Builder>();
+		case BPCHAROID:
+		case VARCHAROID:
+		case TEXTOID:
+			return std::make_shared<arrow::StringBuilder>();
+		case FLOAT4OID:
+			return std::make_shared<arrow::FloatBuilder>();
+		case FLOAT8OID:
+			return std::make_shared<arrow::DoubleBuilder>();
+		default:
+			return std::make_shared<arrow::NullBuilder>();
+	}
 }
 
 bool ORCLogicalType::checkDataTypeCompatible(unsigned int type,  orc::TypeKind orcType)

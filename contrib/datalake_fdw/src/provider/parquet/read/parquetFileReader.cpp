@@ -108,9 +108,9 @@ bool parquetFileReader::createInternalReader(ossFileStream ossFile, std::string 
     num_columns = file_metadata->num_columns();
     name = fileName;
     int mpp_columns = options.includes_columns.size() - options.nPartitionKey;
-    if (mpp_columns != num_columns)
+    if (mpp_columns < num_columns)
     {
-        elog(ERROR, "External table Error, mpp columns %d not equal parquet %s columns %d.",
+        elog(ERROR, "External table Error, mpp columns %d is less than parquet %s columns %d.",
             mpp_columns, fileName.c_str(), num_columns);
     }
     state = FILE_OPEN;

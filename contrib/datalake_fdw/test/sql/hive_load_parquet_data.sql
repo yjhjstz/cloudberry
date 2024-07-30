@@ -870,3 +870,32 @@ INSERT INTO TABLE hive_test_8 PARTITION(m=7, n="bb", o=1234567890.1234567891, p=
 INSERT INTO TABLE hive_test_8 PARTITION(m=7, n="bb", o=999999999.9999999, p=0, q=20, s=3) values(7, "fdsfsf");
 INSERT INTO TABLE hive_test_8 PARTITION(m=7, n="bb", o=1234567890.01, p=1, q=2, s=13) values(6, "rewrwr3r2");
 
+drop table if exists hive_test_9;
+CREATE TABLE hive_test_9
+(
+    id  int,
+    name string
+)
+PARTITIONED BY
+(
+    m int, n string
+)
+STORED AS ORC;
+INSERT INTO TABLE hive_test_9 PARTITION(m=1, n="aa") values(10, "aaaaabbbb");
+INSERT INTO TABLE hive_test_9 PARTITION(m=1, n="aa") values(9, "bbbbcccc");
+INSERT INTO TABLE hive_test_9 PARTITION(m=1, n="aa") values(8, "ddddbbbb");
+INSERT INTO TABLE hive_test_9 PARTITION(m=1, n="bb") values(7, "fdsfsf");
+INSERT INTO TABLE hive_test_9 PARTITION(m=1, n="bb") values(6, "rewrwr3r2");
+INSERT INTO TABLE hive_test_9 PARTITION(m=2, n="cc") values(1, "fsdf");
+INSERT INTO TABLE hive_test_9 PARTITION(m=2, n="cc") values(2, "rewrwe");
+INSERT INTO TABLE hive_test_9 PARTITION(m=2, n="dd") values(3, "2345fsd");
+INSERT INTO TABLE hive_test_9 PARTITION(m=2, n="ee") values(4, "trewtaf");
+INSERT INTO TABLE hive_test_9 PARTITION(m=2, n="ff") values(5, "fdsfsdfwe");
+INSERT INTO TABLE hive_test_9 PARTITION(m=3, n="aa") values(1, "23423");
+INSERT INTO TABLE hive_test_9 PARTITION(m=3, n="cc") values(2, "werwer");
+INSERT INTO TABLE hive_test_9 PARTITION(m=3, n="cc") values(3, "2345gagefsd");
+INSERT INTO TABLE hive_test_9 PARTITION(m=3, n="dd") values(4, "46346");
+INSERT INTO TABLE hive_test_9 PARTITION(m=3, n="ee") values(5, "agasdg");
+ALTER TABLE hive_test_9 ADD COLUMNS (more1 int, more2 string);
+INSERT INTO TABLE hive_test_9 PARTITION(m=4, n="aa") values(10, "aaaaabbbb", 1, "more2");
+INSERT INTO TABLE hive_test_9 PARTITION(m=1, n="aa") values(10, "aaaaabbbb", 2, "more1");

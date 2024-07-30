@@ -207,12 +207,41 @@ arrow::Status orcReadRecordBatch::recordBatchAddColumn(int mpp_index, int batch_
 	return arrow::Status::OK();
 }
 
+arrow::Status orcReadRecordBatch::recordBatchAddNullColumn(int mpp_index, int batch_index, std::string field_name, int nrows)
+{
+	Oid typeOid = tupdesc->attrs[mpp_index].atttypid;
+	std::shared_ptr<arrow::ArrayBuilder> builder = fileReader.getArrowBuilder(typeOid);
+	std::shared_ptr<arrow::DataType> dataType = fileReader.getArrowDataType(typeOid);
+	if (dataType->id() == arrow::Type::NA)
+	{
+		elog(ERROR, "does not support column:\"%s\" typeOid:\"%u\"", field_name.c_str(), typeOid);
+	}
+	std::shared_ptr<arrow::Array> columns;
+	std::shared_ptr<arrow::Field> field = arrow::field(field_name.c_str(), dataType);
+	builder->AppendNulls(nrows);
+	ARROW_ASSIGN_OR_RAISE(columns, builder->Finish());
+	addColOrCreateRecordBatch(field, columns, nrows, batch_index);
+	return arrow::Status::OK();
+}
+
 int64_t orcReadRecordBatch::read(void **recordBatch)
 {
 nextPartition:
 
 	if (readNextRecordBatch(recordBatch))
 	{
+		int ncolumnsToRead = ncolumns - nPartitionKey;
+		int ncolumnsInFile = fileReader.readInterface.getDataColumnsNum();
+		// Append null columns for columns that 
+		for (int i = ncolumnsInFile; i < ncolumnsToRead; i++)
+		{
+			if (options.includes_columns[i])
+			{
+				std::string columnName = tupdesc->attrs[i].attname.data;
+				recordBatchAddNullColumn(i, out->num_columns(), columnName, tupleIndex);
+			}
+		}
+
 		if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 		{
 			AttrNumber numDefaults = this->nDefaults;

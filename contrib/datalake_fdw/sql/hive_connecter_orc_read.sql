@@ -140,6 +140,17 @@ select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_8',
 select * from hive_test_8 order by id, name, m, n, o, p, q, s;
 select count(*) from hive_test_8;
 
+-- The columns of the table are more than the columns of the file
+DROP FOREIGN TABLE IF EXISTS hive_test_9;
+select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_9', 'paa_cluster', 'hive_test_9', 'foreign_server');
+select * from hive_test_9 order by id, name, m, n, more1, more2;
+select count(*) from hive_test_9;
+select count(more1) from hive_test_9;
+select more1 from hive_test_9 order by more1;
+select more2, more1 from hive_test_9 order by more2, more1;
+select more1, more2, m, n from hive_test_9 order by more1, more2, m, n;
+select more1, more2, id, name from hive_test_9 order by more1, more2, id, name;
+
 DROP FOREIGN TABLE IF EXISTS hive_type_test_1;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_2;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_3;
@@ -158,3 +169,4 @@ DROP FOREIGN TABLE IF EXISTS hive_test_5;
 DROP FOREIGN TABLE IF EXISTS hive_test_6;
 DROP FOREIGN TABLE IF EXISTS hive_test_7;
 DROP FOREIGN TABLE IF EXISTS hive_test_8;
+DROP FOREIGN TABLE IF EXISTS hive_test_9;
