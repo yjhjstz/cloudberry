@@ -1,0 +1,5 @@
+# hive_sync extension
+comment = 'hive_sync_bgworker for hive_auto_sync'
+default_version = '1.0'
+module_pathname = '$libdir/hive_auto_sync'
+relocatable = true

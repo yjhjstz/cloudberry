@@ -1,0 +1,108 @@
+{
+    "status": true,
+    "parameters": {
+        "HIVE_METASTORE_TRANSACTION_ACTIVE": "false",
+        "hive.version": "3.1.0"
+    },
+    "environmentContext": null,
+    "table": {
+        "tableName": "synctest",
+        "dbName": "test",
+        "owner": "hadoop",
+        "createTime": 1718592600,
+        "lastAccessTime": 0,
+        "retention": 0,
+        "sd": {
+            "cols": [
+                {
+                    "name": "a",
+                    "type": "int",
+                    "comment": null
+                }
+            ],
+            "location": "hdfs://mycluster/opt/hadoop/apache-hive-3.1.0-bin/user/hive/warehouse/test.db/synctest",
+            "inputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "outputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "compressed": false,
+            "numBuckets": -1,
+            "serdeInfo": {
+                "name": null,
+                "serializationLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+                "parameters": {
+                    "serialization.format": "1"
+                },
+                "description": null,
+                "serializerClass": null,
+                "deserializerClass": null,
+                "serdeType": null
+            },
+            "bucketCols": [],
+            "sortCols": [],
+            "parameters": {},
+            "skewedInfo": {
+                "skewedColNames": [],
+                "skewedColValues": [],
+                "skewedColValueLocationMaps": []
+            },
+            "storedAsSubDirectories": false
+        },
+        "partitionKeys": [],
+        "parameters": {
+            "totalSize": "0",
+            "numRows": "0",
+            "rawDataSize": "0",
+            "COLUMN_STATS_ACCURATE": "{\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"a\":\"true\"}}",
+            "numFiles": "0",
+            "transient_lastDdlTime": "1718592600",
+            "bucketing_version": "2"
+        },
+        "viewOriginalText": null,
+        "viewExpandedText": null,
+        "tableType": "MANAGED_TABLE",
+        "privileges": {
+            "userPrivileges": {
+                "hadoop": [
+                    {
+                        "privilege": "INSERT",
+                        "createTime": -1,
+                        "grantor": "hadoop",
+                        "grantorType": "USER",
+                        "grantOption": true
+                    },
+                    {
+                        "privilege": "SELECT",
+                        "createTime": -1,
+                        "grantor": "hadoop",
+                        "grantorType": "USER",
+                        "grantOption": true
+                    },
+                    {
+                        "privilege": "UPDATE",
+                        "createTime": -1,
+                        "grantor": "hadoop",
+                        "grantorType": "USER",
+                        "grantOption": true
+                    },
+                    {
+                        "privilege": "DELETE",
+                        "createTime": -1,
+                        "grantor": "hadoop",
+                        "grantorType": "USER",
+                        "grantOption": true
+                    }
+                ]
+            },
+            "groupPrivileges": null,
+            "rolePrivileges": null
+        },
+        "temporary": false,
+        "rewriteEnabled": false,
+        "creationMetadata": null,
+        "catName": "hive",
+        "ownerType": "USER"
+    },
+    "tableName": "synctest",
+    "databaseName": "test",
+    "eventType": "ON_CREATE_TABLE",
+    "qualifiedTableName": "test.synctest"
+}

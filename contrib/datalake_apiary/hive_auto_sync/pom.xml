@@ -1,0 +1,44 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>cn.hashdata.apiary</groupId>
+  <artifactId>apiary-extensions-parent</artifactId>
+  <description>Various extensions to Apiary that provide additional, optional functionality</description>
+  <version>7.3.8</version>
+  <packaging>pom</packaging>
+  <name>Apiary Extensions Parent</name>
+  <inceptionYear>2018</inceptionYear>
+
+  <properties>
+    <shade.prefix>${project.groupId}.shaded</shade.prefix>
+    <apiary.shaded.prefix>cn.hashdata.apiary.shaded</apiary.shaded.prefix>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <hadoop.version>2.10.2</hadoop.version>
+    <hive.version>3.1.0</hive.version>
+    <apiary.version>7.3.8</apiary.version>
+    <hivesync.version>1.0.0</hivesync.version>
+    <slf4j.version>1.7.25</slf4j.version>
+    <log4j2.version>2.17.2</log4j2.version>
+  </properties>
+
+  <modules>
+    <module>apiary-metastore-events</module>
+    <module>hivesync</module>
+  </modules>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.6.0</version>
+        <configuration>
+          <source>${maven.compiler.source}</source>
+          <target>${maven.compiler.target}</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

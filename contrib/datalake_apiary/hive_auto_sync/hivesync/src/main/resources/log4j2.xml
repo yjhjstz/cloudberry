@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+<Properties>
+    <Property name="LOG_LEVEL_PATTERN">%5p [%X{sessionId}]</Property>
+    <Property name="LOG_DATEFORMAT_PATTERN">yyyy-MM-dd HH:mm:ss.SSS zzz</Property>
+    <Property name="FILE_LOG_PATTERN">%d{${LOG_DATEFORMAT_PATTERN}} ${LOG_LEVEL_PATTERN} %pid --- [%-9.10t] %-40.40c{1.} : %m%n</Property>
+</Properties>
+<Appenders>
+    <RollingFile name="HiveSyncFile" filePattern="log/hivesync-%d{yyyy-MM-dd}.log">
+        <PatternLayout pattern="${sys:FILE_LOG_PATTERN}" charset="utf8"/>
+        <Policies>
+            <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+        </Policies>
+    </RollingFile>
+</Appenders>
+<Loggers>
+    <Root level="info">
+        <AppenderRef ref="HiveSyncFile"/>
+    </Root>
+
+    <Logger name="cn.hashdata.hivesync" level="info" additivity="false">
+        <AppenderRef ref="HiveSyncFile"/>
+    </Logger>
+    <Logger name="org.apache.kafka" level="info" additivity="false">
+        <AppenderRef ref="HiveSyncFile"/>
+    </Logger>
+    <Logger name="com.zaxxer.hikari" level="warn" additivity="false">
+        <AppenderRef ref="HiveSyncFile"/>
+    </Logger>
+    <!-- The levels below are tuned to provide minimal output, change to INFO or DEBUG to troubleshoot -->
+    <Logger name="org.apache.hadoop" level="warn"/>
+    <Logger name="hive.metastore" level="warn"/>
+</Loggers>
+</Configuration>

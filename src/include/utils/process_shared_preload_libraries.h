@@ -3,6 +3,7 @@
 #endif
 #ifdef USE_DATALAKE
 		"datalake_proxy",
+		"hive_auto_sync",
 #endif
 #ifdef USE_VECTORIZATION
 		"vectorization",
