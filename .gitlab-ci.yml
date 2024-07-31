@@ -187,6 +187,8 @@ variables:
   GIT_DEPTH: 1
   CI_USER: root
   OS_TYPE: "centos7"
+  ## set centos7 as default CI_TF_LOCATION 
+  CI_TF_LOCATION: ".ci/tf/centos7-x86_64"
 
 .retry_rule:  &retry_rule
   retry:
@@ -274,12 +276,52 @@ centos7:x86_64:build-release:
       dotenv: ${GIT_CLONE_PATH}/cbdb-artifacts.txt
     expire_in: 1 week
 
+ubuntu22:x86_64:build:
+  stage: build
+  variables:
+    <<: *global_variables
+    OS_TYPE: "ubuntu22"
+    CI_TF_LOCATION: ".ci/tf/ubuntu22-x86_64"
+    CBDB_BUILD_TYPE: "debug"
+
+    ## will support theres extensions later
+    CBDB_BUILD_GOPHERMETA: "off"
+    CBDB_BUILD_VECTORIZATION: "off"
+    CBDB_BUILD_HIVE_CONNECTOR: "off"
+    CBDB_BUILD_TABLESPACE: "off"
+    CBDB_BUILD_PLR: "off"
+    CBDB_BUILD_POSTGIS: "off"
+    CBDB_BUILD_PLJAVA: "off"
+
+    ## Disabling these extensions is to allow the install-extension 
+    ## function in the cbdb-release repo to pass
+    CBDB_BUILD_GPBACKUP: "off"
+    CBDB_BUILD_KAFKA_FDW: "off"
+    CBDB_BUILD_ORACLE_FDW: "off"
+    CBDB_BUILD_CBDB_UI: "off"
+    CBDB_BUILD_HASHCOPY: "off"
+    CBDB_BUILD_ROARINGBITMAP: "off"
+
+  script: |
+    mkdir -p ${ROOT_PATH}
+    git clone -b ${CBDB_RELEASE_BRANCH} https://buildbot:Passw0rd@code.hashdata.xyz/cloudberry/cbdb-release ${CBDB_RELEASE_SRC}
+    unset GIT_CLONE_PATH
+    chmod +x ${CBDB_RELEASE_SRC}/actions/action-build-ubuntu.bash && ${CBDB_RELEASE_SRC}/actions/action-build-ubuntu.bash
+  timeout: 8 hours
+  artifacts:
+    name: "cbdb-artifacts"
+    paths:
+      - ${GIT_CLONE_PATH}/cbdb-artifacts.txt
+    reports:
+      dotenv: ${GIT_CLONE_PATH}/cbdb-artifacts.txt
+    expire_in: 1 week
+
 centos7:x86_64:icw:
   stage: icw_test
   variables:
     <<: *global_variables
     MAKE_TEST_COMMAND: "-k PGOPTIONS='-c optimizer=off' installcheck-world"
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   <<: 
   - *icw_scripts
   - *regress_artifacts
@@ -291,7 +333,7 @@ centos7:x86_64:icw-orca:
   variables:
     <<: *global_variables
     MAKE_TEST_COMMAND: "-k PGOPTIONS='-c optimizer=on' installcheck-world"
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   <<: 
   - *icw_scripts
   - *regress_artifacts
@@ -303,7 +345,7 @@ centos7:x86_64:icw-parallel:
   variables:
     <<: *global_variables
     MAKE_TEST_COMMAND: "MAX_CONNECTIONS=10 -C src/test -k installcheck-cbdb-parallel"
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   <<: 
   - *icw_scripts
   - *regress_artifacts
@@ -381,7 +423,7 @@ centos7:x86_64:icw-parallel:
 
 vectorization:clickhouse:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "vec_test"
@@ -394,7 +436,7 @@ vectorization:clickhouse:
 
 vectorization:icw:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_test"
@@ -407,7 +449,7 @@ vectorization:icw:
 
 vectorization:icw-orca:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_test"
@@ -420,7 +462,7 @@ vectorization:icw-orca:
 
 vectorization:icw-aocs:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_aocs"
@@ -433,7 +475,7 @@ vectorization:icw-aocs:
 
 vectorization:icw-orca-aocs:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_aocs"
@@ -446,7 +488,7 @@ vectorization:icw-orca-aocs:
 
 pax:icw:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_test"
@@ -459,7 +501,7 @@ pax:icw:
 
 pax:icw-orca:
   stage: icw_test
-  needs: [ "centos7:x86_64:build" ]
+  needs: [ "centos7:x86_64:build", "ubuntu22:x86_64:build" ]
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_test"

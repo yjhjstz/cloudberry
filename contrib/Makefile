@@ -61,13 +61,7 @@ SUBDIRS += \
 		formatter_fixedwidth \
 		extprotocol \
 		indexscan  \
-		datalake_agent \
-		datalake_fdw \
-		datalake_proxy \
 		vbf \
-		dfs-tablespace-ext \
-		pg_gophermeta \
-		vectorization \
 		file_content
 		
 
@@ -111,6 +105,30 @@ ifeq ($(enable_pax),yes)
 SUBDIRS += pax_storage
 else
 ALWAYS_SUBDIRS += pax_storage
+endif
+
+ifeq ($(enable_vectorization),yes)
+SUBDIRS += vectorization
+else
+ALWAYS_SUBDIRS += vectorization
+endif
+
+ifeq ($(enable_gophermeta),yes)
+SUBDIRS += pg_gophermeta
+else
+ALWAYS_SUBDIRS += pg_gophermeta 
+endif
+
+ifeq ($(enable_dfs_tablespace),yes)
+SUBDIRS += dfs-tablespace-ext
+else
+ALWAYS_SUBDIRS += dfs-tablespace-ext
+endif
+
+ifeq ($(enable_datalake),yes)
+SUBDIRS += datalake_fdw hive_connector datalake_proxy datalake_agent
+else
+ALWAYS_SUBDIRS += datalake_fdw hive_connector datalake_proxy datalake_agent
 endif
 
 # Missing:
