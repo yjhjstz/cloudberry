@@ -3,8 +3,8 @@ top_builddir = ../../../../
 MODULE_big = gpmmon
 OBJS = gpmmon.o gpmondb.o gpmon_agg.o  ../common/gpmonlib.o
 SHLIB_LINK += -levent  -lapr-1 -laprutil-1 -lm
-PG_CFLAGS += -Wno-error=vla -Wno-vla -Wno-unused-result
-PG_CPPFLAGS = -I$(libpq_srcdir) -I../include -I/usr/include/apr-1
+PG_CFLAGS += -Wno-error=vla -Wno-vla
+PG_CPPFLAGS = -I$(libpq_srcdir) -I../include
 SHLIB_LINK_INTERNAL = -Wl,-Bsymbolic -Wl,-Bstatic -Wl,-Bstatic $(libpq) -lpgcommon_shlib -Wl,-Bdynamic
 
 ifdef USE_PGXS
