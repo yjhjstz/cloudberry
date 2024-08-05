@@ -3711,14 +3711,19 @@ GetArrowPlan(PlanState *ps)
 		VecWindowAggState *vwindow = (VecWindowAggState *)ps;
 		return vwindow->estate.plan;
 	}
-	// FIXME: Sequence,nestloop
+	else if (IsA(ps, NestLoopState))
+	{
+		VecNestLoopState *vstate = (VecNestLoopState *) ps;
+		return vstate->estate.plan;
+	}
+	// FIXME: Sequence
 	else
 		return NULL;
 }
 
 /* like ExecSetTupleBound in execProcnode, Backpropagation setting vec_plan limits bound */ 
 void
-ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
+ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node, PlanState *limit_node)
 {
 	/*
 	 * Since this function recurses, in principle we should check stack depth
@@ -3745,16 +3750,19 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 		}
 		else
 		{
+			sortState->bounded = true;
+			sortState->bound = tuples_needed;
 			GArrowExecutePlan* sort_plan = NULL;
 			GArrowSchema* schema = NULL;
 			g_autoptr(GArrowSelectKOptions) selectk_option = NULL;   
 			g_autoptr(GArrowSinkNodeOptions) node_options = NULL;
 			GList *keys = NULL;
 			GError *error = NULL;
-			sortState->bounded = true;
-			sortState->bound = tuples_needed;
-			schema = GetSchemaFromSlot(child_node->ps_ResultTupleSlot);    
-			sort_plan = GetArrowPlan(child_node);
+			schema = GetSchemaFromSlot(child_node->ps_ResultTupleSlot);
+			if (!enable_arrow_plan_merge)
+				sort_plan = GetArrowPlan(child_node);
+			else
+				sort_plan = GetArrowPlan(limit_node);
 			keys = build_sort_keys(child_node, schema);
 			selectk_option = garrow_selectk_options_new(tuples_needed, keys);
 			node_options = GARROW_SINK_NODE_OPTIONS(
@@ -3803,7 +3811,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 		int			i;
 
 		for (i = 0; i < aState->as_nplans; i++)
-			ExecVecSetTupleBound(tuples_needed, aState->appendplans[i]);
+			ExecVecSetTupleBound(tuples_needed, aState->appendplans[i], limit_node);
 	}
 	else if (IsA(child_node, MergeAppendState))
 	{
@@ -3816,7 +3824,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 		int			i;
 
 		for (i = 0; i < maState->ms_nplans; i++)
-			ExecVecSetTupleBound(tuples_needed, maState->mergeplans[i]);
+			ExecVecSetTupleBound(tuples_needed, maState->mergeplans[i], limit_node);
 	}
 	else if (IsA(child_node, ResultState))
 	{
@@ -3830,7 +3838,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 		 * rows will be demanded from the Result child anyway.
 		 */
 		if (outerPlanState(child_node))
-			ExecVecSetTupleBound(tuples_needed, outerPlanState(child_node));
+			ExecVecSetTupleBound(tuples_needed, outerPlanState(child_node), limit_node);
 	}
 	else if (IsA(child_node, SubqueryScanState))
 	{
@@ -3841,7 +3849,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 		SubqueryScanState *subqueryState = (SubqueryScanState *) child_node;
 
 		if (subqueryState->ss.ps.qual == NULL)
-			ExecVecSetTupleBound(tuples_needed, subqueryState->subplan);
+			ExecVecSetTupleBound(tuples_needed, subqueryState->subplan, limit_node);
 	}
 	else if (IsA(child_node, GatherState))
 	{
@@ -3858,7 +3866,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 		gstate->tuples_needed = tuples_needed;
 
 		/* Also pass down the bound to our own copy of the child plan */
-		ExecVecSetTupleBound(tuples_needed, outerPlanState(child_node));
+		ExecVecSetTupleBound(tuples_needed, outerPlanState(child_node), limit_node);
 	}
 	else if (IsA(child_node, GatherMergeState))
 	{
@@ -3867,7 +3875,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node)
 
 		gstate->tuples_needed = tuples_needed;
 
-		ExecVecSetTupleBound(tuples_needed, outerPlanState(child_node));
+		ExecVecSetTupleBound(tuples_needed, outerPlanState(child_node), limit_node);
 	}
 	/*
 	 * In principle we could descend through any plan node type that is
@@ -3903,8 +3911,14 @@ PostBuildVecPlan(PlanState *ps, VecExecuteState *estate)
 	else
 		right_source = GetArrowPlan(ps->righttree);
 
-	if (left_source == NULL && right_source == NULL)
+	if (left_source == NULL)
 		return;
+
+	if (IsA(ps, HashJoinState) || IsA(ps, NestLoopState))
+	{
+		if(right_source == NULL)
+			return;
+	}
 
 	GError *error = NULL;
 	GArrowExecutePlan *result = garrow_execute_plan_merge(target, left_source,

@@ -251,7 +251,7 @@ get_arrow_locale_from_collation(Oid collid)
 		collform = (Form_pg_collation) GETSTRUCT(tp);
 		collcollate = NameStr(collform->collcollate);
 
-		if(strcasecmp(collcollate, "en_US.utf8") == 0)
+		if(strcasecmp(collcollate, "en_US.utf8") == 0 || strcasecmp(collcollate, "en_US.UTF-8") == 0)
 		{
 			ReleaseSysCache(tp);
 			return GARROW_SORT_ORDER_En_US_UTF8;

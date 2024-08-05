@@ -160,7 +160,7 @@ recompute_limits(LimitState *node)
 	 * must update the child node anyway, in case this is a rescan and the
 	 * previous time we got a different result.
 	 */
- 	ExecVecSetTupleBound(compute_tuples_needed(node), outerPlanState(node));
+ 	
 }
 
 /*
@@ -274,7 +274,7 @@ ExecInitVecLimit(Limit *node, EState *estate, int eflags)
 	 */
 	recompute_limits(limitstate);
 	PostBuildVecPlan((PlanState *)vlimitstate, &vlimitstate->estate);
-
+	ExecVecSetTupleBound(compute_tuples_needed(limitstate), outerPlanState((PlanState *)limitstate), (PlanState*)limitstate);
 	return limitstate;
 }
 

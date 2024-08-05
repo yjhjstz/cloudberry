@@ -666,8 +666,8 @@ select b from test_locale order by b;
  b       
  c       
  D       
- F       
  e       
+ F       
  g       
  h       
  I       
