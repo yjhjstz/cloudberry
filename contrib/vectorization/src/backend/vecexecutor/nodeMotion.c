@@ -64,7 +64,7 @@ group_hashkeys_by_seg(Datum hashed_segs, int *groupStart, int *groupSize, int ro
 		return ;
 
 	hashed_segs_array = garrow_datum_get_array(GARROW_ARRAY_DATUM(DatumGetPointer(hashed_segs)));
-	const gint32 *segs_buffer = garrow_int32_array_get_values(GARROW_INT32_ARRAY(hashed_segs_array), &len);
+	const guint32 *segs_buffer = garrow_uint32_array_get_values(GARROW_UINT32_ARRAY(hashed_segs_array), &len);
 	for (int i = 0; i < len; i++)
 	{
 		int group = segs_buffer[i];
