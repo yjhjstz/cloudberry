@@ -13,4 +13,5 @@ extern const char *GetDfsTablespaceServer(Oid id);
 extern const char *GetDfsTablespacePath(Oid id);
 extern bool IsDfsTablespaceById(Oid spcId);
 extern Oid getDatabaseTablespace(Oid id);
-#endif  /* DFS_TABLESPACE_H */
+extern void checkUnsupportDfsTableSpaceStmt(Node* stmt);
+#endif /* DFS_TABLESPACE_H */
