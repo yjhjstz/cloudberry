@@ -634,7 +634,10 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		fragmentData = GetExternalFragmentList(dataLakesstate->rel, dataLakesstate->quals, dataLakesstate->options, NULL);
-		foreignScan->fdw_private = list_concat(foreignScan->fdw_private, fragmentData);
+		if (fragmentData != NIL)
+		{
+			foreignScan->fdw_private = list_concat(foreignScan->fdw_private, fragmentData);
+		}
 		/* master does not process any fragments */
 		List *random_segments = select_random_segments(segmentcount, external_table_limit_segment_num);
 		/* put the random segments into the list */
@@ -1054,60 +1057,15 @@ endScanStatus(dataLakeFdwScanState *dataLakesstate)
 void
 freeFdwPrivateList(char *format, List *fdw_private)
 {
-	// iceberg and hudi already freed before.
-	if (FORMAT_IS_ICEBERG(format) || FORMAT_IS_HUDI(format))
-	{
-		pfree(fdw_private);
-		return;
-	}
-	List *fragmentLists = (List *) list_nth(fdw_private, FdwScanPrivateFragmentList);
-	ListCell *cell;
-	foreach(cell, fragmentLists)
-	{
-		List *fragment = (List*)lfirst(cell);
-		char* filePath = strVal(list_nth(fragment, 0));
-		if (filePath)
-		{
-			pfree(filePath);
-		}
-		char* length = strVal(list_nth(fragment, 1));
-		if (length)
-		{
-			pfree(length);
-		}
-	}
-	list_free_deep(fragmentLists);
-
 	pfree(fdw_private);
+	return;
 }
 
 void
 freeFdwPrivatePartitionList(List *fdw_private)
 {
 	List *partitionData = list_nth(fdw_private, PrivatePartitionData);
-
 	freePartitionList(partitionData);
-
-	for (int i = PrivatePartitionFragmentLists; i < list_length(fdw_private); i++)
-	{
-		List* serializedFragmentList = (List *) list_nth(fdw_private, i);
-		ListCell *cell;
-		foreach(cell, serializedFragmentList)
-		{
-			List *fragment = (List*)lfirst(cell);
-			char* filePath = strVal(list_nth(fragment, 0));
-			if (filePath)
-			{
-				pfree(filePath);
-			}
-			char* length = strVal(list_nth(fragment, 1));
-			if (length)
-			{
-				pfree(length);
-			}
-		}
-		list_free_deep(serializedFragmentList);
-	}
 	pfree(fdw_private);
 }
 

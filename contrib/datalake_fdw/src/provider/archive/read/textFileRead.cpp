@@ -10,6 +10,7 @@ extern "C"
 #include "commands/defrem.h"
 #include "utils/lsyscache.h"
 #include "src/common/random_segment.h"
+#include "src/datalake_fragment.h"
 
 static List *getExtTableEntryOptions(Oid relid) {
 	Relation	pg_foreign_table_rel;
@@ -123,7 +124,10 @@ void textFileRead::createFileStream(dataLakeFdwScanState *ss) {
 
 bool textFileRead::createPolicy() {
 	std::vector<ListContainer> lists;
-	extraFragmentLists(lists, scanstate->fragments);
+    int64_t totalsize = 0;
+    List *fragments = GetFragmentList(scanstate->options, &totalsize);
+	extraFragmentLists(lists, fragments);
+    freeFragmentLists(fragments);
 
 	bool exec = false;
 	int dummy_segid = 0;

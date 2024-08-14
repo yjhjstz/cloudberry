@@ -2,6 +2,7 @@
 
 extern "C" {
 	#include "src/common/random_segment.h"
+	#include "src/datalake_fragment.h"
 }
 
 namespace Datalake {
@@ -19,7 +20,10 @@ void archiveRead::createHandler(void *sstate)
 bool archiveRead::createPolicy()
 {
 	std::vector<ListContainer> lists;
-	extraFragmentLists(lists, scanstate->fragments);
+	int64_t totalsize = 0;
+	List *fragments = GetFragmentList(scanstate->options, &totalsize);
+	extraFragmentLists(lists, fragments);
+	freeFragmentLists(fragments);
 
 	bool exec = false;
 	int dummy_segid = 0;

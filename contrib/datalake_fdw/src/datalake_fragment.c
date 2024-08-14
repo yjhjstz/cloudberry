@@ -6,10 +6,7 @@
 
 
 static List* SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize);
-static List *GetFragmentList(dataLakeOptions *options, int64_t *totalSize);
 static List *get_partition_values(Relation relation, dataLakeOptions *options);
-static List *getNextPartitionFragmentList(dataLakeOptions *options, ossFileStream stream, int64_t *totalSize);
-static List *GetPartitionFragmentList(Relation relation, List *quals, dataLakeOptions *options, int64_t *totalSize);
 static List *convert_iceberg_hudi_options(dataLakeOptions *options);
 
 static List*
@@ -33,7 +30,7 @@ SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize)
 	return serializedFragment;
 }
 
-static List *
+List *
 GetFragmentList(dataLakeOptions *options, int64_t *totalSize)
 {
 	List *fragment = NIL;
@@ -41,7 +38,7 @@ GetFragmentList(dataLakeOptions *options, int64_t *totalSize)
 	ossFileStream stream = createFileSystem(conf);
 	int count = 0;
 	gopherFileInfo* lists = listDir(stream, options->prefix, &count, true);
-	fragment = lappend(fragment, SerializeFragmentList(lists, count, totalSize));
+	fragment = SerializeFragmentList(lists, count, totalSize);
 	freeListDir(stream, lists, count);
 	gopherDestroyHandle(stream);
 	freeGopherConfig(conf);
@@ -86,8 +83,8 @@ get_partition_values(Relation relation, dataLakeOptions *options)
 								  locations, options->format, false);
 }
 
-static List *
-getNextPartitionFragmentList(dataLakeOptions *options, ossFileStream stream, int64_t *totalSize)
+List *
+GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
 {
 	ListCell *lckey;
 	ListCell *lcvalue;
@@ -123,6 +120,9 @@ getNextPartitionFragmentList(dataLakeOptions *options, ossFileStream stream, int
 	}
 
 	int count = 0;
+	gopherConfig* conf = createGopherConfig((void*) options->gopher);
+	ossFileStream stream = createFileSystem(conf);
+
 	gopherFileInfo* lists = listDir(stream, prefix.data, &count, true);
 	for (int i = 0; i < count; i++)
 	{
@@ -140,36 +140,23 @@ getNextPartitionFragmentList(dataLakeOptions *options, ossFileStream stream, int
 		}
 	}
 	freeListDir(stream, lists, count);
+	gopherDestroyHandle(stream);
+	freeGopherConfig(conf);
+
 	return serializedFragment;
 }
 
 static List *
-GetPartitionFragmentList(Relation relation, List *quals, dataLakeOptions *options, int64_t *totalSize)
+GetPartitionList(Relation relation, List *quals, dataLakeOptions *options)
 {
 	List *serializedFragment = NIL;
-	List *serializedFragmentCell = NIL;
 	List *partitionValues;
-	gopherConfig* conf = createGopherConfig((void*) options->gopher);
-	ossFileStream stream = createFileSystem(conf);
 
 	partitionValues = get_partition_values(relation, options);
-	options->hiveOption->hivePartitionValues = transfromHMSPartitions(partitionValues);
-	initializeConstraints(options, quals, relation->rd_att);
-
 	serializedFragment = lappend(serializedFragment, partitionValues);
-
-	int nPartitions = list_length(options->hiveOption->hivePartitionConstraints);
-	for (int i = 0; i < nPartitions; i++)
-	{
-		serializedFragmentCell = getNextPartitionFragmentList(options, stream, totalSize);
-		serializedFragment = lappend(serializedFragment, serializedFragmentCell);
-		options->hiveOption->curPartition += 1;
-	}
 
 	/* set curPartition to zero for external table to read from begin */
 	options->hiveOption->curPartition = 0;
-	gopherDestroyHandle(stream);
-	freeGopherConfig(conf);
 	return serializedFragment;
 }
 
@@ -188,12 +175,12 @@ GetExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options
 								options->hiveOption->hivePartitionKey,
 								options->hiveOption->datasource))
 	{
-		return GetPartitionFragmentList(relation, quals, options, totalSize);
+		return GetPartitionList(relation, quals, options);
 	}
 	else
 	{
 		options->hiveOption->partitiontable = false;
-		return GetFragmentList(options, totalSize);
+		return NIL;
 	}
 }
 
@@ -243,17 +230,28 @@ deserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions 
 		/* transfrom partition values */
 		options->hiveOption->hivePartitionValues = transfromHMSPartitions(partitionValues);
 		initializeConstraints(options, quals, relation->rd_att);
-		/* get fragment lists */
-		for (int i = PrivatePartitionFragmentLists; i < list_length(fragmentInfo); i++)
-		{
-			List* serializedFragmentList = (List *) list_nth(fragmentInfo, i);
-			fragmentData = lappend(fragmentData, serializedFragmentList);
-		}
-	}
-	else
-	{
-		fragmentData = (List *) list_nth(fragmentInfo, FdwScanPrivateFragmentList);
 	}
 
 	return fragmentData;
+}
+
+void
+freeFragmentLists(List *fragments)
+{
+	ListCell *cell;
+	foreach(cell, fragments)
+	{
+		List *fragment = (List*)lfirst(cell);
+		char* filePath = strVal(list_nth(fragment, 0));
+		if (filePath)
+		{
+			pfree(filePath);
+		}
+		char* length = strVal(list_nth(fragment, 1));
+		if (length)
+		{
+			pfree(length);
+		}
+	}
+	list_free_deep(fragments);
 }

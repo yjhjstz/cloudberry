@@ -1,5 +1,6 @@
 #include "fileSystem.h"
 #include <iostream>
+#include "src/provider/providerWrapper.h"
 
 extern "C" {
 #include "postgres.h"
@@ -190,7 +191,10 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 		gopher_prefix.append(path);
 	}
 
-	elog(DEBUG5, "External table gopherListDirectory path %s recursive %d.", gopher_prefix.c_str(), recursive);
+	if (external_table_debug)
+	{
+		elog(LOG, "External table gopherListDirectory path %s recursive %d.", gopher_prefix.c_str(), recursive);
+	}
 
 	gopherFileInfo *res = gopherListDirectory(fs, gopher_prefix.c_str(), recursive, &numEntries);
 	if (numEntries == -1)
@@ -199,6 +203,11 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 	if (res == NULL)
 	{
 		numEntries = 0;
+	}
+
+	if (external_table_debug)
+	{
+		elog(LOG, "External table list %d files.", numEntries);
 	}
 
 	if (numEntries == 0)

@@ -6,6 +6,7 @@
 
 extern "C" {
 	#include "src/common/random_segment.h"
+	#include "src/datalake_fragment.h"
 }
 
 namespace Datalake {
@@ -27,15 +28,19 @@ void orcRead::createHandler(void *sstate)
 bool orcRead::createPolicy()
 {
 	std::vector<ListContainer> lists;
+	int64_t totalsize = 0;
 	if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 	{
-		List* fragment =  (List*)list_nth(scanstate->fragments, scanstate->options->hiveOption->curPartition);
+		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
+		freeFragmentLists(fragment);
 		scanstate->options->hiveOption->curPartition += 1;
 	}
 	else
 	{
-		extraFragmentLists(lists, scanstate->fragments);
+		List *fragment = GetFragmentList(scanstate->options, &totalsize);
+		extraFragmentLists(lists, fragment);
+		freeFragmentLists(fragment);
 	}
 
 	bool exec = false;
@@ -89,6 +94,11 @@ nextPartition:
 			}
 		}
 		return 1;
+	}
+
+	if (QueryFinishPending || QueryCancelPending)
+	{
+		return 0;
 	}
 
 	if (!isLastPartition(scanstate))
