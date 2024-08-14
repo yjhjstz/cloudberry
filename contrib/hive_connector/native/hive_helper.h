@@ -19,7 +19,13 @@ extern HdfsConfigItem*
 getHdfsServerConf(List *serverConf, const char *serverName);
 
 extern void
-spiExec(const char *query);
+spiExecQuery(const char *query, int expected_result);
+
+extern void
+spiExecUtility(const char *query);
+
+extern void
+spiExecSelectUDF(const char *query);
 
 extern char *
 extractPathFromLocation(const char *location);
@@ -62,7 +68,7 @@ extern const char *
 tableFormatConversion(HmsHandle *hms);
 
 extern void
-dropTable(const char *table, bool isExternal);
+dropTable(const char *table);
 
 extern char *
 formCreateStmt2(HmsHandle *hms,

@@ -47,3 +47,62 @@ dataWrapName text,
 hdfsClusterName text) RETURNS boolean
 AS '$libdir/hive_connector','create_foreign_server'
 LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION hc_drop_table(
+    name text,
+    miss_ok bool
+) RETURNS void AS $$
+DECLARE
+    schema_name text;
+    rel_name text;
+    relkind char;
+    v_sql text;
+BEGIN
+    -- Split schema and relation name if a schema is specified
+    IF position('.' in name) > 0 THEN
+        schema_name := split_part(name, '.', 1);
+        rel_name := split_part(name, '.', 2);
+    ELSE
+        schema_name := 'public'; -- If no schema is specified, assume 'public'
+        rel_name := name;
+    END IF;
+
+    -- Find the relkind of the relation
+    SELECT c.relkind
+    INTO relkind
+    FROM pg_class c
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = schema_name AND c.relname = rel_name;
+
+    IF NOT FOUND THEN
+        IF miss_ok THEN
+            RETURN; -- If the relation doesn't exist and miss_ok is true, return without error
+        END IF;
+        RAISE EXCEPTION 'Relation % in schema % does not exist', rel_name, schema_name; -- Raise an exception if the relation doesn't exist
+    ELSE
+        -- Build the DROP command based on the relation kind
+        CASE relkind
+            WHEN 'r' THEN -- Ordinary table or partitioned table
+                v_sql := format('DROP TABLE IF EXISTS %I.%I CASCADE', schema_name, rel_name);
+            WHEN 'p' THEN -- Ordinary table or partitioned table
+                v_sql := format('DROP TABLE IF EXISTS %I.%I CASCADE', schema_name, rel_name);
+            WHEN 'v' THEN -- View
+                v_sql := format('DROP VIEW IF EXISTS %I.%I CASCADE', schema_name, rel_name);
+            WHEN 'm' THEN -- Materialized view
+                v_sql := format('DROP MATERIALIZED VIEW IF EXISTS %I.%I CASCADE', schema_name, rel_name);
+--            WHEN 'i' THEN -- Index (assuming we have the correct index name)
+--                v_sql := format('DROP INDEX IF EXISTS %I.%I CASCADE', schema_name, rel_name);
+            WHEN 'f' THEN -- Foreign table
+                v_sql := format('DROP FOREIGN TABLE IF EXISTS %I.%I CASCADE', schema_name, rel_name);
+            ELSE
+                RAISE EXCEPTION 'Unsupported relation kind: %', relkind; -- Raise an exception for unsupported relation kinds
+        END CASE;
+
+        -- Execute the DROP command
+        EXECUTE v_sql;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE; -- Re-raise the exception so the caller can see the detailed error message
+END;
+$$ LANGUAGE plpgsql;

@@ -82,7 +82,7 @@ getHdfsServerConf(List *serverConf, const char *serverName)
 }
 
 void
-spiExec(const char *query)
+spiExecQuery(const char *query, int expected_result)
 {
 	int spiResult;
 	volatile bool connected = false;
@@ -94,7 +94,7 @@ spiExec(const char *query)
 
 		connected = true;
 		spiResult = SPI_execute(query, false, 0);
-		if (spiResult != SPI_OK_UTILITY)
+		if (spiResult != expected_result)
 			elog(ERROR, "SPI_execute() returned %d", spiResult);
 		connected = false;
 		SPI_finish();
@@ -107,6 +107,18 @@ spiExec(const char *query)
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
+}
+
+void
+spiExecUtility(const char *query)
+{
+	spiExecQuery(query, SPI_OK_UTILITY);
+}
+
+void
+spiExecSelectUDF(const char *query)
+{
+	spiExecQuery(query, SPI_OK_SELECT);
 }
 
 char *
@@ -430,18 +442,14 @@ tableFormatConversion(HmsHandle *hms)
 }
 
 void
-dropTable(const char *table, bool isExternal)
+dropTable(const char *table)
 {
 	StringInfoData  cmdBuf;
 
 	initStringInfo(&cmdBuf);
+	appendStringInfo(&cmdBuf, "select hc_drop_table('%s', true)", table);
 
-	if (isExternal)
-		appendStringInfo(&cmdBuf, "drop external table if exists %s", table);
-	else
-		appendStringInfo(&cmdBuf, "drop table if exists %s", table);
-
-	spiExec(cmdBuf.data);
+	spiExecSelectUDF(cmdBuf.data);
 	pfree(cmdBuf.data);
 }
 

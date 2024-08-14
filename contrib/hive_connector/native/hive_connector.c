@@ -139,7 +139,7 @@ execCommentStatment(HmsHandle *hms, const char *tableName)
 	for (i = 0; statements[i] != NULL; i++)
 	{
 		snprintf(statement, sizeof(statement), statements[i], tableName);
-		spiExec(statement);
+		spiExecUtility(statement);
 	}
 }
 
@@ -185,9 +185,9 @@ sync_partition_table(HmsHandle *hms,
 
 
 	if (forceSync)
-		dropTable(destTableName, true);
+		dropTable(destTableName);
 
-	spiExec(createStmt);
+	spiExecUtility(createStmt);
 
 	execCommentStatment(hms, destTableName);
 
@@ -229,9 +229,9 @@ sync_normal_table(HmsHandle *hms,
 							tableFormatConversion(hms));
 
 	if (forceSync)
-		dropTable(destTableName, true);
+		dropTable(destTableName);
 
-	spiExec(createStmt);
+	spiExecUtility(createStmt);
 
 	execCommentStatment(hms, destTableName);
 
@@ -567,8 +567,8 @@ create_foreign_server_(const char *serverName,
 	char *serverStmt = formServerCreateStmt(serverName, dataWrapName, hdfsConf);
 	char *userStmt = formUserStmt(userMapName, serverName);
 
-	spiExec(serverStmt);
-	spiExec(userStmt);
+	spiExecUtility(serverStmt);
+	spiExecUtility(userStmt);
 
 	pfree(serverStmt);
 	pfree(userStmt);
