@@ -91,7 +91,12 @@ typedef struct VecMotionState
 {
 	MotionState base;	
 	TupleDesc 	transTupDesc;
-	struct vecheap *tupleheap;
+	GList *unsorted_batches;
+	GArrowSortOptions *sort_options;
+	GArrowSchema *schema;
+	GArrowTable *unsorted_table;
+	GArrowTable *sorted_table;
+	GArrowTableBatchReader *reader;
 
 	/* FIXME: we need support vec hash in the future. */
 	/* vectorization */

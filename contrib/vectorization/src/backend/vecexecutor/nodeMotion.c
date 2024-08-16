@@ -17,6 +17,8 @@
 #include "utils/fmgr_vec.h"
 #include "executor/tuptable.h"
 #include "vecexecutor/execAmi.h"
+#include "utils/vecsort.h"
+#include "utils/tuptable_vec.h"
 
 /*
  * FUNCTIONS PROTOTYPES
@@ -27,13 +29,11 @@ static TupleTableSlot *execVecMotionSortedReceiver(MotionState *node);
 static void execVecMotionSortedReceiverFirstTime(MotionState *node);
 static void doSendTupleVec(Motion *motion, MotionState *node, TupleTableSlot *outerTupleSlot);
 static void doSendEndOfStreamVec(Motion *motion, MotionState *node);
-static inline void setKey(MotionState *node, int route, int offset);
-static inline bool fetchBatch(MotionState *node, int route, int offset);
+static inline bool fetchBatch(MotionState *node, int route);
 static List* ConvertHasExprsToGandivaNodes(List *hashExpr, GArrowSchema *schema);
 static Datum
 cdbhashrandomseg_vec(int numsegs, int size, MotionState *node);
-static bool IsMatchStrategy(int rows);
-static GArrowRecordBatch *ConcatenateBatches(MotionState *node, int route);
+static GArrowRecordBatch *GetRecordBatch(MotionState *node, int route);
 
 static void *
 get_segment_recordbatch_take(void *org_recordbatch, Datum filter)
@@ -569,6 +569,7 @@ ExecInitVecMotion(Motion *node, EState *estate, int eflags)
 	SliceTable *sliceTable = estate->es_sliceTable;
 	PlanState  *outerPlan;
 	int			parentIndex;
+	g_autoptr(GArrowSchema) schema = NULL;
 
 	/*
 	 * If GDD is enabled, the lock of table may downgrade to RowExclusiveLock,
@@ -689,6 +690,12 @@ ExecInitVecMotion(Motion *node, EState *estate, int eflags)
 	if (!estate->eliminateAliens || motionstate->mstype == MOTIONSTATE_SEND)
 	{
 		outerPlanState(motionstate) = VecExecInitNode(outerPlan(node), estate, eflags);
+		vmotionstate->schema = GetSchemaFromSlot(outerPlanState(&motionstate->ps)->ps_ResultTupleSlot);
+	}
+	else
+	{
+		TupleDesc	tupDesc = ExecTypeFromTL(outerPlan(node)->targetlist);
+		vmotionstate->schema = TupDescToSchema(tupDesc);
 	}
 
 	/*
@@ -745,6 +752,7 @@ ExecInitVecMotion(Motion *node, EState *estate, int eflags)
 	{
 		int			numInputSegs = motionstate->numInputSegs;
 		int			lastSortColIdx = 0;
+		GList *keys;
 
 		/* Allocate array to slots for the next tuple from each sender */
 		motionstate->slots = palloc0(numInputSegs * sizeof(TupleTableSlot *));
@@ -785,11 +793,9 @@ ExecInitVecMotion(Motion *node, EState *estate, int eflags)
 				lastSortColIdx = node->sortColIdx[i];
 		}
 		motionstate->lastSortColIdx = lastSortColIdx;
-		vmotionstate->tupleheap =
-			vecheap_allocate(motionstate->numInputSegs,
-							 motionstate->sortKeys,
-							 tupDesc->attrs,
-							 node->numSortCols);
+		keys = create_sort_keys(motionstate->sortKeys, node->numSortCols, vmotionstate->schema);
+		vmotionstate->sort_options = garrow_sort_options_new(keys, 0, take_thread_num, two_phase_take);
+		garrow_list_free_ptr(&keys);
 	}
 
 	vmotionstate->transTupDesc = CreateTemplateTupleDesc(1);
@@ -895,6 +901,15 @@ ExecEndVecMotion(MotionState *node)
 	 */
 	Assert(node->ps.state != NULL);
 
+	if (vnode->unsorted_batches)
+		garrow_list_free_ptr(&vnode->unsorted_batches);
+	if (vnode->sorted_table)
+		ARROW_FREE(GArrowTable, &vnode->sorted_table);
+	if (vnode->unsorted_table)
+		ARROW_FREE(GArrowTable, &vnode->unsorted_table);
+	if (vnode->sort_options)
+		ARROW_FREE(GArrowSortOptions, &vnode->sort_options);
+
 	/*
 	 * shut down the subplan
 	 */
@@ -944,13 +959,6 @@ ExecEndVecMotion(MotionState *node)
 #endif							/* MEASURE_MOTION_TIME */
 
 
-	/* Merge Receive: Free the priority queue and associated structures. */
-	/* Free the slices and routes */
-	if (vnode->tupleheap != NULL)
-	{
-		vecheap_free(vnode->tupleheap);
-		node->tupleheap = NULL;
-	}
 	if (node->cdbhash != NULL)
 	{
 		VecCdbHash *vechash = (VecCdbHash *) node->cdbhash;
@@ -1052,7 +1060,7 @@ execVecMotionUnsortedReceiver(MotionState *node)
 			ereport(ERROR, (errmsg("Interconnect is down unexpectedly.")));
 	}
 
-	receivedBatch = ConcatenateBatches(node, ANY_ROUTE);
+	receivedBatch = GetRecordBatch(node, ANY_ROUTE);
 
 	if (!receivedBatch)
 	{
@@ -1412,30 +1420,17 @@ doSendEndOfStreamVec(Motion *motion, MotionState *node)
 static TupleTableSlot *
 execVecMotionSortedReceiver(MotionState *node)
 {
-	VecMotionState *vnode = (VecMotionState *) node;
 
-	vecheap *vp = vnode->tupleheap;
+	VecMotionState *vnode = (VecMotionState *)node;
 	TupleTableSlot *slot = node->ps.ps_ResultTupleSlot;
 	Motion	   *motion = (Motion *) node->ps.plan;
 	EState	   *estate = node->ps.state;
 
 	g_autoptr(GArrowRecordBatch) batch = NULL;
-	g_autoptr(GArrowArray) array = NULL;
-	g_autoptr(GArrowTable) table = NULL;
-	g_autoptr(GArrowTable) ret_table = NULL;
-	g_autoptr(GArrowTable) comb_table = NULL;
-	g_autoptr(GArrowInt32ArrayBuilder) builder = NULL;
-	g_autoptr(GArrowTableBatchReader) reader = NULL;
 	g_autoptr(GError) error = NULL;
-	g_autoptr(GArrowSchema) schema = NULL;
-	g_autoptr(GArrowTakeOptions) options = NULL;
-
-	int i;
-	int cur_index = 0;
 
 	AssertState(motion->motionType == MOTIONTYPE_GATHER &&
-				motion->sendSorted &&
-				vp != NULL);
+				motion->sendSorted);
 
 	/* Notify senders and return EOS if caller doesn't want any more data. */
 	if (node->stopRequested)
@@ -1477,98 +1472,25 @@ execVecMotionSortedReceiver(MotionState *node)
 	if (!node->tupleheapReady)
 	{
 		execVecMotionSortedReceiverFirstTime(node);
-	} 
 
-	/* Finished if all senders have returned EOS. */
-	if (vecheap_empty(vp))
-	{
-		Assert(node->numTuplesFromChild == 0);
-		Assert(node->numTuplesToAMS == 0);
-		return NULL;
-	}
+		vnode->unsorted_table = garrow_table_new_record_batches_list(vnode->schema, vnode->unsorted_batches, &error);
+		if (error)
+			elog(ERROR, "can not form table from batches for merge sort : %s", error->message);
+		vnode->sorted_table = garrow_table_merge_sort(vnode->unsorted_table, vnode->sort_options, &error);
+		if (error)
+			elog(ERROR, "can not execute merge sort : %s", error->message);
+		vnode->reader = garrow_table_batch_reader_new(vnode->sorted_table);
+	}  
 
-	if (!vecheap_get_first(vp))
-		return NULL;
-
-	for (int i = 0; i < vp->vh_num_route * 2; i++)
-	{
-		if (vp->vh_rtbatches[i]) 
-		{
-			schema = garrow_record_batch_get_schema(vp->vh_rtbatches[i]);
-			break;
-		}
-	}
-	/* take batch by indices */
-	table = garrow_table_new_record_batches(schema,
-											(GArrowRecordBatch **)vp->vh_rtbatches,
-											vp->vh_num_route * 2, &error);
+	batch = garrow_record_batch_reader_read_next(GARROW_RECORD_BATCH_READER(vnode->reader), &error);
 	if (error)
-		elog(ERROR, "can not form table from batches for merge sort : %s", error->message);
-
-	builder = garrow_int32_array_builder_new();
-	garrow_int32_array_builder_append_values(builder,
-											 vp->vh_indices, vp->vh_num_indices, NULL, -1, &error);
-	if (error)
-		elog(ERROR, "new builder error for merge sort : %s", error->message);
-
-	array = garrow_array_builder_finish(
-			GARROW_ARRAY_BUILDER(builder), &error);
-
-	if (gather_motion_take)
-		options = garrow_take_options_new(false, true);
-	else
-		options = NULL;
-	ret_table = garrow_table_take(table, array, options, &error);
-	if (error)
-		elog(ERROR, "table take error for merge sort: %s", error->message);
-
-	reader = garrow_table_batch_reader_new(ret_table);
-	batch = garrow_record_batch_reader_read_next(GARROW_RECORD_BATCH_READER(reader), &error);
-
-	for (i = 0; i < vp->vh_num_route; i++)
-	{
-		int j;
-		int offset = 0;
-
-		/* fetching second batch, receive new tuple and update */
-		if (vp->vh_rtcurrows[i] >= vp->vh_rttotalrows[i * 2])
-		{
-			offset = vp->vh_rttotalrows[i * 2];
-
-			garrow_store_ptr(vp->vh_rtbatches[i * 2], vp->vh_rtbatches[i * 2 + 1]);
-			vp->vh_rttotalrows[i * 2] = vp->vh_rttotalrows[i * 2 + 1];
-			for (j = 0; j < vp->vh_nkey; j++)
-			{
-				if (vp->vh_keysize[j] < 0)
-				{
-					garrow_store_ptr(vp->vh_sortkeys[i * 2 * vp->vh_nkey + j],
-						vp->vh_sortkeys[(i * 2 + 1) * vp->vh_nkey + j]);
-				}
-				else
-				{
-					vp->vh_sortkeys[i * 2 * vp->vh_nkey + j] =
-						vp->vh_sortkeys[(i * 2 + 1) * vp->vh_nkey + j];
-				}
-
-				vp->vh_keybitmaps[i * 2 * vp->vh_nkey + j] =
-						vp->vh_keybitmaps[(i * 2 + 1) * vp->vh_nkey + j];
-			}
-
-			vp->vh_rtcurrows[i] = vp->vh_rtcurrows[i] - offset;
-
-			fetchBatch(node, i, 1);
-		}
-		vp->vh_rtstartrows[i] = cur_index;
-		cur_index += vp->vh_rttotalrows[i * 2];
-		cur_index += vp->vh_rttotalrows[i * 2 + 1];
-	}
-
-	/* Update counters. */
+		elog(ERROR, "table read next error for merge sort: %s", error->message);
 	node->numTuplesToParent++;
-
+	if (!batch) {
+		return NULL;
+	}
 	/* Store tuple in our result slot. */
 	slot = ExecStoreBatch(slot, batch);
-
 	/* Return result slot. */
 	return slot;
 }								/* execMotionSortedReceiver */
@@ -1576,72 +1498,28 @@ execVecMotionSortedReceiver(MotionState *node)
 void
 execVecMotionSortedReceiverFirstTime(MotionState *node)
 {
-	int cur_index = 0;
 	Motion	   *motion = (Motion *) node->ps.plan;
 	int iSegIdx;
 	ListCell *lcProcess;
 	ExecSlice *sendSlice = &node->ps.state->es_sliceTable->slices[motion->motionID];
-	VecMotionState* vnode = (VecMotionState *) node;
-	vecheap *vp = vnode->tupleheap;
 
 	Assert(sendSlice->sliceIndex == motion->motionID);
 
 	foreach_with_count(lcProcess, sendSlice->primaryProcesses, iSegIdx)
 	{
-		vp->vh_noderoutes[vp->vh_size] = iSegIdx;
-		vp->vh_num_route++;
-
-		if (lfirst(lcProcess) == NULL)
-			continue; /* skip this one: we are not receiving from it */
-
-		if (!fetchBatch(node, iSegIdx, 0))
-			continue;
-		/* init routes */
-		setData(vp, iSegIdx, 0, vp->vh_size);
-
-		vp->vh_has_heap_property = false;
-
-		fetchBatch(node, iSegIdx, 1);
-		vp->vh_rtstartrows[iSegIdx] = cur_index;
-		cur_index += vp->vh_rttotalrows[iSegIdx * 2];
-		cur_index += vp->vh_rttotalrows[iSegIdx * 2 + 1];
-		vp->vh_size++;
-
+		fetchBatch(node, iSegIdx);
 		node->numTuplesFromAMS++;
-		}
-		Assert(iSegIdx == node->numInputSegs);
-
-		/*
-		 * Done adding the elements, now arrange the heap to satisfy the heap
-		 * property. This is quicker than inserting the initial elements one by
-		 * one.
-		 */
-		vecheap_build(vp);
-		node->tupleheapReady = true;
-}								/* execMotionSortedReceiverFirstTime */
-
-/*
- * batch range [16384, 32768] 
- */
-static bool
-IsMatchStrategy(int rows)
-{
-	return rows >= min_concatenate_rows + 1;
-}
+	}
+	Assert(iSegIdx == node->numInputSegs);
+	node->tupleheapReady = true;
+} /* execMotionSortedReceiverFirstTime */
 
 static GArrowRecordBatch *
-ConcatenateBatches(MotionState *node, int route) 
+GetRecordBatch(MotionState *node, int route)
 {
-	Motion	   *motion = (Motion *) node->ps.plan;
+	Motion *motion = (Motion *)node->ps.plan;
 	MinimalTuple inputTuple;
 	g_autoptr(GArrowRecordBatch) inputBatch = NULL;
-	g_autoptr(GArrowRecordBatch) batch = NULL;
-	g_autoptr(GArrowRecordBatch) concatenateBatch = NULL;
-	int totalRows = 0;
-	int recvRows = 0;
-	GList *rbs = NULL;
-	GError *error = NULL;
-	List *tuples = NIL;
 	inputTuple = RecvTupleFrom(node->ps.state->motionlayer_context,
 							   node->ps.state->interconnect_context,
 							   motion->motionID,
@@ -1650,115 +1528,45 @@ ConcatenateBatches(MotionState *node, int route)
 		return NULL;
 	inputBatch = DeserializeMinimalTuple(inputTuple, true);
 	return garrow_move_ptr(inputBatch);
-	totalRows += garrow_record_batch_get_n_rows(inputBatch);
-	if (totalRows >= min_concatenate_rows + 1)
-	{
-		return garrow_move_ptr(inputBatch);
-	}
-	if (totalRows >= 1)
-		rbs = garrow_list_append_ptr(rbs, inputBatch);
-	while (true) {
-		if (0 != recvRows)
-			rbs = garrow_list_append_ptr(rbs, inputBatch);
-		if (IsMatchStrategy(totalRows)) {
-			break;
-		}
-		inputTuple = RecvTupleFrom(node->ps.state->motionlayer_context,
-								   node->ps.state->interconnect_context,
-								   motion->motionID,
-								   route);
-
-		if (!inputTuple)
-			break;
-		tuples = lappend(tuples, inputTuple);
-		inputBatch = DeserializeMinimalTuple(inputTuple, false);
-		recvRows = garrow_record_batch_get_n_rows(inputBatch);
-		totalRows += recvRows;
-	}
-	concatenateBatch = garrow_record_batch_concatenate(rbs, &error);
-	garrow_list_free_ptr(&rbs);
-	if (tuples != NIL)
-	{
-		list_free_deep(tuples);	
-	}	
-	if (error)
-		elog(ERROR, "Failed to concatenate the motion node input batches, cause: %s", error->message);
-	return garrow_move_ptr(concatenateBatch);
 }
 
 /*
  * offset 0 for first batch of this route, 1 for second batch.
  */
 static inline bool
-fetchBatch(MotionState *node, int route, int offset)
+fetchBatch(MotionState *node, int route)
 {
 	VecMotionState *vnode = (VecMotionState *) node;
 	TupleTableSlot *slot = node->ps.ps_ResultTupleSlot;
-	vecheap *vp = vnode->tupleheap;
 	g_autoptr(GArrowRecordBatch) inputBatch = NULL;
 	Motion	   *motion = (Motion *) node->ps.plan;
+	int rows = 0;
 
-	inputBatch = ConcatenateBatches(node, route);
+	inputBatch = GetRecordBatch(node, route);
 	if (!inputBatch)
 	{
-		ARROW_FREE(GArrowRecordBatch, &vp->vh_rtbatches[route * 2 + offset]);
-		vp->vh_rttotalrows[route * 2 + offset] = 0;
 		return false;
 	}
-
-	int64 rows = garrow_record_batch_get_n_rows(inputBatch);
-
-	vp->vh_rttotalrows[route * 2 + offset] = rows;
-
-	garrow_store_ptr(vp->vh_rtbatches[route * 2 + offset], inputBatch);
-
-	setKey(node, route, offset);
-
+	rows += garrow_record_batch_get_n_rows(inputBatch);
+	vnode->unsorted_batches = garrow_list_append_ptr(vnode->unsorted_batches, inputBatch);
+	while(1) 
+	{
+		inputBatch = GetRecordBatch(node, route);
+		if (!inputBatch)
+		{
+			break;
+		}
+		rows += garrow_record_batch_get_n_rows(inputBatch);
+		vnode->unsorted_batches = garrow_list_append_ptr(vnode->unsorted_batches, inputBatch);
+	}
 	/* stat motion */
-	if (slot) {
+	if (slot) 
+	{
 		statRecvTupleVec(node->ps.state->motionlayer_context,
 						 motion->motionID,
 						 rows);
 	}
 	return true;
-}
-
-/*
- * set key data from first batch
- */
-static inline void
-setKey(MotionState *node, int route, int offset)
-{
-	VecMotionState *vnode = (VecMotionState *) node;
-	vecheap *vp = vnode->tupleheap;
-	void *inputBatch = NULL;
-	Motion	   *motion = (Motion *) node->ps.plan;
-	void *schema;
-	int i, nkey = vp->vh_nkey;
-	struct ArrowArray *c_array;
-	g_autoptr(GError) error = NULL;
-
-	inputBatch = vp->vh_rtbatches[route * 2 + offset];
-	for (i = 0; i < nkey; i++)
-	{
-		AttrNumber	key_attno = motion->sortColIdx[i];
-
-		g_autoptr(GArrowArray) array = garrow_record_batch_get_column_data(
-				GARROW_RECORD_BATCH(inputBatch), key_attno - 1);
-		/* for variable size, sortkeys are arrow array*/
-		if (vp->vh_keysize[i] < 0)
-		{
-			garrow_store_ptr(vp->vh_sortkeys[(route * 2 + offset) * nkey + i], array);
-		}
-		else
-		{
-			garrow_array_export(array, (void **) &c_array, &schema, &error);
-			vp->vh_sortkeys[(route * 2 + offset) * nkey + i] =
-				(void *)c_array->buffers[1];
-			vp->vh_keybitmaps[(route * 2 + offset) * nkey + i] =
-				(void *)c_array->buffers[0];
-		}
-	}
 }
 
 void

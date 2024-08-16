@@ -39,5 +39,4 @@ extern bool enable_vector_memory_resource;
 void assign_enable_vectorization(bool newval, void *extra);
 /* merge some small arrow plans into a big one if true */
 extern bool enable_arrow_plan_merge;
-
 #endif   /* GUC_VEC_H */
