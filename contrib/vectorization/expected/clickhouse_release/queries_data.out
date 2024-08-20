@@ -325,7 +325,7 @@ SELECT 1, URL, COUNT(*) AS c FROM hits GROUP BY 1, URL ORDER BY c DESC, url LIMI
         1 | https://produkty%2Fpulove.ru/booklyattion-ware-nezhno-goda.yandex.ru/messa                                             | 12
 (10 rows)
 
-SELECT ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3, COUNT(*) AS c FROM hits GROUP BY ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3 ORDER BY c DESC LIMIT 10;
+SELECT ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3, COUNT(*) AS c FROM hits GROUP BY ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3 ORDER BY c DESC, clientip LIMIT 10;
   clientip   |  ?column?   |  ?column?   |  ?column?   |  c  
 -------------+-------------+-------------+-------------+-----
   2107723744 |  2107723743 |  2107723742 |  2107723741 | 113
@@ -336,7 +336,7 @@ SELECT ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3, COUNT(*) AS c FROM hi
  -1042740163 | -1042740164 | -1042740165 | -1042740166 |  54
   1251479417 |  1251479416 |  1251479415 |  1251479414 |  46
  -2135135037 | -2135135038 | -2135135039 | -2135135040 |  42
-  1837696684 |  1837696683 |  1837696682 |  1837696681 |  32
+  1404486817 |  1404486816 |  1404486815 |  1404486814 |  32
   1519390919 |  1519390918 |  1519390917 |  1519390916 |  32
 (10 rows)
 
