@@ -1165,6 +1165,9 @@ select more1, more2, id, name from hive_test_9 order by more1, more2, id, name;
        |       | 10 | aaaaabbbb
 (17 rows)
 
+-- Analyze
+ANALYZE hive_test_8;
+ANALYZE hive_test_9;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_1;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_2;
 DROP FOREIGN TABLE IF EXISTS hive_type_test_3;

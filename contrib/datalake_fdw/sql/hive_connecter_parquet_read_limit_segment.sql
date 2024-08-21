@@ -305,6 +305,10 @@ select more2, more1 from hive_parquet_test_9 order by more2, more1;
 select more1, more2, m, n from hive_parquet_test_9 order by more1, more2, m, n;
 select more1, more2, id, name from hive_parquet_test_9 order by more1, more2, id, name;
 
+-- Analyze
+ANALYZE hive_parquet_test_8;
+ANALYZE hive_parquet_test_9;
+
 DROP FOREIGN TABLE IF EXISTS hive_parquet_type_test_1;
 DROP FOREIGN TABLE IF EXISTS hive_parquet_type_test_2;
 DROP FOREIGN TABLE IF EXISTS hive_parquet_type_test_3;

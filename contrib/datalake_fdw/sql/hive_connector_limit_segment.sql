@@ -196,6 +196,19 @@ SELECT * FROM syncdb.empty_avro;
 
 SELECT * FROM syncdb.empty_avro_partition;
 
+-- Analyze empty tables
+ANALYZE synctab.text_default;
+ANALYZE synctab.text_custom;
+ANALYZE synctab.csv_default;
+ANALYZE synctab.csv_custom;
+ANALYZE synctab.empty_orc_transactional;
+ANALYZE synctab.empty_orc;
+ANALYZE synctab.empty_parquet;
+ANALYZE synctab.empty_orc_partition;
+ANALYZE synctab.empty_parquet_partition;
+ANALYZE synctab.empty_avro;
+ANALYZE synctab.empty_avro_partition;
+
 DROP FOREIGN TABLE IF EXISTS synctab.text_default;
 DROP FOREIGN TABLE IF EXISTS synctab.text_custom;
 DROP FOREIGN TABLE IF EXISTS synctab.csv_default;

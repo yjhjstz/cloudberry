@@ -1366,13 +1366,24 @@ static ForeignScanState *
 dataLakeAnalyzeBeginScan(Relation relation)
 {
 	int   i;
+	int   segmentcount = DATALAKE_SEGMENT_COUNT;
 	List *fragmentData;
 	List *retrieved_attrs = NIL;
+	List *selected_segments = NIL;
 	TupleDesc tupdesc = RelationGetDescr(relation);
 	ForeignScanState *node = (ForeignScanState *) palloc0(sizeof(ForeignScanState));
 	dataLakeFdwScanState *state = (dataLakeFdwScanState *) palloc0(sizeof(dataLakeFdwScanState));
 
 	state->options = getOptions(RelationGetRelid(relation));
+
+	int len = list_length(latestFragmentData);
+	for (int i = segmentcount; i >= 1; i--)
+	{
+		int idx = intVal(list_nth(latestFragmentData, len - i));
+		selected_segments = lappend_int(selected_segments, idx);
+	}
+	/* remove the last segmentcount elements */
+	latestFragmentData = list_truncate(latestFragmentData, len - segmentcount);
 
 	fragmentData = deserializeExternalFragmentList(relation,
 												   NIL,
@@ -1383,6 +1394,7 @@ dataLakeAnalyzeBeginScan(Relation relation)
 	state->provider = initProvider(state->options->format, state->options->readFdw, false);
 	state->rel = relation;
 	state->fragments = fragmentData;
+	state->selected_segments = selected_segments;
 
 	for (i = 1; i <= tupdesc->natts; i++)
 	{
@@ -2453,11 +2465,16 @@ dataLakeAnalyzeForeignTable(Relation relation,
 
 	/* Return the row-analysis function pointer */
 	*func = dataLakeAcquireSampleRowsFunc;
+	int segmentcount = DATALAKE_SEGMENT_COUNT;
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		options = getOptions(RelationGetRelid(relation));
 		latestFragmentData = GetExternalFragmentList(relation, NULL, options, &totalSize);
+		/* master does not process any fragments */
+		List *random_segments = select_random_segments(segmentcount, external_table_limit_segment_num);
+		/* put the random segments into the list */
+		latestFragmentData = list_concat(latestFragmentData, random_segments);
 	}
 
 	/*
