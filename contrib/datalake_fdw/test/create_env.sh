@@ -9,7 +9,7 @@ function create_configure() {
 cat > /opt/gphdfs.conf <<-EOF
 paa_cluster:
     # namenode host
-    hdfs_namenode_host: localhost
+    hdfs_namenode_host: 127.0.0.1
     # name port
     hdfs_namenode_port: 8020
     # authentication method
