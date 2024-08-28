@@ -452,14 +452,16 @@ gopherConfig* createGopherConfig(void *opt)
 	else if (pg_strcasecmp(strConvertLow(options->gopherType), "ftp") == 0)
 	{
 		conf->ufs_type = FTP;
-		// ftp://username:password@host/path/to/file
+		// ftp://host/path/to/file
+		// username
+		// password
 		conf->config = (ftpConfig *) palloc0(sizeof(ftpConfig));
 		std::string ftp_url = "ftp://";
-		ftp_url.append(options->ftp_username).append(":");
-		ftp_url.append(options->ftp_password).append("@");
 		ftp_url.append(options->host).append("/");
 		ftp_url.append(options->ftp_path);
 		conf->config->host = pstrdup(ftp_url.c_str());
+		conf->config->username = pstrdup(options->ftp_username);
+		conf->config->password = pstrdup(options->ftp_password);
 	}
 	else
 	{
