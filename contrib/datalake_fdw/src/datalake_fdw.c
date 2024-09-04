@@ -46,6 +46,7 @@
 #include "optimizer/restrictinfo.h"
 #include "optimizer/cost.h"
 #include "parser/parsetree.h"
+#include "parser/parse_relation.h"
 #if (PG_VERSION_NUM >= 140000)
 #include "utils/backend_progress.h"
 #endif
@@ -163,6 +164,12 @@ static void insertModify(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *s
 static void endModify(dataLakeFdwScanState *dataLakesstate);
 
 bool hasZeorSelectedPartition(dataLakeFdwScanState *dataLakesstate);
+
+void CsvTextErrorCallback(dataLakeFdwScanState *dataLakesstate);
+
+void DatalakeErrorCallback(void *arg);
+
+List* buildAttnameList(dataLakeFdwScanState *sstate);
 
 #if (PG_VERSION_NUM < 140000)
 static CopyState
@@ -678,6 +685,96 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 }
 
 /*
+ * error context callback for Datalake
+ *
+ * The argument for the error context must be CopyFromState.
+ */
+void CsvTextErrorCallback(dataLakeFdwScanState *dataLakesstate)
+{
+	CopyFromState cstate = (CopyFromState) dataLakesstate->cstate.cstate_scan;
+	char		curlineno_str[32];
+	char		filename[1024];
+
+	snprintf(curlineno_str, sizeof(curlineno_str), UINT64_FORMAT,
+			 cstate->cur_lineno);
+
+	const char* name = getReadProviderFileName(dataLakesstate->provider);
+	if (name != NULL)
+	{
+		snprintf(filename, sizeof(filename), "file %s,", name);
+	}
+	else
+	{
+		filename[0] = '\0';
+	}
+
+	if (cstate->opts.binary)
+	{
+		/* can't usefully display the data */
+		if (cstate->cur_attname)
+			errcontext("Foreign table  %s, %s line %s, column %s",
+					   cstate->cur_relname, filename, curlineno_str,
+					   cstate->cur_attname);
+		else
+			errcontext("Foreign table %s, %s line %s",
+					   cstate->cur_relname, filename, curlineno_str);
+	}
+	else
+	{
+		if (cstate->cur_attname && cstate->cur_attval)
+		{
+			/* error is relevant to a particular column */
+			char	   *attval;
+
+			attval = limit_printout_length(cstate->cur_attval);
+			errcontext("Foreign table %s, %s line %s, column %s: \"%s\"",
+					   cstate->cur_relname, filename, curlineno_str,
+					   cstate->cur_attname, attval);
+			pfree(attval);
+		}
+		else if (cstate->cur_attname)
+		{
+			/* error is relevant to a particular column, value is NULL */
+			errcontext("Foreign table %s, %s line %s, column %s: null input",
+					   cstate->cur_relname, filename, curlineno_str,
+					   cstate->cur_attname);
+		}
+		else
+		{
+			/*
+			 * Error is relevant to a particular line.
+			 *
+			 * If line_buf still contains the correct line, print it.
+			 */
+			if (cstate->line_buf_valid)
+			{
+				char	   *lineval;
+
+				lineval = limit_printout_length(cstate->line_buf.data);
+				errcontext("Foreign table %s, %s line %s: \"%s\"",
+						   cstate->cur_relname, filename, curlineno_str, lineval);
+				pfree(lineval);
+			}
+			else
+			{
+				errcontext("Foreign table %s, %s line %s",
+						   cstate->cur_relname, filename, curlineno_str);
+			}
+		}
+	}
+}
+
+void DatalakeErrorCallback(void *arg)
+{
+	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)arg;
+	if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+		FORMAT_IS_TEXT(dataLakesstate->options->format))
+	{
+		CsvTextErrorCallback(dataLakesstate);
+	}
+}
+
+/*
  * IterateForeignScan
  *		Retrieve next row from the result set, or clear tuple slot to indicate
  *		EOF.
@@ -708,8 +805,17 @@ dataLakeIterateForeignScan(ForeignScanState *node)
 	else
 	{
 		TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-		//TODO error context
-		// ErrorContextCallback errcallback;
+		ErrorContextCallback errcallback;
+		if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+			FORMAT_IS_TEXT(dataLakesstate->options->format))
+		{
+			/* Set up callback to identify error line number. */
+			errcallback.callback = DatalakeErrorCallback;
+			errcallback.arg = (void *) dataLakesstate;
+			errcallback.previous = error_context_stack;
+			error_context_stack = &errcallback;
+		}
+
 		/*
 		* The protocol for loading a virtual tuple into a slot is first
 		* ExecClearTuple, then fill the values/isnull arrays, then
@@ -722,6 +828,13 @@ dataLakeIterateForeignScan(ForeignScanState *node)
 		ExecClearTuple(slot);
 
 		iterateScanStatus(dataLakesstate, slot);
+
+		if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+			FORMAT_IS_TEXT(dataLakesstate->options->format))
+		{
+			/* Remove error callback. */
+			error_context_stack = errcallback.previous;
+		}
 		return slot;
 	}
 }
@@ -898,6 +1011,26 @@ static bool dataLakeIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel
 	return false;
 }
 
+List*
+buildAttnameList(dataLakeFdwScanState *sstate)
+{
+	TupleDesc	tupDesc = RelationGetDescr(sstate->rel);
+	List	   *attnames = NIL;
+
+	if (sstate->options->hiveOption->hivePartitionKey)
+	{
+		int attnum;
+		int nPartitionKey = list_length(sstate->options->hiveOption->attNums);
+		int nattrs = tupDesc->natts - nPartitionKey;
+		for (attnum = 1; attnum <= nattrs; attnum++)
+		{
+			attnames = lappend(attnames,
+					makeString(pstrdup(NameStr(*attnumAttName(sstate->rel, attnum)))));
+		}
+	}
+	return attnames;
+}
+
 /*
  * Initiates a copy state for datalakeBeginForeignScan() and datalakeReScanForeignScan()
  */
@@ -911,6 +1044,13 @@ InitCopyState(dataLakeFdwScanState *sstate)
 #endif
 
 	List* copy_options = getCopyOptions(RelationGetRelid(sstate->rel));
+	int rejectlimit = -1;
+	bool islimitinrows = false;
+	char logerrors = LOG_ERRORS_DISABLE;
+	char* uri = NULL;
+	getCopyLogErrorOptions(RelationGetRelid(sstate->rel), &rejectlimit, &islimitinrows, &logerrors);
+	getURIFromOptions(RelationGetRelid(sstate->rel), &uri);
+	List* attnamelist = buildAttnameList(sstate);
 	/*
 	 * Create CopyState from FDW options.  We always acquire all columns, so
 	 * as to match the expected ScanTupleSlot signature.
@@ -924,15 +1064,40 @@ InitCopyState(dataLakeFdwScanState *sstate)
 						   false,	/* is_program */
 						   &CopyRead,	/* data_source_cb */
 						   sstate,	/* data_source_cb_extra */
-						   NIL, /* attnamelist */
+						   attnamelist, /* attnamelist */
 						   copy_options);	/* copy options */
+	
+	if (rejectlimit == -1)
+	{
+		cstate->cdbsreh = NULL; /* no SREH */
+		cstate->errMode = ALL_OR_NOTHING;
+	}
+	else
+	{
+		if (logerrors)
+		{
+			/* errors into file */
+			cstate->errMode = SREH_LOG;
+		}
+		else
+		{
+			/* no error log */
+			cstate->errMode = SREH_IGNORE;
+		}
+		cstate->cdbsreh = makeCdbSreh(rejectlimit,
+									  islimitinrows,
+									  uri,
+									  (char *) cstate->cur_relname,
+									  logerrors);
 
-	cstate->cdbsreh = NULL; /* no SREH */
-	cstate->errMode = ALL_OR_NOTHING;
+		cstate->cdbsreh->relid = RelationGetRelid(sstate->rel);
+	}
+
+
 
 	/* and 'fe_mgbuf' */
 	cstate->fe_msgbuf = makeStringInfo();
-
+	
 	/*
 	 * Create a temporary memory context that we can reset once per row to
 	 * recover palloc'd memory.  This avoids any problems with leaks inside
@@ -1024,14 +1189,15 @@ iterateScanStatus(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot)
 		if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
 			FORMAT_IS_TEXT(dataLakesstate->options->format))
 		{
+			setPartitionValue(dataLakesstate->provider, (void*)slot->tts_values, (void*)slot->tts_isnull);
 			if (dataLakesstate->cstate.cstate_scan->cdbsreh)
 			{
 				dataLakesstate->cstate.cstate_scan->cdbsreh->processed++;
 			}
 		}
-
 		ExecStoreVirtualTuple(slot);
 	}
+	
 }
 
 void
@@ -1305,9 +1471,26 @@ EndCopyScan(CopyFromState cstate)
 	Assert(!cstate->is_program);
 	Assert(cstate->filename == NULL);
 
-	/* Clean up single row error handling related memory */
-	if (cstate->cdbsreh)
+	if (Gp_role == GP_ROLE_DISPATCH)
+	{
+		if (cstate && cstate->cdbsreh)
+		{
+			CdbSreh	 *cdbsreh = cstate->cdbsreh;
+			uint64	total_rejected_from_qd = cdbsreh->rejectcount;
+				if (total_rejected_from_qd > 0)
+					ReportSrehResults(cdbsreh, total_rejected_from_qd);
+		}
+	}
+
+	if (cstate != NULL && cstate->errMode != ALL_OR_NOTHING)
+	{
+		if (Gp_role == GP_ROLE_EXECUTE)
+		{
+			SendNumRows(cstate->cdbsreh->rejectcount, 0);
+		}
 		destroyCdbSreh(cstate->cdbsreh);
+	}
+		
 
 	pgstat_progress_end_command();
 

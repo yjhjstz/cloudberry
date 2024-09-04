@@ -7,6 +7,11 @@ dataLakeOptions *getOptions(Oid foreigntableid);
 
 List* getCopyOptions(Oid foreigntableid);
 
+void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
+			   bool *islimitinrows, char *logerrors);
+
+void getURIFromOptions(Oid foreigntableid, char** uri);
+
 void freeDataLakeOptions(dataLakeOptions *options);
 
 void checkValidRecordBatchOpt(dataLakeOptions *options);

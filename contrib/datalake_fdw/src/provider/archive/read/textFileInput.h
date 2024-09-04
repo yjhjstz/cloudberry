@@ -4,6 +4,10 @@
 #include "src/common/rewrLogical.h"
 #include <memory>
 
+extern "C" {
+#include "src/datalake_def.h"
+}
+
 namespace Datalake {
 namespace Internal {
 
@@ -33,7 +37,7 @@ public:
 
 };
 
-std::shared_ptr<textFileInput> getTextFileInput(CompressType compress);
+std::shared_ptr<textFileInput> getTextFileInput(CompressType compress, MemoryContext mContext);
 
 
 

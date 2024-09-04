@@ -133,6 +133,8 @@ public:
 	std::vector<metaInfo> readingLists;
 
 	std::string curFileName;
+
+	void reset();
 };
 
 }

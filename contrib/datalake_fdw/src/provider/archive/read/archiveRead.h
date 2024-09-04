@@ -19,8 +19,14 @@ public:
 
 	virtual void destroyHandler();
 
+	virtual void setPartitionValue(void* values, void* nulls);
+
+	virtual const char* getReadFileName();
+
 private:
 	virtual bool createPolicy();
+
+	void restart();
 
 	virtual bool readNextFile();
 

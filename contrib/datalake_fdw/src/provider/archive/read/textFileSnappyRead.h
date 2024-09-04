@@ -10,7 +10,7 @@ namespace Internal {
 class textFileSnappyRead : public textFileInput {
 
 public:
-    textFileSnappyRead();
+    textFileSnappyRead(MemoryContext mContext);
 
     ~textFileSnappyRead();
 
@@ -68,7 +68,7 @@ private:
     int64_t fileLength;
     bool readFinish;
     int64_t originalBlockSize;
-
+    MemoryContext mContext;
 };
 
 

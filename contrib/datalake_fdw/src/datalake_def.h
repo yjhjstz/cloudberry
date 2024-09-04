@@ -96,6 +96,11 @@
 #define DATALAKE_COPY_OPTION_FORCE_NOT_NULL "force_not_null"
 #define DATALAKE_COPY_OPTION_FORCE_NULL "force_null"
 
+/* copy log error */
+#define DATALAKE_COPY_OPTIION_LOGERRORS "logerrors"
+#define DATALAKE_COPY_OPTIION_REJECTLIMIT "rejectlimit"
+#define DATALAKE_COPY_OPTIION_REJECTLIMITTYPE "rejectlimittype"
+
 /* iceberg & hudi options */
 #define DATALAKE_OPTION_TABLE_IDENTIFIER "table_identifier"
 #define DATALAKE_OPTION_SERVER_NAME "server_name"
@@ -123,7 +128,8 @@
 
 #define SUPPORT_PARTITION_TABLE(protocol, format, partitionkey, datasource) \
 	PROTOCOL_IS_HDFS(protocol) && (FORMAT_IS_ORC(format) || \
-	FORMAT_IS_PARQUET(format) || FORMAT_IS_AVRO(format)) && \
+	FORMAT_IS_PARQUET(format) || FORMAT_IS_AVRO(format) || \
+	FORMAT_IS_TEXT(format) || FORMAT_IS_CSV(format)) && \
 	(partitionkey != NULL) && (datasource != NULL) \
 
 

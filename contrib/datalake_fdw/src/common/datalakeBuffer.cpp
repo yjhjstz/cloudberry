@@ -1,19 +1,18 @@
 #include "datalakeBuffer.h"
 
-extern "C"
-{
-// #include "../../common.h"
-#include "src/datalake_def.h"
-}
 
 namespace Datalake {
 namespace Internal {
 
-datalakeByteBuffer* create_datalake_bytebuffer() {
+datalakeByteBuffer* create_datalake_bytebuffer(MemoryContext initcontext) {
+    MemoryContext oldContext = MemoryContextSwitchTo(initcontext);
     datalakeByteBuffer *ptr = (datalakeByteBuffer*)palloc0(sizeof(datalakeByteBuffer));
+    ptr->mContext = initcontext;
+    MemoryContextSwitchTo(oldContext);
     if (external_table_debug) {
         elog(LOG, "Datalake Log, create_datalake_buffer.");
     }
+    	
     return ptr;
 }
 
@@ -21,7 +20,9 @@ bool alloc_datalake_bytebuffer(datalakeByteBuffer* buff, int size) {
     if (buff == NULL || size <= 0) {
         return false;
     }
+    MemoryContext oldContext = MemoryContextSwitchTo(buff->mContext);
     buff->buffer = (unsigned char*)palloc(size);
+    MemoryContextSwitchTo(oldContext);
     buff->buffer_length = size;
     buff->pos = 0;
     buff->used_size = 0;
@@ -36,7 +37,7 @@ datalakeByteBuffer* resize_datalake_bytebuffer(datalakeByteBuffer* source) {
         return NULL;
     }
     int resize = source->buffer_length * 2;
-    datalakeByteBuffer *dest = create_datalake_bytebuffer();
+    datalakeByteBuffer *dest = create_datalake_bytebuffer(source->mContext);
     alloc_datalake_bytebuffer(dest, resize);
     memcpy(dest->buffer, source->buffer, source->used_size);
     dest->used_size = source->used_size;

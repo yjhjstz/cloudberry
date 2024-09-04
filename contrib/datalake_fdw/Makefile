@@ -103,7 +103,9 @@ REGRESS = hive_connecter_orc_read hive_connecter_orc_vec_read hive_connecter_par
           hive_connecter_avro_read hive_connector orc_read parquet_read avro_read iresearch_orc_test iresearch_orc_vec_test \
           hive_connecter_avro_read_limit_segment hive_connecter_orc_read_limit_segment hive_connecter_parquet_read_limit_segment \
           hive_connector_limit_segment oss_read_new_text_limit_segment oss_read_orc_limit_segment \
-          oss_read_parquet_limit_segment oss_read_text_limit_segment
+          oss_read_parquet_limit_segment oss_read_text_limit_segment \
+		  hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
+		  hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text
 endif
 
 PG_CPPFLAGS += -fPIC

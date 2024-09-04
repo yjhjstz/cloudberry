@@ -1,21 +1,15 @@
 #include "textFileDeflateRead.h"
 
-
-
-// extern "C"
-// {
-// #include "src/gpossext.h"
-// }
-
 namespace Datalake {
 namespace Internal {
 
 
-textFileDeflateRead::textFileDeflateRead() {
+textFileDeflateRead::textFileDeflateRead(MemoryContext mContext) {
     pos = 0;
     path = "";
     state = FILE_UNDEF;
     readFinish = false;
+    this->mContext = mContext;
     resizeZlibChunkBuffer(ZLIB_CHUNK_SIZE);
     resizeInputBuffer(ZLIB_CHUNK_SIZE);
     resizeOutputBuffer(ZLIB_CHUNK_SIZE);
@@ -31,7 +25,7 @@ textFileDeflateRead::~textFileDeflateRead() {
 }
 
 void textFileDeflateRead::resizeZlibChunkBuffer(int size) {
-    zlibChunkBuffer = create_datalake_bytebuffer();
+    zlibChunkBuffer = create_datalake_bytebuffer(mContext);
     alloc_datalake_bytebuffer(zlibChunkBuffer, size);
     if (external_table_debug) {
         elog(LOG, "Datalake Log, zlib text file resize zlibChunkBuffer %d", size);
@@ -39,7 +33,7 @@ void textFileDeflateRead::resizeZlibChunkBuffer(int size) {
 }
 
 void textFileDeflateRead::resizeInputBuffer(int size) {
-    inputBuffer = create_datalake_bytebuffer();
+    inputBuffer = create_datalake_bytebuffer(mContext);
     alloc_datalake_bytebuffer(inputBuffer, size);
     if (external_table_debug) {
         elog(LOG, "Datalake Log, zlib text file resize inputBuffer %d", size);
@@ -47,7 +41,7 @@ void textFileDeflateRead::resizeInputBuffer(int size) {
 }
 
 void textFileDeflateRead::resizeOutputBuffer(int size) {
-    outputBuffer = create_datalake_bytebuffer();
+    outputBuffer = create_datalake_bytebuffer(mContext);
     alloc_datalake_bytebuffer(outputBuffer, size);
     if (external_table_debug) {
         elog(LOG, "Datalake Log, zlib text file resize outputBuffer %d", size);

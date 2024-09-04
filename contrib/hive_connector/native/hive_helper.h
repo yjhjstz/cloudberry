@@ -83,4 +83,52 @@ formCreateStmt2(HmsHandle *hms,
 				const char *hiveTableName,
 				char **partKeys);
 
+
+//Compatibility3X
+extern void
+spiExec(const char *query);
+
+
+extern char *
+formCreateStmtCompatibility3X(HmsHandle *hms,
+			   const char *destTableName,
+			   const char *location,
+			   const char *fields,
+			   const char *hdfsClusterName,
+			   const char *format);
+
+extern char *
+formCreateStmt2Compatibility3X(HmsHandle *hms,
+				const char *destTableName,
+				const char *location,
+				const char *field,
+				const char *hdfsClusterName,
+				const char *format,
+				const char *hiveDbName,
+				const char *hiveTableName,
+				const char *hiveClusterName,
+				char **partKeys);
+
+extern char *
+formCreateStmt3Compatibility3X(HmsHandle *hms,
+				const char *destTableName,
+				const char *location,
+				const char *field,
+				const char *hdfsClusterName,
+				const char *format,
+				const char *hiveDbName,
+				const char *hiveTableName,
+				const char *hiveClusterName,
+				char **partKeys,
+				const char* specifyMaxPartitionValue);
+extern bool
+validateMetaDataCompatibility3X(HmsHandle *hms,
+				 const char *hiveDbName,
+				 const char *hiveTableName,
+				 char ***partKeys,
+				 char **field);
+
+void
+dropTableCompatibility3X(const char *table, bool isExternal);
+
 #endif // HIVE_HELPER_H

@@ -145,6 +145,15 @@ void Provider::destroyHandler()
 	return;
 }
 
+void Provider::setPartitionValue(void* values, void* nulls) {
+	return;
+}
+
+const char* Provider::getReadFileName() {
+	return NULL;
+}
+
+
 CompressType Provider::getCompressType(char* type)
 {
 	CompressType compresstype = UNCOMPRESS;

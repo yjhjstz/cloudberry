@@ -6,6 +6,9 @@
 #include <set>
 #include <iostream>
 
+extern "C" {
+#include "src/datalake_def.h"
+}
 
 namespace Datalake {
 namespace Internal {
@@ -16,6 +19,7 @@ typedef struct datalakeByteBuffer {
     int pos;
     int used_size;
     int begin_size;
+    MemoryContext mContext;
     datalakeByteBuffer() {
         buffer = NULL;
         buffer_length = 0;
@@ -25,7 +29,7 @@ typedef struct datalakeByteBuffer {
     }
 }datalakeByteBuffer;
 
-datalakeByteBuffer* create_datalake_bytebuffer();
+datalakeByteBuffer* create_datalake_bytebuffer(MemoryContext mContext);
 
 bool alloc_datalake_bytebuffer(datalakeByteBuffer* buff, int size);
 

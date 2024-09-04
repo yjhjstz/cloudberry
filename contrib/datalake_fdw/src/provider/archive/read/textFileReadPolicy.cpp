@@ -156,5 +156,9 @@ void textFileReadPolicy::buildBigFile(int64_t &index, std::string &name, int64_t
     }
 }
 
+void textFileReadPolicy::reset() {
+    resetReadBlockPolicy();
+}
+
 }
 }

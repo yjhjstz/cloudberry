@@ -27,6 +27,8 @@ public:
     int64_t blockSize, bool exists, int64_t rangeOffset, int64_t rangeOffsetEnd, CompressType compress);
 
     void buildBigFile(int64_t &index, std::string &name, int64_t size, CompressType compress);
+
+    void reset();
 };
 
 }

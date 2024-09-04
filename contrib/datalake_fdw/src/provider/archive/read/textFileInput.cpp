@@ -9,11 +9,11 @@ namespace Datalake {
 namespace Internal {
 
 
-std::shared_ptr<textFileInput> getTextFileInput(CompressType compress) {
+std::shared_ptr<textFileInput> getTextFileInput(CompressType compress,  MemoryContext mContext) {
     if (compress == SNAPPY) {
-        return std::make_shared<textFileSnappyRead>();
+        return std::make_shared<textFileSnappyRead>(mContext);
     } else if (compress == DEFLATE) {
-        return std::make_shared<textFileDeflateRead>();
+        return std::make_shared<textFileDeflateRead>(mContext);
     } else if (compress == UNCOMPRESS) {
 		return std::make_shared<textFileSimpleRead>();
 	} else {

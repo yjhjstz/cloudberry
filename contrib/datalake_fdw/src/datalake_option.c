@@ -87,6 +87,9 @@ static const struct datalakeFdwOption valid_foreign_options[] = {
 	{DATALAKE_COPY_OPTION_FILL_MISSING_FIELDS, ForeignTableRelationId},
 	{DATALAKE_COPY_OPTION_FORCE_NOT_NULL, ForeignTableRelationId},
 	{DATALAKE_COPY_OPTION_FORCE_NULL, ForeignTableRelationId},
+	{DATALAKE_COPY_OPTIION_LOGERRORS, ForeignTableRelationId},
+	{DATALAKE_COPY_OPTIION_REJECTLIMIT, ForeignTableRelationId},
+	{DATALAKE_COPY_OPTIION_REJECTLIMITTYPE, ForeignTableRelationId},
 	{DATALAKE_OPTION_TABLE_IDENTIFIER, ForeignTableRelationId},
 	{DATALAKE_OPTION_SERVER_NAME, ForeignTableRelationId},
 	{DATALAKE_OPTION_CATALOG_TYPE, ForeignTableRelationId},
@@ -530,6 +533,7 @@ List* getCopyOptions(Oid foreigntableid)
 	options = list_concat(options, table->options);
 	ListCell   *lc;
 
+	/* copy options */
 	foreach(lc, options)
 	{
 		DefElem *def = (DefElem *) lfirst(lc);
@@ -548,7 +552,61 @@ List* getCopyOptions(Oid foreigntableid)
 			copyOptions = lappend(copyOptions, def);
 		}
 	}
+
 	return copyOptions;
+}
+
+void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
+			   bool *islimitinrows, char *logerrors)
+{
+	ForeignTable *table;
+	table = GetForeignTable(foreigntableid);
+	List *options = NIL;
+	options = list_concat(options, table->options);
+	ListCell   *lc;
+
+	/* get copy log error option */
+	foreach(lc, options)
+	{
+		DefElem *def = (DefElem *) lfirst(lc);
+		if (pg_strcasecmp(def->defname, DATALAKE_COPY_OPTIION_LOGERRORS) == 0)
+		{
+			*logerrors = *defGetString(def);
+		}
+		else if (pg_strcasecmp(def->defname, DATALAKE_COPY_OPTIION_REJECTLIMIT) == 0)
+		{
+			*rejectlimit = atoi(defGetString(def));
+		}
+		else if (pg_strcasecmp(def->defname, DATALAKE_COPY_OPTIION_REJECTLIMITTYPE) == 0)
+		{
+			char* values = defGetString(def);
+			if (pg_strcasecmp(values, "row") == 0)
+			{
+				*islimitinrows = true;
+			}
+			else
+			{
+				*islimitinrows = false;
+			}
+		}
+	}
+}
+
+void getURIFromOptions(Oid foreigntableid, char** uri)
+{
+	ForeignTable *table;
+	table = GetForeignTable(foreigntableid);
+	List *options = NIL;
+	options = list_concat(options, table->options);
+	ListCell   *lc;
+	foreach(lc, options)
+	{
+		DefElem *def = (DefElem *) lfirst(lc);
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FILEPATH) == 0)
+		{
+			*uri = defGetString(def);
+		}
+	}
 }
 
 void parserUri(dataLakeOptions *opt)

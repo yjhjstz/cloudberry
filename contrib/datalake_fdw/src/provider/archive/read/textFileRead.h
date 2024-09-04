@@ -13,34 +13,25 @@ namespace Internal {
 class textFileRead : public Provider, public readLogical {
 public:
 
-    // virtual void createHandler(void* scanInfo, ossConfigure *conf);
     virtual void createHandler(void *sstate);
-
-    // virtual HeapTuple read(Datum **values, bool **nulls) {
-    //     return NULL;
-    // }
 
     virtual int64_t readWithBuffer(void* buffer, int64_t length);
 
-    // virtual int64_t write(const void* buf, size_t length) {
-    //     return 0;
-    // }
-
     virtual void destroyHandler();
+
+    virtual void setPartitionValue(void* values, void* nulls);
+
+    virtual const char* getReadFileName();
 
 private:
 
-    // void initializeDataStructures(void* scanInfo, ossConfigure *conf);
+    void restart();
+
     void initializeDataStructures(dataLakeFdwScanState *ss);
 
-    // void createFileStream(ossConfigure *conf);
 	void createFileStream(dataLakeFdwScanState *ss);
 
     void allocateDataBuffer();
-
-    // void setupFileReadingParameters(const char* prefix);
-
-    // void configureReadPolicy(const std::vector<ListContainer>& listObjects, int segindex, int segnum);
 
 	bool createPolicy();
 

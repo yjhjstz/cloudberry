@@ -14,7 +14,7 @@ namespace Internal {
 class textFileDeflateRead : public textFileInput {
 
 public:
-    textFileDeflateRead();
+    textFileDeflateRead(MemoryContext mContext);
 
     ~textFileDeflateRead();
 
@@ -70,7 +70,7 @@ private:
     int64_t fileLength;
     bool readFinish;
     z_stream strm;
-
+    MemoryContext mContext;
 
 };
 

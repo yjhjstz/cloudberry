@@ -504,3 +504,230 @@ formCreateStmt2(HmsHandle *hms,
 	pfree(keyBuf);
 	return sqlBuf.data;
 }
+
+//Compatibility3X
+void
+spiExec(const char *query)
+{
+	int spiResult;
+	volatile bool connected = false;
+
+	PG_TRY();
+	{
+		if (SPI_connect() !=  SPI_OK_CONNECT)
+			elog(ERROR, "SPI_connect() failed");
+
+		connected = true;
+
+		spiResult = SPI_execute(query, false, 0);
+		if (spiResult != SPI_OK_UTILITY)
+			elog(ERROR, "SPI_execute() returned %d", spiResult);
+
+		connected = false;
+		SPI_finish();
+	}
+	PG_CATCH();
+	{
+		if (connected)
+			SPI_finish();
+
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+}
+
+char *
+formCreateStmtCompatibility3X(HmsHandle *hms,
+			   const char *destTableName,
+			   const char *location,
+			   const char *fields,
+			   const char *hdfsClusterName,
+			   const char *format)
+{
+	StringInfoData sqlBuf;
+	char *hdfsPath;
+	const char *sqlFmt = "create readable external table %s(%s) location "
+					  "('gphdfs://%s hdfs_cluster_name=%s cache=%s transactional=%s') format '%s' ";
+
+	initStringInfo(&sqlBuf);
+
+	hdfsPath = extractPathFromLocation(location);
+
+	appendStringInfo(&sqlBuf,
+			sqlFmt,
+			destTableName,
+			fields,
+			hdfsPath,
+			hdfsClusterName,
+			hiveEnableCacheFile ? "true" : "false",
+			HmsTableIsTransactionalTable(hms) ? "true" : "false",
+			format);
+
+	if ((pg_strcasecmp(format, "orc") != 0) && 
+		(pg_strcasecmp(format, "parquet") != 0) &&
+		(pg_strcasecmp(format, "avro") != 0))
+	{
+		char *formatOpts = HmsTableGetParameters(hms);
+		appendStringInfoString(&sqlBuf, formatOpts);
+		pfree(formatOpts);
+	}
+
+	return sqlBuf.data;
+}
+
+bool
+validateMetaDataCompatibility3X(HmsHandle *hms,
+				 const char *hiveDbName,
+				 const char *hiveTableName,
+				 char ***partKeys,
+				 char **field)
+{
+	*partKeys = HmsPartTableGetKeys(hms);
+	if (!(*partKeys))
+	{
+		elog(WARNING, "failed to get partition key for table: \"%s.%s\": %s",
+					hiveDbName, hiveTableName, HmsGetError(hms));
+		return false;
+	}
+
+	*field = HmsTableGetField(hms);
+	if (!(*field) || !strlen(*field))
+	{
+		elog(WARNING, "failed to get columns for partition table: \"%s.%s\": %s",
+					hiveDbName, hiveTableName, HmsGetError(hms));
+		return false;
+	}
+
+	return true;
+}
+
+void
+dropTableCompatibility3X(const char *table, bool isExternal)
+{
+	StringInfoData  cmdBuf;
+
+	initStringInfo(&cmdBuf);
+
+	if (isExternal)
+		appendStringInfo(&cmdBuf, "drop external table if exists %s", table);
+	else
+		appendStringInfo(&cmdBuf, "drop table if exists %s", table);
+
+	spiExec(cmdBuf.data);
+	pfree(cmdBuf.data);
+}
+
+char *
+formCreateStmt2Compatibility3X(HmsHandle *hms,
+				const char *destTableName,
+				const char *location,
+				const char *field,
+				const char *hdfsClusterName,
+				const char *format,
+				const char *hiveDbName,
+				const char *hiveTableName,
+				const char *hiveClusterName,
+				char **partKeys)
+{
+	StringInfoData sqlBuf;
+	char *keyBuf;
+	char *hdfsPath;
+	const char *sqlFmt = "create readable external table %s(%s) location "
+					  "('gphdfs://%s hive_cluster_name=%s datasource=%s.%s "
+					  "hdfs_cluster_name=%s cache=%s transactional=%s "
+					  "partition_keys=%s') format '%s' ";
+
+	hdfsPath = extractPathFromLocation(location);
+	keyBuf = joinString(partKeys, ',', '/');
+
+	initStringInfo(&sqlBuf);
+	appendStringInfo(&sqlBuf,
+			sqlFmt,
+			destTableName,
+			field,
+			hdfsPath,
+			hiveClusterName,
+			hiveDbName,
+			hiveTableName,
+			hdfsClusterName,
+			hiveEnableCacheFile ? "true" : "false",
+			HmsTableIsTransactionalTable(hms) ? "true" : "false",
+			keyBuf,
+			format);
+
+	if ((pg_strcasecmp(format, "orc") != 0) &&
+		(pg_strcasecmp(format, "parquet") != 0) &&
+		(pg_strcasecmp(format, "avro") != 0))
+	{
+		char *formatOpts = HmsTableGetParameters(hms);
+		appendStringInfoString(&sqlBuf, formatOpts);
+		pfree(formatOpts);
+	}
+
+	pfree(keyBuf);
+
+	return sqlBuf.data;
+}
+
+char *
+formCreateStmt3Compatibility3X(HmsHandle *hms,
+				const char *destTableName,
+				const char *location,
+				const char *field,
+				const char *hdfsClusterName,
+				const char *format,
+				const char *hiveDbName,
+				const char *hiveTableName,
+				const char *hiveClusterName,
+				char **partKeys,
+				const char* specifyMaxPartitionValue)
+{
+	StringInfoData sqlBuf;
+	char *keyBuf;
+	char *hdfsPath;
+	const char *sqlFmt = "create readable external table %s(%s) location "
+					  "('gphdfs://%s/%s=%s hive_cluster_name=%s datasource=%s.%s "
+					  "hdfs_cluster_name=%s cache=%s transactional=%s "
+					  "partition_keys=%s partition_value=%s') format '%s' ";
+
+	hdfsPath = extractPathFromLocation(location);
+	keyBuf = joinString(partKeys, ',', '/');
+
+	if (partKeys[0] == NULL)
+	{
+		elog(ERROR, "Synchronous partition table failed! max partition keys were null, "
+		"Verify that the hive table is a partition table.");
+	}
+
+	initStringInfo(&sqlBuf);
+	appendStringInfo(&sqlBuf,
+			sqlFmt,
+			destTableName,
+			field,
+			hdfsPath,
+			partKeys[0],
+			specifyMaxPartitionValue,
+			hiveClusterName,
+			hiveDbName,
+			hiveTableName,
+			hdfsClusterName,
+			hiveEnableCacheFile ? "true" : "false",
+			HmsTableIsTransactionalTable(hms) ? "true" : "false",
+			keyBuf,
+			specifyMaxPartitionValue,
+			format);
+
+	if ((pg_strcasecmp(format, "orc") != 0) &&
+		(pg_strcasecmp(format, "parquet") != 0) &&
+		(pg_strcasecmp(format, "avro") != 0))
+	{
+		char *formatOpts = HmsTableGetParameters(hms);
+		appendStringInfoString(&sqlBuf, formatOpts);
+		pfree(formatOpts);
+	}
+
+	pfree(keyBuf);
+
+	return sqlBuf.data;
+}
+

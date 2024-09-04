@@ -106,3 +106,55 @@ EXCEPTION
         RAISE; -- Re-raise the exception so the caller can see the detailed error message
 END;
 $$ LANGUAGE plpgsql;
+
+-- 3x
+CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hdfsClusterName text,
+destTableName text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database(hiveClusterName text,
+hiveDatabaseName text,
+hdfsClusterName text,
+destSchemaName text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hdfsClusterName text,
+destTableName text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_partition_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hivePartitionValue text,
+hdfsClusterName text,
+destTableName text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_partition_table_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_partition_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hivePartitionValue text,
+hdfsClusterName text,
+destTableName text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_partition_table_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database(hiveClusterName text,
+hiveDatabaseName text,
+hdfsClusterName text,
+destSchemaName text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;

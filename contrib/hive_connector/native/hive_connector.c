@@ -396,11 +396,13 @@ initializeHms(const char *hiveClusterName,
 	bool        connected;
 	char        errMsg[512];
 	HmsHandle  *hms;
-
-	hiveConf = parseConf("gphive.conf", true);
+	char path[1024] = {0};
+	sprintf(path, "%s/gphive.conf", DataDir);
+	hiveConf = parseConf(path, true);
 	if (!serverHiveConfExists(hiveConf, hiveClusterName))
 		elog(ERROR, "didn't find \"%s\" in gphive.conf", hiveClusterName);
 
+	sprintf(path, "%s/gphdfs.conf", DataDir);
 	hdfsConf = parseHdfsConf("gphdfs.conf", false);
 	if (!serverHdfsConfExists(hdfsConf, hdfsClusterName))
 		elog(ERROR, "didn't find \"%s\" in gphdfs.conf", hdfsClusterName);
@@ -619,5 +621,364 @@ Datum create_foreign_server(PG_FUNCTION_ARGS)
 	PG_END_TRY();
 
 	result = true;
+	PG_RETURN_BOOL(result);
+}
+
+//Compatibility3X
+static void
+sync_partition_table_compatibility3x(HmsHandle *hms,
+					 const char *hiveDbName,
+					 const char *hiveTableName,
+					 const char *hdfsClusterName,
+					 const char *destTableName,
+					 const char *hiveClusterName,
+					 bool forceSync,
+					 const char *specifyMaxPartitionValue)
+{
+	char *location;
+	char *createStmt;
+	char **partKeys;
+	char *field;
+	char **commentStatement;
+
+	if (!validateMetaDataCompatibility3X(hms, hiveDbName, hiveTableName, &partKeys, &field))
+		return;
+
+	location = HmsTableGetLocation(hms);
+
+	if (specifyMaxPartitionValue)
+	{
+		createStmt = formCreateStmt3Compatibility3X(hms,
+								destTableName,
+								location,
+								field,
+								hdfsClusterName,
+								tableFormatConversion(hms),
+								hiveDbName,
+								hiveTableName,
+								hiveClusterName,
+								partKeys,
+								specifyMaxPartitionValue);
+	}
+	else
+	{
+		createStmt = formCreateStmt2Compatibility3X(hms,
+								destTableName,
+								location,
+								field,
+								hdfsClusterName,
+								tableFormatConversion(hms),
+								hiveDbName,
+								hiveTableName,
+								hiveClusterName,
+								partKeys);
+	}
+
+	if (forceSync)
+		dropTableCompatibility3X(destTableName, true);
+
+	spiExec(createStmt);
+
+	execCommentStatment(hms, destTableName);	
+
+	pfree(field);
+	pfree(location);
+	pfree(createStmt);
+	freeArray(partKeys);
+}
+
+static void
+sync_normal_table_compatibility3x(HmsHandle *hms,
+				  const char *hiveDbName,
+				  const char *hiveTableName,
+				  const char *hdfsClusterName,
+				  const char *destTableName,
+				  bool forceSync)
+{
+	char *sql;
+	char *location = NULL;
+	char *field = NULL;
+
+	location = HmsTableGetLocation(hms);
+	if (!location)
+		elog(ERROR, "failed to get location of table: \"%s.%s\": %s",
+					hiveDbName, hiveTableName, HmsGetError(hms));
+
+	field = HmsTableGetField(hms);
+	if (!field || !strlen(field))
+		elog(ERROR, "failed to get columns of table: \"%s.%s\": %s",
+					hiveDbName, hiveTableName, HmsGetError(hms));
+
+	sql = formCreateStmtCompatibility3X(hms,
+			destTableName,
+			location,
+			field,
+			hdfsClusterName,
+			tableFormatConversion(hms));
+
+	if (forceSync)
+		dropTableCompatibility3X(destTableName, true);
+
+	spiExec(sql);
+	execCommentStatment(hms, destTableName);	
+
+	pfree(location);
+	pfree(field);
+	pfree(sql);
+}
+
+static void
+sync_hive_table_compatibility3x_(HmsHandle *hms,
+				 const char *hiveDbName,
+				 const char *hiveTableName,
+				 const char *hdfsClusterName,
+				 const char *destTableName,
+				 const char *hiveClusterName,
+				 bool suppressError,
+				 bool forceSync,
+				 const char *specifyMaxPartitionValue)
+{
+	bool  isPartTable;
+
+	PG_TRY();
+	{
+		if (validateTable(hms, hiveDbName, hiveTableName, suppressError))
+		{
+			isPartTable = HmsTableIsPartitionTable(hms);
+			if (isPartTable)
+			{
+				sync_partition_table_compatibility3x(hms,
+									 hiveDbName,
+									 hiveTableName,
+									 hdfsClusterName,
+									 destTableName,
+									 hiveClusterName,
+									 forceSync,
+									 specifyMaxPartitionValue);
+			}
+			else
+			{
+				sync_normal_table_compatibility3x(hms,
+					  hiveDbName,
+					  hiveTableName,
+					  hdfsClusterName,
+					  destTableName,
+					  forceSync);
+			}
+		}
+
+		HmsReleaseTableMetaData(hms);
+	}
+	PG_CATCH();
+	{
+		HmsReleaseTableMetaData(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+}
+
+static void
+sync_hive_database_compatibility3x_(HmsHandle *hms,
+					const char *hiveDbName,
+					const char *hdfsClusterName,
+					const char *destSchemaName,
+					const char *hiveClusterName,
+					bool forceSync)
+{
+	int i;
+	char **tables;
+	StringInfoData nameBuf;
+
+	tables = HmsGetTables(hms, hiveDbName);
+	if (!tables)
+		elog(ERROR, "failed to call hive_get_tables: %s", HmsGetError(hms));
+
+	initStringInfo(&nameBuf);
+
+	for (i = 0; tables[i] != NULL; i++)
+	{
+		char *hiveTableName = tables[i];
+
+		CHECK_FOR_INTERRUPTS();
+
+		appendStringInfo(&nameBuf, "%s.%s", destSchemaName, hiveTableName);
+
+		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
+				hdfsClusterName, nameBuf.data, hiveClusterName, true, forceSync, NULL);
+
+		resetStringInfo(&nameBuf);
+	}
+
+	pfree(nameBuf.data);
+	freeArray(tables);
+}
+
+
+
+PG_FUNCTION_INFO_V1(sync_hive_table_3x);
+Datum
+sync_hive_table_3x(PG_FUNCTION_ARGS)
+{
+	bool result = false;
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hiveTableName;
+	const char *hdfsClusterName;
+	const char *destTableName;
+	HmsHandle *volatile hms;
+	bool forceSync = false;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hive table name cannot be NULL");
+	hiveTableName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "dest table name cannot be NULL");
+	destTableName = text_to_cstring(PG_GETARG_TEXT_PP(4));
+
+	if (!PG_ARGISNULL(5))
+		forceSync = PG_GETARG_BOOL(5);
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
+				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, NULL);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_partition_table_3x);
+Datum
+sync_hive_partition_table_3x(PG_FUNCTION_ARGS)
+{
+	bool result = false;
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hiveTableName;
+	const char *hdfsClusterName;
+	const char *destTableName;
+	const char *specifyMaxPartitionValue = NULL;
+	HmsHandle *volatile hms;
+	bool forceSync = false;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hive table name cannot be NULL");
+	hiveTableName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "Hive partition value cannot be NULL");
+	specifyMaxPartitionValue = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(4));
+
+	if (PG_ARGISNULL(5))
+		elog(ERROR, "dest table name cannot be NULL");
+	destTableName = text_to_cstring(PG_GETARG_TEXT_PP(5));
+
+	if (!PG_ARGISNULL(6))
+		forceSync = PG_GETARG_BOOL(6);
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
+				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, specifyMaxPartitionValue);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_database_3x);
+Datum
+sync_hive_database_3x(PG_FUNCTION_ARGS)
+{
+	bool result = false;
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hdfsClusterName;
+	const char *destSchemaName;
+	HmsHandle *volatile hms;
+	bool forceSync = false;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "dest schema name cannot be NULL");
+	destSchemaName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (!PG_ARGISNULL(4))
+		forceSync = PG_GETARG_BOOL(4);
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_database_compatibility3x_(hms, hiveDbName,
+				hdfsClusterName, destSchemaName, hiveClusterName, forceSync);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+
 	PG_RETURN_BOOL(result);
 }

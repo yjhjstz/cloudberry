@@ -279,5 +279,9 @@ void readAccordingConsistentHash::accordingConsistentHash(int segId, int segNum,
 	freehash(h);
 }
 
+void readAccordingConsistentHash::reset() {
+    readingLists.clear();
+}
+
 }
 }

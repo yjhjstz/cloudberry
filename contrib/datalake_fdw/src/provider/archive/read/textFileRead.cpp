@@ -70,6 +70,7 @@ namespace Internal {
 void textFileRead::createHandler(void* sstate) {
 	dataLakeFdwScanState *ss = (dataLakeFdwScanState*)sstate;
 	initParameter(sstate);
+    initializeColumnValue();
     initializeDataStructures(ss);
 	bool exec = createPolicy();
 	if (exec)
@@ -123,18 +124,30 @@ void textFileRead::createFileStream(dataLakeFdwScanState *ss) {
 }
 
 bool textFileRead::createPolicy() {
-	std::vector<ListContainer> lists;
-    int64_t totalsize = 0;
-    List *fragments = GetFragmentList(scanstate->options, &totalsize);
-	extraFragmentLists(lists, fragments);
-    freeFragmentLists(fragments);
 
 	bool exec = false;
 	int dummy_segid = 0;
 	int dummy_segnums = 0;
 	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
-	if (!exec)
-		lists.clear();
+	if (!exec) {
+        return false;
+    }
+		
+	std::vector<ListContainer> lists;
+	int64_t totalsize = 0;
+    if (scanstate->options->hiveOption->hivePartitionKey != NULL)
+    {
+		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
+		extraFragmentLists(lists, fragment);
+		freeFragmentLists(fragment);
+		scanstate->options->hiveOption->curPartition += 1;
+    }
+    else
+    {
+        List *fragments = GetFragmentList(scanstate->options, &totalsize);
+	    extraFragmentLists(lists, fragments);
+        freeFragmentLists(fragments);
+    }
 
 	segid = dummy_segid;
 	readPolicy.textFileBuild(dummy_segid, dummy_segnums, CUT_TEXTFILE_BLOCK_SIZE, lists, fileStream, options);
@@ -153,6 +166,7 @@ void textFileRead::allocateDataBuffer() {
 }
 
 int64_t textFileRead::readWithBuffer(void* buffer, int64_t length) {
+nextPartition:
     while(!last) {
         if (!readNextGroup()) {
             blockOffset = 0;
@@ -165,7 +179,32 @@ int64_t textFileRead::readWithBuffer(void* buffer, int64_t length) {
             return nread;
         }
     }
+
+	if (QueryFinishPending || QueryCancelPending)
+	{
+		return 0;
+	}
+
+	if (!isLastPartition(scanstate))
+	{
+		restart();
+		goto nextPartition;
+	}
+
     return 0;
+}
+
+void textFileRead::restart()
+{
+    skip_first_line = false;
+    last = false;
+    index = 0;
+    readPolicy.reset();
+    initializeColumnValue();
+    createPolicy();
+    curMetaInfo.rangeOffset = 0;
+    curMetaInfo.rangeOffsetEnd = 0;
+    curMetaInfo.fileLength = 0;
 }
 
 int64_t textFileRead::readForFile(void* buffer, int64_t length) {
@@ -327,6 +366,7 @@ bool textFileRead::getNextGroup() {
 
 bool textFileRead::readNextFile() {
     if (serial > (int)readPolicy.end) {
+
         return false;
     }
     auto it = readPolicy.block.find(serial);
@@ -358,8 +398,12 @@ bool textFileRead::readNextFile() {
 }
 
 bool textFileRead::openTextFile(metaInfo info) {
-    reader.reset();
-    reader = getTextFileInput(info.compress);
+    if (reader)
+    {
+        reader->close();
+        reader.reset();
+    }
+    reader = getTextFileInput(info.compress, scanstate->initcontext);
     blockOffset = 0;
     curFileName = info.fileName;
 
@@ -392,6 +436,10 @@ bool textFileRead::openTextFile(metaInfo info) {
     return true;
 }
 
+const char* textFileRead::getReadFileName() {
+    return curFileName.c_str();
+}
+
 void textFileRead::updateMetaInfo(metaInfo info) {
     curMetaInfo.exists = info.exists;
     curMetaInfo.fileName = info.fileName;
@@ -400,6 +448,23 @@ void textFileRead::updateMetaInfo(metaInfo info) {
     curMetaInfo.rangeOffset = info.rangeOffset;
     curMetaInfo.rangeOffsetEnd = info.rangeOffsetEnd;
     curMetaInfo.compress = info.compress;
+}
+
+void textFileRead::setPartitionValue(void* values, void* nulls) {
+	if (scanstate->options->hiveOption->hivePartitionKey != NULL)
+	{
+		AttrNumber numDefaults = this->nDefaults;
+		int *defaultMap = this->defMap;
+		ExprState **defaultExprs = this->defExprs;
+
+		for (int i = 0; i < numDefaults; i++)
+		{
+			/* only eval const expr, so we don't need pg_try catch block here */
+			Datum* value = (Datum*)values;
+			bool* null = (bool*)nulls;
+			value[defaultMap[i]] = ExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
+		}
+	}
 }
 
 void textFileRead::destroyHandler() {

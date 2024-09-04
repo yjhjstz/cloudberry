@@ -40,11 +40,11 @@ providerWrapper initProvider(const char *type, bool readFdw, bool vectorization)
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "External table init provider failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table init provider failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table init provider failed.");
+		elog(ERROR, "Datalake foreign table init provider failed.");
 	}
 	return prov;
 }
@@ -57,11 +57,11 @@ void createHandler(providerWrapper provider, void* sstate) {
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "External table create handle failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table create handle failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table create handle failed.");
+		elog(ERROR, "Datalake foreign table create handle failed.");
 	}
 	return;
 }
@@ -74,13 +74,28 @@ int64_t readFromProvider(providerWrapper provider, void *values, void *nulls) {
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "External table read from oss failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table read from oss failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table read from oss failed.");
+		elog(ERROR, "Datalake foreign table read from oss failed.");
 	}
 	return res;
+}
+
+void setPartitionValue(providerWrapper provider, void *values, void *nulls) {
+	try
+	{
+		provider->getContext()->setPartitionValue(values, nulls);
+	}
+	catch (std::exception &e)
+	{
+		elog(ERROR, "Datalake foreign table read setPartitionValue failed, failed msg : %s", e.what());
+	}
+	catch (...)
+	{
+		elog(ERROR, "Datalake foreign table read setPartitionValue failed.");
+	}
 }
 
 int64_t readRecordBatch(providerWrapper provider, void** recordBatch)
@@ -92,11 +107,11 @@ int64_t readRecordBatch(providerWrapper provider, void** recordBatch)
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "External table readRecordBatch from oss failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table readRecordBatch from oss failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table readRecordBatch from oss failed.");
+		elog(ERROR, "Datalake foreign table readRecordBatch from oss failed.");
 	}
 	return res;
 }
@@ -110,11 +125,11 @@ int64_t readBufferFromProvider(providerWrapper provider, void* buffer, int64_t l
 	}
 	catch(const std::exception& e)
 	{
-		elog(ERROR, "External table read buffer from oss failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table read buffer from oss failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table read buffer from oss failed.");
+		elog(ERROR, "Datalake foreign table read buffer from oss failed.");
 	}
 	return res;
 }
@@ -127,11 +142,11 @@ int64_t writeToProvider(providerWrapper provider, const void* buf, int64_t lengt
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "External table write to oss failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table write to oss failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table write to oss failed.");
+		elog(ERROR, "Datalake foreign table write to oss failed.");
 	}
 	return writenLen;
 }
@@ -143,11 +158,11 @@ void destroyHandler(providerWrapper provider) {
 	}
 	catch(std::exception &e)
 	{
-		elog(ERROR, "External table destroy handle failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table destroy handle failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table destroy handle failed.");
+		elog(ERROR, "Datalake foreign table destroy handle failed.");
 	}
 	return;
 }
@@ -163,14 +178,33 @@ void destroyProvider(providerWrapper provider) {
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "External table destroy provider handle failed, failed msg : %s", e.what());
+		elog(ERROR, "Datalake foreign table destroy provider handle failed, failed msg : %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "External table destroy provider handle failed.");
+		elog(ERROR, "Datalake foreign table destroy provider handle failed.");
 	}
 	return;
 }
+
+const char* getReadProviderFileName(providerWrapper provider)
+{
+	const char* res = 0;
+	try
+	{
+		res = provider->getContext()->getReadFileName();
+	}
+	catch(const std::exception& e)
+	{
+		elog(ERROR, "Datalake foreign table get read filename failed, failed msg : %s", e.what());
+	}
+	catch (...)
+	{
+		elog(ERROR, "Datalake foreign table get read filename failed.");
+	}
+	return res;
+}
+
 
 #ifdef __cplusplus
 }

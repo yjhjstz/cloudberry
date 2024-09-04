@@ -10,13 +10,14 @@
 namespace Datalake {
 namespace Internal {
 
-textFileSnappyRead::textFileSnappyRead() {
+textFileSnappyRead::textFileSnappyRead(MemoryContext mContext) {
     pos = 0;
     blockLength = 0;
     uncompress_length_in_block = 0;
     path = "";
     state = FILE_UNDEF;
     readFinish = false;
+    this->mContext = mContext;
 }
 
 textFileSnappyRead::~textFileSnappyRead() {
@@ -94,7 +95,9 @@ void textFileSnappyRead::resizeInputBuffer(int size) {
         pfree(inputBuffer.buffer);
     }
     int resize = size * 2;
+    MemoryContext oldContext = MemoryContextSwitchTo(mContext);
     inputBuffer.buffer = (char*)palloc(resize);
+    MemoryContextSwitchTo(oldContext);
     inputBuffer.buffer_length = resize;
     inputBuffer.pos = 0;
     inputBuffer.used_size = 0;
@@ -108,7 +111,9 @@ void textFileSnappyRead::resizeOutputBuffer(int size) {
         pfree(outputBuffer.buffer);
     }
     int resize = size * 2;
+    MemoryContext oldContext = MemoryContextSwitchTo(mContext);
     outputBuffer.buffer = (char*)palloc(resize);
+    MemoryContextSwitchTo(oldContext);
     outputBuffer.buffer_length = resize;
     outputBuffer.pos = 0;
     outputBuffer.used_size = 0;

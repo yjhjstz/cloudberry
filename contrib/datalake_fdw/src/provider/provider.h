@@ -45,9 +45,13 @@ public:
 
 	virtual int64_t write(const void* buf, int64_t length);
 
+	virtual void setPartitionValue(void* values, void* nulls);
+
 	virtual void destroyHandler();
 
 	virtual CompressType getCompressType(char* type);
+
+	virtual const char* getReadFileName();
 
 	virtual std::string generateWriteFileName(std::string writePrefix, std::string suffix, int segid);
 
