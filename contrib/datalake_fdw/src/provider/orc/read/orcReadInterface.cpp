@@ -9,9 +9,9 @@ namespace Datalake {
 namespace Internal {
 
 
-bool orcReadInterface::createORCReader(void* opt, std::string filename, int64_t length, bool enableCache, char *allocBuffer)
+bool orcReadInterface::createORCReader(ossFileStream fileStream, std::string filename, int64_t length, bool enableCache, char *allocBuffer)
 {
-    auto istream = ORC_UNIQUE_PTR<orc::InputStream>(new OssInputStream(opt, filename, length, enableCache, allocBuffer));
+    auto istream = ORC_UNIQUE_PTR<orc::InputStream>(new OssInputStream(fileStream, filename, length, enableCache, allocBuffer));
     stream = (OssInputStream *)istream.get();
     if (!stream->checkORCFile())
     {

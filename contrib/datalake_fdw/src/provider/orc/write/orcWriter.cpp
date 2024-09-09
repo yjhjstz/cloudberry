@@ -527,7 +527,7 @@ void orcWrite::writeToField(int num, const void* data) {
       }
       default:
         elog(ERROR,
-             "Type Mismatch: data in %s is as define %s in external table, but in orc not define %s",
+             "Type Mismatch: data in %s is as define %s in datalake foreign table, but in orc not define %s",
              columnName.c_str(),
              getColTypeName(typeID).data(),
              getTypeMappingSupported().data());
@@ -602,7 +602,7 @@ void orcWrite::writeToBatch(int num) {
       }
       default:
         elog(ERROR,
-             "Type Mismatch: data in %s is as define %s in external table, but in orc not define %s",
+             "Type Mismatch: data in %s is as define %s in datalake foreign table, but in orc not define %s",
              columnName.c_str(),
              getColTypeName(typeID).data(),
              getTypeMappingSupported().data());
@@ -739,7 +739,7 @@ std::string orcWrite::generateOrcSchema()
       }
       default:
         elog(ERROR,
-             "Type Mismatch: data in %s is as define %s in external table, but in orc not define %s",
+             "Type Mismatch: data in %s is as define %s in datalake foreign table, but in orc not define %s",
              tupdesc->attrs[i].attname.data,
              getColTypeName(typeID).data(),
              getTypeMappingSupported().data());

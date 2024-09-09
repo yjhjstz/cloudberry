@@ -23,10 +23,15 @@ namespace Internal{
 void avroRead::createHandler(void *sstate)
 {
     initParameter(sstate);
+    exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+    if (!exec)
+    {
+        return;
+    }
+    blockSerial = dummy_segid;
     initializeColumnValue();
-    bool exec = createPolicy();
-	if (exec)
-		initFileStream();
+    createPolicy();
+    initFileStream();
     readBuffer_ = std::make_unique<AvroStreamBuffer>(AVRO_READ_BUFFER_SIZE);
     readNextGroup();
 }
@@ -211,18 +216,9 @@ bool avroRead::createPolicy()
         freeFragmentLists(fragment);
     }
 
-    bool exec = false;
-    int dummy_segid = 0;
-    int dummy_segnums = 0;
-    exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
-    if (!exec)
-        lists.clear();
-
     blockPolicy.build(dummy_segid, dummy_segnums, BLOCK_POLICY_SIZE, lists);
-    blockPolicy.distBlock();
-    blockSerial = blockPolicy.start;
 
-	return exec;
+    return exec;
 }
 
 bool avroRead::getNextGroup()
@@ -239,7 +235,7 @@ bool avroRead::getNextGroup()
 
 bool avroRead::readNextFile()
 {
-    if (blockSerial > blockPolicy.end)
+    if (blockSerial >= blockPolicy.end)
     {
         return false;
     }
@@ -264,7 +260,7 @@ bool avroRead::readNextFile()
     else
     {
         int64_t blockCount = blockPolicy.block.size();
-        elog(ERROR, "external table internal error. block index %d "
+        elog(ERROR, "Datalake foreign table internal error. block index %d "
         "not found in avro block policy. block count %ld", blockSerial, blockCount);
     }
     return true;
@@ -348,6 +344,10 @@ fileState avroRead::getFileState()
 
 int64_t avroRead::read(void *values, void *nulls)
 {
+    if (!exec)
+    {
+        return 0;
+    }
 nextPartition:
 
     if (readNextRow((Datum*)values, (bool*)nulls))

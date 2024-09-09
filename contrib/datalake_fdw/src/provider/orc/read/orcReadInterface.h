@@ -18,7 +18,7 @@ public:
 		stripesIndex = 0;
 	}
 
-	bool createORCReader(void* opt, std::string filename, int64_t length, bool enableCache, char *allocBuffer);
+	bool createORCReader(ossFileStream fileStream, std::string filename, int64_t length, bool enableCache, char *allocBuffer);
 
 	void setRowReadOptions(std::set<int> attr_used, int column);
 

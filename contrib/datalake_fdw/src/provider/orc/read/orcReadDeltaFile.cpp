@@ -3,12 +3,12 @@
 namespace Datalake {
 namespace Internal {
 
-void orcReadDeltaFile::readDeleteDeltaLists(void* opt, std::vector<ListContainer> &deleteDeltaLists, bool enableCache)
+void orcReadDeltaFile::readDeleteDeltaLists(ossFileStream fileStream, std::vector<ListContainer> &deleteDeltaLists, bool enableCache)
 {
     for (auto it = deleteDeltaLists.begin(); it != deleteDeltaLists.end(); it++)
     {
         std::shared_ptr<orcReadInterface> reader(new orcReadInterface());
-        if (!reader->createORCReader(opt, it->keyName, it->size, enableCache, NULL))
+        if (!reader->createORCReader(fileStream, it->keyName, it->size, enableCache, NULL))
         {
             continue;
         }

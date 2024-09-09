@@ -10,6 +10,7 @@ extern "C" {
 #include "utils/timestamp.h"
 #include "utils/builtins.h"
 #include "utils/fmgrprotos.h"
+#include "src/common/random_segment.h"
 }
 
 namespace Datalake {
@@ -19,11 +20,16 @@ namespace Internal {
 void orcReadRecordBatch::createHandler(void *sstate)
 {
 	initParameter(sstate);
+	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	if (!exec)
+	{
+		return;
+	}
+	blockSerial = dummy_segid;
 	initializeColumnValue();
-	bool exec = createPolicy();
-	if (exec)
-		initFileStream();
-	deltaFile.readDeleteDeltaLists((void*)scanstate->options,
+	createPolicy();
+	initFileStream();
+	deltaFile.readDeleteDeltaLists(fileStream,
 		readPolicy.deleteDeltaLists, setStreamWhetherCache(options));
 	pool = arrow::default_memory_pool();
 	readNextGroup();
@@ -34,6 +40,8 @@ void orcReadRecordBatch::destroyHandler()
 {
 	tupleIndex = 0;
 	fileReader.closeORCReader();
+	destroyFileSystem(fileStream);
+	fileStream = NULL;
 	releaseResources();
 }
 
@@ -47,7 +55,7 @@ void orcReadRecordBatch::restart()
 	initializeColumnValue();
 	createPolicy();
 	deltaFile.reset();
-	deltaFile.readDeleteDeltaLists((void*)scanstate->options,
+	deltaFile.readDeleteDeltaLists(fileStream,
 		readPolicy.deleteDeltaLists, setStreamWhetherCache(options));
 	readNextGroup();
 }
@@ -226,6 +234,11 @@ arrow::Status orcReadRecordBatch::recordBatchAddNullColumn(int mpp_index, int ba
 
 int64_t orcReadRecordBatch::read(void **recordBatch)
 {
+	if (!exec)
+	{
+		return 0;
+	}
+
 nextPartition:
 
 	if (readNextRecordBatch(recordBatch))

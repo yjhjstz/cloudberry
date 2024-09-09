@@ -503,19 +503,19 @@ select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_3',
  t
 (1 row)
 
-select * from hive_test_3 order by id;
+select * from hive_test_3 order by id, name, m;
  id |    name     | m 
 ----+-------------+---
-  1 | fsdf        | 2
   1 | 23423       | 3
+  1 | fsdf        | 2
   2 | rewrwe      | 2
   2 | werwer      | 3
   3 | 2345fsd     | 2
   3 | 2345gagefsd | 3
-  4 | trewtaf     | 2
   4 | 46346       | 3
-  5 | fdsfsdfwe   | 2
+  4 | trewtaf     | 2
   5 | agasdg      | 3
+  5 | fdsfsdfwe   | 2
   6 | rewrwr3r2   | 1
   7 | fdsfsf      | 1
   8 | ddddbbbb    | 1

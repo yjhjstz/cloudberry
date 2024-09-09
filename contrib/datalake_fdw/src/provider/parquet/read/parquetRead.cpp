@@ -11,41 +11,37 @@ namespace Internal {
 void parquetRead::createHandler(void *sstate)
 {
 	initParameter(sstate);
+	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	if (!exec)
+	{
+		return;
+	}
+	blockSerial = dummy_segid;
 	initializeColumnValue();
-	bool exec = createPolicy();
-	if (exec)
-		initFileStream();
+	createPolicy();
+	initFileStream();
 	readNextGroup();
 }
 
 bool parquetRead::createPolicy()
 {
 	std::vector<ListContainer> lists;
-    int64_t totalsize = 0;
+	int64_t totalsize = 0;
 	if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 	{
-        List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
+		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
-        freeFragmentLists(fragment);
+		freeFragmentLists(fragment);
 		scanstate->options->hiveOption->curPartition += 1;
 	}
 	else
 	{
-        List *fragment = GetFragmentList(scanstate->options, &totalsize);
+		List *fragment = GetFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
-        freeFragmentLists(fragment);
+		freeFragmentLists(fragment);
 	}
 
-	bool exec = false;
-	int dummy_segid = 0;
-	int dummy_segnums = 0;
-	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
-	if (!exec)
-		lists.clear();
-
 	blockPolicy.build(dummy_segid, dummy_segnums, BLOCK_POLICY_SIZE, lists);
-	blockPolicy.distBlock();
-	blockSerial = blockPolicy.start;
 
 	return exec;
 }
@@ -78,7 +74,7 @@ bool parquetRead::getNextGroup()
 
 bool parquetRead::readNextFile()
 {
-	if (blockSerial > blockPolicy.end)
+	if (blockSerial >= blockPolicy.end)
     {
         return false;
     }
@@ -103,7 +99,7 @@ bool parquetRead::readNextFile()
     else
     {
         int64_t blockCount = blockPolicy.block.size();
-        elog(ERROR, "external table internal error. block index %d "
+        elog(ERROR, "Datalake foreign table internal error. block index %d "
         "not found in parquet block policy. block count %ld", blockSerial, blockCount);
     }
 
@@ -116,7 +112,7 @@ bool parquetRead::getRowGropFromSmallFile(metaInfo info)
     if (!fileReader.createParquetReader(fileStream, info.fileName, options))
     {
         /* this file format not parquet skip it. */
-        elog(LOG, "External table LOG, file %s format is not parquet skip it.", info.fileName.c_str());
+        elog(LOG, "Datalake foreign table LOG, file %s format is not parquet skip it.", info.fileName.c_str());
         return true;
     }
 
@@ -137,7 +133,7 @@ bool parquetRead::getRowGropFromBigFile(metaInfo info)
         if (!fileReader.createParquetReader(fileStream, info.fileName, options))
         {
             /* this file format not parquet skip it. */
-            elog(LOG, "External table LOG, file %s format is not parquet skip it.", info.fileName.c_str());
+            elog(LOG, "Datalake foreign table LOG, file %s format is not parquet skip it.", info.fileName.c_str());
             return true;
         }
         curFileName = info.fileName;
@@ -173,6 +169,10 @@ bool parquetRead::getRowGropFromBigFile(metaInfo info)
 
 int64_t parquetRead::read(void *values, void *nulls)
 {
+	if (!exec)
+	{
+		return 0;
+	}
 nextPartition:
 
 	if (readNextRow((Datum*)values, (bool*)nulls))

@@ -16,11 +16,16 @@ void orcRead::createHandler(void *sstate)
 {
 	initParameter(sstate);
 	options.transactionTable = scanstate->options->hiveOption->transactional;
+	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	if (!exec)
+	{
+		return;
+	}
+	blockSerial = dummy_segid;
 	initializeColumnValue();
-	bool exec = createPolicy();
-	if (exec)
-		initFileStream();
-	deltaFile.readDeleteDeltaLists((void*)scanstate->options,
+	createPolicy();
+	initFileStream();
+	deltaFile.readDeleteDeltaLists(fileStream,
 		readPolicy.deleteDeltaLists, setStreamWhetherCache(options));
 	readNextGroup();
 }
@@ -29,6 +34,7 @@ bool orcRead::createPolicy()
 {
 	std::vector<ListContainer> lists;
 	int64_t totalsize = 0;
+	
 	if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 	{
 		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
@@ -42,18 +48,9 @@ bool orcRead::createPolicy()
 		extraFragmentLists(lists, fragment);
 		freeFragmentLists(fragment);
 	}
-
-	bool exec = false;
-	int dummy_segid = 0;
-	int dummy_segnums = 0;
-	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
-	if (!exec)
-		lists.clear();
-
+	
 	readPolicy.hiveTranscation = options.transactionTable;
 	readPolicy.build(dummy_segid, dummy_segnums, BLOCK_POLICY_SIZE, lists);
-	readPolicy.distBlock();
-	blockSerial = readPolicy.start;
 
 	return exec;
 }
@@ -68,13 +65,18 @@ void orcRead::restart()
 	initializeColumnValue();
 	createPolicy();
 	deltaFile.reset();
-	deltaFile.readDeleteDeltaLists((void*)scanstate->options,
+	deltaFile.readDeleteDeltaLists(fileStream,
 		readPolicy.deleteDeltaLists, setStreamWhetherCache(options));
 	readNextGroup();
 }
 
 int64_t orcRead::read(void *values, void *nulls)
 {
+	if (!exec)
+	{
+		return 0;
+	}
+
 nextPartition:
 
 	if (readNextRow((Datum*)values, (bool*)nulls))
@@ -118,12 +120,14 @@ void orcRead::destroyHandler()
 {
 	tupleIndex = 0;
 	fileReader.closeORCReader();
+	destroyFileSystem(fileStream);
+	fileStream = NULL;
 	releaseResources();
 }
 
 bool orcRead::readNextFile()
 {
-	if (blockSerial > readPolicy.end)
+	if (blockSerial >= readPolicy.end)
 	{
 		return false;
 	}
@@ -135,6 +139,10 @@ bool orcRead::readNextFile()
 		metaInfo info = it->second;
 		if (info.exists)
 		{
+			if (external_table_debug)
+			{
+				elog(LOG, "Datalake foreign table LOG, read block index %d, block offset %ld, end %ld", blockSerial, info.rangeOffset, info.rangeOffsetEnd);
+			}
 			if (info.fileLength <= info.blockSize)
 			{
 				return getStripeFromSmallFile(info);
@@ -148,7 +156,7 @@ bool orcRead::readNextFile()
 	else
 	{
 		int64_t blockCount = readPolicy.block.size();
-		elog(ERROR, "external table internal error. block index %d "
+		elog(ERROR, "Datalake foreign table internal error. block index %d "
         "not found in orc block policy. block count %ld", blockSerial, blockCount);
 	}
 	return true;
@@ -157,10 +165,10 @@ bool orcRead::readNextFile()
 bool orcRead::getStripeFromSmallFile(metaInfo info)
 {
 	fileReader.closeORCReader();
-	if (!fileReader.createORCReader((void*)scanstate->options, info.fileName, info.fileLength, options))
+	if (!fileReader.createORCReader(fileStream, info.fileName, info.fileLength, options))
 	{
 		/* file format not orc skip it */
-		elog(LOG, "External table LOG, file %s format is not orc skip it.", info.fileName.c_str());
+		elog(LOG, "Datalake foreign table LOG, file %s format is not orc skip it.", info.fileName.c_str());
 		return true;
 	}
 
@@ -177,10 +185,10 @@ bool orcRead::getStripeFromBigFile(metaInfo info)
 	{
 		fileReader.readInterface.stripes.clear();
 		fileReader.closeORCReader();
-		if (!fileReader.createORCReader((void*)scanstate->options, info.fileName, info.fileLength, options))
+		if (!fileReader.createORCReader(fileStream, info.fileName, info.fileLength, options))
 		{
 			/* file format not orc skip it */
-			elog(LOG, "External table LOG, file %s format is not orc skip it.", info.fileName.c_str());
+			elog(LOG, "Datalake foreign table LOG, file %s format is not orc skip it.", info.fileName.c_str());
 			return true;
 		}
 

@@ -30,7 +30,9 @@ void readLogical::initParameter(void *sstate)
 	curFileName = "";
 	segId = GpIdentity.segindex;
 	segnum = getgpsegmentCount();
-
+	dummy_segid = 0;
+	dummy_segnums = 0;
+	exec = false;
 	last = false;
 	options.buffer.allocDataBufferArray(ncolumns);
 	options.enableCache = scanstate->options->gopher->enableCache;
@@ -135,7 +137,7 @@ void readLogical::initializeColumnValue()
 		}
 		if (ncolumns - nPartitionKey >= minPartitionIdx || maxPartitionIdx < ncolumns)
 		{
-			elog(ERROR, "external table internal error. partition key index %d-%d "
+			elog(ERROR, "Datalake foreign table internal error. partition key index %d-%d "
 				"are not at the end of the table %d-%d", minPartitionIdx, maxPartitionIdx, ncolumns - nPartitionKey + 1, ncolumns);
 		}
 	}
@@ -197,7 +199,7 @@ bool readLogical::readNextGroup()
 			last = true;
 			return false;
 		}
-		blockSerial++;
+		blockSerial += dummy_segnums;
 	}
 	return false;
 }

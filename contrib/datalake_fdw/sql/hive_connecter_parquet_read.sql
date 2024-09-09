@@ -102,7 +102,7 @@ select count(*) from hive_parquet_test_2 where name3='c';
 -- hive partiton key is int type
 DROP FOREIGN TABLE IF EXISTS hive_parquet_test_3;
 select sync_hive_table('hive_cluster', 'hive_parquet_load_data_test', 'hive_test_3', 'paa_cluster', 'hive_parquet_test_3', 'foreign_server');
-select * from hive_parquet_test_3 order by id;
+select * from hive_parquet_test_3 order by id, name, m;
 select * from hive_parquet_test_3 where m=1 order by id;
 select count(*) from hive_parquet_test_3;
 select count(*) from hive_parquet_test_3 where m=2;

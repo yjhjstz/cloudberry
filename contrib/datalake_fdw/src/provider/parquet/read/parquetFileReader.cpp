@@ -110,7 +110,7 @@ bool parquetFileReader::createInternalReader(ossFileStream ossFile, std::string 
     int mpp_columns = options.includes_columns.size() - options.nPartitionKey;
     if (mpp_columns < num_columns)
     {
-        elog(ERROR, "External table Error, mpp columns %d is less than parquet %s columns %d.",
+        elog(ERROR, "Datalake foreign table Error, mpp columns %d is less than parquet %s columns %d.",
             mpp_columns, fileName.c_str(), num_columns);
     }
     state = FILE_OPEN;
@@ -437,7 +437,7 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     std::string decimal = value.ToString(scale);
                     if (decimal == "<scale out of range, cannot format Decimal128 value>")
                     {
-                        elog(ERROR, "External table Error, parquet error <scale out of range, cannot format Decimal128 value>");
+                        elog(ERROR, "Datalake foreign table Error, parquet error <scale out of range, cannot format Decimal128 value>");
                     }
                     return DirectFunctionCall3(numeric_in, CStringGetDatum(decimal.c_str()), ObjectIdGetDatum(0), Int32GetDatum(-1));
                 }
@@ -474,12 +474,12 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     std::string decimal = value.ToString(scale);
                     if (decimal == "<scale out of range, cannot format Decimal128 value>")
                     {
-                        elog(ERROR, "External table Error, parquet error <scale out of range, cannot format Decimal128 value>");
+                        elog(ERROR, "Datalake foreign table Error, parquet error <scale out of range, cannot format Decimal128 value>");
                     }
                     return DirectFunctionCall3(numeric_in, CStringGetDatum(decimal.c_str()), ObjectIdGetDatum(0), Int32GetDatum(-1));
                 }
                 default:
-                    elog(ERROR, "External table Error, Column index %d Parquet format "
+                    elog(ERROR, "Datalake foreign table Error, Column index %d Parquet format "
                     "Physical type for decimal128 must be int32, int64, byte array, "
                     "or fixed length binary. physical_type %d.", typeOid, des->physical_type());
             }
@@ -570,7 +570,7 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     }
                 }
                 default:
-                    elog(ERROR, "External table Error, Column index %d. "
+                    elog(ERROR, "Datalake foreign table Error, Column index %d. "
                      "MPP type BYTEAOID/TEXTOID/BPCHAROID/VARCHAROID Mapping "
                      "parquet BYTE_ARRAY/FIXED_LEN_BYTE_ARRAY. but column %d.", 
                      typeOid, des->physical_type());

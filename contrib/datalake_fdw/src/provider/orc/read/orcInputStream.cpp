@@ -11,14 +11,9 @@ extern "C" {
 namespace Datalake {
 namespace Internal {
 
-OssInputStream::OssInputStream(void* opt, std::string filename, uint64_t length, bool enableCache, char* allocBuffer)
-	: filename(filename), length(length), enableCache(enableCache), allocBuffer(allocBuffer)
+OssInputStream::OssInputStream(ossFileStream fileStream, std::string filename, uint64_t length, bool enableCache, char* allocBuffer)
+	: stream(fileStream), filename(filename), length(length), enableCache(enableCache), allocBuffer(allocBuffer)
 {
-	dataLakeOptions* datalakeOption = (dataLakeOptions*)opt;
-	gopherConfig* conf = createGopherConfig((void*)(datalakeOption->gopher));
-	stream = createFileSystem(conf);
-	freeGopherConfig(conf);
-
 	int flag = O_RDONLY | O_RDTHR;
 	if (enableCache)
 	{

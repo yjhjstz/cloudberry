@@ -52,7 +52,7 @@ public:
 		ptype = PROTOTCOL_UNKNOW;
     }
 
-    std::vector<bool> includes_columns;
+    std::vector<uint8_t> includes_columns;
     int batch_size;
 	int blockPolicySize;
 	bool enableCache;
@@ -143,6 +143,9 @@ private:
 protected:
 	int segId;
 	int segnum;
+	int dummy_segid;
+	int dummy_segnums;
+	bool exec;
 	int tupleIndex;
 	dataLakeFdwScanState* scanstate;
 	TupleDesc tupdesc;

@@ -1654,49 +1654,49 @@ select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_2',
  t
 (1 row)
 
-select * from hive_test_2 order by id;
+select * from hive_test_2 order by id, name, name2, name3;
  id | name | name2 | name3 
 ----+------+-------+-------
   1 | a    | a     | a
   1 | a    | a     | b
   1 | a    | a     | c
   1 | a    | a     | d
-  2 |      | a     | a
-  2 |      | a     | d
-  2 |      | a     | b
   2 | a    | a     | c
-  3 | a    | a     | d
-  3 | a    | a     | b
-  3 |      | a     | c
+  2 |      | a     | a
+  2 |      | a     | b
+  2 |      | a     | d
   3 | a    | a     | a
-  4 | a    |       | a
+  3 | a    | a     | b
+  3 | a    | a     | d
+  3 |      | a     | c
   4 | a    | a     | b
-  4 | a    |       | d
   4 | a    | a     | c
-  5 | a    | a     | d
-  5 | a    |       | c
-  5 | a    |       | b
+  4 | a    |       | a
+  4 | a    |       | d
   5 | a    | a     | a
-  6 |      | a     | a
+  5 | a    | a     | d
+  5 | a    |       | b
+  5 | a    |       | c
   6 | a    | a     | b
   6 | a    | a     | c
   6 | a    | a     | d
+  6 |      | a     | a
   7 | a    | a     | a
-  7 |      | a     | d
-  7 |      | a     | b
   7 | a    | a     | c
-  8 | a    | a     | d
-  8 | a    | a     | b
-  8 |      | a     | c
+  7 |      | a     | b
+  7 |      | a     | d
   8 | a    | a     | a
+  8 | a    | a     | b
+  8 | a    | a     | d
+  8 |      | a     | c
   9 | a    | a     | a
   9 | a    | a     | b
-  9 | a    | a     | d
   9 | a    | a     | c
- 10 | a    |       | d
- 10 | a    | a     | c
- 10 | a    | a     | b
+  9 | a    | a     | d
  10 | a    | a     | a
+ 10 | a    | a     | b
+ 10 | a    | a     | c
+ 10 | a    |       | d
 (40 rows)
 
 select * from hive_test_2 where name3='a' order by id;
@@ -1741,19 +1741,19 @@ select sync_hive_table('hive_cluster', 'hive_orc_load_data_test', 'hive_test_3',
  t
 (1 row)
 
-select * from hive_test_3 order by id;
+select * from hive_test_3 order by id, name, m;
  id |    name     | m 
 ----+-------------+---
   1 | 23423       | 3
   1 | fsdf        | 2
   2 | rewrwe      | 2
   2 | werwer      | 3
-  3 | 2345gagefsd | 3
   3 | 2345fsd     | 2
-  4 | trewtaf     | 2
+  3 | 2345gagefsd | 3
   4 | 46346       | 3
-  5 | fdsfsdfwe   | 2
+  4 | trewtaf     | 2
   5 | agasdg      | 3
+  5 | fdsfsdfwe   | 2
   6 | rewrwr3r2   | 1
   7 | fdsfsf      | 1
   8 | ddddbbbb    | 1

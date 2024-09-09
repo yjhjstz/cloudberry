@@ -21,7 +21,7 @@ public:
 		name = "";
 	}
 
-	bool createORCReader(void* opt, std::string fileName, int64_t length, readOption options);
+	bool createORCReader(ossFileStream fileStream, std::string fileName, int64_t length, readOption options);
 
 	void resetORCReader();
 

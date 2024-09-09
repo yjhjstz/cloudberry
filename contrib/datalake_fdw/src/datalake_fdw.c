@@ -237,7 +237,7 @@ _PG_init(void)
 								NULL);
 
 	DefineCustomBoolVariable("datalake.external_table_debug",
-							"If the value is true, external table to turn debug on.",
+							"If the value is true, datalake foreign table to turn debug on.",
 							NULL,
 							&external_table_debug,
 							false,
@@ -248,7 +248,7 @@ _PG_init(void)
 							NULL);
 
 	DefineCustomBoolVariable("datalake.external_table_new_text",
-							"If the value is true, external table use the new logic parse text.",
+							"If the value is true, datalake foreign table use the new logic parse text.",
 							NULL,
 							&external_table_new_text,
 							false,
@@ -298,7 +298,7 @@ _PG_init(void)
 							NULL);
 
 	DefineCustomIntVariable("datalake.external_table_limit_segment_num",
-							"Limit the number of segments executed external table.",
+							"Limit the number of segments executed datalake foreign table.",
 							NULL,
 							&external_table_limit_segment_num,
 							0,

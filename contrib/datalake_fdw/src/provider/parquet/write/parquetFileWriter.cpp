@@ -144,7 +144,7 @@ void parquetFileWriter::createColumnBatch()
                 break;
             }
             default:
-                elog(ERROR, "External Table Type Mismatch: MPP type %s not define in parquet type %s. type mapping %s",
+                elog(ERROR, "Datalake foreign table Type Mismatch: MPP type %s not define in parquet type %s. type mapping %s",
                     tupdesc->attrs[i].attname.data,
                     getColTypeName(typeId).data(),
                     getTypeMappingSupported().data());
@@ -253,7 +253,7 @@ std::shared_ptr<parquet::schema::GroupNode> parquetFileWriter::setupSchema()
                 break;
             }
             default:
-                elog(ERROR, "External Table Type Mismatch: MPP type %s not define in parquet type %s. type mapping %s",
+                elog(ERROR, "Datalake foreign table Type Mismatch: MPP type %s not define in parquet type %s. type mapping %s",
                     tupdesc->attrs[i].attname.data,
                     getColTypeName(typeId).data(),
                     getTypeMappingSupported().data());
@@ -657,7 +657,7 @@ void parquetFileWriter::writeToField(int index, const void* data)
             default:
                 std::string columnName = tupdesc->attrs[i].attname.data;
                 elog(ERROR,
-                    "Type Mismatch: data in %s is as define %s in external table, but in parquet not define %s",
+                    "Type Mismatch: data in %s is as define %s in datalake foreign table, but in parquet not define %s",
                     columnName.c_str(),
                     getColTypeName(typeID).data(),
                     getTypeMappingSupported().data());
@@ -938,7 +938,7 @@ void parquetFileWriter::writeToBatch(int rows)
             default:
                 std::string columnName = tupdesc->attrs[i].attname.data;
                 elog(ERROR,
-                    "Type Mismatch: data in %s is as define %s in external table, but in parquet not define %s",
+                    "Type Mismatch: data in %s is as define %s in datalake foreign table, but in parquet not define %s",
                     columnName.c_str(),
                     getColTypeName(typeID).data(),
                     getTypeMappingSupported().data());

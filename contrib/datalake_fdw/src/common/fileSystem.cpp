@@ -74,7 +74,7 @@ int FileSystem::openFile(const char *path, int flag)
 		gopher_prefix.append("/").append(path);
 	}
 
-	elog(DEBUG5, "External table gopherOpenFile path:%s flag:%d block_size:%d",
+	elog(DEBUG5, "Datalake foreign table gopherOpenFile path:%s flag:%d block_size:%d",
 					gopher_prefix.c_str(), flag, GOPHER_BLOCK_SIZE);
 
 	file = gopherOpenFile(fs, gopher_prefix.c_str(), flag, GOPHER_BLOCK_SIZE);
@@ -88,7 +88,7 @@ int FileSystem::openFile(const char *path, int flag)
 
 int FileSystem::write(void *buff, int64_t size)
 {
-	elog(DEBUG5, "External table gopherWrite path %s size %ld.", filePath.c_str(), size);
+	elog(DEBUG5, "Datalake foreign table gopherWrite path %s size %ld.", filePath.c_str(), size);
 
 	if (size == 0)
 	{
@@ -104,7 +104,7 @@ int FileSystem::write(void *buff, int64_t size)
 }
 
 int FileSystem::read(void *buff, int64_t size) {
-	elog(DEBUG5, "External table gopherRead path %s size %ld.", filePath.c_str(), size);
+	elog(DEBUG5, "Datalake foreign table gopherRead path %s size %ld.", filePath.c_str(), size);
 
 	if (size == 0)
 	{
@@ -120,7 +120,7 @@ int FileSystem::read(void *buff, int64_t size) {
 }
 
 int FileSystem::seek(int64_t postion) {
-	elog(DEBUG5, "External table gopherSeek path %s postion %ld.", filePath.c_str(), postion);
+	elog(DEBUG5, "Datalake foreign table gopherSeek path %s postion %ld.", filePath.c_str(), postion);
 
 	int ret = gopherSeek(fs, file, postion);
 	if (ret == -1)
@@ -132,7 +132,7 @@ int FileSystem::seek(int64_t postion) {
 }
 
 int FileSystem::getUfsId() {
-	elog(DEBUG5, "External table gopherGetUfsId.");
+	elog(DEBUG5, "Datalake foreign table gopherGetUfsId.");
 
 	int ufsId = gopherGetUfsId(fs);
 	if (ufsId < 0)
@@ -144,7 +144,7 @@ int FileSystem::getUfsId() {
 }
 
 int FileSystem::closeFile() {
-	elog(DEBUG5, "External table gopherCloseFile.");
+	elog(DEBUG5, "Datalake foreign table gopherCloseFile.");
 
 	if (closed)
 	{
@@ -193,7 +193,7 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 
 	if (external_table_debug)
 	{
-		elog(LOG, "External table gopherListDirectory path %s recursive %d.", gopher_prefix.c_str(), recursive);
+		elog(LOG, "Datalake foreign table gopherListDirectory path %s recursive %d.", gopher_prefix.c_str(), recursive);
 	}
 
 	gopherFileInfo *res = gopherListDirectory(fs, gopher_prefix.c_str(), recursive, &numEntries);
@@ -207,12 +207,12 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 
 	if (external_table_debug)
 	{
-		elog(LOG, "External table list %d files.", numEntries);
+		elog(LOG, "Datalake foreign table list %d files.", numEntries);
 	}
 
 	if (numEntries == 0)
 	{
-		elog(LOG, "External table read empty folder : %s.", gopher_prefix.c_str());
+		elog(LOG, "Datalake foreign table read empty folder : %s.", gopher_prefix.c_str());
 	}
 
 	count = numEntries;
@@ -220,7 +220,7 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 }
 
 gopherFileInfo* FileSystem::getFileInfo(const char* path) {
-	elog(DEBUG5, "External table gopherGetFileInfo path %s.", path);
+	elog(DEBUG5, "Datalake foreign table gopherGetFileInfo path %s.", path);
 
 	gopherFileInfo* info = gopherGetFileInfo(fs, path);
 	if (info == NULL)
@@ -231,7 +231,7 @@ gopherFileInfo* FileSystem::getFileInfo(const char* path) {
 }
 
 int FileSystem::gopherDestroyHandle() {
-	elog(DEBUG5, "External table gopherDisconnect.");
+	elog(DEBUG5, "Datalake foreign table gopherDisconnect.");
 
 	int ret = gopherDisconnect(fs);
 	if (ret == 0)
@@ -251,7 +251,7 @@ void FileSystem::freeListInfo(gopherFileInfo *list, int count) {
 	{
 		return;
 	}
-	elog(DEBUG5, "External table gopherFreeFileInfo.");
+	elog(DEBUG5, "Datalake foreign table gopherFreeFileInfo.");
 
 	gopherFreeFileInfo(list, count);
 }

@@ -155,7 +155,7 @@ GetPartitionList(Relation relation, List *quals, dataLakeOptions *options)
 	partitionValues = get_partition_values(relation, options);
 	serializedFragment = lappend(serializedFragment, partitionValues);
 
-	/* set curPartition to zero for external table to read from begin */
+	/* set curPartition to zero for datalake foreign table to read from begin */
 	options->hiveOption->curPartition = 0;
 	return serializedFragment;
 }

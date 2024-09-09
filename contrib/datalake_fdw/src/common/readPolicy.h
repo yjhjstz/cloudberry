@@ -48,6 +48,8 @@ public:
 class readBlockPolicy : public readPolicyBase
 {
 public:
+	readBlockPolicy() : globalIdx(0){}
+
 	virtual void build(int segId, int segNum, int blockSize, std::vector<ListContainer> lists);
 
 	void distBlock();
@@ -57,6 +59,8 @@ public:
 	int start;
 
 	int end;
+
+	int64_t globalIdx;
 
 	std::map<int, metaInfo> block;
 

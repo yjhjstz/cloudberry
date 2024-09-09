@@ -16,12 +16,12 @@ extern "C"
 namespace Datalake {
 namespace Internal {
 
-bool orcFileReader::createORCReader(void* opt, std::string fileName, int64_t length, readOption options)
+bool orcFileReader::createORCReader(ossFileStream fileStream, std::string fileName, int64_t length, readOption options)
 {
 	this->options = options;
 	state = FILE_OPEN;
 	readInterface.setTransactionTable(options.transactionTable);
-	return readInterface.createORCReader(opt, fileName, length,
+	return readInterface.createORCReader(fileStream, fileName, length,
 		setStreamWhetherCache(options), options.allocBuffer);
 }
 
@@ -116,7 +116,7 @@ Datum orcFileReader::readField(TupleDesc tupDesc, Oid typeOid, int rowIndex, con
         std::string column_type = colType->toString().data();
         readInterface.deleteORCReader();
         elog(ERROR,
-            "Type Mismatch: data in '%s' is defined as '%s' in ORC file, but in external table "
+            "Type Mismatch: data in '%s' is defined as '%s' in ORC file, but in datalake foreign table "
             "as '%s'. %s",
             columnName, column_type.c_str(), getColTypeName(typeOid).data(), getTypeMappingSupported().data());
         return 0;

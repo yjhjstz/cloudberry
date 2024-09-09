@@ -14,7 +14,7 @@ namespace Internal {
 class OssInputStream : public orc::InputStream
 {
 public:
-	OssInputStream(void* opt, std::string filename, uint64_t length, bool enableCache, char* allocBuffer);
+	OssInputStream(ossFileStream stream, std::string filename, uint64_t length, bool enableCache, char* allocBuffer);
 
     virtual uint64_t getLength() const {
 		return length;

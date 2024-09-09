@@ -16,34 +16,24 @@ std::string readPolicyBase::explainPolicy()
 
 void readBlockPolicy::build(int segId, int segNum, int blockSize, std::vector<ListContainer> lists)
 {
-	int64_t index = 0;
     this->blockSize = blockSize;
     this->segId = segId;
     this->segNum = segNum;
 	filterList(lists);
+    start = globalIdx;
 	for (auto it = normalLists.begin(); it != normalLists.end(); it++)
     {
         if (it->size <= blockSize)
         {
-            buildSmallFile(index, it->keyName, it->size);
-            index += 1;
+            buildSmallFile(globalIdx, it->keyName, it->size);
+            globalIdx += 1;
         }
         else
         {
-            buildBigFile(index, it->keyName, it->size);
+            buildBigFile(globalIdx, it->keyName, it->size);
         }
     }
-
-    int64_t remainderSize = block.size() % segNum;
-    if (remainderSize != 0)
-    {
-        for (int64_t i = 0; i < segNum - remainderSize; i++)
-        {
-            std::string name = "";
-            insertNewBlock(index, name, 0, blockSize, false, 0, 0);
-            index += 1;
-        }
-    }
+    end = globalIdx;
 }
 
 void readBlockPolicy::filterList(std::vector<ListContainer> lists)
@@ -164,35 +154,24 @@ void readBlockPolicy::insertNewBlock(int64_t index, std::string &name, int64_t s
 
 void orcReadPolicy::build(int segId, int segNum,  int blockSize, std::vector<ListContainer> lists)
 {
-	int64_t index = 0;
     this->blockSize = blockSize;
     this->segId = segId;
     this->segNum = segNum;
 	filterList(hiveTranscation, lists);
-
+    start = globalIdx;
 	for (auto it = normalLists.begin(); it != normalLists.end(); it++)
     {
         if (it->size <= blockSize)
         {
-            buildSmallFile(index, it->keyName, it->size);
-            index += 1;
+            buildSmallFile(globalIdx, it->keyName, it->size);
+            globalIdx += 1;
         }
         else
         {
-            buildBigFile(index, it->keyName, it->size);
+            buildBigFile(globalIdx, it->keyName, it->size);
         }
     }
-
-    int64_t remainderSize = block.size() % segNum;
-    if (remainderSize != 0)
-    {
-        for (int64_t i = 0; i < segNum - remainderSize; i++)
-        {
-            std::string name = "";
-            insertNewBlock(index, name, 0, blockSize, false, 0, 0);
-            index += 1;
-        }
-    }
+    end = globalIdx;
 }
 
 void orcReadPolicy::filterList(bool hiveTranscation, std::vector<ListContainer> lists)

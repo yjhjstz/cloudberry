@@ -43,7 +43,7 @@ extern "C" {
 #define PARAMETER_ASSERT(para, eno) \
     if (!(para)) {  \
         errno = eno; \
-        elog(ERROR, "External table Error, Parameter assert failed."); \
+        elog(ERROR, "Datalake foreign table Error, Parameter assert failed."); \
     }
 
 ossFileStream createFileSystem(gopherConfig *conf)

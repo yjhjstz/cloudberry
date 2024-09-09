@@ -31,7 +31,7 @@ static List* no_need_random(int num_nodes, int random_num)
 	{
 		StringInfoData buff;
 		initStringInfo(&buff);
-		appendStringInfo(&buff, "external table no need "
+		appendStringInfo(&buff, "Datalake foreign table no need "
 			"limit segment. num_nodes %d random_num %d.", num_nodes, random_num);
 		buff.data[strlen(buff.data) - 1] = '\0';
 		elog(LOG, "%s", buff.data);
@@ -76,7 +76,7 @@ static List* need_random(int num_nodes, int random_num)
 	{
 		StringInfoData buff;
 		initStringInfo(&buff);
-		appendStringInfo(&buff, "external table select limit segment %d num_nodes %d.", select_random_num, num_nodes);
+		appendStringInfo(&buff, "Datalake foreign table select limit segment %d num_nodes %d.", select_random_num, num_nodes);
 		int size = list_length(result);
 		for (i = 0; i < size; i++)
 		{

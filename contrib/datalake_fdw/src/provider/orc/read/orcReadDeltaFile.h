@@ -106,7 +106,7 @@ class orcReadDeltaFile
 {
 public:
 
-    void readDeleteDeltaLists(void* opt, std::vector<ListContainer> &deleteDeltaLists, bool enableCache);
+    void readDeleteDeltaLists(ossFileStream fileStream, std::vector<ListContainer> &deleteDeltaLists, bool enableCache);
 
     int compareTo(transcationStruct others);
 
