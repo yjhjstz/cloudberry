@@ -39,6 +39,7 @@ bool gather_motion_take = false;
 int control_memory_resource = 5;
 int control_global_memory_resource = 5;
 bool enable_vector_memory_resource = false;
+
 void
 assign_enable_vectorization(bool newval, void *extra)
 {
