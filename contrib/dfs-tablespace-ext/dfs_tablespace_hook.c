@@ -508,7 +508,6 @@ dfsProcessUtility(PlannedStmt *pstmt,
 			DfsAlterTableSpaceOptions((AlterTableSpaceOptionsStmt *) parseTree);
 			break;
 		default:
-			checkUnsupportDfsTableSpaceStmt(parseTree);
 			prevProcessUtilityHook(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, completionTag);
 	}
 }
