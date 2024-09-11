@@ -106,6 +106,7 @@ localFileClose(UFile *file)
 	LocalFile *localFile = (LocalFile *) file;
 
 	FileClose(localFile->file);
+
 	return 0;
 }
 
@@ -401,8 +402,6 @@ UFileClose(UFile *file)
 {
 	int ret;
 	ret = file->methods->close(file);
-	//TODO pfree move to close
-	pfree(file);
 	return ret;
 }
 
