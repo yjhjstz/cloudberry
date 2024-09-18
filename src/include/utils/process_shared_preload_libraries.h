@@ -1,10 +1,6 @@
 #ifdef USE_GOPHERMETA
 		"pg_gophermeta",
 #endif
-#ifdef USE_DATALAKE
-		"datalake_proxy",
-		"hive_auto_sync",
-#endif
 #ifdef USE_VECTORIZATION
 		"vectorization",
 #endif
@@ -23,4 +19,9 @@
 #endif
 #ifdef USE_PERFMON
 		"gpmmon","gpmon",
+#endif
+#ifdef USE_DATALAKE
+		"datalake_proxy",
+		"hive_auto_sync",
+		"datalake_fdw",
 #endif

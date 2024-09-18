@@ -6,6 +6,8 @@
 
 extern bool hiveEnableCacheFile;
 
+extern bool hiveEnableDebug;
+
 extern bool
 serverHiveConfExists(List *serverConf, const char *serverName);
 
@@ -29,6 +31,9 @@ spiExecSelectUDF(const char *query);
 
 extern char *
 extractPathFromLocation(const char *location);
+
+extern char *
+extractPathFromLocation3x(const char *location);
 
 extern const char *
 extractServiceName(const HdfsConfigItem *hdfsConf);

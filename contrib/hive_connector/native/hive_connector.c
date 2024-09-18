@@ -109,6 +109,17 @@ _PG_init(void)
 								 NULL,
 								 NULL);
 
+		DefineCustomBoolVariable("hive_connector.enable_debug",
+							"Enable cache files",
+							NULL,
+							&hiveEnableDebug,
+							true,
+							PGC_USERSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
+
 		initStage = GUCS_REGISTERED;
 	}
 

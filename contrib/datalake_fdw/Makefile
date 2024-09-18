@@ -16,6 +16,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/common/util.o \
 		src/common/partition_selector.o \
 		src/common/random_segment.o \
+		src/common/grammar_convert.o \
 		src/dlproxy/deparse.o \
 		src/dlproxy/filters.o \
 		src/dlproxy/headers.o \
@@ -104,8 +105,8 @@ REGRESS = hive_connecter_orc_read hive_connecter_orc_vec_read hive_connecter_par
           hive_connecter_avro_read_limit_segment hive_connecter_orc_read_limit_segment hive_connecter_parquet_read_limit_segment \
           hive_connector_limit_segment oss_read_new_text_limit_segment oss_read_orc_limit_segment \
           oss_read_parquet_limit_segment oss_read_text_limit_segment \
-		  hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
-		  hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text
+          hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
+          hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text grammar_convert
 endif
 
 PG_CPPFLAGS += -fPIC

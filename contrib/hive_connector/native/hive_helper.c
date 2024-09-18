@@ -18,6 +18,8 @@
 
 bool hiveEnableCacheFile;
 
+bool hiveEnableDebug;
+
 bool
 serverHiveConfExists(List *serverConf, const char *serverName)
 {
@@ -92,6 +94,10 @@ spiExecQuery(const char *query, int expected_result)
 		if (SPI_connect() !=  SPI_OK_CONNECT)
 			elog(ERROR, "SPI_connect() failed");
 
+		if (hiveEnableDebug == true)
+		{
+			elog(LOG, "hive connector spi exec query: %s", query);
+		}
 		connected = true;
 		spiResult = SPI_execute(query, false, 0);
 		if (spiResult != expected_result)
@@ -136,6 +142,23 @@ extractPathFromLocation(const char *location)
 		elog(ERROR, "failed to parse location: \"%s\": missing leading slash", location);
 
 	return bpPos;
+}
+
+char *
+extractPathFromLocation3x(const char *location)
+{
+	char *bhPos;
+	char *bpPos;
+
+	bhPos = strstr(location, "://");
+	if (!bhPos)
+		elog(ERROR, "failed to parse location: \"%s\": missing schema name", location);
+
+	bpPos = strstr(bhPos + 3, "/");
+	if (!bpPos)
+		elog(ERROR, "failed to parse location: \"%s\": missing leading slash", location);
+
+	return bpPos + 1;
 }
 
 static const char *
@@ -551,7 +574,7 @@ formCreateStmtCompatibility3X(HmsHandle *hms,
 
 	initStringInfo(&sqlBuf);
 
-	hdfsPath = extractPathFromLocation(location);
+	hdfsPath = extractPathFromLocation3x(location);
 
 	appendStringInfo(&sqlBuf,
 			sqlFmt,
@@ -637,7 +660,7 @@ formCreateStmt2Compatibility3X(HmsHandle *hms,
 					  "hdfs_cluster_name=%s cache=%s transactional=%s "
 					  "partition_keys=%s') format '%s' ";
 
-	hdfsPath = extractPathFromLocation(location);
+	hdfsPath = extractPathFromLocation3x(location);
 	keyBuf = joinString(partKeys, ',', '/');
 
 	initStringInfo(&sqlBuf);
@@ -690,7 +713,7 @@ formCreateStmt3Compatibility3X(HmsHandle *hms,
 					  "hdfs_cluster_name=%s cache=%s transactional=%s "
 					  "partition_keys=%s partition_value=%s') format '%s' ";
 
-	hdfsPath = extractPathFromLocation(location);
+	hdfsPath = extractPathFromLocation3x(location);
 	keyBuf = joinString(partKeys, ',', '/');
 
 	if (partKeys[0] == NULL)

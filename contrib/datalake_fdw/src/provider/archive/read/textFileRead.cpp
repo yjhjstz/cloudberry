@@ -110,7 +110,7 @@ void textFileRead::initializeDataStructures(dataLakeFdwScanState *ss) {
 		recordDelimiterBytes = pstrdup("\n");
 	}
 	allocateDataBuffer();
-	lineReader = std::make_shared<lineRecordReader>(65536, recordDelimiterBytes, &memory_buffer);
+	lineReader = std::make_shared<lineRecordReader>(32768, recordDelimiterBytes, &memory_buffer);
 }
 
 void textFileRead::createFileStream(dataLakeFdwScanState *ss) {
@@ -130,6 +130,10 @@ bool textFileRead::createPolicy() {
 	int dummy_segnums = 0;
 	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
 	if (!exec) {
+        if (scanstate->options->hiveOption->hivePartitionKey != NULL)
+		{
+			scanstate->options->hiveOption->curPartition += 1;
+		}
         return false;
     }
 		

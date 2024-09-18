@@ -11,6 +11,7 @@
 #include "common/fileSystemWrapper.h"
 #include "common/partition_selector.h"
 #include "common/random_segment.h"
+#include "common/grammar_convert.h"
 #include "src/dlproxy/datalake.h"
 
 #include "postgres.h"
@@ -55,6 +56,7 @@
 #include "utils/sampling.h"
 #include "utils/typcache.h"
 #include "utils/acl.h"
+#include "tcop/utility.h"
 
 
 PG_MODULE_MAGIC;
@@ -184,6 +186,17 @@ static void EndCopyScan(CopyFromState cstate);
 static void EndCopyModify(CopyToState cstate);
 #endif
 
+static void datalake_ProcessUtility(PlannedStmt *pstmt,
+									const char *queryString,
+									bool readOnlyTree,
+									ProcessUtilityContext context,
+									ParamListInfo params,
+									QueryEnvironment *queryEnv,
+									DestReceiver *dest,
+									QueryCompletion *qc);
+
+ProcessUtility_hook_type datalake_prev_ProcessUtility = NULL;
+
 /*
  * Workspace for analyzing a foreign table.
  */
@@ -214,6 +227,9 @@ int external_table_limit_segment_num;
 void
 _PG_init(void)
 {
+	if (!process_shared_preload_libraries_in_progress)
+		return;
+
 	DefineCustomBoolVariable("datalake.disable_filter_pushdown",
 								"Enable passing of query constraints to datalake extension",
 								NULL,
@@ -309,6 +325,46 @@ _PG_init(void)
 							NULL,
 							NULL,
 							NULL);
+
+	datalake_prev_ProcessUtility = ProcessUtility_hook;
+	ProcessUtility_hook = datalake_ProcessUtility;
+}
+
+static void
+datalake_ProcessUtility(PlannedStmt *pstmt,
+						const char *queryString,
+						bool readOnlyTree,
+						ProcessUtilityContext context,
+						ParamListInfo params,
+						QueryEnvironment *queryEnv,
+						DestReceiver *dest,
+						QueryCompletion *qc)
+{
+	switch (nodeTag(pstmt->utilityStmt))
+	{
+		case T_CreateExternalStmt:
+		{
+			CreateExternalStmt *createExtStmt;
+			CreateForeignTableStmt *foreignStmt = NULL;
+
+			createExtStmt = (CreateExternalStmt *) pstmt->utilityStmt;
+			foreignStmt = ConvertExternalTableStmt(createExtStmt);
+			if (foreignStmt)
+				pstmt->utilityStmt = (Node *) foreignStmt;
+			break;
+		}
+		default:
+			break;
+	}
+
+	if (datalake_prev_ProcessUtility)
+		(*datalake_prev_ProcessUtility) (pstmt, queryString, readOnlyTree,
+										 context, params, queryEnv,
+										 dest, qc);
+	else
+		standard_ProcessUtility(pstmt, queryString, readOnlyTree,
+								context, params, queryEnv,
+								dest, qc);
 }
 
 /*

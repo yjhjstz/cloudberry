@@ -25,6 +25,10 @@ bool archiveRead::createPolicy()
 	int dummy_segnums = 0;
 	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
 	if (!exec) {
+		if (scanstate->options->hiveOption->hivePartitionKey != NULL)
+		{
+			scanstate->options->hiveOption->curPartition += 1;
+		}
 		return false;
 	}
 
