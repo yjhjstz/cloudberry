@@ -56,20 +56,20 @@ typedef struct GPHDUri
 /*
  * Parses a string URI into a data structure
  */
-GPHDUri *parseGPHDUri(const char *uri_str);
-GPHDUri *parseGPHDUriHostPort(const char *uri_str, const char *host, const int port);
+GPHDUri *datalake_parseGPHDUri(const char *uri_str);
+GPHDUri *datalake_parseGPHDUriHostPort(const char *uri_str, const char *host, const int port);
 
 /*
  * Validation functions
  */
-bool GPHDUri_opt_exists(GPHDUri *uri, char *key);
-void GPHDUri_verify_no_duplicate_options(GPHDUri *uri);
-void GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions);
-const char *getOptionValue(GPHDUri *uri, const char *key);
+bool datalake_GPHDUri_opt_exists(GPHDUri *uri, char *key);
+void datalake_GPHDUri_verify_no_duplicate_options(GPHDUri *uri);
+void datalake_GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions);
+const char *datalake_getOptionValue(GPHDUri *uri, const char *key);
 
 /*
  * Frees the elements of the data structure
  */
-void freeGPHDUri(GPHDUri *uri);
+void datalake_freeGPHDUri(GPHDUri *uri);
 
 #endif /* _URIPARSER_H_ */

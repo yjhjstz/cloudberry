@@ -86,18 +86,18 @@ get_catalog_type(char *profile, List *locations)
 	GPHDUri *uri;
 	char    *catalogType;
 
-	uri = parseGPHDUri(strVal(linitial(locations)));
-	catalogType = pstrdup(getOptionValue(uri, CATALOG_TYPE));
+	uri = datalake_parseGPHDUri(strVal(linitial(locations)));
+	catalogType = pstrdup(datalake_getOptionValue(uri, CATALOG_TYPE));
 
 	if (!(pg_strcasecmp(profile, "hudi") == 0 &&
 			pg_strcasecmp(catalogType, "hadoop") == 0))
 	{
 		List *coreOptions = list_make1(TABLE_IDENTIFIER);
-		GPHDUri_verify_core_options_exist(uri, coreOptions);
+		datalake_GPHDUri_verify_core_options_exist(uri, coreOptions);
 		list_free(coreOptions);
 	}
 
-	freeGPHDUri(uri);
+	datalake_freeGPHDUri(uri);
 
 	return catalogType;
 }
@@ -183,7 +183,7 @@ destroy_context(gphadoop_context *context, bool afterError)
 
 	if (context->gphd_uri != NULL)
 	{
-		freeGPHDUri(context->gphd_uri);
+		datalake_freeGPHDUri(context->gphd_uri);
 		context->gphd_uri = NULL;
 	}
 
@@ -216,7 +216,7 @@ create_context_(Oid relid,
 	List *localConds;
 	Bitmapset  *attrsUsed = NULL;
 	/* parse and set uri */
-	GPHDUri        *uri = parseGPHDUri(uriStr);
+	GPHDUri        *uri = datalake_parseGPHDUri(uriStr);
 
 	/* set context */
 	gphadoop_context *context = palloc0(sizeof(gphadoop_context));

@@ -55,13 +55,13 @@ static void GPHDUri_free_options(GPHDUri *uri);
  *         a parsed uri as a GPHDUri structure, or reports a format error.
  */
 GPHDUri *
-parseGPHDUri(const char *uri_str)
+datalake_parseGPHDUri(const char *uri_str)
 {
-	return parseGPHDUriHostPort(uri_str, get_dlproxy_host(), get_dlproxy_port());
+	return datalake_parseGPHDUriHostPort(uri_str, get_dlproxy_host(), get_dlproxy_port());
 }
 
 GPHDUri *
-parseGPHDUriHostPort(const char *uri_str, const char *host, const int port)
+datalake_parseGPHDUriHostPort(const char *uri_str, const char *host, const int port)
 {
 	GPHDUri    *uri = (GPHDUri *) palloc0(sizeof(GPHDUri));
 	uri->host = pstrdup(host);
@@ -80,7 +80,7 @@ parseGPHDUriHostPort(const char *uri_str, const char *host, const int port)
  * Frees the elements of the data structure
  */
 void
-freeGPHDUri(GPHDUri *uri)
+datalake_freeGPHDUri(GPHDUri *uri)
 {
 	if (uri->protocol)
 		pfree(uri->protocol);
@@ -259,7 +259,7 @@ GPHDUri_free_options(GPHDUri *uri)
  * Returns 0 if the key was found with a non empty value, -1 otherwise.
  */
 bool
-GPHDUri_opt_exists(GPHDUri *uri, char *key)
+datalake_GPHDUri_opt_exists(GPHDUri *uri, char *key)
 {
 	ListCell   *item;
 
@@ -278,7 +278,7 @@ GPHDUri_opt_exists(GPHDUri *uri, char *key)
  * verify each option appears only once (case insensitive)
  */
 void
-GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
+datalake_GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
 {
 	ListCell   *option = NULL;
 	List	   *duplicateKeys = NIL;
@@ -326,7 +326,7 @@ GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
  * This function is given a list of core options to verify their existence.
  */
 void
-GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions)
+datalake_GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions)
 {
 	ListCell   *coreOption = NULL;
 	StringInfoData missing;
@@ -367,7 +367,7 @@ GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions)
 }
 
 const char *
-getOptionValue(GPHDUri *uri, const char *key)
+datalake_getOptionValue(GPHDUri *uri, const char *key)
 {
 	ListCell   *item;
 
