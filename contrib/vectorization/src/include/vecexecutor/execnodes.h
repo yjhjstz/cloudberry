@@ -33,6 +33,7 @@ typedef struct VecExecuteState
 	bool pipeline;
 	GArrowRecordBatchReader *reader;
 	List *resqueue;
+	GArrowExecuteContext *exectx;
 } VecExecuteState;
 
 typedef struct VecSeqScanState
@@ -50,6 +51,7 @@ typedef struct VecSeqScanState
 	ResDesc   	resdesc;
 	bool skip;
 	int rows;
+	GArrowScanNodeOptions *scan_node_options;
 } VecSeqScanState;
 
 typedef struct VecForeignScanState

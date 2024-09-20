@@ -127,6 +127,12 @@ typedef struct PlanBuildContext
 	StoreType store_type;
 	int64_t chunk_size;
 	bool cdb_strict;
+
+	/* parallel scan relation schema */
+	bool parallel_scan;
+	Index table_oid;
+	Index am_oid;
+	GArrowSchema* relation_schema;
 } PlanBuildContext;
 
 typedef struct SortKey
@@ -146,6 +152,7 @@ static GArrowExpression *expr_to_arrow_expression(Expr *node,
 static const char* get_agg_func_name(Aggref *aggref, const FuncTable *table,
 		PlanBuildContext *pcontext);
 static GArrowExecuteNode* BuildSource(PlanBuildContext *pcontext);
+static GArrowExecuteNode* BuildScanNode(PlanBuildContext *pcontext, VecSeqScanState *estate, List *quaList);
 static GArrowExecuteNode *BuildProject(List *targetList, List *qualList,
 									   GArrowExecuteNode *input, PlanBuildContext *pcontext);
 static void BuildSink(GArrowExecuteNode *input, VecExecuteState *estate, PlanBuildContext *pcontext);
@@ -1685,6 +1692,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 	pcontext.whenexpr = NULL;
 	pcontext.not_and_whenexpr = NULL;
 	pcontext.case_when_type = InvalidOid;
+	pcontext.parallel_scan = false;
 	pcontext.is_append = false;
 	pcontext.append_filed_index = 0;
 	pcontext.is_materialize = false;
@@ -1786,6 +1794,10 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 			 */
 			pcontext.inputschema = scanstate->vecdesc->schema;
 			pcontext.map = scanstate->columnmap;
+			pcontext.table_oid = scanstate->base.ss.ss_currentRelation->rd_id;
+			pcontext.am_oid = scanstate->base.ss.ss_currentRelation->rd_rel->relam;
+			pcontext.relation_schema = TupDescToSchema(RelationGetDescr(scanstate->base.ss.ss_currentRelation));
+            pcontext.parallel_scan = garrow_dataset_is_registered(pcontext.am_oid);
 		}
 		break;
 		case T_ForeignScanState:
@@ -1843,9 +1855,24 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 			elog(ERROR, "Build arrow plan from (%d) type is not support yet.",
 					nodeTag(planstate->plan));
 	}
+	if (pcontext.parallel_scan)
+	{
+		pcontext.sinktype = Plain;
+		pcontext.pipeline = false;
+	}
 
+	if (pool_threads > 0)
+	/* switch thread on, all plan go threads*/
+	{
+	 	estate->exectx = garrow_execute_context_new(pool_threads);
+	 	pcontext.plan = garrow_execute_plan_new_with_context(estate->exectx, &error);
+	}
+	
 	/* build plan sequentially */
-	pcontext.plan = garrow_execute_plan_new(&error);
+	else
+	{
+		pcontext.plan = garrow_execute_plan_new(&error);
+	}
 	if (error)
 		elog(ERROR, "Build arrow plan failed: plan node type %d.",
 				nodeTag(planstate->plan));
@@ -1864,11 +1891,15 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 		g_autoptr(GArrowExecuteNode) tmpnode = NULL;
 		/* build plan */
 		pcontext.is_left_schema = true;
-		
 		if (pcontext.is_append)
 			curnode = BuildAppendPlan(&pcontext, estate);
-		else
-			curnode = BuildSource(&pcontext);
+		else 
+		{
+			if (pcontext.parallel_scan)
+				curnode = BuildScanNode(&pcontext, (VecSeqScanState *)planstate, qualList);
+			else
+				curnode = BuildSource(&pcontext);
+		}
 		tmpnode = BuildProject(targetList, qualList, curnode, &pcontext);
 		garrow_store_ptr(curnode, tmpnode);
 		
@@ -2107,7 +2138,6 @@ ExecuteVecPlan(VecExecuteState *estate)
 			isok = garrow_execute_plan_start(estate->plan, &error);
 			if (!isok || error)
 				elog(ERROR, "Execute plan for vector sort error: %s.", error->message);
-			garrow_execute_plan_wait(estate->plan);
 			estate->started = true;
 		}
 
@@ -2462,6 +2492,29 @@ BuildSource(PlanBuildContext *pcontext)
 		elog(ERROR, "Failed to create source node, cause: %s.", error->message);
 
 	return garrow_move_ptr(source);
+}
+
+static GArrowExecuteNode *
+BuildScanNode(PlanBuildContext *pcontext, VecSeqScanState *estate, List *qualList)
+{
+
+	g_autoptr(GError) error = NULL;
+	g_autoptr(GArrowScanNodeOptions) scan_node_options = NULL;
+	g_autoptr(GArrowExecuteNode) scan_node = NULL;
+	g_autoptr(GArrowExpression) qual_expr = NULL;
+	if (qualList)
+		qual_expr = build_filter_expression(qualList, pcontext);
+	scan_node_options = garrow_scan_node_options_new(pcontext->table_oid, pcontext->am_oid, pcontext->relation_schema, pcontext->inputschema, qual_expr, &error);
+	if (error)
+		elog(ERROR, "Failed to create scan node, cause: %s.", error->message);
+	scan_node = garrow_execute_plan_build_scan_node(pcontext->plan,
+													pool_threads,
+													scan_node_options,
+													&error);
+	garrow_store_ptr(estate->scan_node_options, scan_node_options);
+	if (error)
+		elog(ERROR, "Failed to create scan node, cause: %s.", error->message);
+	return garrow_move_ptr(scan_node);
 }
 
 /* build project for aggregate input */

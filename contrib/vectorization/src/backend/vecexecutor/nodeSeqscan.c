@@ -236,7 +236,8 @@ ExecEndVecSeqScan(VecSeqScanState *node)
 {
 	TableScanDesc scanDesc;
 	ScanState *ss = (ScanState *) node;
-
+	if (node->scan_node_options)
+		garrow_release_scan_node_options((GArrowExecuteNodeOptions*)(node->scan_node_options));
 	/*
 	 * get information from node
 	 */

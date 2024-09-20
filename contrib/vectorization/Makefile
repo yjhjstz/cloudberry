@@ -28,10 +28,10 @@ OBJS = main.o $(patsubst %.c,%.o,$(SRC))
 
 PG_CFLAGS += $(shell pkg-config --cflags glib-2.0 gobject-2.0)
 PG_LDFLAGS += $(shell pkg-config --libs glib-2.0 gobject-2.0)
-PG_LDFLAGS += -lgandiva-glib -lgandiva -larrow-glib -larrow
+PG_LDFLAGS += -lgandiva-glib -lgandiva -larrow-glib -larrow -larrow-dataset-glib
 
 PG_CFLAGS += -I$(PAX_DIR)/src/cpp/
-PG_CPPFLAGS = -I$(libpq_srcdir) -Iarrow/include
+PG_CPPFLAGS = -I$(libpq_srcdir) -Iarrow/include  -Wno-unused-result
 
 PG_REGRESS = $(top_builddir)/src/test/regress/pg_regress
 

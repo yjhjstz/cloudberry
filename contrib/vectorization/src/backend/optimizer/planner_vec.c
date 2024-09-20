@@ -52,7 +52,6 @@
 #include "utils/guc_vec.h"
 #include "utils/wrapper.h"
 #include "utils/fmgr_vec.h"
-#include "comm/pax_rel.h"
 #include "transform.h"
 
 #include <sys/stat.h>

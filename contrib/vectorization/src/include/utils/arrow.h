@@ -14,7 +14,7 @@
 
 #include <arrow-glib/arrow-glib.h>
 #include <gandiva-glib/gandiva-glib.h>
-
+#include <arrow-dataset-glib/arrow-dataset-glib.h>
 #include "access/xact.h"
 #include "nodes/execnodes.h"
 #include "tuptable_vec.h"

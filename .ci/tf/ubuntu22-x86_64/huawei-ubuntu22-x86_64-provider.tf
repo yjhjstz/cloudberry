@@ -18,7 +18,7 @@ variable "instance_name" {
 
 variable "instance_image" {
   # ubuntu22 image_id
-  default = "399f3188-0bdb-4db7-85e4-5cc717c557fe"
+  default = "a2f98a3f-5700-44d6-a35a-65eaf4032539"
 }
 
 variable "flavor_id" {

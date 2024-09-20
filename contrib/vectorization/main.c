@@ -99,7 +99,7 @@ _PG_init(void)
                              &enable_arrow_plan_merge,
                              false,
                              PGC_USERSET,
-							 GUC_GPDB_NEED_SYNC,
+                             GUC_GPDB_NEED_SYNC,
                              NULL, NULL, NULL);
     DefineCustomIntVariable("vector.partition_top_k",
                             "Partition selecter for WindowAgg sort",
@@ -163,6 +163,16 @@ _PG_init(void)
                              PGC_USERSET,
                              GUC_GPDB_NEED_SYNC,
                              NULL, NULL, NULL);
+
+    DefineCustomIntVariable("vector.pool_threads",
+                            "num threads in pool",
+                            NULL,
+                            &pool_threads,
+                            0,
+                            0, 64,
+                            PGC_USERSET,
+                            GUC_GPDB_NEED_SYNC,
+                            NULL, NULL, NULL);
 
     exec_simple_query_hook_prev = exec_simple_query_hook;
     exec_simple_query_hook = exec_simple_query_vec;
