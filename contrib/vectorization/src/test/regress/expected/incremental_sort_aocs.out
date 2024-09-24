@@ -1,4 +1,5 @@
 SET default_table_access_method=ao_column;
+SET enable_incremental_sort=on;
 -- GPDB_13_MERGE_FIXME: gporca doesn't support incremental_sort at the moment.
 -- When we have to sort the entire table, incremental sort will
 -- be slower than plain sort, so it should not be used.

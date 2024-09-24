@@ -1,4 +1,5 @@
 SET default_table_access_method=ao_column;
+SET enable_incremental_sort=on;
 --
 -- WINDOW FUNCTIONS
 --

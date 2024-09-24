@@ -38,6 +38,8 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * 
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t2;
 
 -- Test for system table which is accessible on coordinator
+-- analyze pg_class to avoid generating different plan
+VACUUM ANALYZE pg_class;
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM pg_class;
 
 -- Test: explain output: Endpoint info (on coordinator/on some segments/on all segments)

@@ -106,6 +106,9 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * 
 (4 rows)
 
 -- Test for system table which is accessible on coordinator
+-- analyze pg_class to avoid generating different plan
+VACUUM ANALYZE pg_class;
+VACUUM
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM pg_class;
  QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
