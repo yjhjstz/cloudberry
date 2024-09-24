@@ -264,7 +264,7 @@ TupDescToSchema(TupleDesc tupdesc)
 		g_autoptr(GArrowDataType) datatype = NULL;
 		g_autoptr(GArrowField) field = NULL;
 		/* dummy arrow type for index mapping */
-		if (!PGTypeToArrowID(attr->atttypid))
+		if (!PGTypeToArrowID(attr->atttypid) || attr->attndims != 0)
 			datatype = (GArrowDataType *) garrow_null_data_type_new();
 		else
 			datatype = PGTypeToArrow(attr->atttypid);

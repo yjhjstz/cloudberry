@@ -286,7 +286,6 @@ ubuntu22:x86_64:build:
 
     ## will support theres extensions later
     CBDB_BUILD_GOPHERMETA: "off"
-    CBDB_BUILD_VECTORIZATION: "off"
     CBDB_BUILD_HIVE_CONNECTOR: "off"
     CBDB_BUILD_TABLESPACE: "off"
     CBDB_BUILD_PLR: "off"
@@ -440,7 +439,7 @@ vectorization:icw:
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_test"
-    MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=off -c optimizer=off -c enable_parallel=off'"
+    MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off'"
   <<: 
   - *vec_test_script
   - *vec_regress_artifacts
@@ -453,7 +452,7 @@ vectorization:icw-orca:
   variables:
     <<: *global_variables
     TEST_TYPE: "icw_test"
-    MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=off -c optimizer=on -c enable_parallel=off'"
+    MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c optimizer=on -c enable_parallel=off'"
   <<: 
   - *vec_test_script
   - *vec_regress_artifacts
