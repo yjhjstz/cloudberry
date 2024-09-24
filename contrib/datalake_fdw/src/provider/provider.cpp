@@ -31,21 +31,21 @@ std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vecto
 {
 	if (readFdw)
 	{
-		if (strcmp(DATALAKE_OPTION_FORMAT_CSV, type) == 0)
+		if (strcasecmp(DATALAKE_OPTION_FORMAT_CSV, type) == 0)
 		{
 			if (external_table_new_text)
 				return std::make_shared<textFileRead>();
 			else
 				return std::make_shared<archiveRead>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_TEXT, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_TEXT, type) == 0)
 		{
 			if (external_table_new_text)
 				return std::make_shared<textFileRead>();
 			else
 				return std::make_shared<archiveRead>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_ORC, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_ORC, type) == 0)
 		{
 			if (vectorization)
 			{
@@ -56,19 +56,19 @@ std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vecto
 				return std::make_shared<orcRead>();
 			}
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_PARQUET, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_PARQUET, type) == 0)
 		{
 			return std::make_shared<parquetRead>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_AVRO, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_AVRO, type) == 0)
 		{
 			return std::make_shared<avroRead>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_ICEBERG, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_ICEBERG, type) == 0)
 		{
 			return std::make_shared<icebergRead>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_HUDI, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_HUDI, type) == 0)
 		{
 			return std::make_shared<hudiRead>();
 		}
@@ -83,23 +83,23 @@ std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vecto
 	}
 	else
 	{
-		if (strcmp(DATALAKE_OPTION_FORMAT_CSV, type) == 0)
+		if (strcasecmp(DATALAKE_OPTION_FORMAT_CSV, type) == 0)
 		{
 			return std::make_shared<archiveWrite>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_TEXT, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_TEXT, type) == 0)
 		{
 			return std::make_shared<archiveWrite>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_ORC, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_ORC, type) == 0)
 		{
 			return std::make_shared<orcWrite>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_PARQUET, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_PARQUET, type) == 0)
 		{
 			return std::make_shared<parquetWrite>();
 		}
-		else if (strcmp(DATALAKE_OPTION_FORMAT_AVRO, type) == 0)
+		else if (strcasecmp(DATALAKE_OPTION_FORMAT_AVRO, type) == 0)
 		{
 			return std::make_shared<avroWrite>();
 		}
