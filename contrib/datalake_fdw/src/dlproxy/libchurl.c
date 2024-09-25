@@ -127,7 +127,7 @@ static bool	IsValidJson(text *json);
 
 
 CHURL_HEADERS
-churl_headers_init(void)
+datalake_churl_headers_init(void)
 {
 	churl_settings *settings = (churl_settings *) palloc0(sizeof(churl_settings));
 
@@ -174,7 +174,7 @@ build_header_str(const char *format, const char *key, const char *value)
 }
 
 void
-churl_headers_append(CHURL_HEADERS headers, const char *key, const char *value)
+datalake_churl_headers_append(CHURL_HEADERS headers, const char *key, const char *value)
 {
 	churl_settings *settings = (churl_settings *) headers;
 	char	   *header_option = NULL;
@@ -187,7 +187,7 @@ churl_headers_append(CHURL_HEADERS headers, const char *key, const char *value)
 }
 
 void
-churl_headers_override(CHURL_HEADERS headers, const char *key, const char *value)
+datalake_churl_headers_override(CHURL_HEADERS headers, const char *key, const char *value)
 {
 	churl_settings *settings = (churl_settings *) headers;
 	struct curl_slist *header_cell = settings->headers;
@@ -207,7 +207,7 @@ churl_headers_override(CHURL_HEADERS headers, const char *key, const char *value
 
 		if (strncmp(key_option, header_data, strlen(key_option)) == 0)
 		{
-			elog(DEBUG2, "churl_headers_override: Found existing header %s with key %s (for new value %s)",
+			elog(DEBUG2, "datalake_churl_headers_override: Found existing header %s with key %s (for new value %s)",
 				 header_data, key_option, value);
 			break;
 		}
@@ -220,20 +220,20 @@ churl_headers_override(CHURL_HEADERS headers, const char *key, const char *value
 		char	   *old_data = header_cell->data;
 
 		header_cell->data = strdup(new_data);
-		elog(DEBUG4, "churl_headers_override: new data: %s, old data: %s", new_data, old_data);
+		elog(DEBUG4, "datalake_churl_headers_override: new data: %s, old data: %s", new_data, old_data);
 		free(old_data);
 		pfree(new_data);
 	}
 	else
 	{
-		churl_headers_append(headers, key, value);
+		datalake_churl_headers_append(headers, key, value);
 	}
 
 	pfree(key_option);
 }
 
 void
-churl_headers_remove(CHURL_HEADERS headers, const char *key, bool has_value)
+datalake_churl_headers_remove(CHURL_HEADERS headers, const char *key, bool has_value)
 {
 
 	churl_settings *settings = (churl_settings *) headers;
@@ -256,7 +256,7 @@ churl_headers_remove(CHURL_HEADERS headers, const char *key, bool has_value)
 
 		if (strncmp(key_option, header_data, strlen(key_option)) == 0)
 		{
-			elog(DEBUG2, "churl_headers_remove: Found existing header %s with key %s",
+			elog(DEBUG2, "datalake_churl_headers_remove: Found existing header %s with key %s",
 				 header_data, key_option);
 			break;
 		}
@@ -285,7 +285,7 @@ churl_headers_remove(CHURL_HEADERS headers, const char *key, bool has_value)
 	}
 	else
 	{
-		elog(DEBUG2, "churl_headers_remove: No header with key %s to remove",
+		elog(DEBUG2, "datalake_churl_headers_remove: No header with key %s to remove",
 			 key_option);
 	}
 
@@ -293,7 +293,7 @@ churl_headers_remove(CHURL_HEADERS headers, const char *key, bool has_value)
 }
 
 void
-churl_headers_cleanup(CHURL_HEADERS headers)
+datalake_churl_headers_cleanup(CHURL_HEADERS headers)
 {
 	churl_settings *settings = (churl_settings *) headers;
 
@@ -384,7 +384,7 @@ churl_init(const char *url, CHURL_HEADERS headers)
 }
 
 CHURL_HANDLE
-churl_init_upload(const char *url, CHURL_HEADERS headers)
+datalake_churl_init_upload(const char *url, CHURL_HEADERS headers)
 {
 	churl_context *context = churl_init(url, headers);
 
@@ -393,16 +393,16 @@ churl_init_upload(const char *url, CHURL_HEADERS headers)
 	set_curl_option(context, CURLOPT_POST, (const void *) true);
 	set_curl_option(context, CURLOPT_READFUNCTION, read_callback);
 	set_curl_option(context, CURLOPT_READDATA, context);
-	churl_headers_append(headers, "Content-Type", "application/octet-stream");
-	churl_headers_append(headers, "Transfer-Encoding", "chunked");
-	churl_headers_append(headers, "Expect", "100-continue");
+	datalake_churl_headers_append(headers, "Content-Type", "application/octet-stream");
+	datalake_churl_headers_append(headers, "Transfer-Encoding", "chunked");
+	datalake_churl_headers_append(headers, "Expect", "100-continue");
 
 	setup_multi_handle(context);
 	return (CHURL_HANDLE) context;
 }
 
 CHURL_HANDLE
-churl_init_download(const char *url, CHURL_HEADERS headers)
+datalake_churl_init_download(const char *url, CHURL_HEADERS headers)
 {
 	churl_context *context = churl_init(url, headers);
 
@@ -413,7 +413,7 @@ churl_init_download(const char *url, CHURL_HEADERS headers)
 }
 
 void
-churl_download_restart(CHURL_HANDLE handle, const char *url, CHURL_HEADERS headers)
+datalake_churl_download_restart(CHURL_HANDLE handle, const char *url, CHURL_HEADERS headers)
 {
 	churl_context *context = (churl_context *) handle;
 
@@ -437,7 +437,7 @@ churl_download_restart(CHURL_HANDLE handle, const char *url, CHURL_HEADERS heade
  * upload
  */
 size_t
-churl_write(CHURL_HANDLE handle, const char *buf, size_t bufsize)
+datalake_churl_write(CHURL_HANDLE handle, const char *buf, size_t bufsize)
 {
 	churl_context *context = (churl_context *) handle;
 	churl_buffer *context_buffer = context->upload_buffer;
@@ -461,7 +461,7 @@ churl_write(CHURL_HANDLE handle, const char *buf, size_t bufsize)
  * check that connection is ok, read a few bytes and check response.
  */
 void
-churl_read_check_connectivity(CHURL_HANDLE handle)
+datalake_churl_read_check_connectivity(CHURL_HANDLE handle)
 {
 	churl_context *context = (churl_context *) handle;
 
@@ -475,7 +475,7 @@ churl_read_check_connectivity(CHURL_HANDLE handle)
  * download
  */
 size_t
-churl_read(CHURL_HANDLE handle, char *buf, size_t max_size)
+datalake_churl_read(CHURL_HANDLE handle, char *buf, size_t max_size)
 {
 	int			n = 0;
 	churl_context *context = (churl_context *) handle;
@@ -504,7 +504,7 @@ churl_read(CHURL_HANDLE handle, char *buf, size_t max_size)
 }
 
 void
-churl_cleanup(CHURL_HANDLE handle, bool after_error)
+datalake_churl_cleanup(CHURL_HANDLE handle, bool after_error)
 {
 	churl_context *context = (churl_context *) handle;
 
@@ -517,7 +517,7 @@ churl_cleanup(CHURL_HANDLE handle, bool after_error)
 		if (context->upload)
 			finish_upload(context);
 		else
-			churl_read_check_connectivity(handle);
+			datalake_churl_read_check_connectivity(handle);
 	}
 
 	cleanup_curl_handle(context);

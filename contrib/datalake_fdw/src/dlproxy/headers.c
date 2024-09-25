@@ -41,7 +41,7 @@ add_projection_desc_httpheader(CHURL_HEADERS headers, List *retrieved_attrs);
  * by the remote component.
  */
 void
-build_http_headers(DlProxyInputData *input, transform_callback transform)
+datalake_build_http_headers(DlProxyInputData *input, transform_callback transform)
 {
 	extvar_t       ev;
 	CHURL_HEADERS  headers    = input->headers;
@@ -93,39 +93,39 @@ build_http_headers(DlProxyInputData *input, transform_callback transform)
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("user identity is unknown")));
 
-	churl_headers_append(headers, "X-GP-USER", ev.GP_USER);
+	datalake_churl_headers_append(headers, "X-GP-USER", ev.GP_USER);
 
-	churl_headers_append(headers, "X-GP-SEGMENT-COUNT", ev.GP_SEGMENT_COUNT);
-	churl_headers_append(headers, "X-GP-XID", ev.GP_XID);
+	datalake_churl_headers_append(headers, "X-GP-SEGMENT-COUNT", ev.GP_SEGMENT_COUNT);
+	datalake_churl_headers_append(headers, "X-GP-XID", ev.GP_XID);
 
 	pg_ltoa(gp_session_id, long_number);
-	churl_headers_append(headers, "X-GP-SESSION-ID", long_number);
+	datalake_churl_headers_append(headers, "X-GP-SESSION-ID", long_number);
 	pg_ltoa(gp_command_count, long_number);
-	churl_headers_append(headers, "X-GP-COMMAND-COUNT", long_number);
+	datalake_churl_headers_append(headers, "X-GP-COMMAND-COUNT", long_number);
 
 	/* headers for uri data */
-	churl_headers_append(headers, "X-GP-DATA-DIR", gphduri->data);
-	churl_headers_append(headers, "X-GP-TABLE-NAME", relname);
-	churl_headers_append(headers, "X-GP-SCHEMA-NAME", relnamespace);
+	datalake_churl_headers_append(headers, "X-GP-DATA-DIR", gphduri->data);
+	datalake_churl_headers_append(headers, "X-GP-TABLE-NAME", relname);
+	datalake_churl_headers_append(headers, "X-GP-SCHEMA-NAME", relnamespace);
 
 	/* location options */
 	add_location_options_httpheader(headers, gphduri, transform);
 
 	/* full uri */
-	churl_headers_append(headers, "X-GP-URI", gphduri->uri);
+	datalake_churl_headers_append(headers, "X-GP-URI", gphduri->uri);
 
 	/* filters */
 	if (input->filterstr && strcmp(input->filterstr, "") != 0)
 	{
-		churl_headers_append(headers, "X-GP-FILTER", input->filterstr);
-		churl_headers_append(headers, "X-GP-HAS-FILTER", "1");
+		datalake_churl_headers_append(headers, "X-GP-FILTER", input->filterstr);
+		datalake_churl_headers_append(headers, "X-GP-HAS-FILTER", "1");
 	}
 	else
-		churl_headers_append(headers, "X-GP-HAS-FILTER", "0");
+		datalake_churl_headers_append(headers, "X-GP-HAS-FILTER", "0");
 
 	// Since we only establish a single connection per segment, we can safely close the connection after
 	// the segment completes streaming data.
-	churl_headers_override(headers, "Connection", "close");
+	datalake_churl_headers_override(headers, "Connection", "close");
 }
 
 /*
@@ -144,7 +144,7 @@ add_location_options_httpheader(CHURL_HEADERS headers,
 		OptionData *data = (OptionData *) lfirst(option);
 		char	   *x_gp_key = normalize_key_name(transform(data->key));
 
-		churl_headers_append(headers, x_gp_key, data->value);
+		datalake_churl_headers_append(headers, x_gp_key, data->value);
 		pfree(x_gp_key);
 	}
 }
@@ -196,18 +196,18 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 		/* Add a key/value pair for attribute name */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-NAME%u", attrIx);
-		churl_headers_append(headers, formatter.data, attribute.attname.data);
+		datalake_churl_headers_append(headers, formatter.data, attribute.attname.data);
 
 		/* Add a key/value pair for attribute type */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-TYPECODE%u", attrIx);
 		pg_ltoa(attribute.atttypid, long_number);
-		churl_headers_append(headers, formatter.data, long_number);
+		datalake_churl_headers_append(headers, formatter.data, long_number);
 
 		/* Add a key/value pair for attribute type name */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-TYPENAME%u", attrIx);
-		churl_headers_append(headers, formatter.data, TypeOidGetTypename(attribute.atttypid));
+		datalake_churl_headers_append(headers, formatter.data, TypeOidGetTypename(attribute.atttypid));
 
 		/* Add attribute type modifiers if any */
 		if (attribute.atttypmod > -1)
@@ -220,20 +220,20 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(2, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 
 
 						/* precision */
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa((attribute.atttypmod >> 16) & 0xffff, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 
 						/* scale */
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 1);
 						pg_ltoa((attribute.atttypmod - VARHDRSZ) & 0xffff, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 						break;
 					}
 				case CHAROID:
@@ -246,12 +246,12 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(1, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa((attribute.atttypmod - VARHDRSZ), long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 						break;
 					}
 				case VARBITOID:
@@ -270,12 +270,12 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(1, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa((attribute.atttypmod), long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 						break;
 					}
 				case INTERVALOID:
@@ -284,12 +284,12 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(1, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa(INTERVAL_PRECISION(attribute.atttypmod), long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						datalake_churl_headers_append(headers, formatter.data, long_number);
 						break;
 					}
 				default:
@@ -302,7 +302,7 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 
 	/* Convert the number of attributes to a string */
 	pg_ltoa(attrIx, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS", long_number);
+	datalake_churl_headers_append(headers, "X-GP-ATTRS", long_number);
 
 	pfree(formatter.data);
 }
@@ -340,7 +340,7 @@ add_projection_desc_httpheader(CHURL_HEADERS headers, List *retrieved_attrs)
 
 	/* Convert the number of projection columns to a string */
 	pg_ltoa(retrieved_attrs->length, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS-PROJ", long_number);
+	datalake_churl_headers_append(headers, "X-GP-ATTRS-PROJ", long_number);
 }
 
 /*
@@ -352,5 +352,5 @@ add_projection_index_header(CHURL_HEADERS headers,
 							char *long_number)
 {
 	pg_ltoa(attno, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS-PROJ-IDX", long_number);
+	datalake_churl_headers_append(headers, "X-GP-ATTRS-PROJ-IDX", long_number);
 }

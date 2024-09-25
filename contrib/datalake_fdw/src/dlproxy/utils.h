@@ -10,7 +10,7 @@ char	   *normalize_key_name(const char *key);
 char	   *concat(int num_args,...);
 
 /* Get authority (host:port) for the dlproxy server URL */
-char	   *get_authority(void);
+char	   *datalake_get_authority(void);
 
 /* get the name of the type, given the OID */
 char	   *TypeOidGetTypename(Oid typid);

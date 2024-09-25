@@ -172,10 +172,10 @@ destroy_context(gphadoop_context *context, bool afterError)
 	if (context == NULL)
 		return;
 
-	churl_cleanup(context->churl_handle, afterError);
+	datalake_churl_cleanup(context->churl_handle, afterError);
 	context->churl_handle = NULL;
 
-	churl_headers_cleanup(context->churl_headers);
+	datalake_churl_headers_cleanup(context->churl_headers);
 	context->churl_headers = NULL;
 
 	if (context->relation)
@@ -260,7 +260,7 @@ create_context_(Oid relid,
 	}
 
 	build_uri_for_read(context);
-	context->churl_headers = churl_headers_init();
+	context->churl_headers = datalake_churl_headers_init();
 	add_querydata_to_http_headers(context, transform);
 
 	context->buffer = palloc(BUFFER_SIZE);
@@ -298,10 +298,10 @@ doRPC(gphadoop_context *context)
 {
 	size_t n;
 
-	context->churl_handle = churl_init_download(context->uri.data, context->churl_headers);
+	context->churl_handle = datalake_churl_init_download(context->uri.data, context->churl_headers);
 
 	/* read some bytes to make sure the connection is established */
-	churl_read_check_connectivity(context->churl_handle);
+	datalake_churl_read_check_connectivity(context->churl_handle);
 
 	while ((n = fill_buffer(context,
 							context->buffer + context->buffer_pos,
@@ -319,7 +319,7 @@ doRPC(gphadoop_context *context)
 	context->completed = true;
 
 	/* check if the connection terminated with an error */
-	churl_read_check_connectivity(context->churl_handle);
+	datalake_churl_read_check_connectivity(context->churl_handle);
 }
 
 /*
@@ -330,7 +330,7 @@ build_uri_for_read(gphadoop_context *context)
 {
 	resetStringInfo(&context->uri);
 	appendStringInfo(&context->uri, "http://%s/%s/read",
-					 get_authority(), DLPROXY_SERVICE_PREFIX);
+					 datalake_get_authority(), DLPROXY_SERVICE_PREFIX);
 
 	if ((LOG >= log_min_messages) || (LOG >= client_min_messages))
 	{
@@ -357,7 +357,7 @@ add_querydata_to_http_headers(gphadoop_context *context, transform_callback tran
 	inputData.quals = context->quals;
 	inputData.relName = context->relName;
 	inputData.schemaName     = context->schemaName;
-	build_http_headers(&inputData, transform);
+	datalake_build_http_headers(&inputData, transform);
 }
 
 /*
@@ -373,7 +373,7 @@ fill_buffer(gphadoop_context *context, char *start, size_t size)
 
 	while (ptr < end)
 	{
-		n = churl_read(context->churl_handle, ptr, end - ptr);
+		n = datalake_churl_read(context->churl_handle, ptr, end - ptr);
 		if (n == 0)
 			break;
 
@@ -405,18 +405,18 @@ internal_get_external_fragments(char *profile,
 										  targetList,
 										  strVal(linitial(locations)),
 										  transform_datalake_options);
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
-			churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
 		else
-			churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
 
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", catalogType);
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", catalogType);
 		pfree(catalogType);
 
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-SCAN-TYPE", "snapshot");
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getFragments");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-SCAN-TYPE", "snapshot");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getFragments");
 
 		doRPC((gphadoop_context *) context);
 		result = parseFn(context->buffer, context->buffer_pos);
@@ -467,17 +467,17 @@ get_external_schema(char *profile, char *relName, char *schemaName, List *locati
 		char *catalogType = get_catalog_type(profile, locations);
 
 		context = create_context2(relName, schemaName, strVal(linitial(locations)), transform_datalake_options);
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
-			churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
 		else
-			churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
 
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", catalogType);
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", catalogType);
 		pfree(catalogType);
 
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getSchema");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getSchema");
 
 		doRPC((gphadoop_context *) context);
 		result = parseSchemaResponse(context->buffer, context->buffer_pos);

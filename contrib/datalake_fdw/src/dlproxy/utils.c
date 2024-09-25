@@ -46,7 +46,7 @@ concat(int num_args,...)
 
 /* Get authority (host:port) for the dlproxy server URL */
 char *
-get_authority(void)
+datalake_get_authority(void)
 {
 	return psprintf("%s:%d", get_dlproxy_host(), get_dlproxy_port());
 }

@@ -115,10 +115,10 @@ hive_get_external_partitions(Oid relid, List *locations, char* formatType)
 	PG_TRY();
 	{
 		context = create_context(relid, strVal(linitial(locations)), transform_hive_options);
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", "hive");
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getPartitions");
-		churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", "hive");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", "hive");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getPartitions");
+		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", "hive");
 
 		doRPC((gphadoop_context *) context);
 		result = parsePartitionResponse(context->buffer, context->buffer_pos);

@@ -46,7 +46,7 @@ typedef struct sDlProxyInputData
 /*
  * Adds the headers necessary for dlproxy service call
  */
-extern void build_http_headers(DlProxyInputData *input, transform_callback transform);
+extern void datalake_build_http_headers(DlProxyInputData *input, transform_callback transform);
 
 #define CHAR_ARRAY_OID 1002
 #define BPCHAR_ARRAY_OID 1014
