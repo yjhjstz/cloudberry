@@ -177,18 +177,16 @@ ANALYZE strtest;
 -- Ensure we get 3 hits and 3 misses
 SELECT explain_memoize('
 SELECT * FROM strtest s1 INNER JOIN strtest s2 ON s1.n >= s2.n;', false);
-                                    explain_memoize                                    
----------------------------------------------------------------------------------------
+                                 explain_memoize                                 
+---------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=24 loops=N)
-   ->  Nested Loop (actual rows=20 loops=N)
-         Join Filter: (s1.n >= s2.n)
-         Rows Removed by Join Filter: 4
-         ->  Seq Scan on strtest s1 (actual rows=4 loops=N)
-         ->  Materialize (actual rows=6 loops=N)
-               ->  Broadcast Motion 3:3  (slice2; segments: 3) (actual rows=6 loops=N)
-                     ->  Seq Scan on strtest s2 (actual rows=4 loops=N)
- Optimizer: Postgres query optimizer
-(9 rows)
+   ->  Nested Loop (actual rows=12 loops=N)
+         Join Filter: (strtest_1.n >= strtest.n)
+         ->  Broadcast Motion 3:3  (slice2; segments: 3) (actual rows=6 loops=N)
+               ->  Seq Scan on strtest strtest_1 (actual rows=4 loops=N)
+         ->  Seq Scan on strtest (actual rows=4 loops=N)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(7 rows)
 
 -- Ensure we get 3 hits and 3 misses
 SELECT explain_memoize('
