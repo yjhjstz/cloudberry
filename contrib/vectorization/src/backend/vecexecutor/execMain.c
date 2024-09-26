@@ -177,8 +177,6 @@ static GArrowAssertOpNodeOptions *build_assertop_options(List *filterInfo,
 										 PlanBuildContext *pcontext);
 static GArrowExpression *
 replace_substring_regex_expression(List *args, PlanBuildContext *pcontext);
-static GArrowExpression *
-get_text_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext);
 static GArrowExpression* replace_expression(List *args,
 				 PlanBuildContext *pcontext);
 static GArrowExpression *
@@ -1073,7 +1071,7 @@ replace_substring_regex_expression(List *args, PlanBuildContext *pcontext)
 }
 
 static GArrowExpression *
-get_text_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext)
+build_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext, bool is_notlike)
 {
 	g_autoptr(GArrowExpression)  result_expr = NULL;
 	gboolean ignore_case = false;
@@ -1081,19 +1079,41 @@ get_text_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext)
 
 	Expr  *first_expr = linitial(opexpr->args);
 	Expr  *second_expr = lsecond(opexpr->args);
+	char *value;
 
-	Const *con = (Const *)second_expr;
-	char *value = text_to_cstring(DatumGetTextP(con->constvalue));
+	Expr  *var_epxr = NULL;
+	Const *const_expr = NULL;
+
+	// Currently we only support like expressions where one of
+	// the arguments is const.
+	if (IsA(first_expr, Const))
+	{
+		const_expr = (Const *)first_expr;
+		var_epxr = second_expr;
+	}
+	else
+	{
+		const_expr = (Const *)second_expr;
+		var_epxr = first_expr;
+	}
+
+	value = text_to_cstring(DatumGetTextP(const_expr->constvalue));
 	g_autoptr(GArrowMatchSubstringOptions) options =
 			garrow_match_substring_options_new(value, ignore_case);
-	g_autoptr(GArrowExpression) expr = expr_to_arrow_expression(first_expr, pcontext);
+	g_autoptr(GArrowExpression) expr = expr_to_arrow_expression(var_epxr, pcontext);
 
 	if (expr)
 	{
+		g_autoptr(GArrowExpression) not_expr = NULL;
 		arguments = garrow_list_append_ptr(arguments, expr);
 		expr = GARROW_EXPRESSION(garrow_call_expression_new(
 				"match_like", arguments, GARROW_FUNCTION_OPTIONS(options)));
 		garrow_list_free_ptr(&arguments);
+		if (is_notlike)
+		{
+			not_expr = build_not_expression(expr);
+			return garrow_move_ptr(not_expr);
+		}
 		return garrow_move_ptr(expr);
 	}
 	else
@@ -1101,40 +1121,6 @@ get_text_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext)
 		elog(ERROR, "Expression to arrow error.");
 		return NULL;
 	}
-
-}
-
-static GArrowExpression *
-get_text_not_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext)
-{
-        g_autoptr(GArrowExpression)  result_expr = NULL;
-        gboolean ignore_case = false;
-        GList           *arguments = NULL;
-
-        Expr  *first_expr = linitial(opexpr->args);
-        Expr  *second_expr = lsecond(opexpr->args);
-
-        Const *con = (Const *)second_expr;
-        char *value = text_to_cstring(DatumGetTextP(con->constvalue));
-        g_autoptr(GArrowMatchSubstringOptions) options =
-        		garrow_match_substring_options_new(value, ignore_case);
-        g_autoptr(GArrowExpression) expr = expr_to_arrow_expression(first_expr, pcontext);
-
-        if (expr)
-        {
-        	g_autoptr(GArrowExpression) not_expr = NULL;
-			arguments = garrow_list_append_ptr(arguments, expr);
-			expr = GARROW_EXPRESSION(garrow_call_expression_new(
-					"match_like", arguments, GARROW_FUNCTION_OPTIONS(options)));
-			not_expr = build_not_expression(expr);
-			garrow_list_free_ptr(&arguments);
-			return garrow_move_ptr(not_expr);
-        }
-        else
-        {
-        	elog(ERROR, "Expression to arrow error.");
-        	return NULL;
-        }
 }
 
 static GArrowExpression *
@@ -1301,10 +1287,12 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 				switch (opexpr->opno)
 				{
 					case OID_TEXT_LIKE_OP:
-						return get_text_like_expression(opexpr, pcontext);
+					case OID_BPCHAR_LIKE_OP:
+						return build_like_expression(opexpr, pcontext, false);
 						break;
 					case OID_TEXT_NOT_LIKE_OP:
-						return get_text_not_like_expression(opexpr, pcontext);
+					case OID_BPCHAR_NOT_LIKE_OP:
+						return build_like_expression(opexpr, pcontext, true);
 						break;
 					case OIDTextConcatenateOperator:
 						return build_text_join(opexpr->args, pcontext);
@@ -1702,7 +1690,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 
 
 	/* change sinktype and pipeline when merging some arrow plans into a big one. */
-	if (enable_arrow_plan_merge)
+	if (enable_plan_merge)
 	{
 		pcontext.sinktype = Plain;
 		pcontext.pipeline = false;
@@ -3727,6 +3715,8 @@ GetArrowPlan(PlanState *ps)
 	else if (IsA(ps, ResultState))
 	{
 		VecResultState *vrs = (VecResultState *)ps;
+		if (vrs->base.hashFilter)
+			return NULL;
 		return vrs->estate.plan;
 	}
 	else if (IsA(ps, AggState))
@@ -3812,7 +3802,7 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node, PlanState *limi
 			GList *keys = NULL;
 			GError *error = NULL;
 			schema = GetSchemaFromSlot(child_node->ps_ResultTupleSlot);
-			if (!enable_arrow_plan_merge)
+			if (!enable_plan_merge)
 				sort_plan = GetArrowPlan(child_node);
 			else
 				sort_plan = GetArrowPlan(limit_node);
@@ -3943,7 +3933,7 @@ PostBuildVecPlan(PlanState *ps, VecExecuteState *estate)
 {
 	BuildVecPlan(ps, estate);
 
-	if (!enable_arrow_plan_merge)
+	if (!enable_plan_merge)
 		return;
 
 	GArrowExecutePlan *target = GetArrowPlan(ps);

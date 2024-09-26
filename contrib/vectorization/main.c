@@ -93,10 +93,10 @@ _PG_init(void)
                             PGC_USERSET,
                             GUC_GPDB_NEED_SYNC,
                             NULL, NULL, NULL);
-    DefineCustomBoolVariable("vector.enable_arrow_plan_merge",
-                             "merge some small arrow plans into a big one if true.",
+    DefineCustomBoolVariable("vector.enable_plan_merge",
+                             "merge postgres ExecNode into a big plan if true.",
                              NULL,
-                             &enable_arrow_plan_merge,
+                             &enable_plan_merge,
                              false,
                              PGC_USERSET,
                              GUC_GPDB_NEED_SYNC,

@@ -560,6 +560,25 @@ is_expr_vectorable(Expr* expr, void *context)
 		case T_OpExpr:
 			{
 				OpExpr	  *opexpr = (OpExpr *)expr;
+				switch (opexpr->opno)
+				{
+					case OID_TEXT_LIKE_OP:
+					case OID_TEXT_NOT_LIKE_OP:
+					case OID_BPCHAR_NOT_LIKE_OP:
+					case OID_BPCHAR_LIKE_OP:
+					{
+						//TODO: If one of the arguments is FUNCEXPR, but the result of the calculation of that FUNCEXPR 
+						// is a constant, it should not fallback.
+						Expr  *first_expr = linitial(opexpr->args);
+						Expr  *second_expr = lsecond(opexpr->args);
+						if (!IsA(first_expr, Const) && !IsA(second_expr, Const)) {
+							return false;
+						}
+						break;
+					}
+					default:
+						break;
+				}
 
 				if (!is_opexpr_vectorable(opexpr->opno) || list_length(opexpr->args) == 1)
 					return false;
