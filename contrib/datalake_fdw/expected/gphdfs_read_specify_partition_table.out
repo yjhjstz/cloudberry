@@ -1,0 +1,548 @@
+CREATE EXTENSION IF NOT EXISTS hive_connector;
+NOTICE:  extension "hive_connector" already exists, skipping
+-- read simple table
+DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
+NOTICE:  table "hive_simple_test_1" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=') FORMAT 'orc';
+select * from hive_simple_test_1 order by a;
+ a  |     b     
+----+-----------
+  1 | aaaaabbbb
+  2 | aaaaabbbb
+  3 | aaaaabbbb
+  4 | aaaaabbbb
+  5 | aaaaabbbb
+  6 | aaaaabbbb
+  6 | aaaaabbbb
+  7 | aaaaabbbb
+  7 | aaaaabbbb
+  7 | 
+  8 | aaaaabbbb
+  8 | 
+  8 | aaaaabbbb
+  9 | 
+  9 | aaaaabbbb
+  9 | aaaaabbbb
+ 10 | aaaaabbbb
+ 10 | aaaaabbbb
+    | 
+    | aaaaabbbb
+(20 rows)
+
+DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
+NOTICE:  table "hive_simple_test_1" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=aa') FORMAT 'orc';
+select * from hive_simple_test_1 order by a;
+ a  |     b     
+----+-----------
+  1 | aaaaabbbb
+  2 | aaaaabbbb
+  3 | aaaaabbbb
+  4 | aaaaabbbb
+  5 | aaaaabbbb
+  6 | aaaaabbbb
+  6 | aaaaabbbb
+  7 | aaaaabbbb
+  7 | 
+  7 | aaaaabbbb
+  8 | aaaaabbbb
+  8 | 
+  8 | aaaaabbbb
+  9 | aaaaabbbb
+  9 | 
+  9 | aaaaabbbb
+ 10 | aaaaabbbb
+ 10 | aaaaabbbb
+    | 
+    | aaaaabbbb
+(20 rows)
+
+DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
+NOTICE:  table "hive_simple_test_1" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value') FORMAT 'orc';
+select * from hive_simple_test_1 order by a;
+ a  |     b     
+----+-----------
+  1 | aaaaabbbb
+  2 | aaaaabbbb
+  3 | aaaaabbbb
+  4 | aaaaabbbb
+  5 | aaaaabbbb
+  6 | aaaaabbbb
+  6 | aaaaabbbb
+  7 | aaaaabbbb
+  7 | aaaaabbbb
+  7 | 
+  8 | aaaaabbbb
+  8 | 
+  8 | aaaaabbbb
+  9 | 
+  9 | aaaaabbbb
+  9 | aaaaabbbb
+ 10 | aaaaabbbb
+ 10 | aaaaabbbb
+    | 
+    | aaaaabbbb
+(20 rows)
+
+DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
+-- read partition table
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+NOTICE:  table "hive_type_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '1', 'paa_cluster', 'hive_type_test_1', 'false');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_type_test_1 order by id, name, m;
+ id |   name    | m 
+----+-----------+---
+  1 | aaaaabbbb | 1
+  2 | aaaaabbbb | 1
+  3 | aaaaabbbb | 1
+  4 | aaaaabbbb | 1
+  5 | aaaaabbbb | 1
+(5 rows)
+
+select count(*) from hive_type_test_1;
+ count 
+-------
+     5
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+NOTICE:  table "hive_type_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '2', 'paa_cluster', 'hive_type_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_type_test_1 order by id, name, m;
+ id |   name    | m 
+----+-----------+---
+  7 | aaaaabbbb | 2
+  8 | aaaaabbbb | 2
+  9 | aaaaabbbb | 2
+ 10 | aaaaabbbb | 2
+    | aaaaabbbb | 2
+(5 rows)
+
+select count(*) from hive_type_test_1;
+ count 
+-------
+     5
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+NOTICE:  table "hive_type_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '3', 'paa_cluster', 'hive_type_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_type_test_1 order by id, name, m;
+ id |   name    | m 
+----+-----------+---
+  6 | aaaaabbbb | 3
+  6 | aaaaabbbb | 3
+  7 | aaaaabbbb | 3
+  7 |           | 3
+  8 | aaaaabbbb | 3
+  8 |           | 3
+  9 | aaaaabbbb | 3
+  9 |           | 3
+ 10 | aaaaabbbb | 3
+    |           | 3
+(10 rows)
+
+select count(*) from hive_type_test_1;
+ count 
+-------
+    10
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+NOTICE:  table "hive_type_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '3', 'paa_cluster', 'hive_type_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_type_test_1 order by id, name, m;
+ id |   name    | m 
+----+-----------+---
+  6 | aaaaabbbb | 3
+  6 | aaaaabbbb | 3
+  7 | aaaaabbbb | 3
+  7 |           | 3
+  8 | aaaaabbbb | 3
+  8 |           | 3
+  9 | aaaaabbbb | 3
+  9 |           | 3
+ 10 | aaaaabbbb | 3
+    |           | 3
+(10 rows)
+
+select count(*) from hive_type_test_1;
+ count 
+-------
+    10
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
+-- read multi partition key
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '1', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |           o           | p 
+----+-----------+---+----+-----------------------+---
+  6 | rewrwr3r2 | 1 | bb |       9999.9990000000 | 1
+  6 | rewrwr3r2 | 1 | bb |       9999.9990000000 | 1
+  6 | rewrwr3r2 | 1 | bb | 1234567890.0100000000 | 1
+  6 | rewrwr3r2 | 1 | bb | 1234567890.1234567891 | 1
+  6 | rewrwr3r2 | 1 | bb | 1234567890.1234567891 | 1
+  6 | rewrwr3r2 | 1 | bb | 1234567890.1234567891 | 1
+  7 | fdsfsf    | 1 | bb |          2.9900000000 | 0
+  7 | fdsfsf    | 1 | bb |          2.9900000000 | 0
+  7 | fdsfsf    | 1 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 1 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 1 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 1 | bb |  999999999.9999999000 | 0
+  8 | ddddbbbb  | 1 | aa |          1.1000000000 | 1
+  8 | ddddbbbb  | 1 | aa |          1.1000000000 | 1
+  8 | ddddbbbb  | 1 | aa |          1.9999900000 | 1
+  8 | ddddbbbb  | 1 | aa |          1.9999900000 | 1
+  9 | bbbbcccc  | 1 | aa |          2.0000000000 | 0
+  9 | bbbbcccc  | 1 | aa |          2.0000000000 | 0
+  9 | bbbbcccc  | 1 | aa |        200.9999990000 | 0
+  9 | bbbbcccc  | 1 | aa |        200.9999990000 | 0
+ 10 | aaaaabbbb | 1 | aa |          1.0000000000 | 1
+ 10 | aaaaabbbb | 1 | aa |          1.0000000000 | 1
+ 10 | aaaaabbbb | 1 | aa |          1.1000000000 | 1
+ 10 | aaaaabbbb | 1 | aa |          1.1000000000 | 1
+(24 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    24
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '2', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |        o        | p 
+----+-----------+---+----+-----------------+---
+  6 | rewrwr3r2 | 2 | bb | 9999.9990000000 | 1
+  6 | rewrwr3r2 | 2 | bb | 9999.9990000000 | 1
+  7 | fdsfsf    | 2 | bb |    2.9900000000 | 0
+  7 | fdsfsf    | 2 | bb |    2.9900000000 | 0
+  8 | ddddbbbb  | 2 | aa |    1.1000000000 | 1
+  8 | ddddbbbb  | 2 | aa |    1.1000000000 | 1
+  9 | bbbbcccc  | 2 | aa |    2.0000000000 | 0
+  9 | bbbbcccc  | 2 | aa |    2.0000000000 | 0
+ 10 | aaaaabbbb | 2 | aa |    1.0000000000 | 1
+ 10 | aaaaabbbb | 2 | aa |    1.0000000000 | 1
+(10 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    10
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '3', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |           o           | p 
+----+-----------+---+----+-----------------------+---
+  6 | rewrwr3r2 | 3 | bb | 1234567890.0100000000 | 1
+  6 | rewrwr3r2 | 3 | bb | 1234567890.1234567891 | 1
+  6 | rewrwr3r2 | 3 | bb | 1234567890.1234567891 | 1
+  6 | rewrwr3r2 | 3 | bb | 1234567890.1234567891 | 1
+  7 | fdsfsf    | 3 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 3 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 3 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 3 | bb |  999999999.9999999000 | 0
+  8 | ddddbbbb  | 3 | aa |          1.9999900000 | 1
+  8 | ddddbbbb  | 3 | aa |          1.9999900000 | 1
+  9 | bbbbcccc  | 3 | aa |        200.9999990000 | 0
+  9 | bbbbcccc  | 3 | aa |        200.9999990000 | 0
+ 10 | aaaaabbbb | 3 | aa |          1.1000000000 | 1
+ 10 | aaaaabbbb | 3 | aa |          1.1000000000 | 1
+(14 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    14
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '4', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |        o        | p 
+----+-----------+---+----+-----------------+---
+  6 | rewrwr3r2 | 4 | bb | 9999.9990000000 | 1
+  6 | rewrwr3r2 | 4 | bb | 9999.9990000000 | 1
+  7 | fdsfsf    | 4 | bb |    2.9900000000 | 0
+  7 | fdsfsf    | 4 | bb |    2.9900000000 | 0
+  8 | ddddbbbb  | 4 | aa |    1.1000000000 | 1
+  8 | ddddbbbb  | 4 | aa |    1.1000000000 | 1
+  9 | bbbbcccc  | 4 | aa |    2.0000000000 | 0
+  9 | bbbbcccc  | 4 | aa |    2.0000000000 | 0
+ 10 | aaaaabbbb | 4 | aa |    1.0000000000 | 1
+ 10 | aaaaabbbb | 4 | aa |    1.0000000000 | 1
+(10 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    10
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '5', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |           o           | p 
+----+-----------+---+----+-----------------------+---
+  6 | rewrwr3r2 | 5 | bb | 1234567890.0100000000 | 1
+  6 | rewrwr3r2 | 5 | bb | 1234567890.0100000000 | 1
+  6 | rewrwr3r2 | 5 | bb | 1234567890.1234567891 | 1
+  6 | rewrwr3r2 | 5 | bb | 1234567890.1234567891 | 1
+  7 | fdsfsf    | 5 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 5 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 5 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 5 | bb |  999999999.9999999000 | 0
+  8 | ddddbbbb  | 5 | aa |          1.9999900000 | 1
+  8 | ddddbbbb  | 5 | aa |          1.9999900000 | 1
+  9 | bbbbcccc  | 5 | aa |        200.9999990000 | 0
+  9 | bbbbcccc  | 5 | aa |        200.9999990000 | 0
+ 10 | aaaaabbbb | 5 | aa |          1.1000000000 | 1
+ 10 | aaaaabbbb | 5 | aa |          1.1000000000 | 1
+(14 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    14
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '6', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |        o        | p 
+----+-----------+---+----+-----------------+---
+  6 | rewrwr3r2 | 6 | bb | 9999.9990000000 | 1
+  6 | rewrwr3r2 | 6 | bb | 9999.9990000000 | 1
+  7 | fdsfsf    | 6 | bb |    2.9900000000 | 0
+  7 | fdsfsf    | 6 | bb |    2.9900000000 | 0
+  8 | ddddbbbb  | 6 | aa |    1.1000000000 | 1
+  8 | ddddbbbb  | 6 | aa |    1.1000000000 | 1
+  9 | bbbbcccc  | 6 | aa |    2.0000000000 | 0
+  9 | bbbbcccc  | 6 | aa |    2.0000000000 | 0
+ 10 | aaaaabbbb | 6 | aa |    1.0000000000 | 1
+ 10 | aaaaabbbb | 6 | aa |    1.0000000000 | 1
+(10 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    10
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '7', 'paa_cluster', 'hive_test_1');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_1 order by id, name, m, n, o, p;
+ id |   name    | m | n  |           o           | p 
+----+-----------+---+----+-----------------------+---
+  6 | rewrwr3r2 | 7 | bb | 1234567890.0100000000 | 1
+  6 | rewrwr3r2 | 7 | bb | 1234567890.0100000000 | 1
+  6 | rewrwr3r2 | 7 | bb | 1234567890.1234567891 | 1
+  6 | rewrwr3r2 | 7 | bb | 1234567890.1234567891 | 1
+  7 | fdsfsf    | 7 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 7 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 7 | bb |  999999999.9999999000 | 0
+  7 | fdsfsf    | 7 | bb |  999999999.9999999000 | 0
+  8 | ddddbbbb  | 7 | aa |          1.9999900000 | 1
+  8 | ddddbbbb  | 7 | aa |          1.9999900000 | 1
+  9 | bbbbcccc  | 7 | aa |        200.9999990000 | 0
+  9 | bbbbcccc  | 7 | aa |        200.9999990000 | 0
+ 10 | aaaaabbbb | 7 | aa |          1.1000000000 | 1
+ 10 | aaaaabbbb | 7 | aa |          1.1000000000 | 1
+(14 rows)
+
+select count(*) from hive_test_1;
+ count 
+-------
+    14
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+NOTICE:  table "hive_test_2" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'aa', 'paa_cluster', 'hive_test_2');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_2 order by id, name, m, n, o, p;
+ id |   name    | m  | n  | o  | p  | q  | s  
+----+-----------+----+----+----+----+----+----
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+  9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
+ 10 | aaaaabbbb | aa | aa | bb | aa | aa | aa
+ 10 | aaaaabbbb | aa | aa | bb | aa | aa | aa
+ 10 | aaaaabbbb | aa | aa | bb | aa | aa | aa
+ 10 | aaaaabbbb | aa | aa | bb | aa | aa | aa
+(12 rows)
+
+select count(*) from hive_test_2;
+ count 
+-------
+    12
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+NOTICE:  table "hive_test_2" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'bb', 'paa_cluster', 'hive_test_2');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_2 order by id, name, m, n, o, p;
+ id |   name   | m  | n  | o  | p  | q  | s  
+----+----------+----+----+----+----+----+----
+  8 | ddddbbbb | bb | cc | aa | aa | aa | aa
+  8 | ddddbbbb | bb | cc | aa | aa | aa | aa
+  8 | ddddbbbb | bb | cc | aa | aa | aa | aa
+  8 | ddddbbbb | bb | cc | aa | cc | aa | aa
+  8 | ddddbbbb | bb | cc | aa | cc | aa | aa
+  8 | ddddbbbb | bb | cc | aa | cc | dd | aa
+  8 | ddddbbbb | bb | cc | aa | cc | aa | aa
+  8 | ddddbbbb | bb | cc | bb | aa | aa | aa
+(8 rows)
+
+select count(*) from hive_test_2;
+ count 
+-------
+     8
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+NOTICE:  table "hive_test_2" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'cc', 'paa_cluster', 'hive_test_2');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_2 order by id, name, m, n, o, p;
+ id |  name  | m  | n  | o  | p  | q  | s  
+----+--------+----+----+----+----+----+----
+  7 | fdsfsf | cc | dd | aa | aa | aa | aa
+  7 | fdsfsf | cc | dd | aa | aa | aa | aa
+  7 | fdsfsf | cc | dd | aa | aa | aa | aa
+  7 | fdsfsf | cc | dd | aa | cc | aa | aa
+  7 | fdsfsf | cc | dd | dd | aa | aa | aa
+  7 | fdsfsf | cc | dd | dd | aa | aa | aa
+(6 rows)
+
+select count(*) from hive_test_2;
+ count 
+-------
+     6
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+NOTICE:  table "hive_test_2" does not exist, skipping
+select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', '7', 'paa_cluster', 'hive_test_2');
+ sync_hive_partition_table 
+---------------------------
+ t
+(1 row)
+
+select * from hive_test_2 order by id, name, m, n, o, p;
+ id |   name    | m | n  | o  | p  | q  | s  
+----+-----------+---+----+----+----+----+----
+ 10 | aaaaabbbb | 7 | aa | aa | aa | aa | aa
+ 10 | aaaaabbbb | 7 | aa | aa | aa | aa | aa
+ 10 | aaaaabbbb | 7 | aa | aa | aa | aa | aa
+ 10 | aaaaabbbb | 7 | aa | aa | aa | aa | aa
+(4 rows)
+
+select count(*) from hive_test_2;
+ count 
+-------
+     4
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;

@@ -54,8 +54,6 @@ function load_vectorization() {
 }
 
 function build_env() {
-    export PATH=/opt/apache-hive-3.1.3-bin/bin:/opt/hadoop-3.3.5/bin:/opt/hadoop-3.3.5/sbin:$PATH
-	start_hdfs
 	create_configure
 	source_file
 }

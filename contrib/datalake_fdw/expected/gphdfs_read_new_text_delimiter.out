@@ -1,0 +1,284 @@
+DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
+DROP SERVER IF EXISTS foreign_server cascade;
+DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw cascade;
+CREATE EXTENSION IF NOT EXISTS datalake_fdw;
+NOTICE:  extension "datalake_fdw" already exists, skipping
+SELECT pg_sleep(5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+CREATE EXTENSION IF NOT EXISTS hive_connector;
+NOTICE:  extension "hive_connector" already exists, skipping
+SELECT pg_sleep(5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+set vector.enable_vectorization=off;
+CREATE FOREIGN DATA WRAPPER datalake_fdw
+HANDLER datalake_fdw_handler
+VALIDATOR datalake_fdw_validator
+OPTIONS (mpp_execute 'all segments');
+SELECT public.create_foreign_server('foreign_server', 'gpadmin', 'datalake_fdw', 'paa_cluster');
+ create_foreign_server 
+-----------------------
+ t
+(1 row)
+
+-- multi delimiter used newline \r\n
+set datalake.external_table_new_text = true;
+DROP SERVER IF EXISTS foreign_server_hdfs;
+NOTICE:  server "foreign_server_hdfs" does not exist, skipping
+SELECT public.create_foreign_server('foreign_server_hdfs', 'gpadmin', 'datalake_fdw', 'paa_cluster');
+ create_foreign_server 
+-----------------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/crlf/custom_file_crlf.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CRLF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 100000000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/crlf/custom_file_crlf2.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CRLF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+  count   
+----------
+ 11180000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/crlf/custom_file_crlf3.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CRLF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+  2000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/crlf/custom_file_crlf4.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CRLF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+   125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+-- used newline \n
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'LF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 100000000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf2.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'LF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+  count   
+----------
+ 11180000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf3.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'LF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+  2000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf4.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'LF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+   125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+-- used default delimiter \n
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf.txt hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 100000000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf2.txt hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+  count   
+----------
+ 11180000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf3.txt hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+  2000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/custom_file_lf4.txt hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+   125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+-- used newline \r
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/cr/custom_file_cr.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CR');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 100000000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/cr/custom_file_cr2.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CR');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+  count   
+----------
+ 11180000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/cr/custom_file_cr3.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CR');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+  2000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/cr/custom_file_cr4.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CR');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+ count 
+-------
+   125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+-- total
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/crlf/ hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CRLF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 111183125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/cr/ hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CR');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 111183125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/ hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'LF');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 111183125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;
+DROP EXTERNAL TABLE IF EXISTS readtable;
+NOTICE:  foreign table "readtable" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
+location('gphdfs://test/lf/ hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from readtable;
+   count   
+-----------
+ 111183125
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS readtable;

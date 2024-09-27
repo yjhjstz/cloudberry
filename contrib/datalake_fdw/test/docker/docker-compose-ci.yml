@@ -1,0 +1,40 @@
+version: '2'
+services:
+  services-mysql:
+    image: datalake-services-mysql:latest
+    container_name: services-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+    ports:
+      - "3306:3306"
+      - "33060:33060"   
+    networks:
+      - mynetwork
+    tty: true
+    
+
+  services-hive:
+    image: datalake-services-hive:latest
+    container_name: services-hive
+    environment:
+      - HADOOP_HOME=/opt/hadoop-3.3.5
+      - HADOOP_CONF_PATH=/opt/hadoop-3.3.5/etc/hadoop
+      - HIVE_HOME=/opt/apache-hive-3.1.3-bin
+      - HIVE_CONF_PATH=/opt/apache-hive-3.1.3-bin/conf
+      - PATH=/opt/apache-hive-3.1.3-bin/bin:/opt/hadoop-3.3.5/bin:/opt/hadoop-3.3.5/sbin:${PATH}
+      - JAVA_HOME=/usr/java/latest
+    ports:
+      - "50070:50070"
+      - "50075:50075"
+      - "50090:50090"
+      - "50010:50010"
+      - "8020:8020"
+      - "9000:9000"
+      - "9083:9083"
+    networks:
+      - mynetwork
+    tty: true
+
+networks:
+  mynetwork:
+    driver: bridge

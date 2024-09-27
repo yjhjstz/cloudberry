@@ -105,21 +105,31 @@ function start_tpcds_test() {
 	$BASE_DIR/tpcds/run.sh
 }
 
-function load_data() {
-    BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-	echo "hadoop leave saft mode"
-	hadoop dfsadmin -safemode leave
-	echo "load orc, parquet and avro data waiting..."
-	export HADOOP_HEAPSIZE=2048
-    date
-    echo "begin load orc waiting..."
-	hive -f $BASE_DIR/sql/hive_load_orc_data.sql > $BASE_DIR/hive_load_orc.log 2>&1
-    date
-    echo "begin load parquet waiting..."
-	hive -f $BASE_DIR/sql/hive_load_parquet_data.sql > $BASE_DIR/hive_load_parquet.log 2>&1
-	hive -f $BASE_DIR/sql/hive_load_avro_data.sql > $BASE_DIR/hive_load_avro.log 2>&1
-	hive -f $BASE_DIR/sql/hive_load_empty_text_data.sql > $BASE_DIR/hive_load_empty_text_data.log 2>&1
-	hive -f $BASE_DIR/sql/load_hive_new_text_deflate.sql > $BASE_DIR/load_hive_new_text_deflate.log 2>&1
-	hive -f $BASE_DIR/sql/load_hive_new_text_partition.sql > $BASE_DIR/load_hive_new_text_partition.log 2>&1
-	hive -f $BASE_DIR/sql/load_hive_text_partition.sql > $BASE_DIR/load_hive_text_partition.log 2>&1
+function load_docker() {
+	export OS_ARCH=$(uname -m)
+	ARCH="${OS_ARCH}"
+	BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+	sudo chown -R gpadmin. /opt
+	usermod -aG docker gpadmin
+	pushd /opt
+	echo "download docker image"
+	wget --no-check-certificate -nv -O datalake-services-mysql-${OS_ARCH}.tar.gz https://hashdata-download.obs.cn-north-4.myhuaweicloud.com/docker-image/datalake-services-mysql-${OS_ARCH}.tar.gz
+	docker load < ./datalake-services-mysql-${OS_ARCH}.tar.gz
+
+	wget --no-check-certificate -nv -O datalake-services-hive-${OS_ARCH}.tar.gz https://hashdata-download.obs.cn-north-4.myhuaweicloud.com/docker-image/datalake-services-hive-${OS_ARCH}.tar.gz
+	docker load < ./datalake-services-hive-${OS_ARCH}.tar.gz
+
+	wget --no-check-certificate -nv -O backup-${OS_ARCH}.sql https://hashdata-download.obs.cn-north-4.myhuaweicloud.com/docker-image/backup-${OS_ARCH}.sql
+	mv backup-${OS_ARCH}.sql backup.sql
+	popd
+	echo "start deploy docker"
+
+	docker-compose -f $BASE_DIR/docker/docker-compose-ci.yml up -d
+	sleep 30
+	docker-compose -f $BASE_DIR/docker/docker-compose-ci.yml exec -u root services-hive service sshd start
+	docker-compose -f $BASE_DIR/docker/docker-compose-ci.yml exec services-hive sh -c "sudo /usr/sbin/sshd"
+	docker cp /opt/backup.sql services-mysql:/opt/backup.sql
+	docker exec -i services-mysql sh -c "/usr/bin/mysql -u root --password=123456 < /opt/backup.sql"
+	docker-compose -f $BASE_DIR/docker/docker-compose-ci.yml exec services-hive sh /scripts/start.sh
+
 }
