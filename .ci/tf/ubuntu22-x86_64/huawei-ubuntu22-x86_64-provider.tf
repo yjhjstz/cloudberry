@@ -32,7 +32,7 @@ variable "instance_securitygroup" {
 }
 
 variable "instance_availability_zone" {
-  default = "cn-north-4b"
+  default = "cn-north-4g"
 }
 
 variable "instance_os_disk_size" {
