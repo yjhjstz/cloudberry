@@ -3329,9 +3329,32 @@ to_arrow_storetype(StoreType type)
 	return GARROW_IN_MEMORY;
 }
 
-static GArrowJoinType
-to_arrow_jointype(JoinType type, List *joinqual)
+static bool
+check_innervar_walker(Node *node, void *context)
 {
+	if (node == NULL)
+		return true;
+
+	switch (nodeTag(node))
+	{
+		case T_Var:
+		{
+			Var *var = (Var *) node;
+			if (var->varno == INNER_VAR)
+			{
+				return false;
+			}  
+		}
+		default:
+			break;
+	}
+	return expression_tree_walker(node, check_innervar_walker, context);
+}
+
+static GArrowJoinType
+to_arrow_jointype(JoinType type, List *targetlist, List *joinqual)
+{
+	bool no_need_right_payload = check_innervar_walker((Node *) targetlist, NULL);
 	switch (type)
 	{
 		case JOIN_INNER:
@@ -3343,9 +3366,27 @@ to_arrow_jointype(JoinType type, List *joinqual)
 		case JOIN_FULL:
 			return GARROW_FULL_OUTER_JOIN;
 		case JOIN_SEMI:
-			return GARROW_FULL_SEMI_JOIN;
+		{
+			if (no_need_right_payload)
+			{
+				return GARROW_LEFT_SEMI_JOIN;
+			}
+			else
+			{
+				return GARROW_FULL_SEMI_JOIN;
+			}
+		}
 		case JOIN_ANTI:
-			return GARROW_FULL_ANTI_JOIN;
+		{
+			if (no_need_right_payload)
+			{
+				return GARROW_LEFT_ANTI_JOIN;
+			}
+			else
+			{
+				return GARROW_FULL_ANTI_JOIN;
+			}
+		}
 		case JOIN_LASJ_NOTIN:
 			return GARROW_LASJ_NOTIN_JOIN;
 		default:
@@ -3376,7 +3417,7 @@ BuildHashjoin(PlanBuildContext *pcontext, GArrowExecuteNode *left, GArrowExecute
 	vnode = (VecHashJoinState *) node;
 	left_schema = garrow_execute_node_get_output_schema(left);
 	right_schema = garrow_execute_node_get_output_schema(right);
-	type  = to_arrow_jointype(node->js.jointype, joinqual);
+	type = to_arrow_jointype(node->js.jointype, node->js.ps.plan->targetlist, joinqual);
 	lkeys = garrow_schema_get_fields(left_schema);
 	rkeys = garrow_schema_get_fields(right_schema);
 	pcontext->left_proj_schema = left_schema;
@@ -3590,7 +3631,7 @@ BuildNestLoopjoin(PlanBuildContext *pcontext, GArrowExecuteNode *left, GArrowExe
 	right_schema = garrow_execute_node_get_output_schema(right);
 	pcontext->left_proj_schema = left_schema;
 	pcontext->right_proj_schema = right_schema;
-	type  = to_arrow_jointype(node->js.jointype, joinqual);
+	type  = to_arrow_jointype(node->js.jointype, node->js.ps.plan->targetlist, joinqual);
 	if (joinqual)
 		filter_expr = build_filter_expression(joinqual, pcontext);
 	else 
