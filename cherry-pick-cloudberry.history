@@ -1,6 +1,18 @@
 Record the cherry-pick history from Cloudberry(github), make it easy
 to find the start commit for cherry-pick.
 
+Author: Hao Wu <gfphoenix78@gmail.com>
+Date: Mon Sep 28 12:41:22 CST 2024
+cherry-pick start commit: a099d24333cd73abb049a856f69bc704f4aad7a2
+cherry-pick end commit: a099d24333cd73abb049a856f69bc704f4aad7a2
+
+#FIXME(Zijie Zhang): missing the cherry-pick orca prs in github
+
+Author: Zijie Zhang <foreyes_1002@163.com>
+Date: Mon Sep 29 17:00:00 CST 2024
+cherry-pick start commit: 27764957f9e4748ffe5b18917a4824304547e76f
+cherry-pick end commit: 20b84a725cb1fdafb9f006859150b99f590401be
+
 Author: wangxiaoran <fanfuxiaoran@gmail.com>
 Date: Mon Sep 23 18:47:32 CST 2024
 cherry-pick start commit: 0f71f8dfe71fa2de2ecb469f2bed6b7f52e52176
