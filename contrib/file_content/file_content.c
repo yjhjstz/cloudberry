@@ -94,7 +94,12 @@ file_content(PG_FUNCTION_ARGS)
 	curPos += bytesRead;
 	}
 
-	UFileClose(ufile);
+	if (UFileClose(ufile) < 0)
+		ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("failed to close the file \"%s\": %s", scopedUrl, UFileGetLastError(ufile))));
+
+	pfree(ufile);
 
 	PG_RETURN_BYTEA_P(result);
 }
