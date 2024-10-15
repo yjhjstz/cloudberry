@@ -7,6 +7,7 @@ source $BASE_DIR/functions.sh
 function start_test() {
 	build_env
 	load_docker
+	load_data_to_docker
 	start_regress_test
 }
 

@@ -131,5 +131,11 @@ function load_docker() {
 	docker cp /opt/backup.sql services-mysql:/opt/backup.sql
 	docker exec -i services-mysql sh -c "/usr/bin/mysql -u root --password=123456 < /opt/backup.sql"
 	docker-compose -f $BASE_DIR/docker/docker-compose-ci.yml exec services-hive sh /scripts/start.sh
+	sleep 30
+}
 
+function load_data_to_docker() {
+	BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+	docker cp $BASE_DIR/sql/test_logerror.sql /sql/
+	docker exec -it services-hive hive -f /sql/test_logerror.sql
 }

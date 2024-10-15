@@ -107,6 +107,56 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
+-- sync with logerror
+CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hdfsClusterName text,
+destTableName text,
+serverName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_with_logerror'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database(hiveClusterName text,
+hiveDatabaseName text,
+hdfsClusterName text,
+destSchemaName text,
+serverName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_with_logerror'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hdfsClusterName text,
+destTableName text,
+serverName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_with_logerror'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database(hiveClusterName text,
+hiveDatabaseName text,
+hdfsClusterName text,
+destSchemaName text,
+serverName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_with_logerror'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+
 -- 3x
 CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
 hiveDatabaseName text,
@@ -157,4 +207,49 @@ hdfsClusterName text,
 destSchemaName text,
 forceSync boolean) RETURNS boolean
 AS '$libdir/hive_connector','sync_hive_database_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+-- sync hive table support log error
+CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hdfsClusterName text,
+destTableName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_with_logerror_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_table(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+hdfsClusterName text,
+destTableName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_with_logerror_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database(hiveClusterName text,
+hiveDatabaseName text,
+hdfsClusterName text,
+destSchemaName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_with_logerror_3x'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database(hiveClusterName text,
+hiveDatabaseName text,
+hdfsClusterName text,
+destSchemaName text,
+logerrors boolean,
+rejectlimit int,
+islimitinrows text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_with_logerror_3x'
 LANGUAGE C STRICT EXECUTE ON MASTER;

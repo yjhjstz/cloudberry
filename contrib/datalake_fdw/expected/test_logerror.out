@@ -1,0 +1,409 @@
+CREATE EXTENSION if not exists hive_connector;
+NOTICE:  extension "hive_connector" already exists, skipping
+-- sync logerror table
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'rows');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+Error Log in File
+
+select * from hive_test_1 order by id, name;
+NOTICE:  found 10 data formatting errors (10 or more input rows), rejected related input data
+ id | name 
+----+------
+  1 | 
+  9 | \0
+(2 rows)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', false, 20, 'rows');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'percent');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 percent
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'ROWS');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'PERCENT');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 percent
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+NOTICE:  table "hive_test_2" does not exist, skipping
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'rows');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', false, 20, 'rows');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'percent');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'ROWS');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'PERCENT');
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+-- forceSync
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+NOTICE:  table "hive_test_1" does not exist, skipping
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'rows', true);
+NOTICE:  table "hive_test_1" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_1"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+Error Log in File
+
+select * from hive_test_1 order by id, name;
+NOTICE:  found 10 data formatting errors (10 or more input rows), rejected related input data
+ id | name 
+----+------
+  1 | 
+  9 | \0
+(2 rows)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', false, 20, 'rows', true);
+NOTICE:  table "hive_test_1" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_1"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'percent', true);
+NOTICE:  table "hive_test_1" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_1"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 percent
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'ROWS', true);
+NOTICE:  table "hive_test_1" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_1"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_1', 'paa_cluster', 'hive_test_1', true, 20, 'PERCENT', true);
+NOTICE:  table "hive_test_1" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_1"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+\d hive_test_1
+External table "public.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 percent
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'rows', true);
+NOTICE:  table "hive_test_2" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_2"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', false, 20, 'rows', true);
+NOTICE:  table "hive_test_2" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_2"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'percent', true);
+NOTICE:  table "hive_test_2" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_2"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'ROWS', true);
+NOTICE:  table "hive_test_2" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_2"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS hive_test_2;
+select sync_hive_table('hive_cluster', 'hive_logerror_data_test', 'hive_test_2', 'paa_cluster', 'hive_test_2', true, 20, 'PERCENT', true);
+NOTICE:  table "hive_test_2" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_test_2"
+ sync_hive_table 
+-----------------
+ t
+(1 row)
+
+-- sync database
+DROP EXTERNAL TABLE IF EXISTS hive_database.hive_test_1;
+NOTICE:  schema "hive_database" does not exist, skipping
+DROP EXTERNAL TABLE IF EXISTS hive_database.hive_test_2;
+NOTICE:  schema "hive_database" does not exist, skipping
+DROP SCHEMA IF EXISTS hive_database;
+NOTICE:  schema "hive_database" does not exist, skipping
+create schema hive_database;
+select sync_hive_database('hive_cluster', 'hive_logerror_data_test', 'paa_cluster', 'hive_database', false, 20, 'rows', true);
+NOTICE:  table "hive_test_1" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_database.hive_test_1"
+NOTICE:  table "hive_test_2" does not exist, skipping
+CONTEXT:  SQL statement "drop external table if exists hive_database.hive_test_2"
+ sync_hive_database 
+--------------------
+ t
+(1 row)
+
+\d hive_database.hive_test_1
+External table "hive_database.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+
+DROP EXTERNAL TABLE IF EXISTS hive_database.hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_database.hive_test_2;
+DROP EXTERNAL TABLE IF EXISTS hive_database2.hive_test_1;
+NOTICE:  schema "hive_database2" does not exist, skipping
+DROP EXTERNAL TABLE IF EXISTS hive_database2.hive_test_2;
+NOTICE:  schema "hive_database2" does not exist, skipping
+DROP SCHEMA IF EXISTS hive_database2;
+NOTICE:  schema "hive_database2" does not exist, skipping
+create schema hive_database2;
+select sync_hive_database('hive_cluster', 'hive_logerror_data_test', 'paa_cluster', 'hive_database2', true, 20, 'rows', false);
+ sync_hive_database 
+--------------------
+ t
+(1 row)
+
+\d hive_database2.hive_test_1
+External table "hive_database2.hive_test_1"
+ Column |  Type   | Modifiers 
+--------+---------+-----------
+ id     | integer | 
+ name   | text    | 
+Type: readable
+Encoding: UTF8
+Format type: text
+Format options: delimiter '|' null '\N' escape 'OFF' newline 'LF'
+External options: {}
+External location: "gphdfs://user/hive/warehouse/hive_logerror_data_test.db/hive_test_1 hdfs_cluster_name=paa_cluster cache=true transactional=false"
+Execute on: all segments
+Segment reject limit: 20 rows
+Error Log in File
+
+DROP EXTERNAL TABLE IF EXISTS hive_database2.hive_test_1;
+DROP EXTERNAL TABLE IF EXISTS hive_database2.hive_test_2;

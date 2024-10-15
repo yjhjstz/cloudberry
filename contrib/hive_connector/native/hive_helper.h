@@ -57,7 +57,10 @@ formCreateStmt(HmsHandle *hms,
 				const char *location,
 				const char *fields,
 				const char *hdfsClusterName,
-				const char *format);
+				const char *format,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows);
 
 extern bool
 validateMetaData(HmsHandle *hms,
@@ -86,7 +89,10 @@ formCreateStmt2(HmsHandle *hms,
 				const char *hiveClusterName,
 				const char *hiveDbName,
 				const char *hiveTableName,
-				char **partKeys);
+				char **partKeys,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows);
 
 
 //Compatibility3X
@@ -100,7 +106,10 @@ formCreateStmtCompatibility3X(HmsHandle *hms,
 			   const char *location,
 			   const char *fields,
 			   const char *hdfsClusterName,
-			   const char *format);
+			   const char *format,
+			   bool logerrors,
+			   int rejectlimit,
+			   const char *islimitinrows);
 
 extern char *
 formCreateStmt2Compatibility3X(HmsHandle *hms,
@@ -112,7 +121,10 @@ formCreateStmt2Compatibility3X(HmsHandle *hms,
 				const char *hiveDbName,
 				const char *hiveTableName,
 				const char *hiveClusterName,
-				char **partKeys);
+				char **partKeys,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows);
 
 extern char *
 formCreateStmt3Compatibility3X(HmsHandle *hms,
@@ -125,7 +137,10 @@ formCreateStmt3Compatibility3X(HmsHandle *hms,
 				const char *hiveTableName,
 				const char *hiveClusterName,
 				char **partKeys,
-				const char* specifyMaxPartitionValue);
+				const char* specifyMaxPartitionValue,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows);
 extern bool
 validateMetaDataCompatibility3X(HmsHandle *hms,
 				 const char *hiveDbName,
@@ -136,4 +151,13 @@ validateMetaDataCompatibility3X(HmsHandle *hms,
 void
 dropTableCompatibility3X(const char *table, bool isExternal);
 
+extern char *
+formatLogError3x(bool logerrors,
+			   int rejectlimit,
+			   const char *islimitinrows);
+
+extern char *
+formatLogError(bool logerrors,
+			   int rejectlimit,
+			   const char *islimitinrows);
 #endif // HIVE_HELPER_H

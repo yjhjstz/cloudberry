@@ -1116,6 +1116,32 @@ void check_foreign_option(List *options_list, Oid catalog)
 		{
 			compression = defGetString(def);
 		}
+
+		//check logerror
+		if (pg_strcasecmp(def->defname, DATALAKE_COPY_OPTIION_REJECTLIMIT) == 0)
+		{
+			int logerror = atoi(defGetString(def));
+			if (logerror < 0)
+			{
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("invalid foreign option \"%s\" value %d no less than 0 is allowed.",
+							def->defname, logerror)));
+			}
+		}
+
+		if (pg_strcasecmp(def->defname, DATALAKE_COPY_OPTIION_REJECTLIMITTYPE) == 0)
+		{
+			char* values = defGetString(def);
+			if (pg_strcasecmp(values, "rows") != 0 &&
+				pg_strcasecmp(values, "percent") != 0 )
+			{
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("foreign option \"%s\" 'rows' or 'percent' unknow value %s.",
+							def->defname, values)));
+			}
+		}
 	}
 
 	if (!(pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_TEXT) == 0 ||

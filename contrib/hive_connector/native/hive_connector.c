@@ -168,7 +168,10 @@ sync_partition_table(HmsHandle *hms,
 					  const char *hdfsClusterName,
 					  const char *destTableName,
 					  const char *hiveClusterName,
-					  bool forceSync)
+					  bool forceSync,
+					  bool logerrors,
+					  int rejectlimit,
+					  const char *islimitinrows)
 {
 	int partNum;
 	char *location;
@@ -192,7 +195,10 @@ sync_partition_table(HmsHandle *hms,
 								 hiveClusterName,
 								 hiveDbName,
 								 hiveTableName,
-								 partKeys);
+								 partKeys,
+								 logerrors,
+								 rejectlimit,
+								 islimitinrows);
 
 
 	if (forceSync)
@@ -215,7 +221,10 @@ sync_normal_table(HmsHandle *hms,
 				  const char *hiveTableName,
 				  const char *hdfsClusterName,
 				  const char *destTableName,
-				  bool forceSync)
+				  bool forceSync,
+				  bool logerrors,
+				  int rejectlimit,
+				  const char *islimitinrows)
 {
 	char *createStmt = NULL;
 	char *location 	= NULL;
@@ -237,7 +246,10 @@ sync_normal_table(HmsHandle *hms,
 							location,
 							field,
 							hdfsClusterName,
-							tableFormatConversion(hms));
+							tableFormatConversion(hms),
+							logerrors,
+							rejectlimit,
+							islimitinrows);
 
 	if (forceSync)
 		dropTable(destTableName);
@@ -318,7 +330,10 @@ sync_hive_table_(HmsHandle *hms,
 				 const char *destTableName,
 				 const char *hiveClusterName,
 				 bool suppressError,
-				 bool forceSync)
+				 bool forceSync,
+				 bool logerrors,
+				 int rejectlimit,
+				 const char *islimitinrows)
 {
 	bool  isPartTable;
 
@@ -336,7 +351,10 @@ sync_hive_table_(HmsHandle *hms,
 									  hdfsClusterName,
 									  destTableName,
 									  hiveClusterName,
-									  forceSync);
+									  forceSync,
+									  logerrors,
+									  rejectlimit,
+									  islimitinrows);
 			}
 			else
 			{
@@ -346,7 +364,10 @@ sync_hive_table_(HmsHandle *hms,
 								hiveTableName,
 								hdfsClusterName,
 								destTableName,
-								forceSync);
+								forceSync,
+								logerrors,
+								rejectlimit,
+								islimitinrows);
 			}
 		}
 
@@ -367,7 +388,10 @@ sync_hive_database_(HmsHandle *hms,
 					const char *hdfsClusterName,
 					const char *destSchemaName,
 					const char *hiveClusterName,
-					bool forceSync)
+					bool forceSync,
+					bool logerrors,
+					int rejectlimit,
+					const char *islimitinrows)
 {
 	int i;
 	char **tables;
@@ -388,7 +412,7 @@ sync_hive_database_(HmsHandle *hms,
 		appendStringInfo(&nameBuf, "%s.%s", destSchemaName, hiveTableName);
 
 		sync_hive_table_(hms, serverName, hiveDbName, hiveTableName,
-				hdfsClusterName, nameBuf.data, hiveClusterName, true, forceSync);
+				hdfsClusterName, nameBuf.data, hiveClusterName, true, forceSync, logerrors, rejectlimit, islimitinrows);
 
 		resetStringInfo(&nameBuf);
 	}
@@ -461,6 +485,9 @@ sync_hive_table(PG_FUNCTION_ARGS)
 	bool result 	= false;
 	bool forceSync 	= false;
 	HmsHandle *volatile hms;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
 
 	if (PG_ARGISNULL(0))
 		elog(ERROR, "Hive cluster name cannot be NULL");
@@ -498,7 +525,7 @@ sync_hive_table(PG_FUNCTION_ARGS)
 	PG_TRY();
 	{
 		sync_hive_table_(hms, serverName, hiveDbName, hiveTableName,
-				hdfsClusterName, destTableName, hiveClusterName, false, forceSync);
+				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, logerrors, rejectlimit, islimitinrows);
 		HmsDestroyHandle(hms);
 	}
 	PG_CATCH();
@@ -524,6 +551,9 @@ sync_hive_database(PG_FUNCTION_ARGS)
 	bool result 	= false;
 	bool forceSync 	= false;
 	HmsHandle *volatile hms;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
 
 	if (PG_ARGISNULL(0))
 		elog(ERROR, "Hive cluster name cannot be NULL");
@@ -557,7 +587,7 @@ sync_hive_database(PG_FUNCTION_ARGS)
 	PG_TRY();
 	{
 		sync_hive_database_(hms, serverName, hiveDbName,
-				hdfsClusterName, destSchemaName, hiveClusterName, forceSync);
+				hdfsClusterName, destSchemaName, hiveClusterName, forceSync, logerrors, rejectlimit, islimitinrows);
 		HmsDestroyHandle(hms);
 	}
 	PG_CATCH();
@@ -570,6 +600,11 @@ sync_hive_database(PG_FUNCTION_ARGS)
 	result = true;
 	PG_RETURN_BOOL(result);
 }
+
+
+
+
+
 
 static void
 create_foreign_server_(const char *serverName,
@@ -635,6 +670,180 @@ Datum create_foreign_server(PG_FUNCTION_ARGS)
 	PG_RETURN_BOOL(result);
 }
 
+
+PG_FUNCTION_INFO_V1(sync_hive_table_with_logerror);
+Datum
+sync_hive_table_with_logerror(PG_FUNCTION_ARGS)
+{
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hiveTableName;
+	const char *hdfsClusterName;
+	const char *destTableName;
+	const char *serverName;
+	bool result 	= false;
+	bool forceSync 	= false;
+	HmsHandle *volatile hms;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hive table name cannot be NULL");
+	hiveTableName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "dest table name cannot be NULL");
+	destTableName = text_to_cstring(PG_GETARG_TEXT_PP(4));
+
+	if (PG_ARGISNULL(5))
+		elog(ERROR, "Server name cannot be NULL");
+	serverName = text_to_cstring(PG_GETARG_TEXT_PP(5));
+
+	if (PG_ARGISNULL(6))
+		elog(ERROR, "logerrors cannot be NULL");
+	/* LOG ERRORS PERSISTENTLY for COPY is not allowed for now. so set logerror is boolean. */
+	logerrors = PG_GETARG_BOOL(6);
+
+	if (PG_ARGISNULL(7))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	rejectlimit = PG_GETARG_INT32(7);
+	if (rejectlimit < 0)
+	{
+		elog(ERROR, "rejectlimit value %d no less than 0 is allowed", rejectlimit);
+	}
+
+	if (PG_ARGISNULL(8))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	islimitinrows = text_to_cstring(PG_GETARG_TEXT_PP(8));
+	if ((pg_strcasecmp(islimitinrows, "rows") != 0) &&
+		(pg_strcasecmp(islimitinrows, "percent") != 0))
+	{
+		elog(ERROR, "islimitinrows option 'rows' or 'percent' unkonw  %s", islimitinrows);
+	}
+
+	if (PG_NARGS() == 10)
+	{
+		if (PG_ARGISNULL(9))
+			elog(ERROR, "Force Sync flag cannot be NULL");
+		forceSync = PG_GETARG_BOOL(9);
+	}
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_table_(hms, serverName, hiveDbName, hiveTableName,
+				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, logerrors, rejectlimit, islimitinrows);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_database_with_logerror);
+Datum
+sync_hive_database_with_logerror(PG_FUNCTION_ARGS)
+{
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hdfsClusterName;
+	const char *destSchemaName;
+	const char *serverName;
+	bool result 	= false;
+	bool forceSync 	= false;
+	HmsHandle *volatile hms;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "dest schema name cannot be NULL");
+	destSchemaName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "Server name cannot be NULL");
+	serverName = text_to_cstring(PG_GETARG_TEXT_PP(4));
+
+	if (PG_ARGISNULL(5))
+		elog(ERROR, "logerrors cannot be NULL");
+	/* LOG ERRORS PERSISTENTLY for COPY is not allowed for now. so set logerror is boolean. */
+	logerrors = PG_GETARG_BOOL(5);
+
+	if (PG_ARGISNULL(6))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	rejectlimit = PG_GETARG_INT32(6);
+	if (rejectlimit < 0)
+	{
+		elog(ERROR, "rejectlimit value %d no less than 0 is allowed", rejectlimit);
+	}
+
+	if (PG_ARGISNULL(7))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	islimitinrows = text_to_cstring(PG_GETARG_TEXT_PP(7));
+	if ((pg_strcasecmp(islimitinrows, "rows") != 0) &&
+		(pg_strcasecmp(islimitinrows, "percent") != 0))
+	{
+		elog(ERROR, "islimitinrows option 'row' or 'percent' unkonw  %s", islimitinrows);
+	}
+
+	if (PG_NARGS() == 9)
+	{
+		if (PG_ARGISNULL(8))
+			elog(ERROR, "Force Sync flag cannot be NULL");
+		forceSync = PG_GETARG_BOOL(8);
+	} 
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_database_(hms, serverName, hiveDbName,
+				hdfsClusterName, destSchemaName, hiveClusterName, forceSync, logerrors, rejectlimit, islimitinrows);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+	PG_RETURN_BOOL(result);
+}
+
 //Compatibility3X
 static void
 sync_partition_table_compatibility3x(HmsHandle *hms,
@@ -644,7 +853,10 @@ sync_partition_table_compatibility3x(HmsHandle *hms,
 					 const char *destTableName,
 					 const char *hiveClusterName,
 					 bool forceSync,
-					 const char *specifyMaxPartitionValue)
+					 const char *specifyMaxPartitionValue,
+					 bool logerrors,
+					 int rejectlimit,
+					 const char *islimitinrows)
 {
 	char *location;
 	char *createStmt;
@@ -669,7 +881,10 @@ sync_partition_table_compatibility3x(HmsHandle *hms,
 								hiveTableName,
 								hiveClusterName,
 								partKeys,
-								specifyMaxPartitionValue);
+								specifyMaxPartitionValue,
+								logerrors,
+								rejectlimit,
+								islimitinrows);
 	}
 	else
 	{
@@ -682,7 +897,10 @@ sync_partition_table_compatibility3x(HmsHandle *hms,
 								hiveDbName,
 								hiveTableName,
 								hiveClusterName,
-								partKeys);
+								partKeys,
+								logerrors,
+								rejectlimit,
+								islimitinrows);
 	}
 
 	if (forceSync)
@@ -704,7 +922,10 @@ sync_normal_table_compatibility3x(HmsHandle *hms,
 				  const char *hiveTableName,
 				  const char *hdfsClusterName,
 				  const char *destTableName,
-				  bool forceSync)
+				  bool forceSync,
+				  bool logerrors,
+				  int rejectlimit,
+				  const char *islimitinrows)
 {
 	char *sql;
 	char *location = NULL;
@@ -725,7 +946,10 @@ sync_normal_table_compatibility3x(HmsHandle *hms,
 			location,
 			field,
 			hdfsClusterName,
-			tableFormatConversion(hms));
+			tableFormatConversion(hms),
+			logerrors,
+			rejectlimit,
+			islimitinrows);
 
 	if (forceSync)
 		dropTableCompatibility3X(destTableName, true);
@@ -747,7 +971,10 @@ sync_hive_table_compatibility3x_(HmsHandle *hms,
 				 const char *hiveClusterName,
 				 bool suppressError,
 				 bool forceSync,
-				 const char *specifyMaxPartitionValue)
+				 const char *specifyMaxPartitionValue,
+				 bool logerrors,
+				 int rejectlimit,
+				 const char *islimitinrows)
 {
 	bool  isPartTable;
 
@@ -765,7 +992,10 @@ sync_hive_table_compatibility3x_(HmsHandle *hms,
 									 destTableName,
 									 hiveClusterName,
 									 forceSync,
-									 specifyMaxPartitionValue);
+									 specifyMaxPartitionValue,
+									 logerrors,
+									 rejectlimit,
+									 islimitinrows);
 			}
 			else
 			{
@@ -774,7 +1004,10 @@ sync_hive_table_compatibility3x_(HmsHandle *hms,
 					  hiveTableName,
 					  hdfsClusterName,
 					  destTableName,
-					  forceSync);
+					  forceSync,
+					  logerrors,
+					  rejectlimit,
+					  islimitinrows);
 			}
 		}
 
@@ -794,7 +1027,10 @@ sync_hive_database_compatibility3x_(HmsHandle *hms,
 					const char *hdfsClusterName,
 					const char *destSchemaName,
 					const char *hiveClusterName,
-					bool forceSync)
+					bool forceSync,
+					bool logerrors,
+					int rejectlimit,
+					const char *islimitinrows)
 {
 	int i;
 	char **tables;
@@ -815,7 +1051,7 @@ sync_hive_database_compatibility3x_(HmsHandle *hms,
 		appendStringInfo(&nameBuf, "%s.%s", destSchemaName, hiveTableName);
 
 		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
-				hdfsClusterName, nameBuf.data, hiveClusterName, true, forceSync, NULL);
+				hdfsClusterName, nameBuf.data, hiveClusterName, true, forceSync, NULL, logerrors, rejectlimit, islimitinrows);
 
 		resetStringInfo(&nameBuf);
 	}
@@ -838,6 +1074,9 @@ sync_hive_table_3x(PG_FUNCTION_ARGS)
 	const char *destTableName;
 	HmsHandle *volatile hms;
 	bool forceSync = false;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
 
 	if (PG_ARGISNULL(0))
 		elog(ERROR, "Hive cluster name cannot be NULL");
@@ -867,7 +1106,7 @@ sync_hive_table_3x(PG_FUNCTION_ARGS)
 	PG_TRY();
 	{
 		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
-				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, NULL);
+				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, NULL, logerrors, rejectlimit, islimitinrows);
 		HmsDestroyHandle(hms);
 	}
 	PG_CATCH();
@@ -895,6 +1134,9 @@ sync_hive_partition_table_3x(PG_FUNCTION_ARGS)
 	const char *specifyMaxPartitionValue = NULL;
 	HmsHandle *volatile hms;
 	bool forceSync = false;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
 
 	if (PG_ARGISNULL(0))
 		elog(ERROR, "Hive cluster name cannot be NULL");
@@ -928,7 +1170,7 @@ sync_hive_partition_table_3x(PG_FUNCTION_ARGS)
 	PG_TRY();
 	{
 		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
-				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, specifyMaxPartitionValue);
+				hdfsClusterName, destTableName, hiveClusterName, false, forceSync, specifyMaxPartitionValue, logerrors, rejectlimit, islimitinrows);
 		HmsDestroyHandle(hms);
 	}
 	PG_CATCH();
@@ -954,6 +1196,9 @@ sync_hive_database_3x(PG_FUNCTION_ARGS)
 	const char *destSchemaName;
 	HmsHandle *volatile hms;
 	bool forceSync = false;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
 
 	if (PG_ARGISNULL(0))
 		elog(ERROR, "Hive cluster name cannot be NULL");
@@ -979,7 +1224,164 @@ sync_hive_database_3x(PG_FUNCTION_ARGS)
 	PG_TRY();
 	{
 		sync_hive_database_compatibility3x_(hms, hiveDbName,
-				hdfsClusterName, destSchemaName, hiveClusterName, forceSync);
+				hdfsClusterName, destSchemaName, hiveClusterName, forceSync, logerrors, rejectlimit, islimitinrows);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_table_with_logerror_3x);
+Datum
+sync_hive_table_with_logerror_3x(PG_FUNCTION_ARGS)
+{
+	bool result = false;
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hiveTableName;
+	const char *hdfsClusterName;
+	const char *destTableName;
+	HmsHandle *volatile hms;
+	bool forceSync = false;
+	bool tempTable = false;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hive table name cannot be NULL");
+	hiveTableName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "dest table name cannot be NULL");
+	destTableName = text_to_cstring(PG_GETARG_TEXT_PP(4));
+
+	if (PG_ARGISNULL(5))
+		elog(ERROR, "logerrors cannot be NULL");
+	logerrors = PG_GETARG_BOOL(5);
+
+	if (PG_ARGISNULL(6))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	rejectlimit = PG_GETARG_INT32(6);
+	if (rejectlimit < 0)
+	{
+		elog(ERROR, "rejectlimit value %d no less than 0 is allowed", rejectlimit);
+	}
+
+	if (PG_ARGISNULL(7))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	islimitinrows = text_to_cstring(PG_GETARG_TEXT_PP(7));
+	if ((pg_strcasecmp(islimitinrows, "rows") != 0) &&
+		(pg_strcasecmp(islimitinrows, "percent") != 0))
+	{
+		elog(ERROR, "islimitinrows option 'rows' or 'percent' unkonw  %s", islimitinrows);
+	}
+
+	if (!PG_ARGISNULL(8))
+		forceSync = PG_GETARG_BOOL(8);
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_table_compatibility3x_(hms, hiveDbName, hiveTableName,
+				hdfsClusterName, destTableName, hiveClusterName, false,
+				forceSync, NULL, logerrors, rejectlimit, islimitinrows);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_database_with_logerror_3x);
+Datum
+sync_hive_database_with_logerror_3x(PG_FUNCTION_ARGS)
+{
+	bool result = false;
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hdfsClusterName;
+	const char *destSchemaName;
+	HmsHandle *volatile hms;
+	bool forceSync = false;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hdfs cluster name cannot be NULL");
+	hdfsClusterName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "dest schema name cannot be NULL");
+	destSchemaName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "logerrors cannot be NULL");
+	logerrors = PG_GETARG_BOOL(4);
+
+	if (PG_ARGISNULL(5))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	rejectlimit = PG_GETARG_INT32(5);
+	if (rejectlimit < 0)
+	{
+		elog(ERROR, "rejectlimit value %d no less than 0 is allowed", rejectlimit);
+	}
+
+	if (PG_ARGISNULL(6))
+		elog(ERROR, "rejectlimit cannot be NULL");
+	islimitinrows = text_to_cstring(PG_GETARG_TEXT_PP(6));
+	if ((pg_strcasecmp(islimitinrows, "rows") != 0) &&
+		(pg_strcasecmp(islimitinrows, "percent") != 0))
+	{
+		elog(ERROR, "islimitinrows option 'row' or 'percent' unkonw  %s", islimitinrows);
+	}
+
+	if (!PG_ARGISNULL(7))
+		forceSync = PG_GETARG_BOOL(7);
+
+	hms = initializeHms(hiveClusterName, hdfsClusterName);
+
+	PG_TRY();
+	{
+		sync_hive_database_compatibility3x_(hms, hiveDbName,
+				hdfsClusterName, destSchemaName, hiveClusterName, forceSync, logerrors, rejectlimit, islimitinrows);
 		HmsDestroyHandle(hms);
 	}
 	PG_CATCH();

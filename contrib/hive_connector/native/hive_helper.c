@@ -354,7 +354,10 @@ formCreateStmt(HmsHandle *hms,
 			const char *location,
 			const char *fields,
 			const char *hdfsClusterName,
-			const char *format)
+			const char *format,
+			bool logerrors,
+			int rejectlimit,
+			const char *islimitinrows)
 {
 	size_t idx 			= 0;
 	const char *sqlFmt 	= "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s', hdfs_cluster_name '%s', enablecache '%s', transactional '%s', format '%s'";
@@ -382,6 +385,16 @@ formCreateStmt(HmsHandle *hms,
 		appendStringInfo(&sqlBuf, ", %s", formatStr);
 		pfree(formatOpts);
 		pfree(formatStr);
+	}
+
+	if (((pg_strcasecmp(format, "text") == 0) ||
+		(pg_strcasecmp(format, "csv") == 0)) &&
+		((rejectlimit > 0) &&
+		(islimitinrows != NULL)))
+	{
+		char *logerrorOpts = formatLogError(logerrors, rejectlimit, islimitinrows);
+		appendStringInfoString(&sqlBuf, logerrorOpts);
+		pfree(logerrorOpts);
 	}
 
 	appendStringInfoChar(&sqlBuf, ')');
@@ -487,7 +500,10 @@ formCreateStmt2(HmsHandle *hms,
 				const char *hiveClusterName,
 				const char *hiveDbName,
 				const char *hiveTableName,
-				char **partKeys
+				char **partKeys,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows
 				)
 {
 	const char *tableFmt = "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s', hive_cluster_name '%s', datasource '%s.%s', hdfs_cluster_name '%s', enableCache '%s', transactional '%s', partitionkeys '%s', format '%s'";
@@ -521,6 +537,16 @@ formCreateStmt2(HmsHandle *hms,
 		appendStringInfo(&sqlBuf, ", %s", formatStr);
 		pfree(formatOpts);
 		pfree(formatStr);
+	}
+
+	if (((pg_strcasecmp(format, "text") == 0) ||
+		(pg_strcasecmp(format, "csv") == 0)) &&
+		((rejectlimit > 0) &&
+		(islimitinrows != NULL)))
+	{
+		char *logerrorOpts = formatLogError(logerrors, rejectlimit, islimitinrows);
+		appendStringInfoString(&sqlBuf, logerrorOpts);
+		pfree(logerrorOpts);
 	}
 
 	appendStringInfoChar(&sqlBuf, ')');
@@ -565,7 +591,10 @@ formCreateStmtCompatibility3X(HmsHandle *hms,
 			   const char *location,
 			   const char *fields,
 			   const char *hdfsClusterName,
-			   const char *format)
+			   const char *format,
+			   bool logerrors,
+			   int rejectlimit,
+			   const char *islimitinrows)
 {
 	StringInfoData sqlBuf;
 	char *hdfsPath;
@@ -593,6 +622,16 @@ formCreateStmtCompatibility3X(HmsHandle *hms,
 		char *formatOpts = HmsTableGetParameters(hms);
 		appendStringInfoString(&sqlBuf, formatOpts);
 		pfree(formatOpts);
+	}
+
+	if (((pg_strcasecmp(format, "text") == 0) ||
+		(pg_strcasecmp(format, "csv") == 0)) &&
+		((rejectlimit > 0) &&
+		(islimitinrows != NULL)))
+	{
+		char *logerrorOpts = formatLogError3x(logerrors, rejectlimit, islimitinrows);
+		appendStringInfoString(&sqlBuf, logerrorOpts);
+		pfree(logerrorOpts);
 	}
 
 	return sqlBuf.data;
@@ -650,7 +689,10 @@ formCreateStmt2Compatibility3X(HmsHandle *hms,
 				const char *hiveDbName,
 				const char *hiveTableName,
 				const char *hiveClusterName,
-				char **partKeys)
+				char **partKeys,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows)
 {
 	StringInfoData sqlBuf;
 	char *keyBuf;
@@ -687,6 +729,16 @@ formCreateStmt2Compatibility3X(HmsHandle *hms,
 		pfree(formatOpts);
 	}
 
+	if (((pg_strcasecmp(format, "text") == 0) ||
+		(pg_strcasecmp(format, "csv") == 0)) &&
+		((rejectlimit > 0) &&
+		(islimitinrows != NULL)))
+	{
+		char *logerrorOpts = formatLogError3x(logerrors, rejectlimit, islimitinrows);
+		appendStringInfoString(&sqlBuf, logerrorOpts);
+		pfree(logerrorOpts);
+	}
+
 	pfree(keyBuf);
 
 	return sqlBuf.data;
@@ -703,7 +755,10 @@ formCreateStmt3Compatibility3X(HmsHandle *hms,
 				const char *hiveTableName,
 				const char *hiveClusterName,
 				char **partKeys,
-				const char* specifyMaxPartitionValue)
+				const char* specifyMaxPartitionValue,
+				bool logerrors,
+				int rejectlimit,
+				const char *islimitinrows)
 {
 	StringInfoData sqlBuf;
 	char *keyBuf;
@@ -749,8 +804,50 @@ formCreateStmt3Compatibility3X(HmsHandle *hms,
 		pfree(formatOpts);
 	}
 
+	if (((pg_strcasecmp(format, "text") == 0) ||
+		(pg_strcasecmp(format, "csv") == 0)) &&
+		((rejectlimit > 0) &&
+		(islimitinrows != NULL)))
+	{
+		char *logerrorOpts = formatLogError3x(logerrors, rejectlimit, islimitinrows);
+		appendStringInfoString(&sqlBuf, logerrorOpts);
+		pfree(logerrorOpts);
+	}
+
 	pfree(keyBuf);
 
 	return sqlBuf.data;
 }
 
+char *
+formatLogError3x(bool logerrors,
+			   int rejectlimit,
+			   const char *islimitinrows)
+{
+	StringInfoData logErrorBuf;
+	initStringInfo(&logErrorBuf);
+
+	const char *logErrorFmt = " %s SEGMENT REJECT LIMIT %d %s";
+	appendStringInfo(&logErrorBuf,
+					logErrorFmt,
+					logerrors ? "LOG ERRORS" : "",
+					rejectlimit,
+					islimitinrows);
+	return logErrorBuf.data;
+}
+
+char *
+formatLogError(bool logerrors,
+			   int rejectlimit,
+			   const char *islimitinrows)
+{
+	StringInfoData logErrorBuf;
+	initStringInfo(&logErrorBuf);
+	const char *logErrorFmt = " , logerrors '%s', rejectlimit '%d', rejectlimittype '%s' ";
+	appendStringInfo(&logErrorBuf,
+					logErrorFmt,
+					logerrors ? "t" : "f",
+					rejectlimit,
+					islimitinrows);
+	return logErrorBuf.data;
+}
