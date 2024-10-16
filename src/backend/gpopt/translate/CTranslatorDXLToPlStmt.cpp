@@ -532,7 +532,7 @@ CTranslatorDXLToPlStmt::SetParamIds(Plan *plan)
 Plan *
 CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 	const CDXLNode *tbl_scan_dxlnode, CDXLTranslateContext *output_context,
-	CDXLTranslationContextArray *ctxt_translation_prev_siblings)
+	CDXLTranslationContextArray * /*ctxt_translation_prev_siblings*/)
 {
 	// translate table descriptor into a range table entry
 	CDXLPhysicalTableScan *phy_tbl_scan_dxlop =
@@ -986,7 +986,7 @@ CTranslatorDXLToPlStmt::TranslateDXLIndexFilter(
 //---------------------------------------------------------------------------
 void
 CTranslatorDXLToPlStmt::TranslateIndexConditions(
-	CDXLNode *index_cond_list_dxlnode, const CDXLTableDescr *dxl_tbl_descr,
+	CDXLNode *index_cond_list_dxlnode, const CDXLTableDescr * /*dxl_tbl_descr*/,
 	BOOL is_bitmap_index_probe, const IMDIndex *index,
 	const IMDRelation *md_rel, CDXLTranslateContext *output_context,
 	CDXLTranslateContextBaseTable *base_table_context,
@@ -1500,7 +1500,7 @@ CTranslatorDXLToPlStmt::TranslateDXLHashJoin(
 Plan *
 CTranslatorDXLToPlStmt::TranslateDXLTvf(
 	const CDXLNode *tvf_dxlnode, CDXLTranslateContext *output_context,
-	CDXLTranslationContextArray *ctxt_translation_prev_siblings)
+	CDXLTranslationContextArray * /*ctxt_translation_prev_siblings*/)
 {
 	// translation context for column mappings
 	CDXLTranslateContextBaseTable base_table_context(m_mp);
@@ -3889,7 +3889,7 @@ CTranslatorDXLToPlStmt::TranslateDXLCTEProducerToSharedScan(
 Plan *
 CTranslatorDXLToPlStmt::TranslateDXLCTEConsumerToSharedScan(
 	const CDXLNode *cte_consumer_dxlnode, CDXLTranslateContext *output_context,
-	CDXLTranslationContextArray *ctxt_translation_prev_siblings)
+	CDXLTranslationContextArray * /*ctxt_translation_prev_siblings*/)
 {
 	CDXLPhysicalCTEConsumer *cte_consumer_dxlop =
 		CDXLPhysicalCTEConsumer::Cast(cte_consumer_dxlnode->GetOperator());
@@ -5416,7 +5416,7 @@ CTranslatorDXLToPlStmt::TranslateDXLPhyCtasToIntoClause(
 //---------------------------------------------------------------------------
 GpPolicy *
 CTranslatorDXLToPlStmt::TranslateDXLPhyCtasToDistrPolicy(
-	const CDXLPhysicalCTAS *dxlop, List *target_list)
+	const CDXLPhysicalCTAS *dxlop, List * /*target_list*/)
 {
 	ULongPtrArray *distr_col_pos_array = dxlop->GetDistrColPosArray();
 
@@ -5766,7 +5766,7 @@ CTranslatorDXLToPlStmt::TranslateDXLBitmapIndexProbe(
 Plan *
 CTranslatorDXLToPlStmt::TranslateDXLValueScan(
 	const CDXLNode *value_scan_dxlnode, CDXLTranslateContext *output_context,
-	CDXLTranslationContextArray *ctxt_translation_prev_siblings)
+	CDXLTranslationContextArray * /*ctxt_translation_prev_siblings*/)
 {
 	// translation context for column mappings
 	CDXLTranslateContextBaseTable base_table_context(m_mp);
