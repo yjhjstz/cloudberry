@@ -1920,6 +1920,9 @@ _outNode(StringInfo str, void *obj)
 			case T_AlterDirectoryTableStmt:
 				_outAlterDirectoryTableStmt(str, obj);
 				break;
+			case T_DropDirectoryTableStmt:
+				_outDropDirectoryTableStmt(str, obj);
+				break;
 			case T_CreateTaskStmt:
 				_outCreateTaskStmt(str, obj);
 				break;
