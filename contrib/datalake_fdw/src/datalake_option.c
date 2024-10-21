@@ -147,6 +147,8 @@ void DatalakeGetGopherMetaPath(char *dest);
 
 void checkValidRecordBatchOpt(dataLakeOptions *options);
 
+void checkForeignDataWrapper(ForeignDataWrapper *wrapper);
+
 /*
  * Parser functions
  */
@@ -448,6 +450,16 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 	}
 }
 
+void checkForeignDataWrapper(ForeignDataWrapper *wrapper)
+{
+	if (wrapper->exec_location != FTEXECLOCATION_ALL_SEGMENTS)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("datalake only support data wrapper mpp_execute set \"all segments\".")));
+	}
+}
+
 dataLakeOptions *getOptions(Oid foreigntableid)
 {
 	ForeignTable *table;
@@ -466,6 +478,9 @@ dataLakeOptions *getOptions(Oid foreigntableid)
 	server = GetForeignServer(table->serverid);
 	wrapper = GetForeignDataWrapper(server->fdwid);
 	user = GetUserMapping(GetUserId(), server->serverid);
+
+	/* ForeignDataWrapper */
+	checkForeignDataWrapper(wrapper);
 
 	options = NIL;
 	options = list_concat(options, wrapper->options);

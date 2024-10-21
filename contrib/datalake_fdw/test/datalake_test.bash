@@ -8,6 +8,7 @@ function start_test() {
 	build_env
 	load_docker
 	load_data_to_docker
+	load_delimiter_data_to_docker
 	start_regress_test
 }
 

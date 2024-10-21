@@ -9,6 +9,7 @@ extern "C" {
 
 extern bool external_table_debug;
 extern bool external_table_new_text;
+extern bool external_table_ignore_hidden_file;
 
 struct ProviderInternalWrapper;
 

@@ -106,7 +106,7 @@ REGRESS = hive_connecter_orc_read hive_connecter_orc_vec_read hive_connecter_par
           hive_connector_limit_segment oss_read_new_text_limit_segment oss_read_orc_limit_segment \
           oss_read_parquet_limit_segment oss_read_text_limit_segment \
           hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
-          hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text grammar_convert
+          hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text grammar_convert gphdfs_ignore_file
 endif
 
 PG_CPPFLAGS += -fPIC

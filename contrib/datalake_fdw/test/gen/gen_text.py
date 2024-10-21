@@ -152,8 +152,37 @@ def add_to_hdfs():
     os.system("hdfs dfs -put /home/gpadmin/custom_small_file_cr9.txt /test/cr/")
     os.system("hdfs dfs -put /home/gpadmin/custom_small_file_cr10.txt /test/cr/")
 
+def add_ignore_file():
+    print("add ignore test file to hdfs")
+    os.system("hdfs dfs -mkdir /ignore")
+    os.system("hdfs dfs -mkdir /ignore/text")
+    # os.system("hdfs dfs -mkdir /ignore/orc")
+    # os.system("hdfs dfs -mkdir /ignore/avro")
+    # os.system("hdfs dfs -mkdir /ignore/parquet")
 
+    # text
+    #case 1
+    os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /ignore/text/")
+    os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /ignore/text/.custom_small_file_lf.txt")
+
+    #case 2
+    os.system("hdfs dfs -mkdir /ignore/text/.ignore/")
+    os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /ignore/text/.ignore/")
+    os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /ignore/text/.ignore/.custom_small_file_lf.txt")
+
+    #case 3
+    # os.system("hdfs dfs -mkdir /ignore/text/./")
+    # os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /ignore/text/./")
+    # os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /ignore/text/./.custom_small_file_lf.txt")
+
+    #case 4
+    os.system("hdfs dfs -mkdir /./")
+    os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /./")
+
+    #case 5
+    os.system("hdfs dfs -put /home/gpadmin/custom_small_file_lf.txt /.custom_small_file_lf.txt")
 
 gen_test_file()
 gen_small_file()
 add_to_hdfs()
+add_ignore_file()

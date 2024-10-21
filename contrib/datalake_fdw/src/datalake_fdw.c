@@ -325,6 +325,17 @@ _PG_init(void)
 							NULL,
 							NULL,
 							NULL);
+	
+	DefineCustomBoolVariable("datalake.external_table_ignore_hidden_file",
+							"If the value is true, datalake foreign table ignore read hidden file or directory.",
+							NULL,
+							&external_table_ignore_hidden_file,
+							false,
+							PGC_USERSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
 
 	datalake_prev_ProcessUtility = ProcessUtility_hook;
 	ProcessUtility_hook = datalake_ProcessUtility;

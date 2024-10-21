@@ -7,6 +7,7 @@ extern "C" {
 
 bool external_table_debug = false;
 bool external_table_new_text = false;
+bool external_table_ignore_hidden_file = false;
 
 }
 

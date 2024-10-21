@@ -8,6 +8,7 @@
 static List* SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize);
 static List *get_partition_values(Relation relation, dataLakeOptions *options);
 static List *convert_iceberg_hudi_options(dataLakeOptions *options);
+bool ignore_hidden_file(char* name);
 
 static List*
 SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize)
@@ -15,6 +16,14 @@ SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize)
 	List	   *serializedFragment = NIL;
 	for (int i = 0; i < count; i++)
 	{
+		if (ignore_hidden_file(lists[i].mPath))
+		{
+			if (external_table_debug)
+			{
+				elog(LOG, "set guc datalake.external_table_ignore_hidden_file ignore hidden path %s", lists[i].mPath);
+			}
+			continue;
+		}
 		if (lists[i].mLength > 0)
 		{
 			List *fragment = NIL;
@@ -44,6 +53,29 @@ GetFragmentList(dataLakeOptions *options, int64_t *totalSize)
 	freeGopherConfig(conf);
 
 	return fragment;
+}
+
+bool
+ignore_hidden_file(char* name)
+{
+	if (external_table_ignore_hidden_file)
+	{
+		if (name == NULL)
+		{
+			return false;
+		}
+		bool ignore_file = false;
+		if (name[0] == '.')
+		{
+			ignore_file = true;
+		}
+		else if (strstr(name, "/.") != NULL)
+		{
+			ignore_file = true;
+		}
+		return ignore_file;
+	}
+	return false;
 }
 
 static List *
@@ -126,6 +158,14 @@ GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
 	gopherFileInfo* lists = listDir(stream, prefix.data, &count, true);
 	for (int i = 0; i < count; i++)
 	{
+		if (ignore_hidden_file(lists[i].mPath))
+		{
+			if (external_table_debug)
+			{
+				elog(LOG, "set guc datalake.external_table_ignore_hidden_file ignore hidden path %s", lists[i].mPath);
+			}
+			continue;
+		}
 		if (lists[i].mLength > 0)
 		{
 			List *fragment = NIL;
