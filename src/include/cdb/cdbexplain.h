@@ -50,7 +50,7 @@ cdbexplain_agg_upd(CdbExplain_Agg *agg, double v, int id)
         agg->vcnt++;
 
         if (v > agg->vmax ||
-            agg->vcnt == 0)
+            agg->vcnt == 1)
         {
             agg->vmax = v;
             agg->imax = id;

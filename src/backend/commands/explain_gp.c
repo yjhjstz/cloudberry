@@ -131,6 +131,7 @@ typedef struct CdbExplain_NodeSummary
 	/* Summary over all the node's workers */
 	CdbExplain_Agg ntuples;
 	CdbExplain_Agg runtime_tupleAgg; /* tuples of one loop, for runtime stat */
+	CdbExplain_Agg nloops;
 	CdbExplain_Agg execmemused;
 	CdbExplain_Agg workmemused;
 	CdbExplain_Agg workmemwanted;
@@ -1094,7 +1095,6 @@ cdbexplain_depStatAcc_upd(CdbExplain_DepStatAcc *acc,
 		acc->rsimax = rsi;
 		acc->nsimax = nsi;
 	}
-
 	if (acc->max_total < nsi->total)
 	{
 		acc->max_total = nsi->total;
@@ -1151,6 +1151,7 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 	Instrumentation *instr = planstate->instrument;
 	CdbExplain_StatHdr *rsh;	/* The header (which includes StatInst) */
 	CdbExplain_StatInst *rsi = NULL;	/* The current StatInst */
+	CdbExplain_DepStatAcc *nodeAcc = NULL;
 
 	/*
 	 * Points to the insts array of node summary (CdbExplain_NodeSummary).
@@ -1166,7 +1167,7 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 	 */
 	CdbExplain_NodeSummary *ns;
 	CdbExplain_DepStatAcc ntuples;
-	CdbExplain_DepStatAcc runtime_tupleAgg;
+	CdbExplain_DepStatAcc nloops;
 	CdbExplain_DepStatAcc execmemused;
 	CdbExplain_DepStatAcc workmemused;
 	CdbExplain_DepStatAcc workmemwanted;
@@ -1193,7 +1194,7 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 
 	/* Initialize per-node accumulators. */
 	cdbexplain_depStatAcc_init0(&ntuples);
-	cdbexplain_depStatAcc_init0(&runtime_tupleAgg);
+	cdbexplain_depStatAcc_init0(&nloops);
 	cdbexplain_depStatAcc_init0(&execmemused);
 	cdbexplain_depStatAcc_init0(&workmemused);
 	cdbexplain_depStatAcc_init0(&workmemwanted);
@@ -1237,7 +1238,7 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 
 		/* Update per-node accumulators. */
 		cdbexplain_depStatAcc_upd(&ntuples, rsi->ntuples, rsh, rsi, nsi);
-		cdbexplain_depStatAcc_upd(&runtime_tupleAgg, rsi->tuplecount, rsh, rsi, nsi);
+		cdbexplain_depStatAcc_upd(&nloops, rsi->nloops, rsh, rsi, nsi);
 		cdbexplain_depStatAcc_upd(&execmemused, rsi->execmemused, rsh, rsi, nsi);
 		cdbexplain_depStatAcc_upd(&workmemused, rsi->workmemused, rsh, rsi, nsi);
 		cdbexplain_depStatAcc_upd(&workmemwanted, rsi->workmemwanted, rsh, rsi, nsi);
@@ -1264,7 +1265,7 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 
 	/* Save per-node accumulated stats in NodeSummary. */
 	ns->ntuples = ntuples.agg;
-	ns->runtime_tupleAgg = runtime_tupleAgg.agg;
+	ns->nloops = nloops.agg;
 	ns->execmemused = execmemused.agg;
 	ns->workmemused = workmemused.agg;
 	ns->workmemwanted = workmemwanted.agg;
@@ -1310,25 +1311,33 @@ cdbexplain_depositStatsToNode(PlanState *planstate, CdbExplain_RecvStatCtx *ctx)
 	 *
 	 * We don't print those "Rows Removed by Filter" rows in GPDB, because
 	 * they don't come from the "winner" QE.
+	 *
+	 * Alough the ntuples is 0, the nloops may be not, as the node
+	 * may has been executed without returning any data.
 	 */
+
 	if (ntuples.agg.vcnt > 0)
+		nodeAcc = &ntuples;
+	else if (nloops.agg.vcnt > 0)
+		nodeAcc = &nloops;
+	if (nodeAcc)
 	{
-		instr->starttime = ntuples.nsimax->starttime;
-		instr->counter = ntuples.nsimax->counter;
-		instr->firsttuple = ntuples.nsimax->firsttuple;
-		instr->startup = ntuples.nsimax->startup;
-		instr->total = ntuples.nsimax->total;
-		instr->ntuples = ntuples.nsimax->ntuples;
-		instr->ntuples2 = ntuples.nsimax->ntuples2;
-		instr->nloops = ntuples.nsimax->nloops;
-		instr->nfiltered1 = ntuples.nsimax->nfiltered1;
-		instr->nfiltered2 = ntuples.nsimax->nfiltered2;
-		instr->execmemused = ntuples.nsimax->execmemused;
-		instr->workmemused = ntuples.nsimax->workmemused;
-		instr->workmemwanted = ntuples.nsimax->workmemwanted;
-		instr->workfileCreated = ntuples.nsimax->workfileCreated;
-		instr->firststart = ntuples.nsimax->firststart;
-	}
+		instr->starttime = nodeAcc->nsimax->starttime;
+		instr->counter = nodeAcc->nsimax->counter;
+		instr->firsttuple = nodeAcc->nsimax->firsttuple;
+		instr->startup = nodeAcc->nsimax->startup;
+		instr->total = nodeAcc->nsimax->total;
+		instr->ntuples = nodeAcc->nsimax->ntuples;
+		instr->ntuples2 = nodeAcc->nsimax->ntuples2;
+		instr->nloops = nodeAcc->nsimax->nloops;
+		instr->nfiltered1 = nodeAcc->nsimax->nfiltered1;
+		instr->nfiltered2 = nodeAcc->nsimax->nfiltered2;
+		instr->execmemused = nodeAcc->nsimax->execmemused;
+		instr->workmemused = nodeAcc->nsimax->workmemused;
+		instr->workmemwanted = nodeAcc->nsimax->workmemwanted;
+		instr->workfileCreated = nodeAcc->nsimax->workfileCreated;
+		instr->firststart = nodeAcc->nsimax->firststart;
+	 }
 
 	/* Save extra message text for the most interesting winning qExecs. */
 	if (ctx->extratextbuf)
