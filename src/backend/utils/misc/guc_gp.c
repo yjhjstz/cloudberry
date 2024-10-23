@@ -455,6 +455,9 @@ bool		gp_allow_date_field_width_5digits = false;
 
 int			gopher_local_blocksize_mb = 16;
 
+/* Avoid do a real REFRESH materialized view if possibile. */
+bool		gp_enable_refresh_fast_path = true;
+
 static const struct config_enum_entry gp_log_format_options[] = {
 	{"text", 0},
 	{"csv", 1},
@@ -3124,6 +3127,17 @@ struct config_bool ConfigureNamesBool_gp[] =
 		 false,
 		 NULL, NULL, NULL
 	},
+
+	{
+		{"gp_enable_refresh_fast_path", PGC_USERSET, QUERY_TUNING_METHOD,
+			gettext_noop("Avoid do a real REFRESH materialized view if possibile."),
+			NULL
+		},
+		&gp_enable_refresh_fast_path,
+		true,
+		NULL, NULL, NULL
+	},
+
 	{
 		{"gp_detect_data_correctness", PGC_USERSET, UNGROUPED,
 		gettext_noop("Detect if the current partitioning of the table or data distribution is correct."),
