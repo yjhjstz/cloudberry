@@ -1215,8 +1215,8 @@ explain (costs off)
    UNION ALL
    SELECT ab FROM t2) t
   ORDER BY 1 LIMIT 8;
-                     QUERY PLAN                     
-----------------------------------------------------
+                       QUERY PLAN                       
+--------------------------------------------------------
  Vec Limit
    ->  Vec Gather Motion 3:1  (slice1; segments: 3)
          Merge Key: ((t1.a || t1.b))

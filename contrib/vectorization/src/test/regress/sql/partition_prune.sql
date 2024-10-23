@@ -487,6 +487,7 @@ $$
 declare
     ln text;
 begin
+    set local enable_parallel = off;
     for ln in
         execute format('explain (analyze, costs off, summary off, timing off) %s',
             $1)
@@ -496,6 +497,7 @@ begin
         ln := regexp_replace(ln, 'Rows Removed by Filter: \d+', 'Rows Removed by Filter: N');
         return next ln;
     end loop;
+    reset enable_parallel;
 end;
 $$;
 
