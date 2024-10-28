@@ -58,7 +58,10 @@ function install_conan_dependencies() {
     conan remote remove conancenter
   fi
   if ! conan remote list | grep -q conan-public; then
-    conan remote add conan-public https://artifactory.hashdata.xyz/artifactory/api/conan/conan-public
+    conan remote add conan-public http://artifactory.hashdata.xyz/artifactory/api/conan/conan-public
+  else
+    conan remote remove conan-public
+    conan remote add conan-public http://artifactory.hashdata.xyz/artifactory/api/conan/conan-public
   fi
 
   # Auto detect default profile
