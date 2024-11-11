@@ -18,6 +18,7 @@
 
 #define fmttype_is_text(c)   (c == 't')
 #define fmttype_is_csv(c)    (c == 'c')
+#define fmttype_is_custom(c) (c == 'b')
 
 #define CUSTOM_PROTOCOL_GPHDFS "gphdfs"
 #define CUSTOM_PROTOCOL_OSS "oss"
@@ -274,7 +275,8 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 	pstate->p_sourcetext = NULL;
 
 	Assert(fmttype_is_text(formattype) ||
-		   fmttype_is_csv(formattype));
+		   fmttype_is_csv(formattype) ||
+		   fmttype_is_custom(formattype));
 
 	/* Extract options from the statement node tree */
 	if (fmttype_is_text(formattype) || fmttype_is_csv(formattype))
@@ -296,9 +298,11 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 				/* ok */
 			}
 			else if (strcmp(defel->defname, "formatter") == 0)
+			{
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
 						 errmsg("formatter option only valid for custom formatters")));
+			}
 			else
 				elog(ERROR, "option \"%s\" not recognized",
 					 defel->defname);
@@ -373,6 +377,30 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 
 		if (opts.eol_str)
 			cslist = lappend(cslist, makeDefElem("newline", (Node *) makeString(opts.eol_str), -1));
+	}
+	else
+	{
+		bool		found = false;
+		foreach(option, formatOpts)
+		{
+			DefElem    *defel = (DefElem *) lfirst(option);
+
+			if (strcmp(defel->defname, "formatter") == 0)
+			{
+				if (found)
+					ereport(ERROR,
+							(errcode(ERRCODE_SYNTAX_ERROR),
+							 errmsg("redundant formatter option")));
+
+				found = true;
+			}
+		}
+		if (!found)
+			ereport(ERROR,
+					(errcode(ERRCODE_SYNTAX_ERROR),
+					 errmsg("no formatter function specified")));
+
+		cslist = list_copy(formatOpts);
 	}
 
 	return cslist;
@@ -532,7 +560,7 @@ ConvertExternalTableStmt(CreateExternalStmt *createExtStmt)
 			parse_options(url, "datasource", "datasource", &foreignOptions);
 
 			// 8. parse text/csv options
-			if (fmttype_is_csv(fmttype) || fmttype_is_text(fmttype))
+			if (fmttype_is_csv(fmttype) || fmttype_is_text(fmttype) || fmttype_is_custom(fmttype))
 			{
 				List *formatOpts = transformFormatOpts(fmttype,
 													   createExtStmt->formatOpts,

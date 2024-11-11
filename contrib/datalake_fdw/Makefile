@@ -17,6 +17,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/common/partition_selector.o \
 		src/common/random_segment.o \
 		src/common/grammar_convert.o \
+		src/common/exttable.o \
 		src/dlproxy/deparse.o \
 		src/dlproxy/filters.o \
 		src/dlproxy/headers.o \
@@ -91,7 +92,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/hdw_gopher_cache/hdw_gopher_cache.o
 
 
-SHLIB_LINK += -lgopher -lparquet -lorc-hdw -larchive -lavrocpp -ljansson -larrow  -lavro -lcurl
+SHLIB_LINK += -lgopher -lparquet -lorc-hdw -larchive -lavrocpp -ljansson -larrow  -lavro -lcurl -lyaml
 PG_CPPFLAGS = -DENABLE_NLS -DSNAPPY_CODEC_AVAILABLE
 
 EXTENSION = datalake_fdw
@@ -106,7 +107,7 @@ REGRESS = hive_connecter_orc_read hive_connecter_orc_vec_read hive_connecter_par
           hive_connector_limit_segment oss_read_new_text_limit_segment oss_read_orc_limit_segment \
           oss_read_parquet_limit_segment oss_read_text_limit_segment \
           hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
-          hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text grammar_convert gphdfs_ignore_file
+          hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text grammar_convert gphdfs_ignore_file gphdfs_custom
 endif
 
 PG_CPPFLAGS += -fPIC

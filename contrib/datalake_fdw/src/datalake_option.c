@@ -571,6 +571,18 @@ List* getCopyOptions(Oid foreigntableid)
 	return copyOptions;
 }
 
+List* getCustomOption(Oid foreigntableid)
+{
+	ForeignTable *table;
+	table = GetForeignTable(foreigntableid);
+	List *options = NIL;
+	options = list_concat(options, table->options);
+	/* We don't know what the option will set up in custom format.
+	So the best way is to pass the option of fdw in the past. */
+
+	return options;
+}
+
 void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
 			   bool *islimitinrows, char *logerrors)
 {
@@ -1114,17 +1126,25 @@ void check_foreign_option(List *options_list, Oid catalog)
 	foreach(cell, options_list)
 	{
 		DefElem *def = (DefElem *) lfirst(cell);
-		if (!IsValidForeignOption(def->defname, catalog))
-		{
-			ereport(ERROR,
-					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-						errmsg("invalid foreign option \"%s\".",
-							def->defname)));
-		}
-
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FORMAT) == 0)
 		{
 			format = defGetString(def);
+			break;
+		}
+	}
+
+	foreach(cell, options_list)
+	{
+		DefElem *def = (DefElem *) lfirst(cell);
+		if (!FORMAT_IS_CUSTOM(format))
+		{
+			if (!IsValidForeignOption(def->defname, catalog))
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+							errmsg("invalid foreign option \"%s\".",
+								def->defname)));
+			}
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_COMPRESS) == 0)
@@ -1165,12 +1185,13 @@ void check_foreign_option(List *options_list, Oid catalog)
 		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_PARQUET) == 0 ||
 		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ICEBERG) == 0 ||
 		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_HUDI) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_AVRO) == 0))
+		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_AVRO) == 0 ||
+		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CUSTOM) == 0))
 	{
 		ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 						errmsg("invalid foreign format option \"%s\". "
-							"datalake support csv, text, parquet, orc, avro, iceberg, hudi.",
+							"datalake support csv, text, custom, parquet, orc, avro, iceberg, hudi.",
 							format)));
 	}
 

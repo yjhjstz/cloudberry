@@ -7,6 +7,8 @@ dataLakeOptions *getOptions(Oid foreigntableid);
 
 List* getCopyOptions(Oid foreigntableid);
 
+List* getCustomOption(Oid foreigntableid);
+
 void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
 			   bool *islimitinrows, char *logerrors);
 

@@ -139,13 +139,13 @@ static void costDataLakeScan(ForeignPath *path, PlannerInfo *root,
 /*
  * Helper functions
  */
-static void InitCopyState(dataLakeFdwScanState *sstate);
+static void InitCopyState(ForeignScanState *node, dataLakeFdwScanState *sstate);
 
 int CopyRead(void *outbuf, int minlen, int maxlen, void *extra);
 
-void initScanStatue(dataLakeFdwScanState *dataLakesstate);
+void initScanStatue(ForeignScanState *node, dataLakeFdwScanState *dataLakesstate);
 
-void iterateScanStatus(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot);
+void iterateScanStatus(ForeignScanState *node, dataLakeFdwScanState *dataLakesstate);
 
 void iterateRecordBatch(dataLakeFdwScanState *dataLakesstate, VirtualTupleTableSlot *vslot);
 
@@ -157,13 +157,15 @@ void freeFdwPrivatePartitionList(List *fdw_private);
 
 void freeFdwPrivate(dataLakeFdwScanState *sstate, ForeignScan *foreignScan);
 
-static void initModify(dataLakeFdwScanState *dataLakesstate);
+static void InitParseStateTo(dataLakeFdwScanState *dataLakesstate, CopyToState cstate);
 
-static void initCopyStateForModify(dataLakeFdwScanState *dataLakesstate);
+static void initModify(ResultRelInfo *resultRelInfo);
 
-static void insertModify(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot);
+static void initCopyStateForModify(ResultRelInfo *resultRelInfo);
 
-static void endModify(dataLakeFdwScanState *dataLakesstate);
+static void insertModify(ResultRelInfo *resultRelInfo, TupleTableSlot *slot);
+
+static void endModify(ResultRelInfo *resultRelInfo);
 
 bool hasZeorSelectedPartition(dataLakeFdwScanState *dataLakesstate);
 
@@ -744,7 +746,7 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 		return;
 	}
 
-	initScanStatue(dataLakesstate);
+	initScanStatue(node, dataLakesstate);
 
 	node->fdw_state = (void*)dataLakesstate;
 
@@ -874,7 +876,8 @@ dataLakeIterateForeignScan(ForeignScanState *node)
 		TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 		ErrorContextCallback errcallback;
 		if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
-			FORMAT_IS_TEXT(dataLakesstate->options->format))
+			FORMAT_IS_TEXT(dataLakesstate->options->format) ||
+			FORMAT_IS_CUSTOM(dataLakesstate->options->format))
 		{
 			/* Set up callback to identify error line number. */
 			errcallback.callback = DatalakeErrorCallback;
@@ -894,10 +897,11 @@ dataLakeIterateForeignScan(ForeignScanState *node)
 		*/
 		ExecClearTuple(slot);
 
-		iterateScanStatus(dataLakesstate, slot);
+		iterateScanStatus(node, dataLakesstate);
 
 		if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
-			FORMAT_IS_TEXT(dataLakesstate->options->format))
+			FORMAT_IS_TEXT(dataLakesstate->options->format) ||
+			FORMAT_IS_CUSTOM(dataLakesstate->options->format))
 		{
 			/* Remove error callback. */
 			error_context_stack = errcallback.previous;
@@ -933,8 +937,12 @@ dataLakeReScanForeignScan(ForeignScanState *node)
 {
 	elog(DEBUG5, "datalake_fdw: dataLakeReScanForeignScan starts on segment: %d", DATALAKE_SEGMENT_ID);
 	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)node->fdw_state;
+	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format))
+	{
+		datalake_to_exttable_ReScanForeignScan(node);
+	}
 	endScanStatus(dataLakesstate);
-	initScanStatue(dataLakesstate);
+	initScanStatue(node, dataLakesstate);
 	elog(DEBUG5, "datalake_fdw: dataLakeReScanForeignScan ends on segment: %d", DATALAKE_SEGMENT_ID);
 }
 
@@ -968,6 +976,11 @@ dataLakeEndForeignScan(ForeignScanState *node)
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		return;
+	}
+
+	if (FORMAT_IS_CUSTOM(sstate->options->format))
+	{
+		datalake_to_exttable_EndForeignScan(node);
 	}
 
 	endScanStatus(sstate);
@@ -1004,7 +1017,7 @@ dataLakeBeginForeignModify(ModifyTableState *mtstate,
 		// master
 		return;
 	}
-	initModify(dataLakesstate);
+	initModify(resultRelInfo);
 
 	elog(DEBUG5, "datalake_fdw: dataLakeBeginForeignModify ends on segment: %d", DATALAKE_SEGMENT_ID);
 }
@@ -1021,9 +1034,7 @@ dataLakeExecForeignInsert(EState *estate,
 {
 	elog(DEBUG5, "datalake_fdw: dataLakeExecForeignInsert starts on segment: %d", DATALAKE_SEGMENT_ID);
 
-	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)resultRelInfo->ri_FdwState;
-
-	insertModify(dataLakesstate, slot);
+	insertModify(resultRelInfo, slot);
 
 	elog(DEBUG5, "datalake_fdw: dataLakeExecForeignInsert ends on segment: %d", DATALAKE_SEGMENT_ID);
 	return slot;
@@ -1051,7 +1062,7 @@ dataLakeEndForeignModify(EState *estate,
 	}
 	else
 	{
-		endModify(dataLakesstate);
+		endModify(resultRelInfo);
 	}
 
 	elog(DEBUG5, "datalake_fdw: dataLakeEndForeignModify ends on segment: %d", DATALAKE_SEGMENT_ID);
@@ -1099,41 +1110,17 @@ buildAttnameList(dataLakeFdwScanState *sstate)
 }
 
 /*
- * Initiates a copy state for datalakeBeginForeignScan() and datalakeReScanForeignScan()
+ * Initialize the data parsing state.
+ *
+ * This includes format descriptions (delimiter, quote...), format type
+ * (text, csv), etc...
  */
 static void
-InitCopyState(dataLakeFdwScanState *sstate)
+InitParseStateFrom(CopyFromState cstate, Relation relation,
+				   char *uri, int rejectlimit,
+				   bool islimitinrows, char logerrors)
 {
-#if (PG_VERSION_NUM < 140000)
-	CopyState	cstate;
-#else
-	CopyFromState	cstate;
-#endif
 
-	List* copy_options = getCopyOptions(RelationGetRelid(sstate->rel));
-	int rejectlimit = -1;
-	bool islimitinrows = false;
-	char logerrors = LOG_ERRORS_DISABLE;
-	char* uri = NULL;
-	getCopyLogErrorOptions(RelationGetRelid(sstate->rel), &rejectlimit, &islimitinrows, &logerrors);
-	getURIFromOptions(RelationGetRelid(sstate->rel), &uri);
-	List* attnamelist = buildAttnameList(sstate);
-	/*
-	 * Create CopyState from FDW options.  We always acquire all columns, so
-	 * as to match the expected ScanTupleSlot signature.
-	 */
-	cstate = BeginCopyFrom(NULL,
-						   sstate->rel,
-#if (PG_VERSION_NUM >= 140000)
-						   NULL,
-#endif
-						   NULL,
-						   false,	/* is_program */
-						   &CopyRead,	/* data_source_cb */
-						   sstate,	/* data_source_cb_extra */
-						   attnamelist, /* attnamelist */
-						   copy_options);	/* copy options */
-	
 	if (rejectlimit == -1)
 	{
 		cstate->cdbsreh = NULL; /* no SREH */
@@ -1157,7 +1144,7 @@ InitCopyState(dataLakeFdwScanState *sstate)
 									  (char *) cstate->cur_relname,
 									  logerrors);
 
-		cstate->cdbsreh->relid = RelationGetRelid(sstate->rel);
+		cstate->cdbsreh->relid = RelationGetRelid(relation);
 	}
 
 
@@ -1176,8 +1163,58 @@ InitCopyState(dataLakeFdwScanState *sstate)
 												ALLOCSET_DEFAULT_MINSIZE,
 												ALLOCSET_DEFAULT_INITSIZE,
 												ALLOCSET_DEFAULT_MAXSIZE);
+}
 
+/*
+ * Initiates a copy state for datalakeBeginForeignScan() and datalakeReScanForeignScan()
+ */
+static void
+InitCopyState(ForeignScanState *node, dataLakeFdwScanState *sstate)
+{
+#if (PG_VERSION_NUM < 140000)
+	CopyState	cstate;
+#else
+	CopyFromState	cstate;
+#endif
+	/* datalake not support masteronly */
+	bool isMasterOnly = false;
+	List* copy_options = getCopyOptions(RelationGetRelid(sstate->rel));
+	int rejectlimit = -1;
+	bool islimitinrows = false;
+	char logerrors = LOG_ERRORS_DISABLE;
+	char* uri = NULL;
+	int eflags = 0;
+	getCopyLogErrorOptions(RelationGetRelid(sstate->rel), &rejectlimit, &islimitinrows, &logerrors);
+	getURIFromOptions(RelationGetRelid(sstate->rel), &uri);
+	List* attnamelist = buildAttnameList(sstate);
+
+	/*
+	 * Create CopyState from FDW options.  We always acquire all columns, so
+	 * as to match the expected ScanTupleSlot signature.
+	 */
+	cstate = BeginCopyFrom(NULL,
+						   sstate->rel,
+#if (PG_VERSION_NUM >= 140000)
+						   NULL,
+#endif
+						   NULL,
+						   false,	/* is_program */
+						   &CopyRead,	/* data_source_cb */
+						   sstate,	/* data_source_cb_extra */
+						   attnamelist, /* attnamelist */
+						   (FORMAT_IS_CUSTOM(sstate->options->format) ? NIL : copy_options));	/* copy options */
+
+
+	InitParseStateFrom(cstate, sstate->rel, uri, rejectlimit, islimitinrows, logerrors);
 	sstate->cstate.cstate_scan = cstate;
+
+	if (FORMAT_IS_CUSTOM(sstate->options->format))
+	{
+		List *uriList = NIL;
+		uriList = lappend(uriList, makeString(uri));
+		List* customOption = getCustomOption(RelationGetRelid(sstate->rel));
+		datalake_to_exttable_BeginForeignScan(node, eflags, (void*)sstate, isMasterOnly, uriList, customOption);
+	}
 }
 
 int
@@ -1190,7 +1227,7 @@ CopyRead(void *outbuf, int minlen, int maxlen, void *extra)
 }
 
 void
-initScanStatue(dataLakeFdwScanState *dataLakesstate)
+initScanStatue(ForeignScanState *node, dataLakeFdwScanState *dataLakesstate)
 {
 	dataLakesstate->initcontext = AllocSetContextCreate(CurrentMemoryContext,
 											   "datalakeFdwMemScanInitCxt",
@@ -1201,10 +1238,11 @@ initScanStatue(dataLakeFdwScanState *dataLakesstate)
 	createHandler(dataLakesstate->provider, (void*)dataLakesstate);
 
 	if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
-		FORMAT_IS_TEXT(dataLakesstate->options->format))
+		FORMAT_IS_TEXT(dataLakesstate->options->format) ||
+		FORMAT_IS_CUSTOM(dataLakesstate->options->format))
 	{
 		/* csv/text used copy */
-		InitCopyState(dataLakesstate);
+		InitCopyState(node, dataLakesstate);
 	}
 	else
 	{
@@ -1229,24 +1267,29 @@ iterateRecordBatch(dataLakeFdwScanState *dataLakesstate, VirtualTupleTableSlot *
 	MemoryContextSwitchTo(oldContext);
 }
 
+
 void
-iterateScanStatus(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot)
+iterateScanStatus(ForeignScanState *node, dataLakeFdwScanState *dataLakesstate)
 {
 	bool found = false;
-	if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
-	FORMAT_IS_TEXT(dataLakesstate->options->format))
+	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format))
+	{
+		datalake_to_exttable_IterateForeignScan(node);
+	}
+	else if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+			FORMAT_IS_TEXT(dataLakesstate->options->format))
 	{
 		found = NextCopyFrom(dataLakesstate->cstate.cstate_scan,
 						NULL,
-						slot->tts_values,
-						slot->tts_isnull);
+						node->ss.ss_ScanTupleSlot->tts_values,
+						node->ss.ss_ScanTupleSlot->tts_isnull);
 	}
 	else
 	{
 		MemoryContextReset(dataLakesstate->rowcontext);
 		MemoryContext oldContext = MemoryContextSwitchTo(dataLakesstate->rowcontext);
 
-		found = readFromProvider(dataLakesstate->provider, (void*)slot->tts_values, (void*)slot->tts_isnull);
+		found = readFromProvider(dataLakesstate->provider, (void*)node->ss.ss_ScanTupleSlot->tts_values, (void*)node->ss.ss_ScanTupleSlot->tts_isnull);
 
 		MemoryContextSwitchTo(oldContext);
 	}
@@ -1256,15 +1299,14 @@ iterateScanStatus(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot)
 		if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
 			FORMAT_IS_TEXT(dataLakesstate->options->format))
 		{
-			setPartitionValue(dataLakesstate->provider, (void*)slot->tts_values, (void*)slot->tts_isnull);
+			setPartitionValue(dataLakesstate->provider, (void*)node->ss.ss_ScanTupleSlot->tts_values, (void*)node->ss.ss_ScanTupleSlot->tts_isnull);
 			if (dataLakesstate->cstate.cstate_scan->cdbsreh)
 			{
 				dataLakesstate->cstate.cstate_scan->cdbsreh->processed++;
 			}
 		}
-		ExecStoreVirtualTuple(slot);
+		ExecStoreVirtualTuple(node->ss.ss_ScanTupleSlot);
 	}
-	
 }
 
 void
@@ -1339,16 +1381,18 @@ freeFdwPrivate(dataLakeFdwScanState *sstate, ForeignScan *foreignScan)
 }
 
 static void
-initModify(dataLakeFdwScanState *dataLakesstate)
+initModify(ResultRelInfo *resultRelInfo)
 {
+	dataLakeFdwScanState* dataLakesstate = (dataLakeFdwScanState*)resultRelInfo->ri_FdwState;
 	dataLakesstate->provider = initProvider(dataLakesstate->options->format, dataLakesstate->options->readFdw, dataLakesstate->options->vectorization);
 	void *sstate = (void*)dataLakesstate;
 	createHandler(dataLakesstate->provider, sstate);
 
-	if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format) ||
+		FORMAT_IS_CSV(dataLakesstate->options->format) ||
 		FORMAT_IS_TEXT(dataLakesstate->options->format))
 	{
-		initCopyStateForModify(dataLakesstate);
+		initCopyStateForModify(resultRelInfo);
 	}
 	else
 	{
@@ -1361,23 +1405,9 @@ initModify(dataLakeFdwScanState *dataLakesstate)
 }
 
 static void
-initCopyStateForModify(dataLakeFdwScanState *dataLakesstate)
+InitParseStateTo(dataLakeFdwScanState *dataLakesstate,
+				 CopyToState cstate)
 {
-	List	   *copy_options;
-#if (PG_VERSION_NUM < 140000)
-	CopyState	cstate;
-#else
-	CopyToState	cstate;
-#endif
-
-	copy_options = getCopyOptions(RelationGetRelid(dataLakesstate->rel));
-
-#if (PG_VERSION_NUM < 140000)
-	cstate = BeginCopyTo(dataLakesstate->rel, copy_options);
-#else
-	cstate = BeginCopyToModify(dataLakesstate->rel, copy_options);
-#endif
-
 	/* Initialize 'out_functions', like CopyTo() would. */
 
 	TupleDesc	tupDesc = RelationGetDescr(cstate->rel);
@@ -1409,6 +1439,34 @@ initCopyStateForModify(dataLakeFdwScanState *dataLakesstate)
 										ALLOCSET_DEFAULT_MAXSIZE);
 
 	dataLakesstate->cstate.cstate_modify = cstate;
+}
+
+static void
+initCopyStateForModify(ResultRelInfo *resultRelInfo)
+{
+	List	   *copy_options;
+	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)resultRelInfo->ri_FdwState;
+#if (PG_VERSION_NUM < 140000)
+	CopyState	cstate;
+#else
+	CopyToState	cstate;
+#endif
+
+	copy_options = getCopyOptions(RelationGetRelid(dataLakesstate->rel));
+
+#if (PG_VERSION_NUM < 140000)
+	cstate = BeginCopyTo(dataLakesstate->rel,
+		(FORMAT_IS_CUSTOM(dataLakesstate->options->format)) ? NIL : copy_options);
+#else
+	cstate = BeginCopyToModify(dataLakesstate->rel,
+		(FORMAT_IS_CUSTOM(dataLakesstate->options->format)) ? NIL : copy_options);
+#endif
+	InitParseStateTo(dataLakesstate, cstate);
+	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format))
+	{
+		List* customOptions = getCustomOption(RelationGetRelid(dataLakesstate->rel));
+		datalake_to_exttable_BeginForeignModify(NULL, resultRelInfo, NIL, customOptions, 0, 0);
+	}
 }
 
 /*
@@ -1469,10 +1527,15 @@ BeginCopyToModify(Relation forrel, List *options)
 }
 
 static void
-insertModify(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot)
+insertModify(ResultRelInfo *resultRelInfo, TupleTableSlot *slot)
 {
-	if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
-			FORMAT_IS_TEXT(dataLakesstate->options->format))
+	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)resultRelInfo->ri_FdwState;
+	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format))
+	{
+		datalake_to_exttable_ExecForeignInsert(NULL, resultRelInfo, slot, NULL);
+	}
+	else if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+		FORMAT_IS_TEXT(dataLakesstate->options->format))
 	{
 
 #if (PG_VERSION_NUM < 140000)
@@ -1506,10 +1569,17 @@ insertModify(dataLakeFdwScanState *dataLakesstate, TupleTableSlot *slot)
 }
 
 static void
-endModify(dataLakeFdwScanState *dataLakesstate)
+endModify(ResultRelInfo *resultRelInfo)
 {
-if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
-			FORMAT_IS_TEXT(dataLakesstate->options->format))
+	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)resultRelInfo->ri_FdwState;
+	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format))
+	{
+		datalake_to_exttable_EndForeignModify(NULL, resultRelInfo);
+	}
+
+	if (FORMAT_IS_CSV(dataLakesstate->options->format) ||
+		FORMAT_IS_TEXT(dataLakesstate->options->format) ||
+		FORMAT_IS_CUSTOM(dataLakesstate->options->format))
 	{
 #if (PG_VERSION_NUM < 140000)
 		EndCopyFrom(dataLakesstate->cstate.cstate_modify);
@@ -1557,7 +1627,6 @@ EndCopyScan(CopyFromState cstate)
 		}
 		destroyCdbSreh(cstate->cdbsreh);
 	}
-		
 
 	pgstat_progress_end_command();
 
@@ -1665,7 +1734,7 @@ dataLakeAnalyzeBeginScan(Relation relation)
 	if (hasZeorSelectedPartition(state))
 		return node;
 
-	initScanStatue(state);
+	initScanStatue(node, state);
 	return node;
 }
 

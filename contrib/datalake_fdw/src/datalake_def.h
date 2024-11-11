@@ -11,6 +11,7 @@
 #include "cdb/cdbvars.h"
 #include "cdb/cdbutil.h"
 #include "commands/copy.h"
+#include "common/exttable.h"
 
 
 #include "src/provider/providerWrapper.h"
@@ -76,6 +77,10 @@
 #define DATALAKE_OPTION_HIVE_CLUSTER_NAME "hive_cluster_name"
 #define DATALAKE_OPTION_HDFS_CLUSTER_NAME "hdfs_cluster_name"
 
+/* foreign table custom options */
+#define DATALAKE_OPTION_FORMAT_CUSTOM "custom"
+#define DATALAKE_OPTION_FORMAT_FORMATTER "formatter"
+
 /* foreign table options compression */
 #define DATALAKE_COMPRESS_UNCOMPRESS "none"
 #define DATALAKE_COMPRESS_SNAPPY "snappy"
@@ -101,6 +106,12 @@
 #define DATALAKE_COPY_OPTIION_REJECTLIMIT "rejectlimit"
 #define DATALAKE_COPY_OPTIION_REJECTLIMITTYPE "rejectlimittype"
 
+/* custom options */
+#define DATALAKE_CUSTOM_OPTION_LINE_DELIM "line_delim"
+#define DATALAKE_CUSTOM_OPTION_ENTRY_DELIM "entry_delim"
+#define DATALAKE_CUSTOM_OPTION_TAIL_DELIM "tail_delim"
+#define DATALAKE_CUSTOM_OPTION_FIX_FLAG "fix_flag"
+
 /* iceberg & hudi options */
 #define DATALAKE_OPTION_TABLE_IDENTIFIER "table_identifier"
 #define DATALAKE_OPTION_SERVER_NAME "server_name"
@@ -123,6 +134,8 @@
 #define FORMAT_IS_HUDI(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_HUDI) == 0)
 
 #define FORMAT_IS_ICEBERG(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ICEBERG) == 0)
+
+#define FORMAT_IS_CUSTOM(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CUSTOM) == 0)
 
 #define PROTOCOL_IS_HDFS(protocol) (pg_strcasecmp(protocol, DATALAKE_HDFS_PROTOCOL) == 0)
 
@@ -273,22 +286,29 @@ typedef struct dataLakeCopyState
 #endif
 }dataLakeCopyState;
 
+typedef struct dataLakeCustomState
+{
+	exttable_fdw_state *fdw_state;
+	DatalakeExternalInsertDesc insert_state;
+} dataLakeCustomState;
+
 /*
  * Execution state of a foreign scan using datalake_fdw.
  */
 typedef struct dataLakeFdwScanState
 {
-	dataLakeOptions 	*options;
-	providerWrapper 	provider;
-	Relation			rel;
-	List 				*fragments;
-	Bitmapset  			*attrs_used;     /* attributes actually used in query */
-	List				*retrieved_attrs;
-	MemoryContext		rowcontext;
-	MemoryContext		initcontext;
-	List  				*quals;
-	dataLakeCopyState	cstate;
-	List				*selected_segments;
+	dataLakeOptions 		*options;
+	providerWrapper 		provider;
+	Relation				rel;
+	List 					*fragments;
+	Bitmapset  				*attrs_used;     /* attributes actually used in query */
+	List					*retrieved_attrs;
+	MemoryContext			rowcontext;
+	MemoryContext			initcontext;
+	List  					*quals;
+	dataLakeCopyState		cstate;
+	List					*selected_segments;
+	dataLakeCustomState 	customState;
 } dataLakeFdwScanState;
 
 

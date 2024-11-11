@@ -1,0 +1,184 @@
+DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
+DROP SERVER IF EXISTS foreign_server cascade;
+NOTICE:  drop cascades to foreign table readtable
+DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw cascade;
+CREATE EXTENSION IF NOT EXISTS datalake_fdw;
+NOTICE:  extension "datalake_fdw" already exists, skipping
+SELECT pg_sleep(5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+CREATE EXTENSION IF NOT EXISTS hive_connector;
+NOTICE:  extension "hive_connector" already exists, skipping
+CREATE EXTENSION gp_exttable_delimiter;
+SELECT pg_sleep(5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+set vector.enable_vectorization=off;
+CREATE FOREIGN DATA WRAPPER datalake_fdw
+HANDLER datalake_fdw_handler
+VALIDATOR datalake_fdw_validator
+OPTIONS (mpp_execute 'all segments');
+SELECT public.create_foreign_server('foreign_server', 'gpadmin', 'datalake_fdw', 'paa_cluster');
+ create_foreign_server 
+-----------------------
+ t
+(1 row)
+
+-- create simple function test
+-- write simple file
+DROP EXTERNAL TABLE IF EXISTS example;
+NOTICE:  foreign table "example" does not exist, skipping
+CREATE WRITABLE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/onefile hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_ou, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into example values('aaaaabbbb', 'cccaaaaabbbb');
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE WRITABLE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/onefile2 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_ou_any, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into example values('aaaaabbbb', 'ccaaaaabbbb');
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE WRITABLE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/onefile3 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_ou, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,2000000);
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE WRITABLE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/onefile4 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_ou_any, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,2000000);
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE WRITABLE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/more hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_ou, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into example values('aaaaabbbb', 'ccaaaaabbbb');
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,2000000);
+insert into example values('aaaaabbbb', 'ccaaaaabbbb');
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,10);
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,100);
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,1000);
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,10000);
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE WRITABLE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/more2 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_ou_any, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into example values('aaaaabbbb', 'ccaaaaabbbb');
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,2000000);
+insert into example values('aaaaabbbb', 'ccaaaaabbbb');
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,10);
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,100);
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,1000);
+insert into example select 'aaaaabbbb', 'ccaaaaabbbb' from generate_series(1,10000);
+-- read simple file
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/onefile hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+ count 
+-------
+     1
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/onefile2 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in_fix, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+ count 
+-------
+     1
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/onefile3 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+  count  
+---------
+ 2000000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/onefile4 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in_fix, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+  count  
+---------
+ 2000000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/invalidpath hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+ count 
+-------
+     0
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/invalidpath hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in_fix, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+ count 
+-------
+     0
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a varchar(50), b varchar(50)) LOCATION('gphdfs://ci-test-data/custom/more hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+  count  
+---------
+ 2011112
+(1 row)
+
+select * from example order by a,b limit 10;
+     a     |      b      
+-----------+-------------
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+ aaaaabbbb | ccaaaaabbbb
+(10 rows)
+
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/more2 hdfs_cluster_name=paa_cluster') FORMAT 'custom' (formatter=delimiter_in_fix, entry_delim=',',line_delim=E'\n');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select count(*) from example;
+  count  
+---------
+ 2011112
+(1 row)
+
+select * from example order by a,b limit 10;
+     a     |     b     
+-----------+-----------
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+ aaaaabbbb | ccaaaaabb
+(10 rows)
+
+-- invalid test
+DROP EXTERNAL TABLE IF EXISTS example;
+CREATE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/onefile hdfs_cluster_name=paa_cluster') FORMAT 'csv' (formatter=delimiter_in_fix, entry_delim=',',line_delim=E'\n');
+ERROR:  formatter option only valid for custom formatters
+DROP EXTERNAL TABLE IF EXISTS example;
+NOTICE:  foreign table "example" does not exist, skipping
+CREATE WRITABLE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/invalidinsert hdfs_cluster_name=paa_cluster') FORMAT 'csv' (formatter=delimiter_in_fix, entry_delim=',',line_delim=E'\n');
+ERROR:  formatter option only valid for custom formatters
+CREATE EXTERNAL TABLE example(a char(9), b char(9)) LOCATION('gphdfs://ci-test-data/custom/invalidinsert hdfs_cluster_name=paa_cluster') FORMAT 'custom' (entry_delim=',',line_delim=E'\n');
+ERROR:  no formatter function specified
