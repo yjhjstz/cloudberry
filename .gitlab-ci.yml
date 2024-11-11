@@ -184,7 +184,7 @@ variables:
   ROOT_PATH: "/code"
   CBDB_RELEASE_SRC: "/code/cbdb_release"
   GIT_SUBMODULE_STRATEGY: "normal"
-  GIT_DEPTH: 1
+  GIT_DEPTH: 200
   CI_USER: root
   OS_TYPE: "centos7"
   ## set centos7 as default CI_TF_LOCATION 
@@ -208,6 +208,8 @@ variables:
       - ${GIT_CLONE_PATH}/src/test/isolation2/regression.diffs
       - ${GIT_CLONE_PATH}/src/test/isolation2/results/
       - ${GIT_CLONE_PATH}/src/test/isolation2/expected/
+      - ${GIT_CLONE_PATH}/contrib/perfmon/regression.diffs
+      - ${GIT_CLONE_PATH}/contrib/perfmon/results/
       - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/standby/log/
       - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
       - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/

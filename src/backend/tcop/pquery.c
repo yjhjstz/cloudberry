@@ -119,7 +119,7 @@ CreateQueryDesc(PlannedStmt *plannedstmt,
 	qd->portal_name = NULL;
 
 	qd->ddesc = NULL;
-
+	qd->showstatctx = NULL;
 	/* not yet executed */
 	qd->already_executed = false;
 
