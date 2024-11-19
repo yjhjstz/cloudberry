@@ -40,6 +40,4 @@ extern bool enable_vector_memory_resource;
 extern bool enable_plan_merge;
 extern int pool_threads;
 
-void assign_enable_vectorization(bool newval, void *extra);
-
 #endif   /* GUC_VEC_H */

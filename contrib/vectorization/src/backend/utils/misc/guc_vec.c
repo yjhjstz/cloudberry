@@ -40,18 +40,3 @@ int control_memory_resource = 5;
 int control_global_memory_resource = 5;
 bool enable_vector_memory_resource = false;
 int pool_threads = 0;
-
-void
-assign_enable_vectorization(bool newval, void *extra)
-{
-	if (newval == true)
-	{
-		Gp_interconnect_queue_depth = 4096;
-		Gp_interconnect_snd_queue_depth = 4096;
-	}
-	else
-	{
-		Gp_interconnect_queue_depth = 4;
-		Gp_interconnect_snd_queue_depth = 2;
-	}
-}

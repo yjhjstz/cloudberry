@@ -54,7 +54,7 @@ _PG_init(void)
                              false,
                              PGC_USERSET,
 							 GUC_GPDB_NEED_SYNC,
-                             NULL, assign_enable_vectorization, NULL);
+                             NULL, NULL, NULL);
     DefineCustomBoolVariable("vector.enable_vector_optimizer",
 							 "This guc enables optimizing better plan for vectorization",
 							 NULL,
