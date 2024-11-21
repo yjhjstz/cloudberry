@@ -1,28 +1,5 @@
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
-DROP SERVER IF EXISTS foreign_server cascade;
-DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw cascade;
-
-CREATE EXTENSION IF NOT EXISTS datalake_fdw;
-
-SELECT pg_sleep(5);
-
-CREATE EXTENSION IF NOT EXISTS hive_connector;
-
-SELECT pg_sleep(5);
-
-set vector.enable_vectorization=off;
-
-CREATE FOREIGN DATA WRAPPER datalake_fdw
-HANDLER datalake_fdw_handler
-VALIDATOR datalake_fdw_validator
-OPTIONS (mpp_execute 'all segments');
-
-SELECT public.create_foreign_server('foreign_server', 'gpadmin', 'datalake_fdw', 'paa_cluster');
-
 -- multi delimiter used newline \r\n
 set datalake.external_table_new_text = true;
-DROP SERVER IF EXISTS foreign_server_hdfs;
-SELECT public.create_foreign_server('foreign_server_hdfs', 'gpadmin', 'datalake_fdw', 'paa_cluster');
 DROP EXTERNAL TABLE IF EXISTS readtable;
 CREATE READABLE EXTERNAL TABLE readtable (i int, a text)
 location('gphdfs://test/crlf/custom_file_crlf.txt hdfs_cluster_name=paa_cluster') FORMAT 'text' (newline 'CRLF');

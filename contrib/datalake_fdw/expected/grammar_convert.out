@@ -1,26 +1,5 @@
 -- convert hashdata 3X datalake grammar to hashdata lightning
 -- start_ignore
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
-NOTICE:  server "foreign_server" does not exist, skipping
-DROP SERVER IF EXISTS foreign_server;
-NOTICE:  server "foreign_server" does not exist, skipping
-DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw;
-NOTICE:  foreign-data wrapper "datalake_fdw" does not exist, skipping
-CREATE EXTENSION IF NOT EXISTS hive_connector;
-CREATE EXTENSION IF NOT EXISTS datalake_fdw;
--- end_ignore
-CREATE FOREIGN DATA WRAPPER datalake_fdw
-  HANDLER datalake_fdw_handler
-  VALIDATOR datalake_fdw_validator
-  OPTIONS ( mpp_execute 'all segments' );
-CREATE SERVER foreign_server
-        FOREIGN DATA WRAPPER datalake_fdw
-        OPTIONS (host 'obs.cn-north-4.myhuaweicloud.com', protocol 'huawei', isvirtual 'false',
-        ishttps 'false');
-CREATE USER MAPPING FOR gpadmin
-        SERVER foreign_server
-        OPTIONS (user 'gpadmin', accesskey 'J04WCCF5VQP6BAIQUFHP', secretkey 'jGDwttCct2b9b4rEf0hsLD7CeP9WubZuqqz90iQU');
--- start_ignore
 -- oss
 CREATE READABLE EXTERNAL TABLE orc_read (a int, b int)
 LOCATION('oss://obs.cn-north-4.myhuaweicloud.com/ossext-ci-test/ext_orc/moreSmallFile/ oss_type=QS access_key_id=KGCPPHVCHRMZMFEAWLLC secret_access_key=0SJIWiIATh6jOlmAKr8DGq6hOAGBI1BnsnvgJmTs') FORMAT 'orc';
@@ -31,7 +10,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | integer |           |          |         | 
-Server: foreign_server
+Server: oss_server
 FDW options: (filepath '/ossext-ci-test/ext_orc/moreSmallFile/', format 'orc', encoding 'UTF-8')
 
 select * from orc_read order by a,b;
@@ -67,7 +46,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
  Column | Type | Collation | Nullable | Default | FDW options 
 --------+------+-----------+----------+---------+-------------
  a      | date |           |          |         | 
-Server: foreign_server
+Server: oss_server
 FDW options: (filepath '/ossext-ci-test/ext_parquet/parquet_v1/coldate_table/', format 'parquet', encoding 'UTF-8')
 
 select * from readtable_table order by a;
@@ -92,7 +71,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | text    |           |          |         | 
-Server: foreign_server
+Server: oss_server
 FDW options: (filepath '/ossext-ci-test/ext_text/onefile/', format 'text', delimiter '	', "null" E'\\N', escape E'\\', encoding 'UTF-8')
 
 select * from read_one_file;
@@ -110,7 +89,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | integer |           |          |         | 
-Server: foreign_server
+Server: oss_server
 FDW options: (filepath '/ossext-ci-test/avro/avro_uncompress/oneSmallFile/', format 'avro', encoding 'UTF-8')
 
 select * from avro_read;
@@ -128,7 +107,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | integer |           |          |         | 
-Server: foreign_server
+Server: oss_server
 FDW options: (filepath '/icg/read/emptyfile', format 'csv', delimiter ',', "null" '', escape '"', quote '"', encoding 'UTF-8')
 
 CREATE READABLE EXTERNAL TABLE read_one_file_2(a int, b text)
@@ -140,7 +119,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | text    |           |          |         | 
-Server: foreign_server
+Server: oss_server
 FDW options: (filepath '/ossext-ci-test/ext_text/onefile/', enablecache 'true', transactional 'true', format 'text', delimiter '	', "null" E'\\N', escape E'\\', encoding 'UTF-8')
 
 select * from read_one_file_2;
@@ -165,14 +144,6 @@ FORMAT 'text' LOG ERRORS SEGMENT REJECT LIMIT 10 ROWS;
 NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
 -- end_ignore
 -- hdfs
-DROP SERVER IF EXISTS foreign_server_2;
-NOTICE:  server "foreign_server_2" does not exist, skipping
-SELECT public.create_foreign_server('foreign_server_2', 'gpadmin', 'datalake_fdw', 'paa_cluster');
- create_foreign_server 
------------------------
- t
-(1 row)
-
 CREATE READABLE EXTERNAL TABLE read_two_file(a int, b text)
 LOCATION('gphdfs://ci-test-data/avro/twofile hdfs_cluster_name=paa_cluster') FORMAT 'avro';
 NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
@@ -182,7 +153,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | text    |           |          |         | 
-Server: foreign_server_2
+Server: hive_server
 FDW options: (filepath '/ci-test-data/avro/twofile', format 'avro', encoding 'UTF-8')
 
 CREATE READABLE EXTERNAL TABLE read_more_file(a int, b text)
@@ -194,20 +165,10 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
 --------+---------+-----------+----------+---------+-------------
  a      | integer |           |          |         | 
  b      | text    |           |          |         | 
-Server: foreign_server_2
+Server: hive_server
 FDW options: (filepath '/ci-test-data/orc/more_file', format 'orc', encoding 'UTF-8')
 
 -- ftp
-CREATE SERVER ftp_foreign_server
-FOREIGN DATA WRAPPER datalake_fdw
-OPTIONS (host '192.168.198.144', protocol 'ftp');
-CREATE SERVER ftp_foreign_server
-FOREIGN DATA WRAPPER datalake_fdw
-OPTIONS (host '192.168.198.144', protocol 'ftp');
-ERROR:  server "ftp_foreign_server" already exists
-CREATE USER MAPPING FOR gpadmin
-SERVER ftp_foreign_server
-OPTIONS (user 'ftp', password 'ftp');
 create readable external table ftp_test1 (a char(6), b char(6), c char(6))
 location('ftp://192.168.198.144/orc/ ftp_username=ftp ftp_password=ftp') format 'orc';
 NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
@@ -218,7 +179,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
  a      | character(6) |           |          |         | 
  b      | character(6) |           |          |         | 
  c      | character(6) |           |          |         | 
-Server: ftp_foreign_server
+Server: ftp_server
 FDW options: (filepath '/orc/', format 'orc', encoding 'UTF-8')
 
 create readable external table ftp_test2 (a char(6), b char(6), c char(6))
@@ -231,7 +192,7 @@ NOTICE:  external table syntax will be deprecated in the future HashData version
  a      | character(6) |           |          |         | 
  b      | character(6) |           |          |         | 
  c      | character(6) |           |          |         | 
-Server: ftp_foreign_server
+Server: ftp_server
 FDW options: (filepath '/custom/', format 'text', delimiter '	', "null" E'\\N', escape E'\\', encoding 'UTF-8')
 
 -- clear
@@ -248,11 +209,4 @@ DROP FOREIGN TABLE IF EXISTS read_two_file;
 DROP FOREIGN TABLE IF EXISTS read_more_file;
 DROP FOREIGN TABLE IF EXISTS ftp_test1;
 DROP FOREIGN TABLE IF EXISTS ftp_test2;
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
-DROP SERVER IF EXISTS foreign_server CASCADE;
-DROP SERVER IF EXISTS foreign_server_2 CASCADE;
-NOTICE:  drop cascades to user mapping for gpadmin on server foreign_server_2
-DROP SERVER IF EXISTS ftp_foreign_server CASCADE;
-NOTICE:  drop cascades to user mapping for gpadmin on server ftp_foreign_server
-DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw CASCADE;
 -- end_ignore

@@ -33,6 +33,9 @@ extern char *
 extractPathFromLocation(const char *location);
 
 extern char *
+extractPathFromLocationS3(const char *location);
+
+extern char *
 extractPathFromLocation3x(const char *location);
 
 extern const char *

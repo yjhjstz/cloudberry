@@ -139,9 +139,11 @@
 
 #define PROTOCOL_IS_HDFS(protocol) (pg_strcasecmp(protocol, DATALAKE_HDFS_PROTOCOL) == 0)
 
+#define PROTOCOL_IS_S3(protocol) (pg_strcasecmp(protocol, DATALAKE_OSS_PROTOCOL_S3) == 0)
+
 #define SUPPORT_PARTITION_TABLE(protocol, format, partitionkey, datasource) \
-	PROTOCOL_IS_HDFS(protocol) && (FORMAT_IS_ORC(format) || \
-	FORMAT_IS_PARQUET(format) || FORMAT_IS_AVRO(format) || \
+	(PROTOCOL_IS_HDFS(protocol) || PROTOCOL_IS_S3(protocol)) && \
+	(FORMAT_IS_ORC(format) || FORMAT_IS_PARQUET(format) || FORMAT_IS_AVRO(format) || \
 	FORMAT_IS_TEXT(format) || FORMAT_IS_CSV(format)) && \
 	(partitionkey != NULL) && (datasource != NULL) \
 

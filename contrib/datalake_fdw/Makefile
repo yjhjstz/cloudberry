@@ -99,16 +99,24 @@ EXTENSION = datalake_fdw
 DATA = datalake_fdw--1.0.sql
 
 ifdef ICEBERG_HUDI_TEST
-REGRESS = iceberg_read hudi_read
+REGRESS = setup_hudi iceberg_read hudi_read
 else
-REGRESS = hive_connecter_orc_read hive_connecter_orc_vec_read hive_connecter_parquet_read \
-          hive_connecter_avro_read hive_connector orc_read parquet_read avro_read iresearch_orc_test iresearch_orc_vec_test \
-          hive_connecter_avro_read_limit_segment hive_connecter_orc_read_limit_segment hive_connecter_parquet_read_limit_segment \
-          hive_connector_limit_segment oss_read_new_text_limit_segment oss_read_orc_limit_segment \
-          oss_read_parquet_limit_segment oss_read_text_limit_segment \
-          hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
-          hive_connecter_read_new_text hive_connecter_read_text oss_read_new_text oss_read_text grammar_convert gphdfs_ignore_file gphdfs_custom
+REGRESS = setup \
+        hive_connecter_orc_read hive_connecter_orc_vec_read hive_connecter_parquet_read hive_connecter_avro_read hive_connector \
+        hive_connecter_avro_read_limit_segment hive_connecter_orc_read_limit_segment hive_connecter_parquet_read_limit_segment \
+        hive_connector_limit_segment \
+        hive_connecter_orc_read_s3 hive_connecter_orc_vec_read_s3 hive_connecter_parquet_read_s3 hive_connecter_avro_read_s3 \
+        hive_connector_s3 hive_connecter_avro_read_limit_segment_s3 hive_connecter_orc_read_limit_segment_s3 \
+        hive_connecter_parquet_read_limit_segment_s3 hive_connector_limit_segment_s3 \
+        hive_connecter_read_new_deflate_text hive_connecter_read_new_snappy_text \
+        hive_connecter_read_new_text hive_connecter_read_text \
+        hive_connecter_read_new_deflate_text_s3 hive_connecter_read_new_snappy_text_s3 \
+        hive_connecter_read_new_text_s3 hive_connecter_read_text_s3 \
+        orc_read parquet_read avro_read iresearch_orc_test iresearch_orc_vec_test \
+        oss_read_new_text oss_read_text grammar_convert gphdfs_ignore_file gphdfs_custom \
+        oss_read_new_text_limit_segment oss_read_orc_limit_segment oss_read_parquet_limit_segment oss_read_text_limit_segment
 endif
+REGRESS_OPTS += --init-file=test/init_file
 
 PG_CPPFLAGS += -fPIC
 PG_CFLAGS += -Wno-error=stringop-overflow

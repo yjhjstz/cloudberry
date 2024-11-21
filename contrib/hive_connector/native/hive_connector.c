@@ -425,8 +425,8 @@ static HmsHandle *
 initializeHms(const char *hiveClusterName,
 			  const char *hdfsClusterName)
 {
-	List       *hiveConf;
-	List       *hdfsConf;
+	List       *hiveConf = NIL;
+	List       *hdfsConf = NIL;
 	ConfigItem *conf;
 	bool        connected;
 	char        errMsg[512];
@@ -437,10 +437,13 @@ initializeHms(const char *hiveClusterName,
 	if (!serverHiveConfExists(hiveConf, hiveClusterName))
 		elog(ERROR, "didn't find \"%s\" in gphive.conf", hiveClusterName);
 
-	sprintf(path, "%s/gphdfs.conf", DataDir);
-	hdfsConf = parseHdfsConf("gphdfs.conf", false);
-	if (!serverHdfsConfExists(hdfsConf, hdfsClusterName))
-		elog(ERROR, "didn't find \"%s\" in gphdfs.conf", hdfsClusterName);
+	if (hdfsClusterName != NULL)
+	{
+		sprintf(path, "%s/gphdfs.conf", DataDir);
+		hdfsConf = parseHdfsConf("gphdfs.conf", false);
+		if (!serverHdfsConfExists(hdfsConf, hdfsClusterName))
+			elog(ERROR, "didn't find \"%s\" in gphdfs.conf", hdfsClusterName);
+	}
 
 	conf = getHiveServerConf(hiveConf, hiveClusterName);
 	Assert(conf != NULL);
@@ -1393,5 +1396,124 @@ sync_hive_database_with_logerror_3x(PG_FUNCTION_ARGS)
 
 	result = true;
 
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_table_with_s3_storage);
+Datum
+sync_hive_table_with_s3_storage(PG_FUNCTION_ARGS)
+{
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *hiveTableName;
+	const char *destTableName;
+	const char *serverName;
+	bool result 	= false;
+	bool forceSync 	= false;
+	HmsHandle *volatile hms;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "Hive table name cannot be NULL");
+	hiveTableName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "Dest table name cannot be NULL");
+	destTableName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_ARGISNULL(4))
+		elog(ERROR, "Server name cannot be NULL");
+	serverName = text_to_cstring(PG_GETARG_TEXT_PP(4));
+
+	if (PG_NARGS() == 6)
+	{
+		if (PG_ARGISNULL(5))
+			elog(ERROR, "Force Sync flag cannot be NULL");
+		forceSync = PG_GETARG_BOOL(5);
+	}
+
+	hms = initializeHms(hiveClusterName, NULL);
+
+	PG_TRY();
+	{
+		sync_hive_table_(hms, serverName, hiveDbName, hiveTableName,
+				NULL, destTableName, hiveClusterName, false, forceSync, logerrors, rejectlimit, islimitinrows);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(sync_hive_database_with_s3_storage);
+Datum
+sync_hive_database_with_s3_storage(PG_FUNCTION_ARGS)
+{
+	const char *hiveClusterName;
+	const char *hiveDbName;
+	const char *destSchemaName;
+	const char *serverName;
+	bool result 	= false;
+	bool forceSync 	= false;
+	HmsHandle *volatile hms;
+	bool logerrors = false;
+	int rejectlimit = -1;
+	const char *islimitinrows = NULL;
+
+	if (PG_ARGISNULL(0))
+		elog(ERROR, "Hive cluster name cannot be NULL");
+	hiveClusterName = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+	if (PG_ARGISNULL(1))
+		elog(ERROR, "Hive database name cannot be NULL");
+	hiveDbName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+	if (PG_ARGISNULL(2))
+		elog(ERROR, "dest schema name cannot be NULL");
+	destSchemaName = text_to_cstring(PG_GETARG_TEXT_PP(2));
+
+	if (PG_ARGISNULL(3))
+		elog(ERROR, "Server name cannot be NULL");
+	serverName = text_to_cstring(PG_GETARG_TEXT_PP(3));
+
+	if (PG_NARGS() == 5)
+	{
+		if (PG_ARGISNULL(4))
+			elog(ERROR, "Force Sync flag cannot be NULL");
+		forceSync = PG_GETARG_BOOL(4);
+	} 
+
+	hms = initializeHms(hiveClusterName, NULL);
+
+	PG_TRY();
+	{
+		sync_hive_database_(hms, serverName, hiveDbName,
+				NULL, destSchemaName, hiveClusterName, forceSync, logerrors, rejectlimit, islimitinrows);
+		HmsDestroyHandle(hms);
+	}
+	PG_CATCH();
+	{
+		HmsDestroyHandle(hms);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	result = true;
 	PG_RETURN_BOOL(result);
 }

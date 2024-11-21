@@ -23,6 +23,10 @@ cat > /opt/gphive.conf <<-EOF
 hive_cluster:
     uris: thrift://localhost:9083
     auth_method: simple
+
+hive_s3_cluster:
+    uris: thrift://localhost:9183
+    auth_method: simple
 EOF
 
 cp /opt/gphdfs.conf /code/gpdb_src/gpAux/gpdemo/datadirs/qddir/demoDataDir-1/

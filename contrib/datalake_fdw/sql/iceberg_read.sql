@@ -1,26 +1,3 @@
--- create datalake_fdw
--- clean table
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER sync_server;
-DROP SERVER IF EXISTS sync_server;
-DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw;
-
-CREATE EXTENSION IF NOT EXISTS datalake_fdw;
-
-SELECT pg_sleep(5);
-
-CREATE EXTENSION IF NOT EXISTS hive_connector;
-
-SELECT pg_sleep(5);
-
-set vector.enable_vectorization=off;
-
-CREATE FOREIGN DATA WRAPPER datalake_fdw
-HANDLER datalake_fdw_handler
-VALIDATOR datalake_fdw_validator
-OPTIONS (mpp_execute 'all segments');
-
-SELECT public.create_foreign_server('sync_server', 'gpadmin', 'datalake_fdw', 'hdfs-cluster-1');
-
 ------ iceberg_table1 ------
 CREATE FOREIGN TABLE iceberg_table1 (
     id int,

@@ -1,0 +1,6 @@
+-- start_matchignore
+
+m/^NOTICE:  foreign table .* does not exist, skipping/
+m/^NOTICE:  schema .* does not exist, skipping/
+
+-- end_matchignore

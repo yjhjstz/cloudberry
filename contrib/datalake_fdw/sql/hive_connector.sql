@@ -4,13 +4,7 @@ DROP SCHEMA IF EXISTS syncdb CASCADE;
 CREATE SCHEMA synctab;
 CREATE SCHEMA syncdb;
 
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER hive_server;
-DROP SERVER IF EXISTS hive_server;
-
-set vector.enable_vectorization=off;
 SET datestyle = ISO, MDY;
-
-SELECT public.create_foreign_server('hive_server', 'gpadmin', 'datalake_fdw', 'paa_cluster');
 
 SELECT public.sync_hive_table('hive_cluster','mytestdb','text_default','paa_cluster', 'synctab.text_default', 'hive_server');
 
@@ -118,6 +112,4 @@ DROP FOREIGN TABLE IF EXISTS syncdb.empty_avro;
 DROP FOREIGN TABLE IF EXISTS syncdb.empty_avro_partition;
 
 DROP SCHEMA IF EXISTS synctab;
-DROP SCHEMA IF EXISTS syncd;
-
-DROP SERVER hive_server CASCADE;
+DROP SCHEMA IF EXISTS syncdb;

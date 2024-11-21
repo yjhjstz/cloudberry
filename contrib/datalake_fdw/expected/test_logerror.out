@@ -1,5 +1,3 @@
-CREATE EXTENSION if not exists hive_connector;
-NOTICE:  extension "hive_connector" already exists, skipping
 -- sync logerror table
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 NOTICE:  table "hive_test_1" does not exist, skipping

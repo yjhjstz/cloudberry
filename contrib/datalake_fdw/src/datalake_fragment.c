@@ -99,16 +99,29 @@ get_partition_values(Relation relation, dataLakeOptions *options)
 
 	StringInfoData buf;
 	initStringInfo(&buf);
-	appendStringInfo(&buf, "gphdfs:/%s hive_cluster_name=%s datasource=%s hdfs_cluster_name=%s" \
-				"cache=%s transactional=%s partition_keys=%s",
-		options->filePath,
-		options->hive_cluster_name,
-		options->hiveOption->datasource,
-		options->hdfs_cluster_name,
-		(options->gopher->enableCache) ? "true" : "false",
-		(options->hiveOption->transactional) ? "true" : "false",
-		partitionkey.data);
-
+	if (options->hdfs_cluster_name == NULL)
+	{
+		appendStringInfo(&buf, "s3:/%s hive_cluster_name=%s datasource=%s " \
+					"cache=%s transactional=%s partition_keys=%s",
+			options->filePath,
+			options->hive_cluster_name,
+			options->hiveOption->datasource,
+			(options->gopher->enableCache) ? "true" : "false",
+			(options->hiveOption->transactional) ? "true" : "false",
+			partitionkey.data);	
+	}
+	else
+	{
+		appendStringInfo(&buf, "gphdfs:/%s hive_cluster_name=%s datasource=%s hdfs_cluster_name=%s" \
+					"cache=%s transactional=%s partition_keys=%s",
+			options->filePath,
+			options->hive_cluster_name,
+			options->hiveOption->datasource,
+			options->hdfs_cluster_name,
+			(options->gopher->enableCache) ? "true" : "false",
+			(options->hiveOption->transactional) ? "true" : "false",
+			partitionkey.data);
+	}
 	locations = lappend(locations, makeString(pstrdup(buf.data)));
 
 	return get_external_fragments(RelationGetRelid(relation), 0, NIL, NIL,
@@ -133,7 +146,7 @@ GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
 
 	StringInfoData prefix;
 	initStringInfo(&prefix);
-	appendStringInfoString(&prefix, options->filePath);
+	appendStringInfoString(&prefix, options->prefix);
 
 	int len = strlen(prefix.data) - 1;
 	if (prefix.data[len] != '/')

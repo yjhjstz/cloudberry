@@ -145,6 +145,18 @@ extractPathFromLocation(const char *location)
 }
 
 char *
+extractPathFromLocationS3(const char *location)
+{
+	char *bpPos;
+
+	bpPos = strstr(location, "://");
+	if (!bpPos)
+		elog(ERROR, "failed to parse location: \"%s\": missing scheme name", location);
+
+	return bpPos + 2;
+}
+
+char *
 extractPathFromLocation3x(const char *location)
 {
 	char *bhPos;
@@ -359,24 +371,36 @@ formCreateStmt(HmsHandle *hms,
 			int rejectlimit,
 			const char *islimitinrows)
 {
-	size_t idx 			= 0;
-	const char *sqlFmt 	= "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s', hdfs_cluster_name '%s', enablecache '%s', transactional '%s', format '%s'";
-	char *hdfsPath;
+	const char *sqlFmt_hdfs = "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s', hdfs_cluster_name '%s', enablecache '%s', transactional '%s', format '%s'";
+	const char *sqlFmt_s3 	= "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s/', enablecache '%s', transactional '%s', format '%s'";
 	StringInfoData sqlBuf;
 	
 	initStringInfo(&sqlBuf);
-	hdfsPath = extractPathFromLocation(location);
-
-	appendStringInfo(&sqlBuf,
-					sqlFmt,
-					destTableName,
-					fields,
-					serverName,
-					hdfsPath,
-					hdfsClusterName,
-					hiveEnableCacheFile ? "true" : "false",
-					HmsTableIsTransactionalTable(hms) ? "true" : "false",
-					format);
+	if (hdfsClusterName == NULL)
+	{
+		appendStringInfo(&sqlBuf,
+						sqlFmt_s3,
+						destTableName,
+						fields,
+						serverName,
+						extractPathFromLocationS3(location),
+						hiveEnableCacheFile ? "true" : "false",
+						HmsTableIsTransactionalTable(hms) ? "true" : "false",
+						format);
+	}
+	else
+	{
+		appendStringInfo(&sqlBuf,
+						sqlFmt_hdfs,
+						destTableName,
+						fields,
+						serverName,
+						extractPathFromLocation(location),
+						hdfsClusterName,
+						hiveEnableCacheFile ? "true" : "false",
+						HmsTableIsTransactionalTable(hms) ? "true" : "false",
+						format);
+	}
 
 	if (pg_strcasecmp(format, "orc") && pg_strcasecmp(format, "parquet") && pg_strcasecmp(format, "avro"))
 	{
@@ -507,28 +531,47 @@ formCreateStmt2(HmsHandle *hms,
 				)
 {
 	const char *tableFmt = "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s', hive_cluster_name '%s', datasource '%s.%s', hdfs_cluster_name '%s', enableCache '%s', transactional '%s', partitionkeys '%s', format '%s'";
+	const char *tableFmt_s3 = "CREATE FOREIGN TABLE %s(%s) SERVER %s OPTIONS (filePath '%s/', hive_cluster_name '%s', datasource '%s.%s', enableCache '%s', transactional '%s', partitionkeys '%s', format '%s'";
 	char *keyBuf;
-	char *hdfsPath;
+	char *filePath;
 	StringInfoData sqlBuf;
 
 	initStringInfo(&sqlBuf);
-	keyBuf = joinString(partKeys, ',', '/');
-	hdfsPath = extractPathFromLocation(location);
+	keyBuf = joinString(partKeys, ',', '/'); 
 
-	appendStringInfo(&sqlBuf,
-					tableFmt,
-					destTableName,
-					field,
-					serverName,
-					hdfsPath,
-					hiveClusterName,
-					hiveDbName,
-					hiveTableName,
-					hdfsClusterName,
-					hiveEnableCacheFile ? "true" : "false",
-					HmsTableIsTransactionalTable(hms) ? "true" : "false",
-					keyBuf,
-					format);
+	if (hdfsClusterName == NULL)
+	{
+		appendStringInfo(&sqlBuf,
+						tableFmt_s3,
+						destTableName,
+						field,
+						serverName,
+						extractPathFromLocationS3(location),
+						hiveClusterName,
+						hiveDbName,
+						hiveTableName,
+						hiveEnableCacheFile ? "true" : "false",
+						HmsTableIsTransactionalTable(hms) ? "true" : "false",
+						keyBuf,
+						format);
+	}
+	else
+	{
+		appendStringInfo(&sqlBuf,
+						tableFmt,
+						destTableName,
+						field,
+						serverName,
+						extractPathFromLocation(location),
+						hiveClusterName,
+						hiveDbName,
+						hiveTableName,
+						hdfsClusterName,
+						hiveEnableCacheFile ? "true" : "false",
+						HmsTableIsTransactionalTable(hms) ? "true" : "false",
+						keyBuf,
+						format);
+	}
 
 	if (pg_strcasecmp(format, "orc") && pg_strcasecmp(format, "parquet") && pg_strcasecmp(format, "avro"))
 	{

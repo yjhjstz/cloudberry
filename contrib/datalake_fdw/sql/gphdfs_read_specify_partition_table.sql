@@ -1,24 +1,3 @@
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
-DROP SERVER IF EXISTS foreign_server cascade;
-DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw cascade;
-
-CREATE EXTENSION IF NOT EXISTS datalake_fdw;
-
-SELECT pg_sleep(5);
-
-CREATE EXTENSION IF NOT EXISTS hive_connector;
-
-SELECT pg_sleep(5);
-
-set vector.enable_vectorization=off;
-
-CREATE FOREIGN DATA WRAPPER datalake_fdw
-HANDLER datalake_fdw_handler
-VALIDATOR datalake_fdw_validator
-OPTIONS (mpp_execute 'all segments');
-
-SELECT public.create_foreign_server('foreign_server', 'gpadmin', 'datalake_fdw', 'paa_cluster');
-
 -- read simple table
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=') FORMAT 'orc';

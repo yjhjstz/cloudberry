@@ -253,3 +253,35 @@ islimitinrows text,
 forceSync boolean) RETURNS boolean
 AS '$libdir/hive_connector','sync_hive_database_with_logerror_3x'
 LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_table_s3(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+destTableName text,
+serverName text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_with_s3_storage'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_table_s3(hiveClusterName text,
+hiveDatabaseName text,
+hiveTableName text,
+destTableName text,
+serverName text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_table_with_s3_storage'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database_s3(hiveClusterName text,
+hiveDatabaseName text,
+destSchemaName text,
+serverName text) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_with_s3_storage'
+LANGUAGE C STRICT EXECUTE ON MASTER;
+
+CREATE OR REPLACE FUNCTION sync_hive_database_s3(hiveClusterName text,
+hiveDatabaseName text,
+destSchemaName text,
+serverName text,
+forceSync boolean) RETURNS boolean
+AS '$libdir/hive_connector','sync_hive_database_with_s3_storage'
+LANGUAGE C STRICT EXECUTE ON MASTER;

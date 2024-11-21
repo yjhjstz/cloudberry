@@ -1,37 +1,8 @@
--- create datalake_fdw
--- clean table
-DROP EXTERNAL TABLE IF EXISTS oss_read;
-NOTICE:  foreign table "oss_read" does not exist, skipping
-DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER foreign_server;
-NOTICE:  server "foreign_server" does not exist, skipping
-DROP SERVER IF EXISTS foreign_server;
-NOTICE:  server "foreign_server" does not exist, skipping
-DROP FOREIGN DATA WRAPPER IF EXISTS datalake_fdw;
-CREATE EXTENSION IF NOT EXISTS datalake_fdw;
-NOTICE:  extension "datalake_fdw" already exists, skipping
-CREATE FOREIGN DATA WRAPPER datalake_fdw
-  HANDLER datalake_fdw_handler
-  VALIDATOR datalake_fdw_validator 
-  OPTIONS ( mpp_execute 'all segments' );
-CREATE SERVER foreign_server
-        FOREIGN DATA WRAPPER datalake_fdw
-        OPTIONS (host 'obs.cn-north-4.myhuaweicloud.com', protocol 'huawei', isvirtual 'false',
-        ishttps 'false');
-CREATE USER MAPPING FOR gpadmin
-        SERVER foreign_server
-        OPTIONS (user 'gpadmin', accesskey 'J04WCCF5VQP6BAIQUFHP', secretkey 'jGDwttCct2b9b4rEf0hsLD7CeP9WubZuqqz90iQU');
-SELECT pg_sleep(5);
- pg_sleep 
-----------
- 
-(1 row)
-
-set vector.enable_vectorization=off;
 -- small file
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 NOTICE:  foreign table "oss_read" does not exist, skipping
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/oneSmallFile/', enableCache 'false', format 'orc');
 select * from oss_read order by a,b;
  a | b 
@@ -41,7 +12,7 @@ select * from oss_read order by a,b;
 
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/twoSmallFile/', enableCache 'false', format 'orc');
 select * from oss_read order by a,b;
  a | b 
@@ -52,7 +23,7 @@ select * from oss_read order by a,b;
 
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/moreSmallFile/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
  count 
@@ -62,7 +33,7 @@ select count(*) from oss_read;
 
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/1024_smallFile/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
  count 
@@ -73,7 +44,7 @@ select count(*) from oss_read;
 -- big file
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/oneBigFile/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
   count  
@@ -83,7 +54,7 @@ select count(*) from oss_read;
 
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/twoBigFile/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
   count  
@@ -93,7 +64,7 @@ select count(*) from oss_read;
 
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/more_bigFile/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
   count   
@@ -104,7 +75,7 @@ select count(*) from oss_read;
 -- 64k stripes
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/strips_64k/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
  count 
@@ -115,7 +86,7 @@ select count(*) from oss_read;
 -- empty
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/emptyfloder/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
  count 
@@ -126,7 +97,7 @@ select count(*) from oss_read;
 -- complex
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b int)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/alltest/', enableCache 'false', format 'orc');
 select count(*) from oss_read;
   count   
@@ -156,7 +127,7 @@ col4 numeric(38,3),
 col5 numeric(18,17),
 col6 numeric(38,37)
 )
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/numeric/', enableCache 'false', format 'orc');
 select * from oss_read order by col, col2, col3, col4, col5;
  col |   col2   |        col3         |                  col4                  |        col5         |                  col6                   
@@ -190,7 +161,7 @@ select * from test order by col, col2, col3, col4, col5;
 -- null col
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b text, c int, d text)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/colNull/', enableCache 'false', format 'orc');
 select * from oss_read order by a,b,c,d;
  a | b | c | d  
@@ -216,7 +187,7 @@ select * from oss_read order by a,b,c,d;
 SET datestyle = ISO, MDY;
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a date)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/date/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
      a      
@@ -234,7 +205,7 @@ select * from oss_read order by a;
 -- timestamp
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a timestamp)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/timestamp/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
              a              
@@ -261,7 +232,7 @@ select * from oss_read order by a;
 -- big text
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a text)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/bigText/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 a                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
@@ -273,7 +244,7 @@ select * from oss_read order by a;
 -- bool varchar char
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int, b bool, c varchar(20), d char(20), e text, f bytea)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/bool/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
  a | b |   c   |          d           |   e   |      f       
@@ -292,7 +263,7 @@ select * from oss_read order by a;
 -- int2
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int2)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/int2/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
    a    
@@ -308,7 +279,7 @@ select * from oss_read order by a;
 -- int2 invalid
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int2)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/int4/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
  a  
@@ -321,7 +292,7 @@ select * from oss_read order by a;
 -- int4
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int4)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/int4/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
       a      
@@ -334,7 +305,7 @@ select * from oss_read order by a;
 -- int4 invalid
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int4)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/int8/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
  a  
@@ -347,7 +318,7 @@ select * from oss_read order by a;
 -- int8
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a int8)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/int8/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
           a           
@@ -360,7 +331,7 @@ select * from oss_read order by a;
 -- float4
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a float4)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/float4/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
        a       
@@ -375,7 +346,7 @@ select * from oss_read order by a;
 -- float8
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a float8)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/float8/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
             a            
@@ -394,7 +365,7 @@ create table test(a timestamp);
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
 HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 CREATE FOREIGN TABLE oss_read (a timestamp)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/timestamp/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
              a              
@@ -445,7 +416,7 @@ select * from test order by a;
 SET datestyle = 'ISO, DMY';
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a time)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/time/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
     a     
@@ -458,7 +429,7 @@ select * from oss_read order by a;
 -- timestamp2
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a timestamp)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/timestamp2045/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
                a               
@@ -485,7 +456,7 @@ select * from oss_read order by a;
 SET datestyle = ISO, MDY;
 DROP EXTERNAL TABLE IF EXISTS oss_read;
 CREATE FOREIGN TABLE oss_read (a date)
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_orc/date2045/', enableCache 'false', format 'orc');
 select * from oss_read order by a;
        a       

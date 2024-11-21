@@ -1,6 +1,4 @@
 -- iresearch test
--- create datalake_fdw
--- clean table
 set vector.enable_vectorization=on;
 DROP EXTERNAL TABLE IF EXISTS ir_orc_read;
 CREATE FOREIGN TABLE ir_orc_read (
@@ -15,7 +13,7 @@ CREATE FOREIGN TABLE ir_orc_read (
     col8 text,
     col9 text
 )
-SERVER foreign_server
+SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/irsearch/', enableCache 'true', format 'orc');
 select count(*) from ir_orc_read;
 select count(*) from ir_orc_read;

@@ -1,0 +1,40 @@
+version: '2'
+services:
+  services-mysql-s3:
+    image: datalake-services-mysql-s3:latest
+    container_name: services-mysql-s3
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+    networks:
+      - s3_network
+    tty: true
+    
+
+  services-hive-s3:
+    image: datalake-services-hive-s3:latest
+    container_name: services-hive-s3
+    environment:
+      - HADOOP_HOME=/opt/hadoop-3.3.5
+      - HADOOP_CONF_PATH=/opt/hadoop-3.3.5/etc/hadoop
+      - HIVE_HOME=/opt/apache-hive-3.1.3-bin
+      - HIVE_CONF_PATH=/opt/apache-hive-3.1.3-bin/conf
+      - HIVE_METASTORE_PORT=9183
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_ADDRESS=:9100
+      - MINIO_CONSOLE_ADDRESS=:9101
+      - MINIO_DATA_DIR=/opt/minio/data
+      - HADOOP_OPTIONAL_TOOLS=hadoop-aws
+      - PATH=/opt/apache-hive-3.1.3-bin/bin:/opt/hadoop-3.3.5/bin:/opt/hadoop-3.3.5/sbin:/opt/minio:${PATH}
+      - JAVA_HOME=/usr/java/latest
+    ports:
+      - "9100:9100"
+      - "9101:9101"
+      - "9183:9183"  
+    networks:
+      - s3_network
+    tty: true
+
+networks:
+  s3_network:
+    driver: bridge
