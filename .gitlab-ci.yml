@@ -1,3 +1,6 @@
+default:
+  interruptible: true
+
 stages:
   - build
   - icw_test
@@ -8,6 +11,8 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
     - when: never
+  auto_cancel:
+    on_new_commit: interruptible
 
 variables:
   CBDB_SRC_BRANCH:
