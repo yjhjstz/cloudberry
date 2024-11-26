@@ -1,3 +1,5 @@
+data "huaweicloud_availability_zones" "default" {}
+
 variable "huawei_access_key_2" {
   sensitive = true
   type      = string
@@ -29,10 +31,6 @@ variable "instance_securitygroup" {
   default = [
     "653629ee-805e-431e-827d-349de18dc767"
   ]
-}
-
-variable "instance_availability_zone" {
-  default = "cn-north-4g"
 }
 
 variable "instance_os_disk_size" {
@@ -80,7 +78,7 @@ resource "huaweicloud_compute_instance" "ci" {
   flavor_id          = var.flavor_id
   security_group_ids = var.instance_securitygroup
   key_pair           = var.instance_keypair
-  availability_zone  = var.instance_availability_zone
+  availability_zone  = data.huaweicloud_availability_zones.default.names[0]
   system_disk_size   = var.instance_os_disk_size
 
   network {
