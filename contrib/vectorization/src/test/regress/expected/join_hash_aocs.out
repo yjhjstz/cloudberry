@@ -1149,3 +1149,17 @@ WHERE
 (1 row)
 
 ROLLBACK;
+CREATE TABLE t0(c0 serial  PRIMARY KEY UNIQUE, c1 name COLLATE "C"  NOT NULL) USING ao_column;
+CREATE TABLE IF NOT EXISTS t1(LIKE t0) USING ao_column;
+NOTICE:  table doesn't have 'DISTRIBUTED BY' clause, defaulting to distribution columns from LIKE table
+CREATE TEMPORARY TABLE IF NOT EXISTS t2(LIKE t0) USING ao_column;
+NOTICE:  table doesn't have 'DISTRIBUTED BY' clause, defaulting to distribution columns from LIKE table
+CREATE TEMPORARY TABLE t3(LIKE t2) USING ao_column;
+NOTICE:  table doesn't have 'DISTRIBUTED BY' clause, defaulting to distribution columns from LIKE table
+SELECT ALL SUM(1.212132011E9) FROM t1*, ONLY t2 LEFT OUTER JOIN t0 ON pg_jit_available() RIGHT OUTER JOIN t3 ON TRUE;
+ sum 
+-----
+    
+(1 row)
+
+drop table if exists t0, t1, t2, t3;

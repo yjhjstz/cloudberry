@@ -576,3 +576,15 @@ WHERE
     AND hjtest_1.a <> hjtest_2.b;
 
 ROLLBACK;
+
+CREATE TABLE t0(c0 serial  PRIMARY KEY UNIQUE, c1 name COLLATE "C"  NOT NULL) USING ao_column;
+
+CREATE TABLE IF NOT EXISTS t1(LIKE t0) USING ao_column;
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t2(LIKE t0) USING ao_column;
+
+CREATE TEMPORARY TABLE t3(LIKE t2) USING ao_column;
+
+SELECT ALL SUM(1.212132011E9) FROM t1*, ONLY t2 LEFT OUTER JOIN t0 ON pg_jit_available() RIGHT OUTER JOIN t3 ON TRUE;
+
+drop table if exists t0, t1, t2, t3;

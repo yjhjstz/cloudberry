@@ -888,6 +888,11 @@ is_plan_vectorable(Plan* plan, List *rtable)
 					elog(DEBUG2, "Fallback to non-vectorization; Unsupported nested join type.");
 					return false;
 				}
+				if (!is_expr_vectorable((Expr *)tstlp->join.joinqual, NULL))
+				{
+					elog(DEBUG2, "Fallback to non-vectorization; Unsupported nested join qual expr.");
+					return false;
+				}
 			}
 			break;
 		case T_Motion:
