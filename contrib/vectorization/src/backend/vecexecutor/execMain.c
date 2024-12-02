@@ -1654,6 +1654,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 	List *targetList = planstate->plan->targetlist;
 	List *qualList = planstate->plan->qual;
 	PlanBuildContext pcontext;
+	bool support_parallel = true;
 
 	/* init PlanBuildContext*/
 	pcontext.agginfos = NULL;
@@ -1739,6 +1740,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 		case T_MaterialState:
 		{
 			VecMaterialState *vmatstate = (VecMaterialState *)planstate;
+			support_parallel = false;
 			if (!outerPlanState(planstate))
 				elog(ERROR, "Material node can't be leaf in vector plan");
 			pcontext.inputschema = GetSchemaFromSlot(
@@ -1849,7 +1851,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 		pcontext.pipeline = false;
 	}
 
-	if (pool_threads > 0)
+	if (pool_threads > 0 && support_parallel)
 	/* switch thread on, all plan go threads*/
 	{
 	 	estate->exectx = garrow_execute_context_new(pool_threads);
