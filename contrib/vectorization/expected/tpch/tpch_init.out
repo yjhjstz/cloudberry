@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS orders;
 NOTICE:  table "orders" does not exist, skipping
 DROP TABLE IF EXISTS lineitem;
 NOTICE:  table "lineitem" does not exist, skipping
-set default_table_access_method=ao_column;
+set default_table_access_method = ao_column;
 CREATE TABLE nation (
     N_NATIONKEY  INTEGER NOT NULL,
     N_NAME       TEXT NOT NULL,

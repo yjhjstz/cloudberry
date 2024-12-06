@@ -161,7 +161,7 @@ ExecVecResult(PlanState *pstate)
 		 * we must do this after projecting.
 		 */
 		if (node->hashFilter && !TupIsNull(candidateOutputSlot))
-		{	
+		{
 			GError *error = NULL;
 			g_autoptr(GArrowArrayDatum) filter_datum = NULL;
 			g_autoptr(GArrowBooleanArray) filter_array = NULL;
@@ -174,7 +174,7 @@ ExecVecResult(PlanState *pstate)
 			filter_datum = GARROW_ARRAY_DATUM(DatumGetPointer(hval_reduce));
 			filter_array = GARROW_BOOLEAN_ARRAY(garrow_datum_get_array(filter_datum));
 			filter_batch = garrow_record_batch_filter(result_batch, filter_array, NULL, &error);
-			ExecStoreBatch(candidateOutputSlot, garrow_move_ptr(filter_batch));
+			ExecStoreBatch(candidateOutputSlot, filter_batch);
 		}
 		return candidateOutputSlot;
 	}

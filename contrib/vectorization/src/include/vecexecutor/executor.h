@@ -63,14 +63,6 @@ extern void ExecVecSlotToLog(TupleTableSlot *slot, const char *label);
  *  Arrow expression
  */
 
-/* proj expr unique, such as _ for add(i, j)_1, _ is one char */
-#define UNDERLINE_JOIN_CHAR 1
-#define OID_TEXT_NOT_LIKE_OP 1210
-#define OID_BPCHAR_NOT_LIKE_OP 1212
-#define OID_INT2_MOD 529
-#define OID_INT4_MOD 530
-#define OID_INT8_MOD 439
-
 typedef struct ArrowExprContext
 {
 	GArrowSchema *schema;
@@ -90,9 +82,6 @@ typedef struct ProjExpression
 } ProjExpression;
 
 extern GArrowScalar *const_expression_scalar(Const *node);
-
-extern const char *get_op_name(Oid opno);
-extern const char *get_function_name(Oid opno);
 extern GArrowExpression *arrow_expression_tree_mutator(Expr *node, ArrowExprContext *context);
 
 /*

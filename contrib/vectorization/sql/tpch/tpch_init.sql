@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS customer;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS lineitem;
 
-set default_table_access_method=ao_column;
+set default_table_access_method = ao_column;
 
 
 CREATE TABLE nation (

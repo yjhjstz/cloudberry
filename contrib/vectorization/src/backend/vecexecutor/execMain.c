@@ -102,7 +102,7 @@ typedef struct PlanBuildContext
 
 	/* nestloopjoin related */
 	bool is_nestloopjoin;
-	
+
 	/* is assertop node */
 	 bool is_assertop;
 
@@ -115,7 +115,7 @@ typedef struct PlanBuildContext
 
 	/* sequence related */
 	int subplan_index;
-	
+
 	/* AppendNode fields */
 	bool is_append;
 	int sub_slice;
@@ -142,68 +142,41 @@ typedef struct SortKey
 } SortKey;
 
 GArrowSchema *dummy_schema = NULL;
-static inline GArrowExpression *func_args_to_expression(List *args,
-		PlanBuildContext *pcontext, const char *name);
-static inline VecAggInfo* new_agg_info(Aggref *aggref, int aggno,
-		PlanBuildContext *pcontext);
+static inline VecAggInfo* new_agg_info(Aggref *aggref, int aggno, PlanBuildContext *pcontext);
 static inline VecAggInfo* new_winagg_info(WindowFunc *wfunc, PlanBuildContext *pcontext);
-static GArrowExpression *expr_to_arrow_expression(Expr *node,
-		PlanBuildContext *pcontext);
-static const char* get_agg_func_name(Aggref *aggref, const FuncTable *table,
-		PlanBuildContext *pcontext);
+static GArrowExpression *expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext);
+static const char* get_agg_func_name(Aggref *aggref, const AggFuncTable *table, PlanBuildContext *pcontext);
 static GArrowExecuteNode* BuildSource(PlanBuildContext *pcontext);
 static GArrowExecuteNode* BuildScanNode(PlanBuildContext *pcontext, VecSeqScanState *estate, List *quaList);
-static GArrowExecuteNode *BuildProject(List *targetList, List *qualList,
-									   GArrowExecuteNode *input, PlanBuildContext *pcontext);
+static GArrowExecuteNode *BuildProject(List *targetList, List *qualList, GArrowExecuteNode *input, PlanBuildContext *pcontext);
 static void BuildSink(GArrowExecuteNode *input, VecExecuteState *estate, PlanBuildContext *pcontext);
-static GArrowExecuteNode *BuildAggregatation(List *aggInfos,
-											 GArrowExecuteNode *input, PlanBuildContext *pcontext);
+static GArrowExecuteNode *BuildAggregatation(List *aggInfos, GArrowExecuteNode *input, PlanBuildContext *pcontext);
 static void *get_scan_next_batch(PlanState *node);
 static void *get_foreign_next_batch(PlanState *node);
 static void *get_current_next_batch(PlanState *node);
 static GList* build_sort_keys(PlanState *planstate, GArrowSchema *schema);
-static GArrowProjectNodeOptions* build_project_options(List *targetList,
-		PlanBuildContext *pcontext);
-static GArrowProjectNodeOptions* build_agg_project_options(List *targetList, List *aggInfos,
-		PlanBuildContext *pcontext);
-static GArrowProjectNodeOptions* build_winagg_project_options(List *targetList, List *aggInfos,
-		PlanBuildContext *pcontext);
-static GArrowAggregateNodeOptions* build_aggregatation_options(GList *aggregations,
-		PlanBuildContext *pcontext);
-
-static GArrowFilterNodeOptions *build_filter_options(List *filterInfo,
-													 PlanBuildContext *pcontext);
-static GArrowAssertOpNodeOptions *build_assertop_options(List *filterInfo,
-										 PlanBuildContext *pcontext);
-static GArrowExpression *
-replace_substring_regex_expression(List *args, PlanBuildContext *pcontext);
-static GArrowExpression* replace_expression(List *args,
-				 PlanBuildContext *pcontext);
-static GArrowExpression *
-extract_expression(List *args, PlanBuildContext *pcontext, bool retnumeric);
-static GArrowExpression *
-utf8_slice_codeunits_expression(List *args, PlanBuildContext *pcontext);
+static GArrowProjectNodeOptions* build_project_options(List *targetList, PlanBuildContext *pcontext);
+static GArrowProjectNodeOptions* build_agg_project_options(List *targetList, List *aggInfos, PlanBuildContext *pcontext);
+static GArrowProjectNodeOptions* build_winagg_project_options(List *targetList, List *aggInfos, PlanBuildContext *pcontext);
+static GArrowAggregateNodeOptions* build_aggregatation_options(GList *aggregations, PlanBuildContext *pcontext);
+static GArrowFilterNodeOptions *build_filter_options(List *filterInfo, PlanBuildContext *pcontext);
+static GArrowAssertOpNodeOptions *build_assertop_options(List *filterInfo, PlanBuildContext *pcontext);
 static GArrowExecuteNode *BuildHashjoin(PlanBuildContext *pcontext, GArrowExecuteNode *left, GArrowExecuteNode *right, List *joinqual);
 static GArrowExecuteNode *BuildJoinProject(List *hashkeys, GArrowExecuteNode *input, PlanBuildContext *pcontext);
 static GArrowProjectNodeOptions *build_join_project_options(List *hashkeys, GArrowExecuteNode *input, PlanBuildContext *pcontext);
 static void rewrite_tl_keys(List *targetList, PlanBuildContext *pcontext);
-static GArrowExpression *build_cast_expression(FuncExpr *opexpr, PlanBuildContext *pcontext);
+static GArrowExpression *build_cast_expression(List* args, PlanBuildContext *pcontext, GArrowDataType *to_type, bool allow_truncate);
 static void get_windowagg_sortorder(PlanBuildContext *pcontext, SortKey *sortKey);
 static GArrowExecuteNode *BuildNestLoopjoin(PlanBuildContext *pcontext, GArrowExecuteNode *left, GArrowExecuteNode *right, List *joinqual);
 static void BuildJoinPlan(PlanBuildContext *pcontext, VecExecuteState *estate);
 static void BuildSequencePlan(PlanBuildContext *pcontext, VecExecuteState *estate);
 static const char *GetHashJoinProjectName(PlanBuildContext *pcontext, const char *name);
-static GArrowExpression *build_text_join(List *args, PlanBuildContext *pcontext);
 static GArrowExpression *build_is_distinct_expression(DistinctExpr *dex, PlanBuildContext *pcontext);
 static GArrowExpression *build_null_if_expression(NullIfExpr *dex, PlanBuildContext *pcontext);
-static GArrowExecuteNode*
-build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan, GArrowExecuteNode *input);
-static GArrowExpression *
-build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type, int32 typmod);
-static void
-BuildMaterializePlan(PlanBuildContext *pcontext, VecExecuteState *estate);
-static GArrowStoreType
-to_arrow_storetype(StoreType type);
+static GArrowExecuteNode*build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan, GArrowExecuteNode *input);
+static GArrowExpression *build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type, int32 typmod);
+static void BuildMaterializePlan(PlanBuildContext *pcontext, VecExecuteState *estate);
+static GArrowStoreType to_arrow_storetype(StoreType type);
 
 static char *
 build_materialize_file_name()
@@ -244,7 +217,7 @@ get_sequence_exact_result_ps(PlanState *plan)
 }
 
 static const char *
-get_agg_func_name(Aggref *aggref, const FuncTable *table, PlanBuildContext *pcontext)
+get_agg_func_name(Aggref *aggref, const AggFuncTable *table, PlanBuildContext *pcontext)
 {
 	int cols;
 	const char *name = NULL;
@@ -258,7 +231,7 @@ get_agg_func_name(Aggref *aggref, const FuncTable *table, PlanBuildContext *pcon
 		/* is a hash distinct agg */
 		if (cols > 0)
 			name = table->hashDistFuncName;
-		else 
+		else
 			name = table->hashFuncName;
 	else if (cols > 0) /* is a distinct agg */
 		name = table->distFuncName;
@@ -270,91 +243,12 @@ get_agg_func_name(Aggref *aggref, const FuncTable *table, PlanBuildContext *pcon
 	return name;
 }
 
-const char *
-get_op_name(Oid opno)
-{
-	char *name = get_opname(opno);
-	if (!name)
-		return NULL;
-	if (0 == strcmp(name, "+"))
-		return "add";
-	else if (0 == strcmp(name, "-"))
-		return "subtract";
-	else if (0 == strcmp(name, "*"))
-		return "multiply";
-	else if (0 == strcmp(name, "/"))
-		return "divide";
-	else if (0 == strcmp(name, ">"))
-		return "greater";
-	else if (0 == strcmp(name, ">="))
-		return "greater_equal";
-	else if (0 == strcmp(name, "<"))
-		return "less";
-	else if (0 == strcmp(name, "<="))
-		return "less_equal";
-	else if (0 == strcmp(name, "="))
-		return "equal";
-	else if (0 == strcmp(name, "<>"))
-		return "not_equal";
-	else if (0 == strcmp(name, "~~"))
-	{
-		/* doesn't support regex like: substring(c_phone, '([0-9]{1,4})'); */
-		if (opno == F_SUBSTRING_TEXT_TEXT || opno == F_SUBSTRING_TEXT_TEXT_TEXT)
-			return NULL;
-		return "match_like";
-	}
-	else if(0 == strcmp(name, "!~~"))
-		return "match_not_like";
-	else if(0 == strcmp(name, "||"))
-		return "binary_join_element_wise";
-	return NULL;
-}
-
-/*
- * Fixme: Is used for fallback now, should also be
- * the converter of funcion.
- * Merge with get_function_expression.
- * Get function by static table based on Oid.
- */
-const char *
-get_function_name(Oid opno)
-{
-	const char *name = get_func_name(opno);
-	if (!name)
-		return NULL;
-	else if (0 == strcmp(name, "text"))
-		return "text";
-	else if (0 == strcmp(name, "length"))
-		return "utf8_length";
-	else if (0 ==strcmp(name, "date_trunc"))
-		return "strptime";
-	else if (0 == strcmp(name, "regexp_replace"))
-		return "dummy";
-	else if (0 == strcmp(name, "replace"))
-		return "replace_substring";
-	else if (0 == strcmp(name, "extract"))
-		return "dummy";
-	else if (0 == strcmp(name, "substring") || 0 == strcmp(name, "substr"))
-		return "dummy";
-	else if (0 == strcmp(name, "abs"))
-		return "abs";
-	else if (0 == strcmp(name, "upper"))
-		return "upper";
-	else if (0 == strcmp(name, "boolne"))
-		return "dummy";
-	else if (0 == strcmp(name, "float8") || 0 == strcmp(name, "int4") || 0 == strcmp(name, "numeric") || 0 == strcmp(name, "int8"))
-		return "dummy";
-	else if (0 == strcmp(name, "round"))
-		return "dummy";
-	return NULL;
-}
-
 /*
  * New an arrow expression with PG function arguments and arrow function name.
- * such as: 
+ * such as:
  *  i + j - 1 will generate subtract(add(i, j), 1)
  */
-static inline GArrowExpression *
+GArrowExpression *
 func_args_to_expression(List *args, PlanBuildContext *pcontext, const char* funcname)
 {
 	ListCell *l;
@@ -399,6 +293,7 @@ func_args_to_expression(List *args, PlanBuildContext *pcontext, const char* func
 }
 
 static GArrowExpression *
+//FIXME: For round(numeric, int), currently int supports only const cases
 build_round_expr(List *args, PlanBuildContext *pcontext, bool has_precision)
 {
 	ListCell *l = NULL;
@@ -413,7 +308,7 @@ build_round_expr(List *args, PlanBuildContext *pcontext, bool has_precision)
 		if (IsA(expr, Const))
 		{
 			Const* const_expr = (Const*) expr;
-			int numeric_type = const_expr->constbyval ? const_expr->constvalue: const_expr->consttypmod;
+			int numeric_type = const_expr->constbyval ? DatumGetInt32(const_expr->constvalue): const_expr->consttypmod;
 			if (has_precision)
 				scale = (numeric_type - VARHDRSZ) & 0xffff;
 			else
@@ -430,8 +325,20 @@ build_round_expr(List *args, PlanBuildContext *pcontext, bool has_precision)
 	return garrow_move_ptr(round_expr);
 }
 
-static GArrowExpression *
-build_text_join(List *args, PlanBuildContext *pcontext)
+GArrowExpression *
+build_round_with_precision(List *args, PlanBuildContext *pcontext, const char* name)
+{
+	return build_round_expr(args, pcontext, true);
+}
+
+GArrowExpression *
+build_round_without_precision(List *args, PlanBuildContext *pcontext, const char* name)
+{
+	return build_round_expr(args, pcontext, false);
+}
+
+GArrowExpression *
+build_text_join(List *args, PlanBuildContext *pcontext, const char *name)
 {
 	ListCell *l = NULL;
 	GList *arguments = NULL;
@@ -492,136 +399,83 @@ func_arg_to_expression(Expr *fle, PlanBuildContext *pcontext, const char* funcna
 }
 
 static GArrowExpression *
-get_function_expression(FuncExpr *opexpr, PlanBuildContext *pcontext)
+get_function_expression(Oid funcOid, PlanBuildContext *pcontext, List* args)
 {
-	Oid opno = opexpr->funcid;
+	const FuncTable *fmgr = get_arrow_fmgr(funcOid);
+	if (!fmgr)
+	{
+		elog(ERROR, "get_function_expression unrecognized id: %d", funcOid);
+	}
+	return fmgr->builFunc(args, (void*)pcontext, fmgr->arrowFuncName);
+}
 
-	const char *name = get_func_name(opno);
-	if (!name)
-	{
-		elog(ERROR, "Failed to call get_function_expression(%d) ", opno);
-		return NULL;
-	}
-	else if (0 == strcmp(name, "length"))
-		return func_args_to_expression(opexpr->args, pcontext, "utf8_length");
-	else if (0 == strcmp(name, "float8") || 0 == strcmp(name, "int4") || 0 == strcmp(name, "int8"))
-	{
-		return build_cast_expression(opexpr, pcontext);
-	}
-	else if(0 == strcmp(name, "numeric") && list_length(opexpr->args) == 1)
-	{
-		return build_cast_expression(opexpr, pcontext);
-	}
-	else if(0 == strcmp(name, "numeric") && list_length(opexpr->args) == 2)
-	{
-		return build_round_expr(opexpr->args, pcontext, true);
-	}
-	else if (0 ==strcmp(name, "date_trunc"))
-		return func_args_to_expression(opexpr->args, pcontext, "strptime");
-	else if (0 == strcmp(name, "regexp_replace"))
-		return replace_substring_regex_expression(opexpr->args, pcontext);
-	else if (0 == strcmp(name, "replace"))
-		return replace_expression(opexpr->args, pcontext);
-    /* Fixme: Should have been NUMERICOID .*/
-	else if (0 == strcmp(name ,"extract"))
-		return extract_expression(opexpr->args, pcontext, opexpr->funcresulttype == NUMERICOID);
-	else if (0 == strcmp(name, "substring") || 0 == strcmp(name, "substr")) 
-		return utf8_slice_codeunits_expression(opexpr->args, pcontext);
-	else if (0 == strcmp(name, "boolne"))
-		return func_args_to_expression(opexpr->args, pcontext, "not_equal");
-	else if (0 == strcmp(name, "abs"))
-		return func_args_to_expression(opexpr->args, pcontext, "abs");
-	else if (0 == strcmp(name, "upper"))
-		return func_args_to_expression(opexpr->args, pcontext, "utf8_upper");
-	else if (0 == strcmp(name, "round"))
-		return build_round_expr(opexpr->args, pcontext, false);
-	else if (0 == strcmp(name, "text"))
-		return build_cast_expression(opexpr, pcontext);
-	else
-		elog(ERROR, "get_function_expression unrecognized typeid: %d funname: %s", opno, name);
-	return NULL;
+GArrowExpression *
+build_cast_int4_expression_allow_truncate(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_int32_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, true);
+}
+
+GArrowExpression *
+build_cast_int4_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_int32_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, false);
+}
+
+GArrowExpression *
+build_cast_int8_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_int64_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, false);
+}
+
+GArrowExpression *
+build_cast_float4_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_float_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, false);
+}
+
+GArrowExpression *
+build_cast_float8_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_double_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, false);
+}
+
+GArrowExpression *
+build_cast_numeric_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_numeric128_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, false);
+}
+
+GArrowExpression *
+build_cast_text_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	g_autoptr(GArrowDataType) to_type = GARROW_DATA_TYPE(garrow_string_data_type_new());
+	return build_cast_expression(args, pcontext, to_type, false);
 }
 
 static GArrowExpression *
-build_cast_expression(FuncExpr *opexpr, PlanBuildContext *pcontext)
+build_cast_expression(List* args, PlanBuildContext *pcontext, GArrowDataType *to_type, bool allow_truncate)
 {
 	g_autoptr(GArrowExpression) expr = NULL;
-	g_autoptr(GArrowCastOptions) cast_options = NULL;
-	g_autoptr(GArrowDataType) to_type = NULL;
 	g_autoptr(GList) cast_args = NULL;
 	g_autoptr(GArrowExpression) cast_to_expr = NULL;
-	bool allow_truncate = false;
-	Oid opno = opexpr->funcid;
+	g_autoptr(GArrowCastOptions) cast_options = NULL;
 
-	Assert(list_length(opexpr->args) == 1);
-	expr = expr_to_arrow_expression(linitial(opexpr->args), pcontext);
-
-	switch (opno)
-	{
-		case F_INT8_NUMERIC:
-		case F_INT8_INT2:
-		case F_INT8_INT4:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_int64_data_type_new());
-			break;
-		}
-		case F_FLOAT4_NUMERIC:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_float_data_type_new());
-			break;
-		}
-		case F_FLOAT8_NUMERIC:
-		case F_FLOAT8_FLOAT4:
-		case F_FLOAT8_INT2:
-		case F_FLOAT8_INT4:
-		case F_FLOAT8_INT8:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_double_data_type_new());
-			break;
-		}
-		case F_INT4_FLOAT8:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_int32_data_type_new());
-			allow_truncate = true;
-			break;
-		}
-		case F_INT4_INT8:
-		case F_INT4_NUMERIC:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_int32_data_type_new());
-			break;
-		}
-		case F_NUMERIC_INT2:
-		case F_NUMERIC_INT4:
-		case F_NUMERIC_INT8:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_numeric128_data_type_new());
-			break;
-		}
-		case F_TEXT_BPCHAR:
-		{
-			cast_args = garrow_list_append_ptr(cast_args, expr);
-			to_type = GARROW_DATA_TYPE(garrow_string_data_type_new());
-			break;
-		}
-		default:
-			break;
-	}
-	if (!to_type) 
-		elog(ERROR, "build explict cast type is error. %d", opno);
-	cast_options = GARROW_CAST_OPTIONS(g_object_new(GARROW_TYPE_CAST_OPTIONS, "to-data-type", garrow_move_ptr(to_type), NULL));
+	Assert(list_length(args) == 1);
+	expr = expr_to_arrow_expression(linitial(args), pcontext);
+	cast_args = garrow_list_append_ptr(cast_args, expr);
+	cast_options = GARROW_CAST_OPTIONS(g_object_new(GARROW_TYPE_CAST_OPTIONS, "to-data-type", to_type, NULL));
 	if (allow_truncate)
 		garrow_set_cast_options(cast_options, GARROW_PROP_ALLOW_FLOAT_TRUNCATE, true);
-	cast_to_expr = GARROW_EXPRESSION(garrow_call_expression_new("cast", cast_args, GARROW_FUNCTION_OPTIONS(garrow_move_ptr(cast_options))));
+	cast_to_expr = GARROW_EXPRESSION(garrow_call_expression_new("cast", cast_args, GARROW_FUNCTION_OPTIONS(cast_options)));
 	garrow_list_free_ptr(&cast_args);
 	return garrow_move_ptr(cast_to_expr);
-} 
+}
 
 /*
  * Convert ScalarArrayOpExpr to GArrowExpression
@@ -667,7 +521,7 @@ scalararray_to_expression(ScalarArrayOpExpr *arrayexpr, PlanBuildContext *pconte
 	array = garrow_base_list_scalar_get_value(GARROW_BASE_LIST_SCALAR(val_scalar));
 	array_datum = garrow_array_datum_new(array);
 	/* is_in need skip null follow pg(in null is false) */
-	return build_is_in(garrow_move_ptr(expr), GARROW_DATUM(array_datum), true);
+	return build_is_in(expr, GARROW_DATUM(array_datum), true);
 }
 
 static GArrowExpression *
@@ -852,10 +706,10 @@ build_divide_casewhen(Expr *expr, PlanBuildContext *pcontext)
 
 
 static GArrowExpression*
-build_divide_casewhen_opexpr(OpExpr *opexpr, PlanBuildContext *pcontext)
+build_divide_casewhen_opexpr(List *args, PlanBuildContext *pcontext)
 {
-	Expr *divisor = (Expr *) linitial(opexpr->args);
-	Expr *dividend = (Expr *) lsecond(opexpr->args);
+	Expr *divisor = (Expr *) linitial(args);
+	Expr *dividend = (Expr *) lsecond(args);
 	g_autoptr(GArrowExpression) expr;
 	g_autoptr(GArrowExpression) divisor_expr;
 	g_autoptr(GArrowExpression) case_when_expr;
@@ -869,8 +723,8 @@ build_divide_casewhen_opexpr(OpExpr *opexpr, PlanBuildContext *pcontext)
 	return garrow_move_ptr(expr);
 }
 
-static GArrowExpression *
-extract_expression(List *args, PlanBuildContext *pcontext, bool retnumeric)
+GArrowExpression *
+extract_expression(List *args, PlanBuildContext *pcontext, const char* name)
 {
 	ListCell   *lc;
 	int type, val;
@@ -895,6 +749,10 @@ extract_expression(List *args, PlanBuildContext *pcontext, bool retnumeric)
 			if (type == UNITS)
 			{
 				g_autoptr(GArrowExpression) extract_expr = NULL;
+				g_autoptr(GArrowCastOptions)  cast_options = NULL;
+				g_autoptr(GArrowDataType) to_type = NULL;
+				g_autoptr(GList) cast_args = NULL;
+				g_autoptr(GArrowExpression) cast_decimal_expr = NULL;
 				switch (val)
 				{
 					case DTK_MICROSEC:
@@ -935,19 +793,12 @@ extract_expression(List *args, PlanBuildContext *pcontext, bool retnumeric)
 								(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 									errmsg("timestamp units  not supported")));
 				}
-				if (retnumeric)
-				{
-					// add cast expr(integer to decimal) to align pg extract expr output type
-					g_autoptr(GArrowCastOptions)  cast_options = NULL;
-					g_autoptr(GArrowDataType) to_type = NULL;
-					g_autoptr(GList) cast_args = NULL;
-					g_autoptr(GArrowExpression) cast_decimal_expr = NULL;
-					to_type = GARROW_DATA_TYPE(garrow_numeric128_data_type_new());
-					cast_args = garrow_list_append_ptr(cast_args, extract_expr);
-					cast_options = GARROW_CAST_OPTIONS(g_object_new(GARROW_TYPE_CAST_OPTIONS, "to-data-type", garrow_move_ptr(to_type) , NULL));
-					cast_decimal_expr = GARROW_EXPRESSION(garrow_call_expression_new("cast", garrow_move_ptr(cast_args), GARROW_FUNCTION_OPTIONS(garrow_move_ptr(cast_options))));
-					return garrow_move_ptr(cast_decimal_expr);
-				}
+				// add cast expr(integer to decimal) to align pg extract expr output type
+				to_type = GARROW_DATA_TYPE(garrow_numeric128_data_type_new());
+				cast_args = garrow_list_append_ptr(cast_args, extract_expr);
+				cast_options = GARROW_CAST_OPTIONS(g_object_new(GARROW_TYPE_CAST_OPTIONS, "to-data-type", to_type , NULL));
+				cast_decimal_expr = GARROW_EXPRESSION(garrow_call_expression_new("cast", cast_args, GARROW_FUNCTION_OPTIONS(cast_options)));
+				return garrow_move_ptr(cast_decimal_expr);
 			}
 			else
 			{
@@ -961,8 +812,18 @@ extract_expression(List *args, PlanBuildContext *pcontext, bool retnumeric)
 	return NULL;
 }
 
-static GArrowExpression *
-utf8_slice_codeunits_expression(List *args, PlanBuildContext *pcontext)
+GArrowExpression*
+build_divide_expr(List *args, PlanBuildContext *pcontext, const char* funcname)
+{
+	if (pcontext->is_case_when)
+	{
+		return build_divide_casewhen_opexpr(args, pcontext);
+	}
+	return func_args_to_expression(args, pcontext, funcname);
+}
+
+GArrowExpression *
+utf8_slice_codeunits_expression(List *args, PlanBuildContext *pcontext, const char* name)
 {
 	Expr *inner_expr = NULL;
 	Expr *start_expr = NULL;
@@ -1018,8 +879,8 @@ utf8_slice_codeunits_expression(List *args, PlanBuildContext *pcontext)
 	return garrow_move_ptr(slice_expression);
 }
 
-static GArrowExpression *
-replace_substring_regex_expression(List *args, PlanBuildContext *pcontext)
+GArrowExpression *
+replace_substring_regex_expression(List *args, PlanBuildContext *pcontext, const char *name)
 {
 	Expr *first_expr = NULL;
 	Expr *second_expr = NULL;
@@ -1071,14 +932,14 @@ replace_substring_regex_expression(List *args, PlanBuildContext *pcontext)
 }
 
 static GArrowExpression *
-build_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext, bool is_notlike)
+build_like_expr(List *args, PlanBuildContext *pcontext, bool is_notlike)
 {
 	g_autoptr(GArrowExpression)  result_expr = NULL;
 	gboolean ignore_case = false;
 	GList           *arguments = NULL;
 
-	Expr  *first_expr = linitial(opexpr->args);
-	Expr  *second_expr = lsecond(opexpr->args);
+	Expr  *first_expr = linitial(args);
+	Expr  *second_expr = lsecond(args);
 	char *value;
 
 	Expr  *var_epxr = NULL;
@@ -1123,8 +984,20 @@ build_like_expression(OpExpr *opexpr, PlanBuildContext *pcontext, bool is_notlik
 	}
 }
 
-static GArrowExpression *
-replace_expression(List *args, PlanBuildContext *pcontext)
+GArrowExpression *
+build_like_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	return build_like_expr(args, pcontext, false);
+}
+
+GArrowExpression *
+build_not_like_expression(List *args, PlanBuildContext *pcontext, const char *name)
+{
+	return build_like_expr(args, pcontext, true);
+}
+
+GArrowExpression *
+replace_expression(List *args, PlanBuildContext *pcontext, const char* name)
 {
 	Expr *first_expr = NULL;
 	Expr *second_expr = NULL;
@@ -1181,10 +1054,7 @@ build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type,
 {
 	g_autoptr(GArrowScalar) val_scalar = NULL;
 	g_autoptr(GArrowDatum) val_datum = NULL;
-	if (isnull)
-		val_scalar = ArrowScalarNew(GARROW_TYPE_NA, datum, pg_type, typmod);
-	else 
-		val_scalar = ArrowScalarNew(type, datum, pg_type, typmod);
+	val_scalar = ArrowScalarNew(isnull ? GARROW_TYPE_NA : type, datum, pg_type, typmod);
 	val_datum = GARROW_DATUM(garrow_scalar_datum_new(val_scalar));
 	return GARROW_EXPRESSION(garrow_literal_expression_new(val_datum));
 }
@@ -1283,33 +1153,13 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 		case T_OpExpr:
 			{
 				OpExpr	  *opexpr = (OpExpr *)node;
-				const char  *funcname;
-				switch (opexpr->opno)
-				{
-					case OID_TEXT_LIKE_OP:
-					case OID_BPCHAR_LIKE_OP:
-						return build_like_expression(opexpr, pcontext, false);
-						break;
-					case OID_TEXT_NOT_LIKE_OP:
-					case OID_BPCHAR_NOT_LIKE_OP:
-						return build_like_expression(opexpr, pcontext, true);
-						break;
-					case OIDTextConcatenateOperator:
-						return build_text_join(opexpr->args, pcontext);
-						break;
-					default:
-						break;
-				}
-				funcname = get_op_name(opexpr->opno);
-				if (!funcname)
-					elog(ERROR, "Failed to call get_opname(%d) ", opexpr->opno);
-				if (!funcname)
-					elog(ERROR, "expression_name unrecognized typeid: %d funname: %s",
-							opexpr->opno, funcname);
-				if (0 == strcmp(funcname, "divide") && pcontext->is_case_when)
-					expr = build_divide_casewhen_opexpr(opexpr, pcontext);
-				else
-					expr = func_args_to_expression(opexpr->args, pcontext, funcname);
+				return get_function_expression(opexpr->opfuncid, pcontext, opexpr->args);
+				break;
+			}
+		case T_FuncExpr:
+			{
+				FuncExpr	  *funcexpr = (FuncExpr *)node;
+				return get_function_expression(funcexpr->funcid, pcontext, funcexpr->args);
 				break;
 			}
 		case T_WindowFunc:
@@ -1378,12 +1228,6 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 			}
 		case T_List:
 			break;
-		case T_FuncExpr:
-			{
-				FuncExpr	  *opexpr = (FuncExpr *)node;
-				return get_function_expression(opexpr, pcontext);
-				break;
-			}
 		case T_RelabelType:
 			{
 				RelabelType	  *opexpr = (RelabelType *)node;
@@ -1416,7 +1260,7 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 			{
 				ScalarArrayOpExpr *arrayexpr = (ScalarArrayOpExpr *) node;
 				/* FIXME: todo: implement `not in` */
-				expr = scalararray_to_expression(arrayexpr, pcontext);				
+				expr = scalararray_to_expression(arrayexpr, pcontext);
 				break;
 			}
 		case T_NullTest:
@@ -1482,24 +1326,24 @@ static inline VecAggInfo *
 new_agg_info(Aggref *aggref, int aggno, PlanBuildContext *pcontext)
 {
 	VecAggInfo *agginfo;
-	const ArrowFmgr *fmgr;
-	const FuncTable *table;
+	const ArrowAggFmgr *fmgr;
+	const AggFuncTable *table;
 
 	Assert(aggref->aggsplit == pcontext->aggsplit);
 
 	agginfo = palloc(sizeof(VecAggInfo));
 	agginfo->aggref = aggref;
 
-	fmgr = get_arrow_fmgr(aggref->aggfnoid);
+	fmgr = get_arrow_agg_fmgr(aggref->aggfnoid);
 	if (!fmgr)
 		elog(ERROR, "Can not find Arrow aggregate fmgr, aggfnoid: %d",
 				aggref->aggfnoid);
 	if (pcontext->aggsplit == AGGSPLIT_FINAL_DESERIAL)
-		table = get_arrow_functable(fmgr->finalfn);
+		table = get_arrow_agg_functable(fmgr->finalfn);
 	else if (pcontext->aggsplit == AGGSPLIT_INITIAL_SERIAL)
-		table = get_arrow_functable(fmgr->transfn);
+		table = get_arrow_agg_functable(fmgr->transfn);
 	else if (pcontext->aggsplit == AGGSPLIT_SIMPLE)
-		table = get_arrow_functable(fmgr->simplefn);
+		table = get_arrow_agg_functable(fmgr->simplefn);
 	else
 		elog(ERROR, "doesn't support aggsplit: %d", pcontext->aggsplit);
 
@@ -1518,17 +1362,17 @@ static inline VecAggInfo *
 new_winagg_info(WindowFunc *wfunc, PlanBuildContext *pcontext)
 {
 	VecAggInfo *agginfo;
-	const ArrowFmgr *fmgr;
-	const FuncTable *table;
+	const ArrowAggFmgr *fmgr;
+	const AggFuncTable *table;
 
 	agginfo = palloc(sizeof(VecAggInfo));
 	agginfo->wfunc = wfunc;
 
-	fmgr = get_arrow_fmgr(wfunc->winfnoid);
+	fmgr = get_arrow_agg_fmgr(wfunc->winfnoid);
 	if (!fmgr)
 		elog(ERROR, "Can not find Arrow aggregate fmgr, aggfnoid: %d", wfunc->winfnoid);
 
-	table = get_arrow_functable(fmgr->simplefn);
+	table = get_arrow_agg_functable(fmgr->simplefn);
 	agginfo->aname = table->funcName;
 	agginfo->options = table->getOption(list_length(wfunc->args));
 
@@ -1625,7 +1469,7 @@ BuildAppendPlan(PlanBuildContext *pcontext, VecExecuteState *estate)
 	append_option = garrow_append_node_options_new();
 	append_node = garrow_execute_plan_build_append_node(pcontext->plan,
 								  	    nodes,
-									    garrow_move_ptr(append_option),
+									    append_option,
 									    &error);
 	if (error)
 		elog(ERROR, "Failed to create append node: %s.", error->message);

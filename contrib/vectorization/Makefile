@@ -35,8 +35,8 @@ PG_CPPFLAGS = -I$(libpq_srcdir) -Iarrow/include  -Wno-unused-result
 
 PG_REGRESS = $(top_builddir)/src/test/regress/pg_regress
 
-PG_CFLAGS += -I$(VECHEADERS) -I$(DIRTY) 
-
+PG_CFLAGS += -I$(VECHEADERS) -I$(DIRTY)
+$(shell python3 build_vec_table.py)
 ifdef USE_PGXS
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
@@ -70,11 +70,6 @@ endif
 .PHONY: download_arrow
 download_arrow:
 	sh ../../dependencies.sh vectorization $(debug)
-
-.PHONY: load
-load:
-	gpconfig -c shared_preload_libraries -v vectorization
-	gpstop -ar
 
 .PHONY: vec_test
 vec_test:

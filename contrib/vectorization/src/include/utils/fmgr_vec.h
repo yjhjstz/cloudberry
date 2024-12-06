@@ -28,10 +28,15 @@
 #define PG_NO_TRANS	fcinfo->notransvalue
 #define PG_HAS_BATCH (fcinfo->argbatch != NULL)
 #define PG_GETARG_BATCH (fcinfo->argbatch)
-typedef GArrowFunctionOptions *(*ArrowFunctionOpts)(int numargs);
 
+#define VEC_NUMERIC_MAX_PRECISION 35
+
+typedef struct PlanBuildContext PlanBuildContext;
+typedef GArrowFunctionOptions *(*ArrowFunctionOpts)(int numargs);
 typedef struct FunctionCallInfoBaseDataVec *FunctionCallInfoVec;
 typedef Datum (*PGVecFunction) (FunctionCallInfoVec fcinfo);
+typedef GArrowExpression* (*build_arrow_func_ptr)(List *args,PlanBuildContext *pcontext, const char *funcname);
+typedef bool (*extra_check_func_ptr)(List* args);
 /*
  * This struct is the data actually passed to an fmgr-called function.
  */
@@ -55,16 +60,25 @@ typedef struct FunctionCallInfoBaseDataVec
  * that are compiled into the Postgres executable).  The table entries are
  * required to appear in Oid order, so that binary search can be used.
  */
-typedef struct ArrowFmgr
+typedef struct ArrowAggFmgr
 {
 	const char *funcName; /* PG name of aggfnoid, got from pg_aggregate table*/
 	Oid			fnoid;
 	const char *transfn; /* Arrow aggregation transfn*/
 	const char *finalfn; /* Arrow aggregation finalfn*/
 	const char *simplefn; /* Arrow aggregation for AGGSPLIT_SIMPLE */
-} ArrowFmgr;
+} ArrowAggFmgr;
 
 typedef struct FuncTable
+{
+	const Oid procOid;
+	const char* descr;
+	const char* arrowFuncName;
+	const build_arrow_func_ptr builFunc;
+	const extra_check_func_ptr checkFunc;
+} FuncTable;
+
+typedef struct AggFuncTable
 {
 	/* default function name */
 	const char *funcName;
@@ -76,9 +90,9 @@ typedef struct FuncTable
 	const char *hashDistFuncName;
 	/* function */
 	ArrowFunctionOpts getOption;
-} FuncTable;
+} AggFuncTable;
 
-extern const ArrowFmgr arrow_fmgr_builtins[];
+extern const ArrowAggFmgr arrow_agg_fmgr_builtins[];
 typedef struct
 {
 	Oid                     foid;                   /* OID of the function */
@@ -88,13 +102,12 @@ typedef struct
 	bool		retset;			/* T if function returns a set */
 	const char *opname;         /* gandiva operation name */
 } FmgrVecBuiltin;
-#define arrow_fmgr_length sizeof(arrow_fmgr_builtins) / sizeof(ArrowFmgr)
 
-extern const FuncTable arrow_func_tables[];
-#define arrow_functables_length sizeof(arrow_func_tables) / sizeof(FuncTable)
+extern const AggFuncTable arrow_agg_func_tables[];
 
-extern const ArrowFmgr *get_arrow_fmgr(Oid foid);
-extern const FuncTable *get_arrow_functable(const char *name);
+extern const FuncTable *get_arrow_fmgr(Oid foid);
+extern const ArrowAggFmgr *get_arrow_agg_fmgr(Oid foid);
+extern const AggFuncTable *get_arrow_agg_functable(const char *name);
 /*
  * Get vector function information.
  */
@@ -111,6 +124,29 @@ extern Datum DirectCallVecFunc1Args(const char *fname, void *arg1);
 extern Datum DirectCallVecFunc2ArgsAndU32ArrayRes(const char *fname, void *arg1, void *arg2);
 extern Datum DirectCallVecFunc3ArgsAndU32ArrayRes(const char *fname, void *arg1, void *arg2, void* arg3);
 
+
+/*
+ * build function for converting postgres expression to arrow expression
+ */
+
+extern GArrowExpression *func_args_to_expression(List *args, PlanBuildContext *pcontext, const char* funcname);
+extern GArrowExpression *build_cast_int4_expression_allow_truncate(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_cast_int4_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_cast_int8_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_cast_float4_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_cast_float8_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_cast_numeric_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_cast_text_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *replace_substring_regex_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *replace_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *extract_expression(List *args, PlanBuildContext *pcontext, const char* name);
+extern GArrowExpression *utf8_slice_codeunits_expression(List *args, PlanBuildContext *pcontext, const char* name);
+extern GArrowExpression *build_round_without_precision(List *args, PlanBuildContext *pcontext, const char* name);
+extern GArrowExpression *build_round_with_precision(List *args, PlanBuildContext *pcontext, const char* name);
+extern GArrowExpression *build_text_join(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_like_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_not_like_expression(List *args, PlanBuildContext *pcontext, const char *name);
+extern GArrowExpression *build_divide_expr(List *args, PlanBuildContext *pcontext, const char* funcname);
 
 /* free the intermediate arrays */
 static inline void free_fmgr_vec(FunctionCallInfo fcinfo)

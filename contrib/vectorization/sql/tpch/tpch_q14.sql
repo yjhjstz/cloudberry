@@ -1,6 +1,4 @@
 set extra_float_digits = -1;
-set default_table_access_method=ao_column;
-set vector.enable_vectorization = on;
 
 ANALYZE;
 explain (costs off)  select

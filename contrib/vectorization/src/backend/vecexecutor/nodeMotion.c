@@ -1162,7 +1162,7 @@ ConcatenateDistributeBatches(TupleTableSlot **slot, PlanState  *outerNode, bool 
 		elog(ERROR, "Failed to concatenate the motion node input batches, cause: %s", error->message);
 
 	garrow_list_free_ptr(&rbs);
-	ExecStoreBatch(*slot, garrow_move_ptr(concatenateBatch));
+	ExecStoreBatch(*slot, concatenateBatch);
 }
 static TupleTableSlot *
 execVecMotionSender(MotionState *node)

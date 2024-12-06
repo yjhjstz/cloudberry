@@ -56,26 +56,6 @@
 
 #include <sys/stat.h>
 #include <sys/file.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#define NUMERIC_EQ 1718
-#define NUMERIC_NE 1719
-#define NUMERIC_GT 1720
-#define NUMERIC_GE 1721
-#define NUMERIC_LT 1722
-#define NUMERIC_LE 1723
-#define NUMERIC_ADD 1724
-#define NUMERIC_SUB 1725
-#define VEC_NUMERIC_MAX_PRECISION 35
-
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <regex.h>
 
 planner_hook_type           planner_prev = NULL;
@@ -93,7 +73,7 @@ static bool fallback_distinct_junk(Plan *plan);
 static bool fallback_nested_loop_jointype(Plan *plan);
 static bool joinclauses_type_different(Expr *node, void *context);
 static bool processFunction(int pid, int queryid);
-static  bool GloablprocessFunction(int pid);
+static bool GloablprocessFunction(int pid);
 typedef struct PreNodeContext
 {
 	Node *plannedStmt;
@@ -102,9 +82,7 @@ typedef struct PreNodeContext
 }PreNodeContext;
 
 static bool leftjoin_pull_antijoin(Node *node, PreNodeContext *context);
-
-static bool
-is_foreign_scan_vectorable(ForeignScan *foreignscan);
+static bool is_foreign_scan_vectorable(ForeignScan *foreignscan);
 static bool is_seventy_two_control(const char *query_string);
 
 static char* vector_foreign_data_wapper_whitelist[] =
@@ -122,66 +100,24 @@ is_type_vectorable(Oid typeOid)
 }
 
 static bool
-is_numeric_func_vectorable(FuncExpr *expr)
+is_func_vectorable(Oid funcOid, List* args)
 {
-	Oid funcOid = expr->funcid;
-	ListCell *l = NULL;
-	foreach(l, expr->args)
-	{
-		Expr  *arg_expr = (Expr *) lfirst(l);
-		if (!IsA(arg_expr, Const))
-			continue;
-		/* check numeric const args precision/scale */ 
-		Const* const_expr = (Const*) arg_expr;
-		if (strcmp(get_func_name(funcOid), "round") == 0)
-		{
-			int32_t scale = const_expr->constbyval ? const_expr->constvalue: const_expr->consttypmod;
-			if (scale >= VEC_NUMERIC_MAX_PRECISION)
-			{
-				elog(DEBUG2, "Fallback to non-vectorization; numeric round  scale %d not support", scale);
-				return false;
-			}
-		}
-		else if (strcmp(get_func_name(funcOid), "numeric") == 0) 
-		{
-			int32_t numeric_type = const_expr->constbyval ? const_expr->constvalue: const_expr->consttypmod;
-			int32_t precision = ((numeric_type  - VARHDRSZ) >> 16) & 0xffff;
-			if (precision > VEC_NUMERIC_MAX_PRECISION)
-			{
-				elog(DEBUG2, "Fallback to non-vectorization; numeric cast precision %d not support", precision);
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-/* Fixme: Should check by OID instead of name. */
-static bool
-is_func_vectorable(FuncExpr *expr)
-{
-	Oid funcOid = expr->funcid;
-	if (get_function_name(funcOid) == NULL)
+	const FuncTable *fmgr = get_arrow_fmgr(funcOid);
+	if (!fmgr)
 	{
 		elog(DEBUG2, "Fallback to non-vectorization; funcOid %d not support", funcOid);
 		return false;
 	}
-	if (!is_numeric_func_vectorable(expr))
+
+	if (!fmgr->checkFunc(args))
+	{
+		elog(DEBUG2, "Fallback to non-vectorization; funcOid %d not extra check failed", funcOid);
 		return false;
+	}
 	return true;
 }
 
-static bool 
-is_opexpr_vectorable(Oid operatorOid){
-	                  
-	if (get_op_name(operatorOid) != NULL)
-		return true;
-	elog(DEBUG2, "Fallback to non-vectorization; operatorOid %d not support", operatorOid);
-	return false;
-
-}
-
-static bool 
+static bool
 is_gandiva_func_support(Oid opno)
 {
 	char *name = get_opname(opno);
@@ -201,7 +137,7 @@ is_gandiva_func_support(Oid opno)
 static bool
 is_aggfn_vectorable(Oid aggfnOid)
 {
-	if (get_arrow_fmgr(aggfnOid) != NULL)
+	if (get_arrow_agg_fmgr(aggfnOid) != NULL)
 		return true;
 	elog(DEBUG2, "Fallback to non-vectorization; aggfnoid %d not support", aggfnOid);
 	return false;
@@ -240,7 +176,7 @@ is_scan_type_vectorable(Form_pg_attribute attr)
 		{
 			elog(DEBUG2, "Fallback to non-vectorization; numeric type precision %d not support", precision);
 			return false;
-		}	
+		}
 	}
 	return is_type_vectorable(typeOid);
 }
@@ -302,7 +238,7 @@ generate_plan(Query *parse, const char *query_string, int cursorOptions, ParamLi
 	instr_time	starttime, endtime;
 	extern planner_hook_type planner_prev;
 
-	if (planner_prev) 
+	if (planner_prev)
 	{
 		if (gp_log_optimization_time)
 			INSTR_TIME_SET_CURRENT(starttime);
@@ -386,7 +322,7 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 	return result;
 }
 
-static bool 
+static bool
 is_seventy_two_control(const char *query_string)
 {
 	regex_t	 regex;
@@ -415,7 +351,7 @@ try_vectorize_plan(PlannedStmt *result)
 	context.hashkeys = NIL;
 
 	plan_copy = copyObject(result->planTree);
-	
+
 	plan_copy = (Plan *) vectorize_plan_mutator((Node *) plan_copy, NULL);
 
 	vectorable = is_plan_vectorable(plan_copy, result->rtable);
@@ -471,14 +407,14 @@ vectorize_plan_mutator(Node *node, void *context)
 	{
 		OpExpr *op = (OpExpr *)mutated;
 
-		if ((op->opfuncid == NUMERIC_EQ) ||
-				(op->opfuncid == NUMERIC_NE) ||
-				(op->opfuncid == NUMERIC_GT) ||
-				(op->opfuncid == NUMERIC_GE) ||
-				(op->opfuncid == NUMERIC_LT) ||
-				(op->opfuncid == NUMERIC_LE) ||
-				(op->opfuncid == NUMERIC_ADD) ||
-				(op->opfuncid == NUMERIC_SUB))
+		if ((op->opfuncid == F_NUMERIC_EQ) ||
+				(op->opfuncid == F_NUMERIC_NE) ||
+				(op->opfuncid == F_NUMERIC_GT) ||
+				(op->opfuncid == F_NUMERIC_GE) ||
+				(op->opfuncid == F_NUMERIC_LT) ||
+				(op->opfuncid == F_NUMERIC_LE) ||
+				(op->opfuncid == F_NUMERIC_ADD) ||
+				(op->opfuncid == F_NUMERIC_SUB))
 		{
 			Expr *arg1 = (Expr *)linitial(op->args);
 			Expr *arg2 = (Expr *)lsecond(op->args);
@@ -560,39 +496,19 @@ is_expr_vectorable(Expr* expr, void *context)
 		case T_OpExpr:
 			{
 				OpExpr	  *opexpr = (OpExpr *)expr;
-				switch (opexpr->opno)
-				{
-					case OID_TEXT_LIKE_OP:
-					case OID_TEXT_NOT_LIKE_OP:
-					case OID_BPCHAR_NOT_LIKE_OP:
-					case OID_BPCHAR_LIKE_OP:
-					{
-						//TODO: If one of the arguments is FUNCEXPR, but the result of the calculation of that FUNCEXPR 
-						// is a constant, it should not fallback.
-						Expr  *first_expr = linitial(opexpr->args);
-						Expr  *second_expr = lsecond(opexpr->args);
-						if (!IsA(first_expr, Const) && !IsA(second_expr, Const)) {
-							return false;
-						}
-						break;
-					}
-					default:
-						break;
-				}
-
-				if (!is_opexpr_vectorable(opexpr->opno) || list_length(opexpr->args) == 1)
-					return false;
-				if (!is_type_vectorable(opexpr->opresulttype))
+				if (!is_func_vectorable(opexpr->opfuncid, opexpr->args) ||
+						list_length(opexpr->args) == 1 ||
+						!is_expr_vectorable((Expr*)opexpr->args, context) ||
+						!is_type_vectorable(opexpr->opresulttype))
 					return false;
 			}
 			break;
 		case T_FuncExpr:
 			{
 				FuncExpr *func_expr = (FuncExpr *)expr;
-
-				if (!is_func_vectorable(func_expr))
-					return false;
-				if (!is_type_vectorable(func_expr->funcresulttype))
+				if (!is_func_vectorable(func_expr->funcid, func_expr->args) ||
+						!is_expr_vectorable((Expr*)func_expr->args, context) ||
+						!is_type_vectorable(func_expr->funcresulttype))
 					return false;
 			}
 			break;
@@ -611,7 +527,7 @@ is_expr_vectorable(Expr* expr, void *context)
 					{
 						elog(DEBUG2, "Fallback to non-vectorization; agg filter not support");
 						return false;
-					}			
+					}
 				}
 				else /* WindowFunc */
 				{
@@ -622,7 +538,7 @@ is_expr_vectorable(Expr* expr, void *context)
 					{
 						elog(DEBUG2, "Fallback to non-vectorization; agg filter not support");
 						return false;
-					}	
+					}
 				}
 
 				if (!is_type_vectorable(typid))
@@ -990,7 +906,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 			{
 				elog(DEBUG2, "Fallback to non-vectorization, node is not supported, tag is : %d", nodeTag(plan));	
 				return false;
-			}		
+			}
 	}
 
 	return is_expr_vectorable((Expr *)plan->targetlist, NULL)
@@ -1096,7 +1012,7 @@ arrow_aggref_adapter(List *targetlist)
 	}
 }
 
-static bool 
+static bool
 is_relation_vectorable(Scan* seqscan, List *rtable, bool isForeign)
 {
 	TupleDesc tupdesc;
@@ -1641,7 +1557,6 @@ static bool processFunction(int pid, int queryid)
 	mkdir(dirPath, 0777);
 	}
 
-    
 	lockFile = open(lockFilePath, O_RDWR | O_CREAT, 0666);
 	if (lockFile == -1)
 	{
@@ -1739,9 +1654,8 @@ static bool processFunction(int pid, int queryid)
 					token = strtok(NULL, "\n");
 			}
 		}
-	
 	}
-	
+
 	if (existing_processes < max_muti_process)
 	{
 		status = true;
@@ -1780,13 +1694,12 @@ static bool GloablprocessFunction(int pid)
 
 	if (access(dirPath, F_OK) != 0)
 	{
-	#ifdef DEBUG
+#ifdef DEBUG
 	elog(INFO,"Create path %s",dirPath);
-	#endif
+#endif
 	mkdir(dirPath, 0777);
 	}
 
-    
 	lockFile = open(lockFilePath, O_RDWR | O_CREAT, 0666);
 	if (lockFile == -1)
 	{

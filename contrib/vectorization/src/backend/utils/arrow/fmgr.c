@@ -27,18 +27,66 @@
 #include "utils/fmgr_vec.h"
 #include "utils/vecfuncs.h"
 #include "utils/wrapper.h"
-/* FIXME: The invalid interface needs to be cleared later */
-
+#include "utils/arrow_fmgr.h"
 
 static GArrowFunctionOptions*
 build_empty(int numargs) { return NULL; }
 
+static bool
+alway_support(List* args) { 
+	(void)args;
+	return true;
+}
+
+static bool
+check_like_function(List* args) {
+	Expr  *first_expr = linitial(args);
+	Expr  *second_expr = lsecond(args);
+	if (!IsA(first_expr, Const) && !IsA(second_expr, Const))
+	{
+		return false;
+	}
+	return true;
+}
+
+static bool
+check_numeric_round(List* args) {
+	Expr *scale = (Expr *) lsecond(args);
+	Const* const_expr = NULL;
+	int32_t numeric_type;
+	if (!IsA(scale, Const))
+		return false;
+	const_expr = (Const*) scale;
+	numeric_type = const_expr->constbyval ? DatumGetInt32(const_expr->constvalue): const_expr->consttypmod;
+	if (numeric_type > VEC_NUMERIC_MAX_PRECISION)
+		return false;
+	return true;
+
+}
+
+static bool
+check_numeric_adjust(List* args) {
+	Expr *scale = (Expr *) lsecond(args);
+	Const* const_expr = NULL;
+	int32_t numeric_type;
+	int32_t precision;
+	if (!IsA(scale, Const))
+		return false;
+	const_expr = (Const*) scale;
+	numeric_type = const_expr->constbyval ? DatumGetInt32(const_expr->constvalue): const_expr->consttypmod;
+	precision  = ((numeric_type  - VARHDRSZ) >> 16) & 0xffff;
+	if (precision > VEC_NUMERIC_MAX_PRECISION)
+		return false;
+	return true;
+}
+
+const FuncTable arrow_func_tables[] = {ARROW_FMGR};
 /*
  * Search pg_aggregate table by SQL to get PG aggregate function information
  * to fill funcName and fnoid.
  * SQL: select aggfnoid from pg_aggregate where aggfnoid = 2147; 
  */
-const ArrowFmgr arrow_fmgr_builtins[] = {
+const ArrowAggFmgr arrow_agg_fmgr_builtins[] = {
         { "min", F_MIN_INT2, "min", "min", "min"},
         { "min", F_MIN_INT4, "min", "min", "min"},
         { "min", F_MIN_INT8, "min", "min", "min"},
@@ -71,7 +119,7 @@ const ArrowFmgr arrow_fmgr_builtins[] = {
         { "avg", F_AVG_NUMERIC, "avg_trans", "avg_final", "mean_numeric"},
 };
 
-const FuncTable arrow_func_tables[] = {
+const AggFuncTable arrow_agg_func_tables[] = {
 	/* agg func */
 	{ "count", "hash_count", "count_distinct", "hash_count_distinct", build_all_count_options },
 	{ "sum", "hash_sum", "sum_distinct", "hash_sum_distinct", build_empty},
@@ -90,35 +138,51 @@ const FuncTable arrow_func_tables[] = {
 	{ "stddev_numeric", "hash_stddev_numeric", "hash_stddev_numeric", "hash_stddev_numeric", build_sample_stddev_options},
 };
 
-const ArrowFmgr *
+const FuncTable *
 get_arrow_fmgr(Oid foid)
 {
-    int i;
-    const ArrowFmgr *fmgr;
+	int arrow_fmgr_length = sizeof(arrow_func_tables) / sizeof(FuncTable);
+	const FuncTable *fmgr;
 
-    for (i = 0; i < arrow_fmgr_length; i++)
-    {
-        fmgr = &arrow_fmgr_builtins[i];
-        if (foid == fmgr->fnoid)
-            return fmgr;
-    }
-    return NULL;
+	for (int i = 0; i < arrow_fmgr_length; i++)
+	{
+		fmgr = &arrow_func_tables[i];
+		if (foid == fmgr->procOid)
+			return fmgr;
+	}
+	return NULL;
 }
 
-const FuncTable *
-get_arrow_functable(const char* name)
+const ArrowAggFmgr *
+get_arrow_agg_fmgr(Oid foid)
 {
-    int i;
-    const FuncTable *table;
+	int arrow_fmgr_length = sizeof(arrow_agg_fmgr_builtins) / sizeof(ArrowAggFmgr);
+	const ArrowAggFmgr *fmgr;
 
-    for (i = 0; i < arrow_functables_length; i++)
-    {
-        table = &arrow_func_tables[i];
-        if (strcasecmp(name, table->funcName) == 0)
-            return table;
-    }
-    elog(ERROR, "Can not find Arrow aggregate functable, name: %s", name);
-    return NULL;
+	for (int i = 0; i < arrow_fmgr_length; i++)
+	{
+		fmgr = &arrow_agg_fmgr_builtins[i];
+		if (foid == fmgr->fnoid)
+			return fmgr;
+	}
+	return NULL;
+}
+
+const AggFuncTable *
+get_arrow_agg_functable(const char* name)
+{
+	int i;
+	int  arrow_functables_length = sizeof(arrow_agg_func_tables) / sizeof(AggFuncTable);
+	const AggFuncTable *table;
+
+	for (i = 0; i < arrow_functables_length; i++)
+	{
+		table = &arrow_agg_func_tables[i];
+		if (strcasecmp(name, table->funcName) == 0)
+			return table;
+	}
+	elog(ERROR, "Can not find Arrow aggregate functable, name: %s", name);
+	return NULL;
 }
 
 /*
