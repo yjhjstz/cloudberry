@@ -162,7 +162,6 @@ typedef struct shareinput_Xslice_reference
 } shareinput_Xslice_reference;
 
 static dlist_head shareinput_Xslice_refs_vec = DLIST_STATIC_INIT(shareinput_Xslice_refs_vec);
-static bool shareinput_resowner_callback_registered_vec = false;
 
 /*
  * For local (i.e. intra-slice) variants, we use a 'shareinput_local_state'
@@ -187,12 +186,7 @@ typedef struct shareinput_local_state
 	Tuplestorestate *ts_state;
 } shareinput_local_state;
 
-static shareinput_Xslice_reference *get_shareinput_reference_vec(int share_id);
 static void release_shareinput_reference_vec(shareinput_Xslice_reference *ref);
-static void shareinput_release_callback_vec(ResourceReleasePhase phase,
-										bool isCommit,
-										bool isTopLevel,
-										void *arg);
 
 static void shareinput_writer_notifyready_vec(shareinput_Xslice_reference *ref);
 static void shareinput_reader_waitready_vec(shareinput_Xslice_reference *ref);
@@ -351,45 +345,7 @@ init_tuplestore_state_vec(ShareInputScanState *node)
 static TupleTableSlot *
 ExecVecShareInputScan(PlanState *pstate)
 {
-	ShareInputScanState *node = castNode(ShareInputScanState, pstate);
-	ShareInputScan *sisc = (ShareInputScan *) pstate->plan;
-	EState	   *estate;
-	ScanDirection dir;
-	bool		forward;
-	TupleTableSlot *slot;
-
-	/*
-	 * get state info from node
-	 */
-	estate = pstate->state;
-	dir = estate->es_direction;
-	forward = ScanDirectionIsForward(dir);
-
-	if (sisc->this_slice_id != currentSliceId && estate->es_plannedstmt->numSlices != 1)
-		elog(ERROR, "cannot execute alien Share Input Scan");
-
-	/* if first time call, need to initialize the tuplestore state.  */
-	if (!node->isready)
-		init_tuplestore_state_vec(node);
-
-	slot = node->ss.ps.ps_ResultTupleSlot;
-
-	Assert(!node->local_state->closed);
-
-	tuplestore_select_read_pointer(node->ts_state, node->ts_pos);
-	while(1)
-	{
-		bool		gotOK;
-		gotOK = tuplestore_getvecslot(node->ts_state, forward, false, slot);
-
-		if (!gotOK)
-			return NULL;
-
-		return slot;
-	}
-
-	Assert(!"should not be here");
-	return NULL;
+	return ExecuteVecPlan(&((VecShareInputScanState*)pstate)->estate);
 }
 
 /*  ------------------------------------------------------------------
@@ -492,12 +448,17 @@ ExecInitVecShareInputScan(ShareInputScan *node, EState *estate, int eflags)
 		local_state->childState = childState;
 	sisstate->local_state = local_state;
 
-	/* Get a lease on the shared state */
-	if (node->cross_slice)
-		sisstate->ref = get_shareinput_reference_vec(node->share_id);
-	else
-		sisstate->ref = NULL;
+	sisstate->ref = NULL;
+	vsisstate->gp_session_id = gp_session_id;
+	vsisstate->gp_command_count = gp_command_count;
+	vsisstate->share_id = node->share_id; 
+	vsisstate->num_slices = local_state->nsharers; 
+	vsisstate->ready = (node->producer_slice_id == currentSliceId) ? false : true;
+	vsisstate->is_producer = (node->producer_slice_id == currentSliceId && (local_state->ready == false)) ? true : false;
+	local_state->ready = true;
+	vsisstate->vecdesc = TupleDescToVecDesc(sisstate->ss.ps.ps_ResultTupleDesc);
 
+	BuildVecPlan((PlanState *)vsisstate, &vsisstate->estate);
 	return sisstate;
 }
 
@@ -733,71 +694,6 @@ get_shareinput_fileset_vec(void)
 
 
 /*
- * Get a reference to slot in shared memory for this shared scan.
- *
- * If the slot doesn't exist yet, it is created and initialized into
- * "not ready" state.
- *
- * The reference is tracked by the current ResourceOwner, and will be
- * automatically released on abort.
- */
-static shareinput_Xslice_reference *
-get_shareinput_reference_vec(int share_id)
-{
-	shareinput_tag tag;
-	shareinput_Xslice_state *xslice_state;
-	bool		found;
-	shareinput_Xslice_reference *ref;
-
-	/* Register our resource owner callback to clean up on first call. */
-	if (!shareinput_resowner_callback_registered_vec)
-	{
-		RegisterResourceReleaseCallback(shareinput_release_callback_vec, NULL);
-		shareinput_resowner_callback_registered_vec = true;
-	}
-
-	ref = MemoryContextAllocZero(TopMemoryContext,
-								 sizeof(shareinput_Xslice_reference));
-
-	LWLockAcquire(ShareInputScanLock, LW_EXCLUSIVE);
-
-	tag.session_id = gp_session_id;
-	tag.command_count = gp_command_count;
-	tag.share_id = share_id;
-	xslice_state = hash_search(shareinput_Xslice_hash,
-							   &tag,
-							   HASH_ENTER_NULL,
-							   &found);
-	if (!found)
-	{
-		if (xslice_state == NULL)
-		{
-			pfree(ref);
-			ereport(ERROR,
-					(errcode(ERRCODE_OUT_OF_MEMORY),
-					 errmsg("out of cross-slice ShareInputScan slots")));
-		}
-
-		xslice_state->refcount = 0;
-		pg_atomic_init_u32(&xslice_state->ready, 0);
-		pg_atomic_init_u32(&xslice_state->ndone, 0);
-
-		ConditionVariableInit(&xslice_state->ready_done_cv);
-	}
-
-	xslice_state->refcount++;
-
-	ref->share_id = share_id;
-	ref->xslice_state = xslice_state;
-	ref->owner = CurrentResourceOwner;
-	dlist_push_head(&shareinput_Xslice_refs_vec, &ref->node);
-
-	LWLockRelease(ShareInputScanLock);
-
-	return ref;
-}
-
-/*
  * Release reference to a shared scan.
  *
  * The reference count in the shared memory slot is decreased, and if
@@ -828,36 +724,6 @@ release_shareinput_reference_vec(shareinput_Xslice_reference *ref)
 	LWLockRelease(ShareInputScanLock);
 
 	pfree(ref);
-}
-
-/*
- * Callback to release references on transaction abort.
- */
-static void
-shareinput_release_callback_vec(ResourceReleasePhase phase,
-							bool isCommit,
-							bool isTopLevel,
-							void *arg)
-{
-	dlist_mutable_iter miter;
-
-	if (phase != RESOURCE_RELEASE_BEFORE_LOCKS)
-		return;
-
-	dlist_foreach_modify(miter, &shareinput_Xslice_refs_vec)
-	{
-		shareinput_Xslice_reference *ref =
-			dlist_container(shareinput_Xslice_reference,
-							node,
-							miter.cur);
-
-		if (ref->owner == CurrentResourceOwner)
-		{
-			if (isCommit)
-				elog(WARNING, "shareinput lease reference leak: lease %p still referenced", ref);
-			release_shareinput_reference_vec(ref);
-		}
-	}
 }
 
 /*

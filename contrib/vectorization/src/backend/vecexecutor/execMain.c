@@ -133,6 +133,16 @@ typedef struct PlanBuildContext
 	Index table_oid;
 	Index am_oid;
 	GArrowSchema* relation_schema;
+
+	/* ShareScanNode fields */
+	bool is_sharescan;
+	int gp_session_id;
+	int gp_command_count;
+	int share_id;
+	int num_slices;
+	int is_cross_slice;
+	bool ready;
+	bool is_producer;
 } PlanBuildContext;
 
 typedef struct SortKey
@@ -177,6 +187,7 @@ static GArrowExecuteNode*build_orderby_node(PlanState *planstate, GArrowExecuteP
 static GArrowExpression *build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type, int32 typmod);
 static void BuildMaterializePlan(PlanBuildContext *pcontext, VecExecuteState *estate);
 static GArrowStoreType to_arrow_storetype(StoreType type);
+static void BuildShareScanPlan(PlanBuildContext *pcontext, VecExecuteState *estate);
 
 static int plan_num = 0;
 
@@ -1418,6 +1429,60 @@ BuildMaterializePlan(PlanBuildContext *pcontext, VecExecuteState *estate)
 	return;
 }
 
+static void
+BuildShareScanPlan(PlanBuildContext *pcontext, VecExecuteState *estate)
+{
+	g_autoptr(GArrowExecuteNode) source_node = NULL;
+	g_autoptr(GArrowShareInputScanNodeOptions)	share_node_options = NULL;
+	g_autoptr(GArrowSourceShareNodeOptions)	share_source_node_options = NULL;
+	g_autoptr(GArrowExecuteNode) share_exec_node = NULL;
+	g_autoptr(GError) error = NULL;
+
+	if (pcontext->is_producer)
+	{
+		source_node = BuildSource(pcontext);
+		share_node_options = garrow_shareinputscan_node_options_new(pcontext->gp_session_id,
+													pcontext->gp_command_count,
+													pcontext->share_id,
+													pcontext->num_slices,
+													pcontext->is_cross_slice,
+													pcontext->ready,
+													&error);
+		if (error)
+			elog(ERROR, "build share producter node option fail caused by %s", error->message);
+
+		share_exec_node = garrow_execute_plan_build_shareinputscan_node(pcontext->plan,
+												source_node,
+												share_node_options,
+												&error);
+		if (error)
+			elog(ERROR, "build share producter node fail caused by %s", error->message);
+
+		BuildSink(share_exec_node, estate, pcontext);
+	}
+	else
+	{
+		share_source_node_options = garrow_sourceshare_node_options_new(pcontext->inputschema,
+													pcontext->gp_session_id,
+													pcontext->gp_command_count,
+													pcontext->share_id,
+													pcontext->num_slices,
+													pcontext->is_cross_slice,
+													pcontext->ready,
+													&error);
+		if (error)
+			elog(ERROR, "build share consumer node option fail caused by %s", error->message);
+
+		share_exec_node = garrow_execute_plan_build_sourceshare_node(pcontext->plan,
+												share_source_node_options,
+												&error);
+		if (error)
+			elog(ERROR, "build share consumer node fail caused by %s", error->message);
+
+		BuildSink(share_exec_node, estate, pcontext);
+	}
+}
+
 static GArrowExecuteNode *
 BuildAppendPlan(PlanBuildContext *pcontext, VecExecuteState *estate)
 {
@@ -1534,6 +1599,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 	pcontext.store_file = NULL;
 	pcontext.chunk_size = 0;
 	pcontext.store_type = IN_MEMORY;
+	pcontext.is_sharescan = false;
 
 
 	/* change sinktype and pipeline when merging some arrow plans into a big one. */
@@ -1596,6 +1662,22 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 			pcontext.chunk_size = 0;
 			pcontext.store_type = IN_SINGLE;
 			pcontext.cdb_strict = vmatstate->cdb_strict;
+			pcontext.pipeline = false;
+			pcontext.sinktype = Plain;
+		}
+		break;
+		case T_ShareInputScanState:
+		{
+			VecShareInputScanState *vmatstate = (VecShareInputScanState *)planstate;
+			pcontext.inputschema = vmatstate->vecdesc->schema;
+			pcontext.is_sharescan = true;
+			pcontext.gp_session_id = vmatstate->gp_session_id;
+			pcontext.gp_command_count = vmatstate->gp_command_count;
+			pcontext.share_id = vmatstate->share_id;
+			pcontext.num_slices = vmatstate->num_slices;
+			pcontext.is_cross_slice = vmatstate->is_cross_slice;
+			pcontext.is_producer = vmatstate->is_producer;
+			pcontext.ready = vmatstate->ready;
 			pcontext.pipeline = false;
 			pcontext.sinktype = Plain;
 		}
@@ -1724,6 +1806,8 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 		BuildSequencePlan(&pcontext, estate);
 	else if (pcontext.is_materialize)
 		BuildMaterializePlan(&pcontext, estate);
+	else if (pcontext.is_sharescan)
+		BuildShareScanPlan(&pcontext, estate);
 	else
 	{
 		g_autoptr(GArrowExecuteNode) curnode = NULL;

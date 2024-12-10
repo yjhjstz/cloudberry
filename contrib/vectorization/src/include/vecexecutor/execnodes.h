@@ -231,7 +231,16 @@ typedef struct VecMaterialState
 typedef struct VecShareInputScanState
 {
 	ShareInputScanState base;
-}VecShareInputScanState;
+	VecExecuteState estate;
+	VecDesc vecdesc;
+	int gp_session_id;
+	int gp_command_count;
+	int share_id;
+	int num_slices;
+	int is_cross_slice;
+	bool ready;
+	bool is_producer;
+} VecShareInputScanState;
 
 typedef struct VecAggStatePerAggData 
 {
