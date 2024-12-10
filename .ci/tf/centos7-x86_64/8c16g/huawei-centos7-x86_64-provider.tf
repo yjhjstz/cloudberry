@@ -19,8 +19,8 @@ variable "instance_name" {
 }
 
 variable "instance_image" {
-  # ubuntu22 image_id
-  default = "a2f98a3f-5700-44d6-a35a-65eaf4032539"
+  # releng-base-cbdb-build-centos7-x86_64-20240527
+  default = "2efb1afa-a01f-4ce0-8bbc-ad16afd97e72"
 }
 
 variable "flavor_id" {
@@ -34,7 +34,7 @@ variable "instance_securitygroup" {
 }
 
 variable "instance_os_disk_size" {
-  default = 0
+  default = 200
 }
 
 variable "instance_vxnet" {

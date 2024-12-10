@@ -193,7 +193,7 @@ variables:
   CI_USER: root
   OS_TYPE: "centos7"
   ## set centos7 as default CI_TF_LOCATION 
-  CI_TF_LOCATION: ".ci/tf/centos7-x86_64"
+  CI_TF_LOCATION: ".ci/tf/centos7-x86_64/16c32g"
 
 .retry_rule:  &retry_rule
   retry:
@@ -438,6 +438,7 @@ vectorization:clickhouse:
     <<: *global_variables
     TEST_TYPE: "vec_test"
     MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c enable_parallel=off'"
+    CI_TF_LOCATION: ".ci/tf/centos7-x86_64/8c16g"
   <<: 
   - *vec_test_script
   - *vec_clickhouse_artifacts
@@ -451,6 +452,7 @@ vectorization:icw:
     <<: *global_variables
     TEST_TYPE: "icw_test"
     MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off'"
+    CI_TF_LOCATION: ".ci/tf/centos7-x86_64/8c16g"
   <<: 
   - *vec_test_script
   - *vec_regress_artifacts
@@ -464,6 +466,7 @@ vectorization:icw-orca:
     <<: *global_variables
     TEST_TYPE: "icw_test"
     MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c optimizer=on -c enable_parallel=off'"
+    CI_TF_LOCATION: ".ci/tf/centos7-x86_64/8c16g"
   <<: 
   - *vec_test_script
   - *vec_regress_artifacts
@@ -477,6 +480,7 @@ vectorization:icw-aocs:
     <<: *global_variables
     TEST_TYPE: "icw_aocs"
     MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off'"
+    CI_TF_LOCATION: ".ci/tf/centos7-x86_64/8c16g"
   <<: 
   - *vec_test_script
   - *vec_regress_artifacts
@@ -490,6 +494,7 @@ vectorization:icw-orca-aocs:
     <<: *global_variables
     TEST_TYPE: "icw_aocs"
     MAKE_TEST_COMMAND: "PGOPTIONS='-c vector.enable_vectorization=on -c optimizer=on -c enable_parallel=off'"
+    CI_TF_LOCATION: ".ci/tf/centos7-x86_64/8c16g"
   <<: 
   - *vec_test_script
   - *vec_regress_artifacts
@@ -531,6 +536,7 @@ centos7:x86_64:datalake_fdw_hdfs_test:
   variables:
     <<: *global_variables
     MAKE_TEST_COMMAND: "-k PGOPTIONS='-c optimizer=on' installcheck-world"
+    CI_TF_LOCATION: ".ci/tf/centos7-x86_64/8c16g"
   needs: ["centos7:x86_64:build"]
   timeout: 8 hours
   script: |
