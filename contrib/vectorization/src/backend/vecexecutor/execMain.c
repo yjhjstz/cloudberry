@@ -2342,7 +2342,6 @@ BuildScanNode(PlanBuildContext *pcontext, VecSeqScanState *estate, List *qualLis
 	if (error)
 		elog(ERROR, "Failed to create scan node, cause: %s.", error->message);
 	scan_node = garrow_execute_plan_build_scan_node(pcontext->plan,
-													pool_threads,
 													scan_node_options,
 													&error);
 	garrow_store_ptr(estate->scan_node_options, scan_node_options);
