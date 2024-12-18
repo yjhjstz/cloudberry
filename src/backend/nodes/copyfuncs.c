@@ -6338,6 +6338,7 @@ _copyCreateDirectoryTableStmt(const CreateDirectoryTableStmt *from)
 	CopyCreateStmtFields((const CreateStmt *) from, (CreateStmt *) newnode);
 
 	COPY_STRING_FIELD(tablespacename);
+	COPY_STRING_FIELD(location);
 
 	return newnode;
 }
