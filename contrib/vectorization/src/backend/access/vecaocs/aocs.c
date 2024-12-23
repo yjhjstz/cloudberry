@@ -232,6 +232,8 @@ open_ds_read(Relation rel, DatumStreamRead **ds, TupleDesc relationTupleDesc,
 						 attno + 1,
 						 NameStr(attr->attname));
 
+		RelationOpenSmgr(rel);
+
 		ds[attno] = create_datumstreamread(ct,
 										   clvl,
 										   checksum,
@@ -242,7 +244,8 @@ open_ds_read(Relation rel, DatumStreamRead **ds, TupleDesc relationTupleDesc,
 										   attr,
 										   RelationGetRelationName(rel),
 										    /* title */ titleBuf.data,
-										   &rel->rd_node);
+										   &rel->rd_node,
+										   rel->rd_smgr->smgr_ao);
 	}
 }
 

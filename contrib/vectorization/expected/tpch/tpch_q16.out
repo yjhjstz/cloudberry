@@ -30,32 +30,34 @@ order by
 	p_brand,
 	p_type,
 	p_size;
-                                                                                             QUERY PLAN                                                                                             
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                QUERY PLAN                                                                                                
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Vec Gather Motion 3:1  (slice1; segments: 3)
-   Merge Key: (count(DISTINCT partsupp.ps_suppkey)), part.p_brand, part.p_type, part.p_size
+   Merge Key: (count(partsupp.ps_suppkey)), part.p_brand, part.p_type, part.p_size
    ->  Vec Sort
-         Sort Key: (count(DISTINCT partsupp.ps_suppkey)) DESC, part.p_brand, part.p_type, part.p_size
-         ->  Vec GroupAggregate
+         Sort Key: (count(partsupp.ps_suppkey)) DESC, part.p_brand, part.p_type, part.p_size
+         ->  Vec HashAggregate
                Group Key: part.p_brand, part.p_type, part.p_size
-               ->  Vec Sort
-                     Sort Key: part.p_brand, part.p_type, part.p_size
-                     ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
-                           Hash Key: part.p_brand, part.p_type, part.p_size
-                           ->  Vec Hash Left Anti Semi (Not-In) Join
-                                 Hash Cond: (partsupp.ps_suppkey = supplier.s_suppkey)
-                                 ->  Vec Hash Join
-                                       Hash Cond: (partsupp.ps_partkey = part.p_partkey)
-                                       ->  Vec Seq Scan on partsupp
+               ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
+                     Hash Key: part.p_brand, part.p_type, part.p_size
+                     ->  Vec Streaming Vec HashAggregate
+                           Group Key: part.p_brand, part.p_type, part.p_size, partsupp.ps_suppkey
+                           ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
+                                 Hash Key: part.p_brand, part.p_type, part.p_size, partsupp.ps_suppkey, partsupp.ps_suppkey
+                                 ->  Vec Hash Left Anti Semi (Not-In) Join
+                                       Hash Cond: (partsupp.ps_suppkey = supplier.s_suppkey)
+                                       ->  Vec Hash Join
+                                             Hash Cond: (partsupp.ps_partkey = part.p_partkey)
+                                             ->  Vec Seq Scan on partsupp
+                                             ->  Vec Hash
+                                                   ->  Vec Seq Scan on part
+                                                         Filter: ((p_brand <> 'Brand#15'::text) AND ((p_type)::text !~~ 'LARGE BRUSHED%'::text) AND (p_size = ANY ('{4,41,17,9,15,2,25,34}'::integer[])))
                                        ->  Vec Hash
-                                             ->  Vec Seq Scan on part
-                                                   Filter: ((p_brand <> 'Brand#15'::text) AND ((p_type)::text !~~ 'LARGE BRUSHED%'::text) AND (p_size = ANY ('{4,41,17,9,15,2,25,34}'::integer[])))
-                                 ->  Vec Hash
-                                       ->  Vec Broadcast Motion 3:3  (slice3; segments: 3)
-                                             ->  Vec Seq Scan on supplier
-                                                   Filter: ((s_comment)::text ~~ '%Customer%Complaints%'::text)
+                                             ->  Vec Broadcast Motion 3:3  (slice4; segments: 3)
+                                                   ->  Vec Seq Scan on supplier
+                                                         Filter: ((s_comment)::text ~~ '%Customer%Complaints%'::text)
  Optimizer: Pivotal Optimizer (GPORCA)
-(23 rows)
+(25 rows)
 
 select
 	p_brand,

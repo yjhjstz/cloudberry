@@ -1072,11 +1072,11 @@ Distributed by: (a)
 
 -- Both partition bound and partition key in describe output
 \d+ part_c
-                             Partitioned table "public.part_c"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           | not null | 0       | plain    |              | 
+                                                       Partitioned table "public.part_c"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Compression Type | Compression Level | Block Size | Description 
+--------+---------+-----------+----------+---------+----------+--------------+------------------+-------------------+------------+-------------
+ a      | text    |           |          |         | extended |              | none             | 0                 | 32768      | 
+ b      | integer |           | not null | 0       | plain    |              | none             | 0                 | 32768      | 
 Partition of: parted FOR VALUES IN ('c')
 Partition constraint: ((a IS NOT NULL) AND (a = 'c'::text))
 Partition key: RANGE (b)
