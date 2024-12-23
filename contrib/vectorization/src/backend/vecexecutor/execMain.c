@@ -178,6 +178,8 @@ static GArrowExpression *build_literal_expression(GArrowType type, Datum datum, 
 static void BuildMaterializePlan(PlanBuildContext *pcontext, VecExecuteState *estate);
 static GArrowStoreType to_arrow_storetype(StoreType type);
 
+static int plan_num = 0;
+
 static char *
 build_materialize_file_name()
 {
@@ -1707,6 +1709,8 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 	{
 		pcontext.plan = garrow_execute_plan_new(&error);
 	}
+	garrow_execute_plan_set_plan_id(pcontext.plan, plan_num);
+	plan_num++;
 	if (error)
 		elog(ERROR, "Build arrow plan failed: plan node type %d.",
 				nodeTag(planstate->plan));
@@ -1920,6 +1924,11 @@ FreeVecExecuteState(VecExecuteState *estate)
 	{
 		list_free(estate->resqueue);
 		estate->resqueue = NIL;
+	}
+
+	if (estate->arrow_node_to_planstate)
+	{
+		list_free(estate->arrow_node_to_planstate);
 	}
 }
 
@@ -3582,8 +3591,8 @@ SetArrowPlan(PlanState *ps, GArrowExecutePlan *plan)
 		return;
 }
 
-static GArrowExecutePlan *
-GetArrowPlan(PlanState *ps)
+VecExecuteState *
+GetVecExecuteState(PlanState *ps)
 {
 	if (ps == NULL)
 		return NULL;
@@ -3591,59 +3600,59 @@ GetArrowPlan(PlanState *ps)
 	if (IsA(ps, SeqScanState))
 	{
 		VecSeqScanState *vsss = (VecSeqScanState *)ps;
-		return vsss->vestate.plan;
+		return &vsss->vestate;
 	}
 	else if (IsA(ps, ForeignScanState))
 	{
 		VecForeignScanState *vfss = (VecForeignScanState *)ps;
-		return vfss->vestate.plan;
+		return &vfss->vestate;
 	}
 	else if (IsA(ps, ResultState))
 	{
 		VecResultState *vrs = (VecResultState *)ps;
 		if (vrs->base.hashFilter)
 			return NULL;
-		return vrs->estate.plan;
+		return &vrs->estate;
 	}
 	else if (IsA(ps, AggState))
 	{
 		VecAggState *vas = (VecAggState *)ps;
-		return vas->estate.plan;
+		return &vas->estate;
 	}
 	else if (IsA(ps, SubqueryScanState))
 	{
 		VecSubqueryScanState *vsss = (VecSubqueryScanState *)ps;
-		return vsss->estate.plan;
+		return &vsss->estate;
 	}
 	else if (IsA(ps, HashJoinState))
 	{
 		VecHashJoinState *vhjs = (VecHashJoinState *)ps;
-		return vhjs->estate.plan;
+		return &vhjs->estate;
 	}
 	else if (IsA(ps, AssertOpState))
 	{
 		VecAssertOpState *vaos = (VecAssertOpState *)ps;
-		return vaos->estate.plan;
+		return &vaos->estate;
 	}
 	else if (IsA(ps, SortState))
 	{
 		VecSortState *vsort = (VecSortState *)ps;
-		return vsort->estate.plan;
+		return &vsort->estate;
 	}
 	else if (IsA(ps, LimitState))
 	{
 		VecLimitState *vlimit = (VecLimitState *)ps;
-		return vlimit->estate.plan;
+		return &vlimit->estate;
 	}
 	else if (IsA(ps, WindowAggState))
 	{
 		VecWindowAggState *vwindow = (VecWindowAggState *)ps;
-		return vwindow->estate.plan;
+		return &vwindow->estate;
 	}
 	else if (IsA(ps, NestLoopState))
 	{
 		VecNestLoopState *vstate = (VecNestLoopState *) ps;
-		return vstate->estate.plan;
+		return &vstate->estate;
 	}
 	// FIXME: Sequence
 	else
@@ -3689,9 +3698,9 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node, PlanState *limi
 			GError *error = NULL;
 			schema = GetSchemaFromSlot(child_node->ps_ResultTupleSlot);
 			if (!enable_plan_merge)
-				sort_plan = GetArrowPlan(child_node);
+				sort_plan = GetVecExecuteState(child_node)->plan;
 			else
-				sort_plan = GetArrowPlan(limit_node);
+				sort_plan = GetVecExecuteState(limit_node)->plan;
 			keys = build_sort_keys(child_node, schema);
 			selectk_option = garrow_selectk_options_new(tuples_needed, keys);
 			node_options = GARROW_SINK_NODE_OPTIONS(
@@ -3814,32 +3823,73 @@ ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node, PlanState *limi
 	 */
 }
 
+static void
+MergeArrowNodeToPlanStateFromSource(List **arrow_node_to_planstate, VecExecuteState *source_estate, VecExecuteState *estate)
+{
+	if (source_estate)
+	{
+		estate->arrow_node_num = estate->arrow_node_num + source_estate->arrow_node_num - 2;
+		int plan_id = garrow_execute_plan_get_id(source_estate->plan);
+		garrow_release_time_collector_from_table(plan_id);
+		TraceNodeInfo* last_info = llast(source_estate->arrow_node_to_planstate);
+		last_info->node_num--;
+
+		TraceNodeInfo* cur_info = llast(estate->arrow_node_to_planstate);
+		cur_info->node_num--;
+		*arrow_node_to_planstate = list_concat(*arrow_node_to_planstate, source_estate->arrow_node_to_planstate);
+		list_free(source_estate->arrow_node_to_planstate);
+	}
+}
+
 void
 PostBuildVecPlan(PlanState *ps, VecExecuteState *estate)
 {
+	GArrowExecutePlan *left_source;
+	GArrowExecutePlan *right_source;
+	VecExecuteState *left_estate;
+	VecExecuteState *right_estate;
+	GError *error = NULL;
+	GArrowExecutePlan *result;
+	List* arrow_node_to_planstate = NULL;
+	int plan_id;
+	TraceNodeInfo* info;
+	GArrowExecutePlan *target_plan;
+	VecExecuteState *target_state;
+
 	BuildVecPlan(ps, estate);
 
 	if (!enable_plan_merge)
 		return;
 
-	GArrowExecutePlan *target = GetArrowPlan(ps);
-	if (target == NULL)
+	plan_id = garrow_execute_plan_get_id(estate->plan);
+	Assert(plan_id == plan_num - 1);
+	info = (TraceNodeInfo*)palloc(sizeof(TraceNodeInfo));
+	info->ps = ps;
+	info->node_num = garrow_execute_plan_node_num(estate->plan);
+
+	estate->time_collector = garrow_time_collector_new(info->node_num);
+	estate->arrow_node_num = info->node_num;
+	garrow_time_collector_table_push_back(estate->time_collector);
+	estate->arrow_node_to_planstate = lappend(estate->arrow_node_to_planstate, info);
+
+	target_state = GetVecExecuteState(ps);
+	if (!target_state)
 		return;
+	target_plan = target_state->plan;
 
 	{
-		g_autofree gchar *plan_str = garrow_execute_plan_to_string(target);
+		g_autofree gchar *plan_str = garrow_execute_plan_to_string(target_plan);
 		elog(DEBUG2, "arrow plan in plan(%d): %s", ps->plan->plan_node_id, plan_str);
 	}
 
-	GArrowExecutePlan *left_source;
-	GArrowExecutePlan *right_source;
+	left_estate = GetVecExecuteState(ps->lefttree);
 
-	left_source = GetArrowPlan(ps->lefttree);
-	if (IsA(ps, HashJoinState))
-		right_source = GetArrowPlan(ps->righttree->lefttree);
-	else
-		right_source = GetArrowPlan(ps->righttree);
+	left_source = left_estate ? left_estate->plan : NULL;
+	right_estate = IsA(ps, HashJoinState) ?
+						GetVecExecuteState(ps->righttree->lefttree) :
+						GetVecExecuteState(ps->righttree);
 
+	right_source = right_estate ? right_estate->plan : NULL;
 	if (left_source == NULL)
 		return;
 
@@ -3849,19 +3899,24 @@ PostBuildVecPlan(PlanState *ps, VecExecuteState *estate)
 			return;
 	}
 
-	GError *error = NULL;
-	GArrowExecutePlan *result = garrow_execute_plan_merge(target, left_source,
-														  right_source, &error);
+	result = garrow_execute_plan_merge(target_plan, left_source, right_source, &error);
+	MergeArrowNodeToPlanStateFromSource(&arrow_node_to_planstate, left_estate, estate);
+	MergeArrowNodeToPlanStateFromSource(&arrow_node_to_planstate, right_estate, estate);
+
+	arrow_node_to_planstate = list_concat(arrow_node_to_planstate, estate->arrow_node_to_planstate);
+	list_free(estate->arrow_node_to_planstate);
+
 	if (error)
 	{
 		elog(LOG, "Failed to merge plan, cause: %s", error->message);
 		return;
 	}
 
-	{
-		g_autofree gchar *plan_str = garrow_execute_plan_to_string(result);
-		elog(DEBUG2, "merged plan in plan(%d): %s", ps->plan->plan_node_id, plan_str);
-	}
+	estate->arrow_node_to_planstate = arrow_node_to_planstate;
+	garrow_execute_plan_set_plan_id(result ,plan_num);
+	plan_num++;
+	estate->time_collector = garrow_time_collector_new(estate->arrow_node_num);
+	garrow_time_collector_table_push_back(estate->time_collector);
 
 	SetArrowPlan(ps, result);
 }

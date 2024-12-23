@@ -192,7 +192,7 @@ ExecInitVecMaterial(Material *node, EState *estate, int eflags)
 	 * initialize tuple type.
 	 */
 	ExecCreateScanSlotFromOuterPlan(estate, &matstate->ss, &TTSOpsVecTuple);
-	BuildVecPlan((PlanState *)vmatstate, &vmatstate->estate);
+	PostBuildVecPlan((PlanState *)vmatstate, &vmatstate->estate);
 	return matstate;
 }
 

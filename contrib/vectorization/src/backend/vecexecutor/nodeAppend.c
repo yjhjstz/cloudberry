@@ -172,7 +172,7 @@ ExecInitVecAppend(Append *node, EState *estate, int eflags)
 	appendstate->as_whichplan = 0;
 	exec_append_initialize_next(appendstate);
 	vecappendstate->schema = NULL;
-	BuildVecPlan((PlanState *)vecappendstate, &vecappendstate->estate);
+	PostBuildVecPlan((PlanState *)vecappendstate, &vecappendstate->estate);
 	return appendstate;
 }
 

@@ -76,7 +76,7 @@ ExecInitVecSequence(Sequence *node, EState *estate, int eflags)
 	sequenceState->ps.resultops = ExecGetResultSlotOps(lastPlanState,
 													   &lastPlanState->resultopsfixed);
 
-	BuildVecPlan((PlanState *)vsequenceState, &vsequenceState->estate);
+	PostBuildVecPlan((PlanState *)vsequenceState, &vsequenceState->estate);
 	return sequenceState;
 }
 

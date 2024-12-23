@@ -24,10 +24,19 @@
 #include "nodes/execnodes.h"
 #include "utils/tuptable_vec.h"
 
+typedef struct TraceNodeInfo
+{
+	int node_num;
+	PlanState *ps;
+} TraceNodeInfo;
+
 /* runtime Arrow plan state */
 typedef struct VecExecuteState
 {
 	GArrowExecutePlan *plan;
+	List* arrow_node_to_planstate;
+	int arrow_node_num;
+	GArrowTimeCollector *time_collector;
 	bool started; /* plan execution has been started */
 	TupleTableSlot *slot; /* slot for plan result*/
 	bool pipeline;

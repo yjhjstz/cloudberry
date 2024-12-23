@@ -64,11 +64,66 @@ static void AdjustReplicatedTableCounts(EState *estate);
 static void ExecEndPlan(PlanState *planstate, EState *estate);
 static void ExecCheckXactReadOnly(PlannedStmt *plannedstmt);
 
+#ifdef HAVE_CLOCK_GETTIME
+
+#define INSTR_FROM_NANOSEC(t, micro) ((t).tv_sec = (micro) / 1000000000, (t).tv_nsec = (micro) % 1000000000)
+
+#else
+
+#define INSTR_FROM_NANOSEC(t, micro) ((t).tv_sec = (micro) / 1000000000, (t).tv_usec = (micro) % 1000000000 / 1000)
+
+#endif
+
+static void
+CollectTime(VecExecuteState* estate, int plan_id)
+{
+	garrow_time_collector_table_flush();
+	int i = 0;
+	ListCell *lc = NULL;
+	PlanState* pre = NULL;
+
+	foreach(lc, estate->arrow_node_to_planstate)
+	{
+		TraceNodeInfo *info = (TraceNodeInfo*)lfirst(lc);
+		PlanState* ps = info->ps;
+		for (int j = 0; j < info->node_num; j++)
+		{
+			Instrumentation* instr = ps->instrument;
+
+			int64 duration = garrow_time_collector_node_time(estate->time_collector, i);
+			int64 start_time = garrow_time_collector_start_time(estate->time_collector, i);
+			instr_time instr_duration;
+			instr_time instr_start_time;
+
+			INSTR_FROM_NANOSEC(instr_duration, duration);
+			INSTR_FROM_NANOSEC(instr_start_time, start_time);
+
+			INSTR_TIME_ADD(instr->counter, instr_duration);
+			if (!instr->running || INSTR_TIME_GET_MICROSEC(instr->firststart) * 1000 > start_time)
+			{
+				instr->running = true;
+				INSTR_TIME_ASSIGN(instr->firststart, instr_start_time);
+				instr->firsttuple = (double)duration / 1000000000;
+			}
+
+			if (pre != ps && pre)
+				pre->instrument->ntuples = garrow_time_collector_rows(estate->time_collector, i - 1);
+			pre = ps;
+			i++;
+		}
+	}
+	pre->instrument->ntuples = garrow_time_collector_rows(estate->time_collector, i - 1);
+}
+
+
 static TupleTableSlot *
 VecExecProcNodeGPDB(PlanState *node)
 {
 	TupleTableSlot *result;
 	MemoryContext oldcxt = NULL;
+	VecExecuteState*  estate = NULL;
+	int plan_id = -1;
+	extern bool enable_plan_merge;
 
 	/*
 	 * Even if we are requested to finish query, Motion has to do its work
@@ -94,7 +149,11 @@ VecExecProcNodeGPDB(PlanState *node)
 		node->fHadSentNodeStart = true;
 	}
 
-	if (node->instrument)
+	estate = GetVecExecuteState(node);
+	if (enable_plan_merge && node->instrument && estate)
+		plan_id = garrow_execute_plan_get_id(estate->plan);
+
+	if (node->instrument && (!estate || !enable_plan_merge ))
 		InstrStartNode(node->instrument);
 
 	if ((node->state->es_instrument & INSTRUMENT_MEMORY_DETAIL) != 0)
@@ -102,13 +161,16 @@ VecExecProcNodeGPDB(PlanState *node)
 
 	result = node->ExecProcNodeReal(node);
 
+	if (enable_plan_merge && node->instrument && TupIsNull(result) && estate)
+		CollectTime(estate, plan_id);
+
 	if ((node->state->es_instrument & INSTRUMENT_MEMORY_DETAIL) != 0)
 	{
 		Assert(CurrentMemoryContext == node->node_context);
 		MemoryContextSwitchTo(oldcxt);
 	}
 
-	if (node->instrument)
+	if (node->instrument && (!estate || !enable_plan_merge ))
 		InstrStopNode(node->instrument, TupIsNull(result) ? 0.0 : GetNumRows(result));
 
 	if (node->plan)

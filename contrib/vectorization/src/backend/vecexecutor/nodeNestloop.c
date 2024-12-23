@@ -251,7 +251,7 @@ ExecInitVecNestLoop(NestLoop *node, EState *estate, int eflags)
 	nlstate->nl_NeedNewOuter = true;
 	nlstate->nl_MatchedOuter = false;
 
-	BuildVecPlan((PlanState *) vnlstate, &vnlstate->estate);
+	PostBuildVecPlan((PlanState *) vnlstate, &vnlstate->estate);
 
 	NL1_printf("ExecInitVecNestLoop: %s\n",
 			   "node initialized");
