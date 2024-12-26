@@ -314,8 +314,9 @@ vecsort_performsort(VecTuplesortstate *state)
 		case TSS_INITIAL:
 			rs = garrow_execute_plan_start(GARROW_EXECUTE_PLAN(state->plan), &error);
 			if (!rs || error)
-				elog(ERROR, "Execute plan for vector sort error: %s.", error->message);
-			garrow_execute_plan_wait(GARROW_EXECUTE_PLAN(state->plan));
+				elog(ERROR, "Start plan for vector sort error: %s.", error->message);
+			if (!garrow_execute_plan_wait(state->plan, &error) || error)
+				elog(ERROR, "Execute plan for vector plan error: %s.", error->message);
 			state->status = TSS_SORTEDINMEM;
 			break;
 		default:

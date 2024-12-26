@@ -1980,7 +1980,10 @@ ExecuteVecPlan(VecExecuteState *estate)
 			bool isok;
 			isok = garrow_execute_plan_start(estate->plan, &error);
 			if (!isok || error)
-				elog(ERROR, "Execute plan for vector sort error: %s.", error->message);
+				elog(ERROR, "Start plan for vector plan error: %s.", error->message);
+			isok = garrow_execute_plan_wait(estate->plan, &error);
+			if (!isok || error)
+				elog(ERROR, "Execute plan for vector plan error: %s.", error->message);
 			estate->started = true;
 		}
 
@@ -1990,6 +1993,7 @@ ExecuteVecPlan(VecExecuteState *estate)
 
 		return ExecStoreBatch(estate->slot, batch);
 	}
+	pg_unreachable();
 }
 
 /* build sort keys
