@@ -1672,6 +1672,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 		case T_SequenceState:
 		{
 			SequenceState *node = castNode(SequenceState, planstate);
+			support_parallel = false;
 			if (!node->subplans)
 				elog(ERROR, "Sequence node can't be leaf in vector plan");
 			pcontext.inputschema = GetSchemaFromSlot(
