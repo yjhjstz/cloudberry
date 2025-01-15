@@ -183,7 +183,7 @@ remoteFileOpen(Oid spcId,
     result->fileName = pstrdup(fileName);
     result->handle = createRemoteFileHandle();
 
-    gopherFile = gopherOpenFile(connection, result->fileName, fileFlags, REMOTE_FILE_BLOCK_SIZE);
+    gopherFile = gopherOpenFile(connection, result->fileName, fileFlags, REMOTE_FILE_BLOCK_SIZE, NULL);
     if (gopherFile == NULL)
     {
         strlcpy(errorMessage, gopherGetLastError(), errorMessageSize);

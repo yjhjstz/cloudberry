@@ -34,7 +34,7 @@ GopherRandomAccessFile::Open()
 	if (disableCacheFile)
 		flag |= O_RDTHR;
 
-	gopherFile_ = gopherOpenFile(gopherFilesystem_, filePath_.c_str(), flag, BLOCK_SIZE);
+	gopherFile_ = gopherOpenFile(gopherFilesystem_, filePath_.c_str(), flag, BLOCK_SIZE, NULL);
 	if (gopherFile_ == NULL)
 	{
 		std::string message = "failed to open gopher file \"" + filePath_ + "\":" + gopherGetLastError();

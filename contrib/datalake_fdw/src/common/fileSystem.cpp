@@ -77,7 +77,7 @@ int FileSystem::openFile(const char *path, int flag)
 	elog(DEBUG5, "Datalake foreign table gopherOpenFile path:%s flag:%d block_size:%d",
 					gopher_prefix.c_str(), flag, GOPHER_BLOCK_SIZE);
 
-	file = gopherOpenFile(fs, gopher_prefix.c_str(), flag, GOPHER_BLOCK_SIZE);
+	file = gopherOpenFile(fs, gopher_prefix.c_str(), flag, GOPHER_BLOCK_SIZE, NULL);
 	if (file == NULL)
 	{
 		elog(ERROR, "gopher open \"%s\" failed. error message:%s.", path, gopherGetLastError());

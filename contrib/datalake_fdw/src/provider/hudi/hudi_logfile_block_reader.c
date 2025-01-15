@@ -55,7 +55,7 @@ logFileOpen(HudiLogFileReader *reader, int flag)
 
 	filePath = splitPath(reader->fileName);
 
-	reader->gopherFile = gopherOpenFile(reader->gopherFilesystem, filePath, flag, BLOCK_SIZE);
+	reader->gopherFile = gopherOpenFile(reader->gopherFilesystem, filePath, flag, BLOCK_SIZE, NULL);
 	if (reader->gopherFile == NULL)
 		elog(ERROR, "failed to open hudi logfile \"%s\": %s", reader->fileName, gopherGetLastError());
 
