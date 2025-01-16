@@ -322,6 +322,8 @@ remoteFileUnlink(Oid spcId, const char *fileName)
     ret = gopherPrefixDelete(connection, fileName);
     if (ret < 0)
         snprintf(remoteFileErrorStr, UFILE_ERROR_SIZE, "%s", gopherGetLastError());
+    else
+		elog(LOG, "Successfully unlink remote file %s, tablespace is %u.", fileName, spcId);
     return ret;
 }
 
@@ -345,6 +347,8 @@ remoteFileRmdir(Oid spcId, const char *dirName)
     ret = gopherPrefixDelete(connection, dirName);
     if (ret < 0)
         snprintf(remoteFileErrorStr, UFILE_ERROR_SIZE, "%s", gopherGetLastError());
+    else
+		elog(LOG, "Successfully remove remote directory %s, tablespace is %u.", dirName, spcId);
     return ret;
 }
 
