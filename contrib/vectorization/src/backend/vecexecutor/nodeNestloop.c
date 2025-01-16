@@ -58,16 +58,6 @@ ExecVecNestLoop(PlanState *pstate)
 	}
 
 	result = ExecuteVecPlan(&vnode->estate);
-	if (TupIsNull(result))
-	{
-		/*
-		 * CDB: We'll read no more from inner subtree. To keep our
-		 * sibling QEs from being starved, tell source QEs not to
-		 * clog up the pipeline with our never-to-be-consumed
-		 * data.
-		 */
-		ExecVecSquelchNode(pstate);
-	}
 	return result;
 }
 

@@ -36,8 +36,6 @@ extern bool two_phase_take;
 extern bool gather_motion_take;
 /* enable execution resources */
 extern bool enable_vector_memory_resource;
-/* merge some small arrow plans into a big one if true */
-extern bool enable_plan_merge;
 extern int pool_threads;
 
 #endif   /* GUC_VEC_H */

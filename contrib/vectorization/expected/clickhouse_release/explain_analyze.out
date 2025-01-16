@@ -1,0 +1,1099 @@
+-- set on vectorization
+SET vector.enable_vectorization=on;
+SET vector.max_batch_size=128;
+EXPLAIN ANALYZE SELECT COUNT(*) FROM hits;
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.436..0.919 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=1) (actual time=20.256..22.309 rows=1000 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=1) (actual time=0.200..0.287 rows=402 loops=1)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 41.427 ms
+   (slice0)    Executor memory: 1054K bytes.
+   (slice1)    Executor memory: 1286K bytes avg x 3 workers, 1286K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 43.472 ms
+(12 rows)
+
+EXPLAIN ANALYZE SELECT COUNT(*) FROM hits WHERE AdvEngineID <> 0;
+                                                            QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.298..0.614 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=1) (actual time=8.515..9.771 rows=57 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=1) (actual time=0.188..1.647 rows=45 loops=1)
+               Filter: (advengineid <> 0)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 11.323 ms
+   (slice0)    Executor memory: 1054K bytes.
+   (slice1)    Executor memory: 1286K bytes avg x 3 workers, 1286K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 17.208 ms
+(13 rows)
+
+EXPLAIN ANALYZE SELECT SUM(AdvEngineID), COUNT(*), AVG(ResolutionWidth) FROM hits;
+                                                             QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=24) (actual time=0.437..1.644 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=4) (actual time=4.712..6.804 rows=1000 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=4) (actual time=0.217..0.554 rows=402 loops=1)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 11.216 ms
+   (slice0)    Executor memory: 1057K bytes.
+   (slice1)    Executor memory: 1385K bytes avg x 3 workers, 1385K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 13.978 ms
+(12 rows)
+
+EXPLAIN ANALYZE SELECT COUNT(DISTINCT UserID) FROM hits;
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Vec Finalize Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.188..0.592 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=6.029..6.586 rows=3 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Partial Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.104..0.489 rows=1 loops=1)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.219..0.421 rows=402 loops=1)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 8.515 ms
+   (slice0)    Executor memory: 1061K bytes.
+   (slice1)    Executor memory: 1292K bytes avg x 3 workers, 1292K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 11.963 ms
+(14 rows)
+
+EXPLAIN ANALYZE SELECT COUNT(DISTINCT SearchPhrase) FROM hits;
+                                                             QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.464..1.828 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=4.380..6.409 rows=1000 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.199..0.481 rows=402 loops=1)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 8.628 ms
+   (slice0)    Executor memory: 1057K bytes.
+   (slice1)    Executor memory: 1286K bytes avg x 3 workers, 1286K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 13.559 ms
+(12 rows)
+
+EXPLAIN ANALYZE SELECT MIN(EventDate), MAX(EventDate) FROM hits;
+                                                             QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.449..1.632 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=4) (actual time=4.336..6.273 rows=1000 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=4) (actual time=0.199..0.486 rows=402 loops=1)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 7.366 ms
+   (slice0)    Executor memory: 1056K bytes.
+   (slice1)    Executor memory: 1286K bytes avg x 3 workers, 1286K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 13.470 ms
+(12 rows)
+
+EXPLAIN ANALYZE SELECT AdvEngineID, COUNT(*) FROM hits WHERE AdvEngineID <> 0 GROUP BY AdvEngineID ORDER BY COUNT(*) DESC;
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=10) (actual time=132.465..132.469 rows=2 loops=1)
+   Merge Key: (count())
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Sort  (cost=0.00..431.00 rows=1 width=10) (actual time=0.069..0.854 rows=1 loops=1)
+         Sort Key: (count()) DESC
+         Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+         ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=10) (actual time=0.000..0.105 rows=1 loops=1)
+               Group Key: advengineid
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Sort  (cost=0.00..431.00 rows=1 width=2) (actual time=0.184..1.037 rows=53 loops=1)
+                     Sort Key: advengineid
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=2) (actual time=121.361..122.957 rows=53 loops=1)
+                           Hash Key: advengineid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=2) (actual time=0.089..0.681 rows=45 loops=1)
+                                 Filter: (advengineid <> 0)
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 8.996 ms
+   (slice0)    Executor memory: 2099K bytes.
+   (slice1)    Executor memory: 2082K bytes avg x 3 workers, 2082K bytes max (seg0).
+   (slice2)    Executor memory: 1289K bytes avg x 3 workers, 1289K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 141.997 ms
+(25 rows)
+
+EXPLAIN ANALYZE SELECT RegionID, COUNT(DISTINCT UserID) AS u FROM hits GROUP BY RegionID ORDER BY u DESC, RegionID LIMIT 10;
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.197 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=12) (actual time=141.170..141.178 rows=24 loops=1)
+         Merge Key: (count(DISTINCT userid)), regionid
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.043..0.839 rows=11 loops=1)
+               Sort Key: (count(DISTINCT userid)) DESC, regionid
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Finalize Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.113 rows=11 loops=1)
+                     Group Key: regionid
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.287..1.182 rows=15 loops=1)
+                           Sort Key: regionid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=12) (actual time=107.883..130.949 rows=15 loops=1)
+                                 Hash Key: regionid
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Partial Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.138 rows=13 loops=1)
+                                       Group Key: regionid
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                       ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.164..1.480 rows=402 loops=1)
+                                             Sort Key: regionid, userid
+                                             Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                             ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=12) (actual time=0.220..0.461 rows=402 loops=1)
+                                                   Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 11.253 ms
+   (slice0)    Executor memory: 2117K bytes.
+   (slice1)    Executor memory: 2082K bytes avg x 3 workers, 2082K bytes max (seg0).
+   (slice2)    Executor memory: 1397K bytes avg x 3 workers, 1397K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 147.913 ms
+(32 rows)
+
+EXPLAIN ANALYZE SELECT RegionID, SUM(AdvEngineID), COUNT(*) AS c, AVG(ResolutionWidth), COUNT(DISTINCT UserID) FROM hits GROUP BY RegionID ORDER BY c DESC LIMIT 10;
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=36) (actual time=0.000..0.247 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=36) (actual time=189.440..189.445 rows=24 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=36) (actual time=0.086..0.914 rows=11 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=36) (actual time=0.000..0.181 rows=11 loops=1)
+                     Group Key: regionid
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.235..1.717 rows=859 loops=1)
+                           Sort Key: regionid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=101.824..174.851 rows=859 loops=1)
+                                 Hash Key: regionid
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.088..0.200 rows=402 loops=1)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 13.846 ms
+   (slice0)    Executor memory: 2123K bytes.
+   (slice1)    Executor memory: 2087K bytes avg x 3 workers, 2089K bytes max (seg0).
+   (slice2)    Executor memory: 1585K bytes avg x 3 workers, 1585K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 195.622 ms
+(26 rows)
+
+EXPLAIN ANALYZE SELECT MobilePhoneModel, COUNT(DISTINCT UserID) AS u FROM hits WHERE MobilePhoneModel <> '' GROUP BY MobilePhoneModel ORDER BY u DESC LIMIT 10;
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.076 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=14.543..14.547 rows=0 loops=1)
+         Merge Key: (count(DISTINCT userid))
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.558 rows=0 loops=1)
+               Sort Key: (count(DISTINCT userid)) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Finalize Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: mobilephonemodel
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.770 rows=0 loops=1)
+                           Sort Key: mobilephonemodel
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=8.514..8.515 rows=0 loops=1)
+                                 Hash Key: mobilephonemodel
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Partial Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.002 rows=0 loops=1)
+                                       Group Key: mobilephonemodel
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                       ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.127..0.950 rows=0 loops=1)
+                                             Sort Key: mobilephonemodel, userid
+                                             Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                             ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.174..1.563 rows=0 loops=1)
+                                                   Filter: (mobilephonemodel <> ''::text)
+                                                   Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 11.985 ms
+   (slice0)    Executor memory: 2122K bytes.
+   (slice1)    Executor memory: 2084K bytes avg x 3 workers, 2084K bytes max (seg0).
+   (slice2)    Executor memory: 1399K bytes avg x 3 workers, 1399K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 20.928 ms
+(33 rows)
+
+EXPLAIN ANALYZE SELECT MobilePhone, MobilePhoneModel, COUNT(DISTINCT UserID) AS u FROM hits WHERE MobilePhoneModel <> '' GROUP BY MobilePhone, MobilePhoneModel ORDER BY u DESC LIMIT 10;
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.067 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=18) (actual time=16.794..16.798 rows=0 loops=1)
+         Merge Key: (count(DISTINCT userid))
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.665 rows=0 loops=1)
+               Sort Key: (count(DISTINCT userid)) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Finalize Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.001 rows=0 loops=1)
+                     Group Key: mobilephone, mobilephonemodel
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.924 rows=0 loops=1)
+                           Sort Key: mobilephone, mobilephonemodel
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=18) (actual time=9.864..9.864 rows=0 loops=1)
+                                 Hash Key: mobilephone, mobilephonemodel
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Partial Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.002 rows=0 loops=1)
+                                       Group Key: mobilephone, mobilephonemodel
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                       ->  Vec Sort  (cost=0.00..431.00 rows=1 width=18) (actual time=0.146..1.088 rows=0 loops=1)
+                                             Sort Key: mobilephone, mobilephonemodel, userid
+                                             Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                             ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=18) (actual time=0.185..1.772 rows=0 loops=1)
+                                                   Filter: (mobilephonemodel <> ''::text)
+                                                   Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.984 ms
+   (slice0)    Executor memory: 2134K bytes.
+   (slice1)    Executor memory: 2086K bytes avg x 3 workers, 2086K bytes max (seg0).
+   (slice2)    Executor memory: 1501K bytes avg x 3 workers, 1501K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 23.576 ms
+(33 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase, COUNT(*) AS c FROM hits WHERE SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY c DESC, SearchPhrase LIMIT 10;
+                                                                             QUERY PLAN                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.202 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=126.002..126.009 rows=39 loops=1)
+         Merge Key: (count()), searchphrase
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.042..0.899 rows=17 loops=1)
+               Sort Key: (count()) DESC, searchphrase
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.064 rows=17 loops=1)
+                     Group Key: searchphrase
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.184..1.169 rows=37 loops=1)
+                           Sort Key: searchphrase
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=115.778..116.279 rows=37 loops=1)
+                                 Hash Key: searchphrase
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.105..0.584 rows=49 loops=1)
+                                       Filter: (searchphrase <> ''::text)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 9.418 ms
+   (slice0)    Executor memory: 2113K bytes.
+   (slice1)    Executor memory: 2086K bytes avg x 3 workers, 2086K bytes max (seg0).
+   (slice2)    Executor memory: 1289K bytes avg x 3 workers, 1289K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 131.308 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase, COUNT(DISTINCT UserID) AS u FROM hits WHERE SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY u DESC, searchphrase LIMIT 10;
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.201 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=133.699..133.706 rows=39 loops=1)
+         Merge Key: (count(DISTINCT userid)), searchphrase
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.047..0.924 rows=17 loops=1)
+               Sort Key: (count(DISTINCT userid)) DESC, searchphrase
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Finalize Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.122 rows=17 loops=1)
+                     Group Key: searchphrase
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.285..1.329 rows=17 loops=1)
+                           Sort Key: searchphrase
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=122.217..122.867 rows=17 loops=1)
+                                 Hash Key: searchphrase
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Partial Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.143 rows=17 loops=1)
+                                       Group Key: searchphrase
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                       ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.182..1.322 rows=49 loops=1)
+                                             Sort Key: searchphrase, userid
+                                             Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                             ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.247..2.024 rows=49 loops=1)
+                                                   Filter: (searchphrase <> ''::text)
+                                                   Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.189 ms
+   (slice0)    Executor memory: 2127K bytes.
+   (slice1)    Executor memory: 2086K bytes avg x 3 workers, 2086K bytes max (seg0).
+   (slice2)    Executor memory: 1399K bytes avg x 3 workers, 1399K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 140.723 ms
+(33 rows)
+
+EXPLAIN ANALYZE SELECT SearchEngineID, SearchPhrase, COUNT(*) AS c FROM hits WHERE SearchPhrase <> '' GROUP BY SearchEngineID, SearchPhrase ORDER BY c DESC, searchphrase LIMIT 10;
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.205 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=18) (actual time=131.445..131.451 rows=39 loops=1)
+         Merge Key: (count()), searchphrase
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=18) (actual time=0.063..0.917 rows=15 loops=1)
+               Sort Key: (count()) DESC, searchphrase
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=18) (actual time=0.000..0.069 rows=15 loops=1)
+                     Group Key: searchphrase, searchengineid
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=10) (actual time=0.190..1.475 rows=40 loops=1)
+                           Sort Key: searchphrase, searchengineid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=10) (actual time=119.674..120.405 rows=40 loops=1)
+                                 Hash Key: searchphrase, searchengineid
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=10) (actual time=0.079..0.648 rows=49 loops=1)
+                                       Filter: (searchphrase <> ''::text)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 10.741 ms
+   (slice0)    Executor memory: 2115K bytes.
+   (slice1)    Executor memory: 2087K bytes avg x 3 workers, 2087K bytes max (seg0).
+   (slice2)    Executor memory: 1389K bytes avg x 3 workers, 1389K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 137.034 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT UserID, COUNT(*) FROM hits GROUP BY UserID ORDER BY COUNT(*) DESC, userid LIMIT 10;
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.179 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=11.705..11.711 rows=72 loops=1)
+         Merge Key: (count()), userid
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.043..0.748 rows=27 loops=1)
+               Sort Key: (count()) DESC, userid
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.061 rows=27 loops=1)
+                     Group Key: userid
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.158..0.870 rows=402 loops=1)
+                           Sort Key: userid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.221..0.423 rows=402 loops=1)
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 8.662 ms
+   (slice0)    Executor memory: 1073K bytes.
+   (slice1)    Executor memory: 1299K bytes avg x 3 workers, 1299K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 16.390 ms
+(22 rows)
+
+EXPLAIN ANALYZE SELECT UserID, SearchPhrase, COUNT(*) FROM hits GROUP BY UserID, SearchPhrase ORDER BY COUNT(*) DESC, UserID ASC LIMIT 10;
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.208 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=24) (actual time=16.519..16.525 rows=97 loops=1)
+         Merge Key: (count()), userid
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=24) (actual time=0.058..0.984 rows=38 loops=1)
+               Sort Key: (count()) DESC, userid
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.080 rows=38 loops=1)
+                     Group Key: userid, searchphrase
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.166..1.620 rows=402 loops=1)
+                           Sort Key: userid, searchphrase
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.221..0.457 rows=402 loops=1)
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 8.171 ms
+   (slice0)    Executor memory: 1077K bytes.
+   (slice1)    Executor memory: 1401K bytes avg x 3 workers, 1401K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 21.438 ms
+(22 rows)
+
+EXPLAIN ANALYZE SELECT UserID FROM hits WHERE UserID = 435090932899640449;
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Vec Gather Motion 1:1  (slice1; segments: 1)  (cost=0.00..431.00 rows=1 width=8) (actual time=5.324..5.326 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.143..1.086 rows=0 loops=1)
+         Filter: (userid = '435090932899640449'::bigint)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment 1)
+ Planning Time: 6.769 ms
+   (slice0)    Executor memory: 1049K bytes.
+   (slice1)    Executor memory: 1286K bytes (seg1).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 8.008 ms
+(11 rows)
+
+EXPLAIN ANALYZE SELECT COUNT(*) FROM hits WHERE URL LIKE '%google%';
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=0.047..0.224 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=1) (actual time=7.023..7.024 rows=0 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=1) (actual time=0.171..2.247 rows=0 loops=1)
+               Filter: (url ~~ '%google%'::text)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 6.976 ms
+   (slice0)    Executor memory: 1054K bytes.
+   (slice1)    Executor memory: 1286K bytes avg x 3 workers, 1286K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 10.561 ms
+(13 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase, MIN(URL), COUNT(*) AS c FROM hits WHERE URL LIKE '%google%' AND SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10;
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.067 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=24) (actual time=12.027..12.039 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.745 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: searchphrase
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.828 rows=0 loops=1)
+                           Sort Key: searchphrase
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=5.961..5.962 rows=0 loops=1)
+                                 Hash Key: searchphrase
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.088..1.795 rows=0 loops=1)
+                                       Filter: ((url ~~ '%google%'::text) AND (searchphrase <> ''::text))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 11.303 ms
+   (slice0)    Executor memory: 2111K bytes.
+   (slice1)    Executor memory: 2085K bytes avg x 3 workers, 2085K bytes max (seg0).
+   (slice2)    Executor memory: 1387K bytes avg x 3 workers, 1387K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 17.507 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase, MIN(URL), MIN(Title), COUNT(*) AS c, COUNT(DISTINCT UserID) FROM hits WHERE Title LIKE '%Google%' AND URL NOT LIKE '%.google.%' AND SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10;
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=40) (actual time=0.000..0.064 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=40) (actual time=11.813..11.815 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=40) (actual time=0.000..0.993 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=40) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: searchphrase
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=32) (actual time=0.000..1.160 rows=0 loops=1)
+                           Sort Key: searchphrase
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=32) (actual time=3.769..3.770 rows=0 loops=1)
+                                 Hash Key: searchphrase
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=32) (actual time=0.097..1.313 rows=0 loops=1)
+                                       Filter: ((title ~~ '%Google%'::text) AND (url !~~ '%.google.%'::text) AND (searchphrase <> ''::text))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 15.817 ms
+   (slice0)    Executor memory: 2127K bytes.
+   (slice1)    Executor memory: 2089K bytes avg x 3 workers, 2089K bytes max (seg0).
+   (slice2)    Executor memory: 1585K bytes avg x 3 workers, 1585K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 18.543 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT * FROM hits WHERE URL LIKE '%google%' ORDER BY EventTime LIMIT 10;
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=712) (actual time=0.000..0.066 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=712) (actual time=111.794..111.796 rows=0 loops=1)
+         Merge Key: eventtime
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=712) (actual time=0.000..15.844 rows=0 loops=1)
+               Sort Key: eventtime
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=712) (actual time=0.305..29.137 rows=0 loops=1)
+                     Filter: (url ~~ '%google%'::text)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 15.745 ms
+   (slice0)    Executor memory: 1327K bytes.
+   (slice1)    Executor memory: 11582K bytes avg x 3 workers, 11582K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 123.827 ms
+(17 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY EventTime LIMIT 10;
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Result  (cost=0.00..431.00 rows=1 width=8) (actual time=0.034..0.075 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Limit  (cost=0.00..431.00 rows=1 width=8) (actual time=0.000..0.188 rows=10 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=11.584..11.591 rows=105 loops=1)
+               Merge Key: eventtime
+               Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+               ->  Vec Result  (cost=0.00..431.00 rows=1 width=16) (actual time=0.061..0.085 rows=49 loops=1)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.175..1.000 rows=49 loops=1)
+                           Sort Key: eventtime
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.240..2.170 rows=49 loops=1)
+                                 Filter: (searchphrase <> ''::text)
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 7.599 ms
+   (slice0)    Executor memory: 1073K bytes.
+   (slice1)    Executor memory: 1393K bytes avg x 3 workers, 1393K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 16.424 ms
+(21 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY SearchPhrase LIMIT 10;
+                                                             QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=8) (actual time=0.000..0.171 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=9.254..9.259 rows=105 loops=1)
+         Merge Key: searchphrase
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.138..0.932 rows=49 loops=1)
+               Sort Key: searchphrase
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.222..1.669 rows=49 loops=1)
+                     Filter: (searchphrase <> ''::text)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 6.897 ms
+   (slice0)    Executor memory: 1064K bytes.
+   (slice1)    Executor memory: 1292K bytes avg x 3 workers, 1292K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 12.937 ms
+(17 rows)
+
+EXPLAIN ANALYZE SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY EventTime, SearchPhrase LIMIT 10;
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Result  (cost=0.00..431.00 rows=1 width=8) (actual time=0.037..0.064 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Limit  (cost=0.00..431.00 rows=1 width=8) (actual time=0.000..0.170 rows=10 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=11.067..11.072 rows=105 loops=1)
+               Merge Key: eventtime, searchphrase
+               Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+               ->  Vec Result  (cost=0.00..431.00 rows=1 width=16) (actual time=0.056..0.080 rows=49 loops=1)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.177..1.176 rows=49 loops=1)
+                           Sort Key: eventtime, searchphrase
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.236..2.062 rows=49 loops=1)
+                                 Filter: (searchphrase <> ''::text)
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 6.888 ms
+   (slice0)    Executor memory: 1078K bytes.
+   (slice1)    Executor memory: 1395K bytes avg x 3 workers, 1395K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 15.764 ms
+(21 rows)
+
+EXPLAIN ANALYZE SELECT CounterID, AVG(length(URL)) AS l, COUNT(*) AS c FROM hits WHERE URL <> '' GROUP BY CounterID HAVING COUNT(*) > 100000 ORDER BY l DESC LIMIT 25;
+                                                                                QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.049 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=20) (actual time=111.033..111.036 rows=0 loops=1)
+         Merge Key: (avg(length(url)))
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.630 rows=0 loops=1)
+               Sort Key: (avg(length(url))) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Result  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.002 rows=0 loops=1)
+                     Filter: ((count()) > 100000)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=28) (actual time=0.000..0.366 rows=2 loops=1)
+                           Group Key: counterid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.173..1.520 rows=987 loops=1)
+                                 Sort Key: counterid
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=12) (actual time=96.659..97.313 rows=987 loops=1)
+                                       Hash Key: counterid
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                       ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=12) (actual time=0.101..0.712 rows=402 loops=1)
+                                             Filter: (url <> ''::text)
+                                             Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.142 ms
+   (slice0)    Executor memory: 2118K bytes.
+   (slice1)    Executor memory: 2125K bytes avg x 3 workers, 2195K bytes max (seg1).
+   (slice2)    Executor memory: 1388K bytes avg x 3 workers, 1390K bytes max (seg2).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 117.516 ms
+(30 rows)
+
+EXPLAIN ANALYZE SELECT REGEXP_REPLACE(Referer, '^https?://(?:www\.)?([^/]+)/.*$', '\1') AS k, AVG(length(Referer)) AS l, COUNT(*) AS c, MIN(Referer) FROM hits WHERE Referer <> '' GROUP BY k HAVING COUNT(*) > 100000 ORDER BY l DESC LIMIT 25;
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=32) (actual time=0.000..0.050 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=32) (actual time=143.491..143.493 rows=0 loops=1)
+         Merge Key: (avg(length(referer)))
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=32) (actual time=0.000..0.937 rows=0 loops=1)
+               Sort Key: (avg(length(referer))) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec Result  (cost=0.00..431.00 rows=1 width=32) (actual time=0.746..0.844 rows=0 loops=1)
+                     Filter: ((count()) > 100000)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=40) (actual time=0.000..0.293 rows=11 loops=1)
+                           Group Key: (regexp_replace(referer, '^https?://(?:www\.)?([^/]+)/.*$'::text, '\1'::text))
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.224..6.302 rows=621 loops=1)
+                                 Sort Key: (regexp_replace(referer, '^https?://(?:www\.)?([^/]+)/.*$'::text, '\1'::text))
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=120.236..124.369 rows=621 loops=1)
+                                       Hash Key: (regexp_replace(referer, '^https?://(?:www\.)?([^/]+)/.*$'::text, '\1'::text))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                       ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.082..9.818 rows=374 loops=1)
+                                             Filter: (referer <> ''::text)
+                                             Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.666 ms
+   (slice0)    Executor memory: 2126K bytes.
+   (slice1)    Executor memory: 2136K bytes avg x 3 workers, 2162K bytes max (seg1).
+   (slice2)    Executor memory: 1289K bytes avg x 3 workers, 1289K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 150.083 ms
+(30 rows)
+
+EXPLAIN ANALYZE SELECT SUM(ResolutionWidth), SUM(ResolutionWidth + 1), SUM(ResolutionWidth + 2), SUM(ResolutionWidth + 3), SUM(ResolutionWidth + 4), SUM(ResolutionWidth + 5), SUM(ResolutionWidth + 6), SUM(ResolutionWidth + 7), SUM(ResolutionWidth + 8), SUM(ResolutionWidth + 9), SUM(ResolutionWidth + 10), SUM(ResolutionWidth + 11), SUM(ResolutionWidth + 12), SUM(ResolutionWidth + 13), SUM(ResolutionWidth + 14), SUM(ResolutionWidth + 15), SUM(ResolutionWidth + 16), SUM(ResolutionWidth + 17), SUM(ResolutionWidth + 18), SUM(ResolutionWidth + 19), SUM(ResolutionWidth + 20), SUM(ResolutionWidth + 21), SUM(ResolutionWidth + 22), SUM(ResolutionWidth + 23), SUM(ResolutionWidth + 24), SUM(ResolutionWidth + 25), SUM(ResolutionWidth + 26), SUM(ResolutionWidth + 27), SUM(ResolutionWidth + 28), SUM(ResolutionWidth + 29), SUM(ResolutionWidth + 30), SUM(ResolutionWidth + 31), SUM(ResolutionWidth + 32), SUM(ResolutionWidth + 33), SUM(ResolutionWidth + 34), SUM(ResolutionWidth + 35), SUM(ResolutionWidth + 36), SUM(ResolutionWidth + 37), SUM(ResolutionWidth + 38), SUM(ResolutionWidth + 39), SUM(ResolutionWidth + 40), SUM(ResolutionWidth + 41), SUM(ResolutionWidth + 42), SUM(ResolutionWidth + 43), SUM(ResolutionWidth + 44), SUM(ResolutionWidth + 45), SUM(ResolutionWidth + 46), SUM(ResolutionWidth + 47), SUM(ResolutionWidth + 48), SUM(ResolutionWidth + 49), SUM(ResolutionWidth + 50), SUM(ResolutionWidth + 51), SUM(ResolutionWidth + 52), SUM(ResolutionWidth + 53), SUM(ResolutionWidth + 54), SUM(ResolutionWidth + 55), SUM(ResolutionWidth + 56), SUM(ResolutionWidth + 57), SUM(ResolutionWidth + 58), SUM(ResolutionWidth + 59), SUM(ResolutionWidth + 60), SUM(ResolutionWidth + 61), SUM(ResolutionWidth + 62), SUM(ResolutionWidth + 63), SUM(ResolutionWidth + 64), SUM(ResolutionWidth + 65), SUM(ResolutionWidth + 66), SUM(ResolutionWidth + 67), SUM(ResolutionWidth + 68), SUM(ResolutionWidth + 69), SUM(ResolutionWidth + 70), SUM(ResolutionWidth + 71), SUM(ResolutionWidth + 72), SUM(ResolutionWidth + 73), SUM(ResolutionWidth + 74), SUM(ResolutionWidth + 75), SUM(ResolutionWidth + 76), SUM(ResolutionWidth + 77), SUM(ResolutionWidth + 78), SUM(ResolutionWidth + 79), SUM(ResolutionWidth + 80), SUM(ResolutionWidth + 81), SUM(ResolutionWidth + 82), SUM(ResolutionWidth + 83), SUM(ResolutionWidth + 84), SUM(ResolutionWidth + 85), SUM(ResolutionWidth + 86), SUM(ResolutionWidth + 87), SUM(ResolutionWidth + 88), SUM(ResolutionWidth + 89) FROM hits;
+                                                             QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Vec Aggregate  (cost=0.00..431.00 rows=1 width=720) (actual time=0.563..102.332 rows=1 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=2) (actual time=5.593..9.162 rows=1000 loops=1)
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=2) (actual time=0.208..0.487 rows=402 loops=1)
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 70.535 ms
+   (slice0)    Executor memory: 1201K bytes.
+   (slice1)    Executor memory: 1286K bytes avg x 3 workers, 1286K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 132.794 ms
+(12 rows)
+
+EXPLAIN ANALYZE SELECT SearchEngineID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM hits WHERE SearchPhrase <> '' GROUP BY SearchEngineID, ClientIP ORDER BY c DESC, clientip LIMIT 10;
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=30) (actual time=0.000..0.228 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=30) (actual time=203.874..203.881 rows=38 loops=1)
+         Merge Key: (count()), clientip
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=30) (actual time=0.071..1.033 rows=19 loops=1)
+               Sort Key: (count()) DESC, clientip
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=30) (actual time=0.000..0.149 rows=19 loops=1)
+                     Group Key: clientip, searchengineid
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=10) (actual time=0.228..1.575 rows=50 loops=1)
+                           Sort Key: clientip, searchengineid
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=10) (actual time=115.366..191.125 rows=50 loops=1)
+                                 Hash Key: clientip, searchengineid
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=10) (actual time=0.089..1.165 rows=49 loops=1)
+                                       Filter: (searchphrase <> ''::text)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.425 ms
+   (slice0)    Executor memory: 2124K bytes.
+   (slice1)    Executor memory: 2087K bytes avg x 3 workers, 2087K bytes max (seg0).
+   (slice2)    Executor memory: 1686K bytes avg x 3 workers, 1686K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 209.926 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT WatchID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM hits WHERE SearchPhrase <> '' GROUP BY WatchID, ClientIP ORDER BY c, watchid DESC LIMIT 10;
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=36) (actual time=0.000..0.244 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=36) (actual time=125.206..125.214 rows=105 loops=1)
+         Merge Key: (count()), watchid
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=36) (actual time=0.086..1.257 rows=40 loops=1)
+               Sort Key: (count()), watchid DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=36) (actual time=0.000..0.161 rows=40 loops=1)
+                     Group Key: watchid, clientip
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.243..1.739 rows=40 loops=1)
+                           Sort Key: watchid, clientip
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=106.383..107.668 rows=40 loops=1)
+                                 Hash Key: watchid, clientip
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.095..0.929 rows=49 loops=1)
+                                       Filter: (searchphrase <> ''::text)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 11.241 ms
+   (slice0)    Executor memory: 2124K bytes.
+   (slice1)    Executor memory: 2087K bytes avg x 3 workers, 2088K bytes max (seg0).
+   (slice2)    Executor memory: 1686K bytes avg x 3 workers, 1686K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 131.450 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT WatchID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM hits GROUP BY WatchID, ClientIP ORDER BY c DESC, watchid LIMIT 10;
+                                                                            QUERY PLAN                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=36) (actual time=0.000..0.231 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=36) (actual time=35.659..35.665 rows=1000 loops=1)
+         Merge Key: (count()), watchid
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=36) (actual time=0.073..1.318 rows=349 loops=1)
+               Sort Key: (count()) DESC, watchid
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=36) (actual time=0.000..0.175 rows=349 loops=1)
+                     Group Key: watchid, clientip
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.185..1.679 rows=349 loops=1)
+                           Sort Key: watchid, clientip
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=2.264..3.138 rows=349 loops=1)
+                                 Hash Key: watchid, clientip
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=16) (actual time=0.088..0.205 rows=402 loops=1)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 10.045 ms
+   (slice0)    Executor memory: 2156K bytes.
+   (slice1)    Executor memory: 2129K bytes avg x 3 workers, 2130K bytes max (seg1).
+   (slice2)    Executor memory: 1587K bytes avg x 3 workers, 1587K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 41.602 ms
+(26 rows)
+
+EXPLAIN ANALYZE SELECT URL, COUNT(*) AS c FROM hits GROUP BY URL ORDER BY c DESC, url LIMIT 10;
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.209 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=132.784..132.790 rows=293 loops=1)
+         Merge Key: (count()), url
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.042..1.274 rows=100 loops=1)
+               Sort Key: (count()) DESC, url
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.071 rows=100 loops=1)
+                     Group Key: url
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.188..5.432 rows=383 loops=1)
+                           Sort Key: url
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=112.589..113.374 rows=383 loops=1)
+                                 Hash Key: url
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.086..0.169 rows=402 loops=1)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 8.215 ms
+   (slice0)    Executor memory: 2136K bytes.
+   (slice1)    Executor memory: 2124K bytes avg x 3 workers, 2133K bytes max (seg0).
+   (slice2)    Executor memory: 1289K bytes avg x 3 workers, 1289K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 137.688 ms
+(26 rows)
+
+EXPLAIN ANALYZE SELECT 1, URL, COUNT(*) AS c FROM hits GROUP BY 1, URL ORDER BY c DESC, url LIMIT 10;
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.229 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=20) (actual time=152.464..152.471 rows=293 loops=1)
+         Merge Key: (count()), url
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=20) (actual time=0.051..1.462 rows=103 loops=1)
+               Sort Key: (count()) DESC, url
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.092 rows=103 loops=1)
+                     Group Key: url, (1)
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.228..9.123 rows=369 loops=1)
+                           Sort Key: url, (1)
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=12) (actual time=121.411..122.116 rows=369 loops=1)
+                                 Hash Key: url, (1)
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.087..0.180 rows=402 loops=1)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 9.070 ms
+   (slice0)    Executor memory: 2140K bytes.
+   (slice1)    Executor memory: 2126K bytes avg x 3 workers, 2136K bytes max (seg2).
+   (slice2)    Executor memory: 1291K bytes avg x 3 workers, 1291K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 157.721 ms
+(26 rows)
+
+EXPLAIN ANALYZE SELECT ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3, COUNT(*) AS c FROM hits GROUP BY ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3 ORDER BY c DESC, clientip LIMIT 10;
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.231 rows=10 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=24) (actual time=159.306..159.312 rows=70 loops=1)
+         Merge Key: (count()), clientip
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=24) (actual time=0.066..1.197 rows=29 loops=1)
+               Sort Key: (count()) DESC, clientip
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=24) (actual time=0.000..0.129 rows=29 loops=1)
+                     Group Key: clientip, ((clientip - 1)), ((clientip - 2)), ((clientip - 3))
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.236..2.440 rows=596 loops=1)
+                           Sort Key: clientip, ((clientip - 1)), ((clientip - 2)), ((clientip - 3))
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=109.588..138.000 rows=596 loops=1)
+                                 Hash Key: clientip, ((clientip - 1)), ((clientip - 2)), ((clientip - 3))
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=4) (actual time=0.099..0.552 rows=402 loops=1)
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 10.615 ms
+   (slice0)    Executor memory: 2123K bytes.
+   (slice1)    Executor memory: 2087K bytes avg x 3 workers, 2088K bytes max (seg1).
+   (slice2)    Executor memory: 1297K bytes avg x 3 workers, 1297K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 165.375 ms
+(26 rows)
+
+EXPLAIN ANALYZE SELECT URL, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND DontCountHits = 0 AND IsRefresh = 0 AND URL <> '' GROUP BY URL ORDER BY PageViews DESC LIMIT 10;
+                                                                                                   QUERY PLAN                                                                                                   
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.068 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=11.308..11.311 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.595 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: url
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.000..0.719 rows=0 loops=1)
+                           Sort Key: url
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=5.076..5.077 rows=0 loops=1)
+                                 Hash Key: url
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.104..1.679 rows=0 loops=1)
+                                       Filter: ((counterid = 62) AND (eventdate >= '07-01-2013'::date) AND (eventdate <= '07-31-2013'::date) AND (dontcounthits = 0) AND (isrefresh = 0) AND (url <> ''::text))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 13.578 ms
+   (slice0)    Executor memory: 2111K bytes.
+   (slice1)    Executor memory: 2084K bytes avg x 3 workers, 2084K bytes max (seg0).
+   (slice2)    Executor memory: 1683K bytes avg x 3 workers, 1683K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 16.828 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT Title, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND DontCountHits = 0 AND IsRefresh = 0 AND Title <> '' GROUP BY Title ORDER BY PageViews DESC LIMIT 10;
+                                                                                                    QUERY PLAN                                                                                                    
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.052 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=10.052..10.054 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.574 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: title
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.000..0.751 rows=0 loops=1)
+                           Sort Key: title
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=4.406..4.407 rows=0 loops=1)
+                                 Hash Key: title
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.084..1.573 rows=0 loops=1)
+                                       Filter: ((counterid = 62) AND (eventdate >= '07-01-2013'::date) AND (eventdate <= '07-31-2013'::date) AND (dontcounthits = 0) AND (isrefresh = 0) AND (title <> ''::text))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 14.231 ms
+   (slice0)    Executor memory: 2111K bytes.
+   (slice1)    Executor memory: 2084K bytes avg x 3 workers, 2084K bytes max (seg0).
+   (slice2)    Executor memory: 1683K bytes avg x 3 workers, 1683K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 15.828 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT URL, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 AND IsLink <> 0 AND IsDownload = 0 GROUP BY URL ORDER BY PageViews DESC LIMIT 10 OFFSET 1000;
+                                                                                               QUERY PLAN                                                                                                
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.072 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=16) (actual time=10.637..10.639 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.554 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=16) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: url
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=8) (actual time=0.000..0.593 rows=0 loops=1)
+                           Sort Key: url
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=5.386..5.386 rows=0 loops=1)
+                                 Hash Key: url
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=8) (actual time=0.094..1.727 rows=0 loops=1)
+                                       Filter: ((counterid = 62) AND (eventdate >= '07-01-2013'::date) AND (eventdate <= '07-31-2013'::date) AND (isrefresh = 0) AND (islink <> 0) AND (isdownload = 0))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.133 ms
+   (slice0)    Executor memory: 2111K bytes.
+   (slice1)    Executor memory: 2084K bytes avg x 3 workers, 2084K bytes max (seg0).
+   (slice2)    Executor memory: 1781K bytes avg x 3 workers, 1781K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 15.994 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT TraficSourceID, SearchEngineID, AdvEngineID, CASE WHEN (SearchEngineID = 0 AND AdvEngineID = 0) THEN Referer ELSE '' END AS Src, URL AS Dst, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 GROUP BY TraficSourceID, SearchEngineID, AdvEngineID, Src, Dst ORDER BY PageViews DESC LIMIT 10 OFFSET 1000;
+                                                                                     QUERY PLAN                                                                                      
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=30) (actual time=0.000..0.052 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=30) (actual time=15.692..15.693 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=30) (actual time=0.000..1.113 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=30) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: traficsourceid, searchengineid, advengineid, (CASE WHEN ((searchengineid = 0) AND (advengineid = 0)) THEN referer ELSE ''::text END), url
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=22) (actual time=0.000..1.338 rows=0 loops=1)
+                           Sort Key: traficsourceid, searchengineid, advengineid, (CASE WHEN ((searchengineid = 0) AND (advengineid = 0)) THEN referer ELSE ''::text END), url
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=22) (actual time=6.012..6.013 rows=0 loops=1)
+                                 Hash Key: traficsourceid, searchengineid, advengineid, (CASE WHEN ((searchengineid = 0) AND (advengineid = 0)) THEN referer ELSE ''::text END), url
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=22) (actual time=0.086..2.027 rows=0 loops=1)
+                                       Filter: ((counterid = 62) AND (eventdate >= '07-01-2013'::date) AND (eventdate <= '07-31-2013'::date) AND (isrefresh = 0))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 12.663 ms
+   (slice0)    Executor memory: 2138K bytes.
+   (slice1)    Executor memory: 2094K bytes avg x 3 workers, 2094K bytes max (seg0).
+   (slice2)    Executor memory: 1991K bytes avg x 3 workers, 1991K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 22.058 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT URLHash, EventDate, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 AND TraficSourceID IN (-1, 6) AND RefererHash = 3594120000172545465 GROUP BY URLHash, EventDate ORDER BY PageViews DESC LIMIT 10 OFFSET 100;
+                                                                                                                             QUERY PLAN                                                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.056 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=20) (actual time=13.804..13.806 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.632 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=20) (actual time=0.000..0.002 rows=0 loops=1)
+                     Group Key: urlhash, eventdate
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.837 rows=0 loops=1)
+                           Sort Key: urlhash, eventdate
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=12) (actual time=6.402..6.402 rows=0 loops=1)
+                                 Hash Key: urlhash, eventdate
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=12) (actual time=0.095..1.603 rows=0 loops=1)
+                                       Filter: ((counterid = 62) AND (eventdate >= '07-01-2013'::date) AND (eventdate <= '07-31-2013'::date) AND (isrefresh = 0) AND (traficsourceid = ANY ('{-1,6}'::integer[])) AND (refererhash = '3594120000172545465'::bigint))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 17.475 ms
+   (slice0)    Executor memory: 2111K bytes.
+   (slice1)    Executor memory: 2083K bytes avg x 3 workers, 2083K bytes max (seg0).
+   (slice2)    Executor memory: 1783K bytes avg x 3 workers, 1783K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 21.046 ms
+(27 rows)
+
+EXPLAIN ANALYZE SELECT WindowClientWidth, WindowClientHeight, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 AND DontCountHits = 0 AND URLHash = 2868770270353813622 GROUP BY WindowClientWidth, WindowClientHeight ORDER BY PageViews DESC LIMIT 10 OFFSET 10000;
+                                                                                                               QUERY PLAN                                                                                                               
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Vec Limit  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.048 rows=0 loops=1)
+   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..431.00 rows=1 width=12) (actual time=12.099..12.100 rows=0 loops=1)
+         Merge Key: (count())
+         Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
+         ->  Vec Sort  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.648 rows=0 loops=1)
+               Sort Key: (count()) DESC
+               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+               ->  Vec GroupAggregate  (cost=0.00..431.00 rows=1 width=12) (actual time=0.000..0.001 rows=0 loops=1)
+                     Group Key: windowclientwidth, windowclientheight
+                     Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                     ->  Vec Sort  (cost=0.00..431.00 rows=1 width=4) (actual time=0.000..0.860 rows=0 loops=1)
+                           Sort Key: windowclientwidth, windowclientheight
+                           Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=4) (actual time=6.087..6.088 rows=0 loops=1)
+                                 Hash Key: windowclientwidth, windowclientheight
+                                 Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+                                 ->  Vec Seq Scan on hits  (cost=0.00..431.00 rows=1 width=4) (actual time=0.080..1.749 rows=0 loops=1)
+                                       Filter: ((counterid = 62) AND (eventdate >= '07-01-2013'::date) AND (eventdate <= '07-31-2013'::date) AND (isrefresh = 0) AND (dontcounthits = 0) AND (urlhash = '2868770270353813622'::bigint))
+                                       Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
+ Planning Time: 13.022 ms
+   (slice0)    Executor memory: 2112K bytes.
+   (slice1)    Executor memory: 2083K bytes avg x 3 workers, 2083K bytes max (seg0).
+   (slice2)    Executor memory: 1882K bytes avg x 3 workers, 1882K bytes max (seg0).
+ Memory used:  256000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution Time: 17.757 ms
+(27 rows)
+

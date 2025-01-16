@@ -458,7 +458,7 @@ ExecInitVecShareInputScan(ShareInputScan *node, EState *estate, int eflags)
 	local_state->ready = true;
 	vsisstate->vecdesc = TupleDescToVecDesc(sisstate->ss.ps.ps_ResultTupleDesc);
 
-	BuildVecPlan((PlanState *)vsisstate, &vsisstate->estate);
+	PostBuildVecPlan((PlanState *)vsisstate, &vsisstate->estate);
 	return sisstate;
 }
 

@@ -123,7 +123,6 @@ VecExecProcNodeGPDB(PlanState *node)
 	MemoryContext oldcxt = NULL;
 	VecExecuteState*  estate = NULL;
 	int plan_id = -1;
-	extern bool enable_plan_merge;
 
 	/*
 	 * Even if we are requested to finish query, Motion has to do its work
@@ -150,10 +149,10 @@ VecExecProcNodeGPDB(PlanState *node)
 	}
 
 	estate = GetVecExecuteState(node);
-	if (enable_plan_merge && node->instrument && estate)
+	if (estate)
 		plan_id = garrow_execute_plan_get_id(estate->plan);
 
-	if (node->instrument && (!estate || !enable_plan_merge ))
+	if (node->instrument && (!estate))
 		InstrStartNode(node->instrument);
 
 	if ((node->state->es_instrument & INSTRUMENT_MEMORY_DETAIL) != 0)
@@ -161,7 +160,7 @@ VecExecProcNodeGPDB(PlanState *node)
 
 	result = node->ExecProcNodeReal(node);
 
-	if (enable_plan_merge && node->instrument && TupIsNull(result) && estate)
+	if (node->instrument && TupIsNull(result) && estate)
 		CollectTime(estate, plan_id);
 
 	if ((node->state->es_instrument & INSTRUMENT_MEMORY_DETAIL) != 0)
@@ -170,7 +169,7 @@ VecExecProcNodeGPDB(PlanState *node)
 		MemoryContextSwitchTo(oldcxt);
 	}
 
-	if (node->instrument && (!estate || !enable_plan_merge ))
+	if (node->instrument && (!estate))
 		InstrStopNode(node->instrument, TupIsNull(result) ? 0.0 : GetNumRows(result));
 
 	if (node->plan)

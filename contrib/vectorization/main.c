@@ -93,14 +93,6 @@ _PG_init(void)
                             PGC_USERSET,
                             GUC_GPDB_NEED_SYNC,
                             NULL, NULL, NULL);
-    DefineCustomBoolVariable("vector.enable_plan_merge",
-                             "merge postgres ExecNode into a big plan if true.",
-                             NULL,
-                             &enable_plan_merge,
-                             false,
-                             PGC_USERSET,
-                             GUC_GPDB_NEED_SYNC,
-                             NULL, NULL, NULL);
     DefineCustomIntVariable("vector.partition_top_k",
                             "Partition selecter for WindowAgg sort",
                             NULL,

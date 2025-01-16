@@ -27,9 +27,6 @@ bool force_vectorization = false;
 
 bool enable_vector_optimizer = false;
 
-/* deciding whether to merge arrow plan */
-bool enable_plan_merge = false;
-
 int min_concatenate_rows = 0;
 int min_redistribute_handle_rows = 0;
 int partition_top_k = 0;

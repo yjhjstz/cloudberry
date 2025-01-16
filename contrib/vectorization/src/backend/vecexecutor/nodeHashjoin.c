@@ -257,14 +257,7 @@ ExecVecHashJoin(PlanState *pstate)
 
 		TupleTableSlot *slot = ExecuteVecPlan(&vnode->estate);
 		if (TupIsNull(slot))
-		{
-			if (!((HashJoinState *) pstate)->reuse_hashtable
-			&&  !((HashJoinState *) pstate)->delayEagerFree) 
-			{
-				ExecVecSquelchNode(pstate);
-			}	
-			return slot;
-		}	
+			return slot;	
 
 		rows = GetNumRows(slot);
 		if (rows <= max_batch_size || vnode->skip)
