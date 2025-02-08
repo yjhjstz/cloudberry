@@ -12,6 +12,7 @@
 #include "catalog/objectaccess.h"
 #include "catalog/heap.h"
 #include "commands/tablespace.h"
+#include "commands/tag.h"
 #include "commands/comment.h"
 #include "commands/seclabel.h"
 #include "postmaster/bgwriter.h"
@@ -218,6 +219,16 @@ dfsCreateTableSpace(CreateTableSpaceStmt *stmt)
 
 	heap_freetuple(tuple);
 
+	/*
+	 * Create tag description.
+	 */
+	if (stmt->tags)
+		AddTagDescriptions(stmt->tags,
+		                   InvalidOid,
+		                   TableSpaceRelationId,
+		                   tablespaceoid,
+		                   stmt->tablespacename);
+
 	recordStorageServerDependency(TableSpaceRelationId, tablespaceoid, server->serverid);
 
 	/* Record dependency on owner */
@@ -329,6 +340,14 @@ dfsDropTableSpace(DropTableSpaceStmt *stmt)
 	CatalogTupleDelete(rel, &tuple->t_self);
 
 	table_endscan(scandesc);
+
+	/*
+	 * Delete any tag description and associated dependencies.
+	 */
+	DeleteTagDescriptions(InvalidOid,
+	                      TableSpaceRelationId,
+	                      tablespaceoid);
+
 
 	/*
 	 * Remove any comments or security labels on this tablespace.
@@ -506,7 +525,28 @@ DfsAlterTableSpaceOptions(AlterTableSpaceOptionsStmt *stmt)
         table_endscan(scandesc);
         table_close(rel, NoLock);
 
-        if (Gp_role == GP_ROLE_DISPATCH && ENABLE_DISPATCH())
+	if (stmt->tags)
+	{
+		if (!stmt->unsettag)
+		{
+			AlterTagDescriptions(stmt->tags,
+			                     InvalidOid,
+			                     TableSpaceRelationId,
+			                     tablespaceoid,
+			                     stmt->tablespacename);
+		}
+
+		if (stmt->unsettag)
+		{
+			UnsetTagDescriptions(stmt->tags,
+			                     InvalidOid,
+			                     TableSpaceRelationId,
+			                     tablespaceoid,
+			                     stmt->tablespacename);
+		}
+	}
+
+	if (Gp_role == GP_ROLE_DISPATCH && ENABLE_DISPATCH())
         {
                 CdbDispatchUtilityStatement((Node *) stmt,
                                                                         DF_CANCEL_ON_ERROR|
