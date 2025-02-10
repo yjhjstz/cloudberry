@@ -55,6 +55,11 @@ install: install-data
 	@if [ -f build/src/cpp/pax_dump ]; then $(INSTALL_PROGRAM) build/src/cpp/pax_dump '$(DESTDIR)$(bindir)/pax_dump'; fi;
 	make -j10 -C build install
 
+.PHONY: unittest-check
+unittest-check:
+	@echo "Begin running pax unit tests"
+	$(CURDIR)/build/src/cpp/test_main
+
 .PHONY: pax-test
 pax-test: 
 	@echo "Begin running pax tests"

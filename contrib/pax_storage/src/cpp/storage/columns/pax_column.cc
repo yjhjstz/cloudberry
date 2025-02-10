@@ -383,6 +383,18 @@ void PaxNonFixedColumn::Append(char *buffer, size_t size) {
   auto length = static_cast<int32>(size);
   lengths_->Write(&length, sizeof(int32));
   lengths_->Brush(sizeof(int32));
+
+  // FIXME: currently, the pax file stores the lengths stream, each element of
+  // which is the length of each record. 
+  // 
+  // In GTEST, there is always a situation of reading column while writing column, 
+  // so the offset must always be constructed. But when we remove the length array,
+  //  this problem will not exist.
+  offsets_.emplace_back(offsets_.empty()
+                            ? 0
+                            : offsets_[offsets_.size() - 1] +
+                                  (*lengths_)[offsets_.size() - 1]);
+  Assert(offsets_.size() == lengths_->GetSize());
 }
 
 std::pair<char *, size_t> PaxNonFixedColumn::GetLengthBuffer() {
@@ -415,11 +427,9 @@ int32 PaxNonFixedColumn::GetTypeLength() const { return -1; }
 
 std::pair<char *, size_t> PaxNonFixedColumn::GetBuffer(size_t position) {
   Assert(position < GetNonNullRows());
-  Assert(position + 1 < offsets_.size());
-  Assert(offsets_[position + 1] > offsets_[position]);
 
   return std::make_pair(data_->GetBuffer() + offsets_[position],
-                        offsets_[position + 1] - offsets_[position]);
+                        (*lengths_)[position]);
 }
 
 Datum PaxNonFixedColumn::GetDatum(size_t position) {

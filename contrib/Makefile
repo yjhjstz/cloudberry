@@ -137,3 +137,7 @@ endif
 
 $(recurse)
 $(recurse_always)
+
+.PHONY: unittest-check
+unittest-check:
+	$(MAKE) -C pax_storage unittest-check
