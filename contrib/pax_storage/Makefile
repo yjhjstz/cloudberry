@@ -40,11 +40,6 @@ build: $(SRC)
 	cd build && cmake .. -DCMAKE_INSTALL_PREFIX=$(DESTDIR)$(prefix) && make -j8
 	@cp -f build/src/cpp/libpax.so pax.so
 
-pax-unit-test: 
-ifeq ($(enable_debug), yes)
-	cd build && ./src/cpp/test_main
-endif
-
 install-data: build
 	@echo "install data"
 	$(INSTALL_DATA) pax-cdbinit--1.0.sql '$(DESTDIR)$(datadir)/cdb_init.d/pax-cdbinit--1.0.sql'
@@ -58,7 +53,12 @@ install: install-data
 .PHONY: unittest-check
 unittest-check:
 	@echo "Begin running pax unit tests"
-	$(CURDIR)/build/src/cpp/test_main
+	@if [ ! -f $(CURDIR)/build/src/cpp/test_main ]; then \
+		echo "The pax unit tests does not exist, skipping test."; \
+	else \
+		$(CURDIR)/build/src/cpp/test_main; \
+	fi
+	@echo "End running pax unit tests"
 
 .PHONY: pax-test
 pax-test: 
