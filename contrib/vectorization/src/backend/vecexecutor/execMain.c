@@ -157,7 +157,7 @@ static inline VecAggInfo* new_winagg_info(WindowFunc *wfunc, PlanBuildContext *p
 static GArrowExpression *expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext);
 static const char* get_agg_func_name(Aggref *aggref, const AggFuncTable *table, PlanBuildContext *pcontext);
 static GArrowExecuteNode* BuildSource(PlanBuildContext *pcontext);
-static GArrowExecuteNode* BuildScanNode(PlanBuildContext *pcontext, VecSeqScanState *estate, List *quaList);
+static GArrowExecuteNode* BuildScanNode(PlanBuildContext *pcontext);
 static GArrowExecuteNode *BuildProject(List *targetList, List *qualList, GArrowExecuteNode *input, PlanBuildContext *pcontext);
 static void BuildSink(GArrowExecuteNode *input, VecExecuteState *estate, PlanBuildContext *pcontext);
 static GArrowExecuteNode *BuildAggregatation(List *aggInfos, GArrowExecuteNode *input, PlanBuildContext *pcontext);
@@ -1807,7 +1807,7 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 		else 
 		{
 			if (pcontext.parallel_scan)
-				curnode = BuildScanNode(&pcontext, (VecSeqScanState *)planstate, qualList);
+				curnode = BuildScanNode(&pcontext);
 			else
 				curnode = BuildSource(&pcontext);
 		}
@@ -2417,22 +2417,31 @@ BuildSource(PlanBuildContext *pcontext)
 }
 
 static GArrowExecuteNode *
-BuildScanNode(PlanBuildContext *pcontext, VecSeqScanState *estate, List *qualList)
+BuildScanNode(PlanBuildContext *pcontext)
 {
-
+	VecSeqScanState *state = (VecSeqScanState *)pcontext->planstate;
+	Plan *plan = (Plan *)pcontext->planstate->plan;
 	g_autoptr(GError) error = NULL;
 	g_autoptr(GArrowScanNodeOptions) scan_node_options = NULL;
 	g_autoptr(GArrowExecuteNode) scan_node = NULL;
 	g_autoptr(GArrowExpression) qual_expr = NULL;
-	if (qualList)
-		qual_expr = build_filter_expression(qualList, pcontext);
-	scan_node_options = garrow_scan_node_options_new(pcontext->table_oid, pcontext->am_oid, pcontext->relation_schema, pcontext->inputschema, qual_expr, &error);
+
+	Assert(IsA(state, SeqScanState));
+	if (plan->qual)
+		qual_expr = build_filter_expression(plan->qual, pcontext);
+	scan_node_options = garrow_scan_node_options_new(pcontext->table_oid,
+													 (void *)plan,
+													 pcontext->am_oid,
+													 pcontext->relation_schema,
+													 pcontext->inputschema,
+													 qual_expr,
+													 &error);
 	if (error)
 		elog(ERROR, "Failed to create scan node, cause: %s.", error->message);
 	scan_node = garrow_execute_plan_build_scan_node(pcontext->plan,
 													scan_node_options,
 													&error);
-	garrow_store_ptr(estate->scan_node_options, scan_node_options);
+	garrow_store_ptr(state->scan_node_options, scan_node_options);
 	if (error)
 		elog(ERROR, "Failed to create scan node, cause: %s.", error->message);
 	return garrow_move_ptr(scan_node);
