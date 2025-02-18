@@ -378,6 +378,7 @@ churl_init(const char *url, CHURL_HEADERS headers)
 	set_curl_option(context, CURLOPT_WRITEDATA, context);
 	set_curl_option(context, CURLOPT_HEADERFUNCTION, header_callback);
 	set_curl_option(context, CURLOPT_HEADERDATA, context);
+	set_curl_option(context, CURLOPT_PROXY, "");
 	churl_headers_set(context, headers);
 
 	return (CHURL_HANDLE) context;
