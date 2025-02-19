@@ -195,11 +195,6 @@ variables:
   ## set centos7 as default CI_TF_LOCATION 
   CI_TF_LOCATION: ".ci/tf/centos7-x86_64/16c32g"
 
-  http_proxy: http://10.13.11.1:1080
-  https_proxy: http://10.13.11.1:1080
-  HTTP_PROXY: http://10.13.11.1:1080
-  HTTPS_PROXY: http://10.13.11.1:1080
-
 .retry_rule:  &retry_rule
   retry:
     max: 2

@@ -20,7 +20,7 @@ variable "instance_name" {
 
 variable "instance_image" {
   # releng-base-cbdb-build-centos7-x86_64-20240527
-  default = "2efb1afa-a01f-4ce0-8bbc-ad16afd97e72"
+  default = "3809b956-211d-4118-8b56-b7a9c01ca7b6"
 }
 
 variable "flavor_id" {
