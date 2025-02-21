@@ -52,16 +52,6 @@ install: install-data
 	@if [ -f build/src/cpp/pax_dump ]; then $(INSTALL_PROGRAM) build/src/cpp/pax_dump '$(DESTDIR)$(bindir)/pax_dump'; fi;
 	make -j10 -C build install
 
-.PHONY: unittest-check
-unittest-check:
-	@echo "Begin running pax unit tests"
-	@if [ ! -f $(CURDIR)/build/src/cpp/test_main ]; then \
-		echo "The pax unit tests does not exist, skipping test."; \
-	else \
-		$(CURDIR)/build/src/cpp/test_main; \
-	fi
-	@echo "End running pax unit tests"
-
 .PHONY: pax-test
 pax-test: 
 	@echo "Begin running pax tests"
