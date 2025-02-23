@@ -4,6 +4,7 @@ default:
 stages:
   - build
   - icw_test
+  - binary_swap
 
 workflow:
   name: Hashdata Lightning Merge Request Check
@@ -530,6 +531,30 @@ pax:icw-orca:
   - *pax_regress_artifacts
   - *retry_rule
   timeout: 8 hours
+
+binary_swap:
+  stage: binary_swap
+  variables:
+    CBDB_VERSION: $cbdb_version
+    BUILD_ID: $build_id
+    RELEASE_TYPE: "dev" 
+    TRIGGER_SOURCE: "HashData Lightning"
+    DATABASE_CODE_BRANCH: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+  trigger:
+    project: cloudberry/testing/cbdb_binary_swap
+    branch: main
+    strategy: depend
+  allow_failure: false
+  needs:
+    - job: centos7:x86_64:build
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^rc\/v1\.([6-9]|[1-9][0-9])\.([0-9a-z]|[1-9][0-9])$/'
+      when: always
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^rc\/v[2-9]\.([0-9]|[1-9][0-9])\.([0-9a-z]|[1-9][0-9])$/'
+      when: always
+    - if: '$CI_COMMIT_BRANCH =~ /binary-swap-test.*/'
+      when: always
+    - when: never
 
 
 ##############################################################################
