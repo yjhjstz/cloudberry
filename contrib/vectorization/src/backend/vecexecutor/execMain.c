@@ -2430,7 +2430,7 @@ BuildScanNode(PlanBuildContext *pcontext)
 	if (plan->qual)
 		qual_expr = build_filter_expression(plan->qual, pcontext);
 	scan_node_options = garrow_scan_node_options_new(pcontext->table_oid,
-													 (void *)plan,
+													 (void *) pcontext->planstate,
 													 pcontext->am_oid,
 													 pcontext->relation_schema,
 													 pcontext->inputschema,
