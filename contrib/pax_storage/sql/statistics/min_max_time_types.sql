@@ -11,7 +11,15 @@ set pax_max_tuples_per_group to 5;
 
 -- FIXME(jiaqizho): current case vectorization have a bug
 -- bug case: select count(*) from t_date where v = '2000-01-11 00:00:00+00'::timestamptz;
-set vector.enable_vectorization to off;
+
+-- FIXME: vectorization doesn't support timestamptz well, but it doesn't fallback now.
+-- The solution steps are:
+-- 1. turn off vectorization temporarily.
+-- 2. fallback to pg plan/execution when timestamptz involves.
+-- 3. remove the GUC control about vector.enable_vectorization, so the result
+--      with or without vectorization should be correct.
+-- 4. vectorization fixes timestamptz and enables vectorized plan/execution with timestamptz
+set vector.enable_vectorization = off;
 
 -- 
 -- Test the date min/max types support 
