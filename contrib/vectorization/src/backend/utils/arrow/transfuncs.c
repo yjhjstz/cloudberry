@@ -209,7 +209,6 @@ PGTypeToArrow(Oid pg_type)
 			return (GArrowDataType *)garrow_fixed_size_binary_data_type_new(63);
 		case TIMEOID:
 		case TIMESTAMPOID:
-		case TIMESTAMPTZOID:
 			return (GArrowDataType *)garrow_timestamp_data_type_new(GARROW_TIME_UNIT_MICRO);		
 		case INT8OID:
 			return (GArrowDataType *)garrow_int64_data_type_new();
@@ -260,7 +259,6 @@ PGTypeToArrowID(Oid pg_type)
 			return  GARROW_TYPE_INT8;
 		case TIMEOID:
 		case TIMESTAMPOID:
-		case TIMESTAMPTZOID:
 			return GARROW_TYPE_TIMESTAMP;
 		case INT8OID:
 			return  GARROW_TYPE_INT64;

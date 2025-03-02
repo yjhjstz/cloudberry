@@ -3386,23 +3386,15 @@ select * from stable_qual_pruning where a < localtimestamp;
 -- timestamp < timestamptz comparison is only stable, not immutable
 explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning where a < '2000-02-01'::timestamptz;
-                                       QUERY PLAN                                        
------------------------------------------------------------------------------------------
- Vec Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
-   Executor Memory: 1kB  Segments: 1  Max: 1kB (segment -1)
-   ->  Vec Append (actual rows=0 loops=1)
-         Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
-         ->  Vec Seq Scan on stable_qual_pruning1 stable_qual_pruning_1 (actual rows=0 loops=1)
+                                         QUERY PLAN                                         
+--------------------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
+   ->  Append (actual rows=0 loops=1)
+         Subplans Removed: 2
+         ->  Seq Scan on stable_qual_pruning1 stable_qual_pruning_1 (actual rows=0 loops=1)
                Filter: (a < 'Tue Feb 01 00:00:00 2000 PST'::timestamp with time zone)
-               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
-         ->  Vec Seq Scan on stable_qual_pruning2 stable_qual_pruning_2 (actual rows=0 loops=1)
-               Filter: (a < 'Tue Feb 01 00:00:00 2000 PST'::timestamp with time zone)
-               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
-         ->  Vec Seq Scan on stable_qual_pruning3 stable_qual_pruning_3 (actual rows=0 loops=1)
-               Filter: (a < 'Tue Feb 01 00:00:00 2000 PST'::timestamp with time zone)
-               Executor Memory: 1kB  Segments: 3  Max: 1kB (segment 0)
  Optimizer: Postgres query optimizer
-(14 rows)
+(6 rows)
 
 -- check ScalarArrayOp cases
 explain (analyze, costs off, summary off, timing off)
