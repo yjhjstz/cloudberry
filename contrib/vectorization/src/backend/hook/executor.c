@@ -6,6 +6,7 @@
 #include "cdb/cdbsubplan.h"
 #include "cdb/cdbdisp_query.h"
 #include "catalog/oid_dispatch.h"
+#include "catalog/pg_tablespace_d.h"
 #include "access/xact.h"
 #include "executor/execUtils.h"
 #include "utils/snapmgr.h"
@@ -73,6 +74,105 @@ static void ExecCheckXactReadOnly(PlannedStmt *plannedstmt);
 #define INSTR_FROM_NANOSEC(t, micro) ((t).tv_sec = (micro) / 1000000000, (t).tv_usec = (micro) % 1000000000 / 1000)
 
 #endif
+
+static bool
+is_file_in_use(const char *path)
+{
+	char command[MAXPGPATH] = { "\0" };
+	int ret = 0;
+
+	snprintf(command, sizeof(command), "lsof %s > /dev/null 2>&1", path);
+	ret = system(command);
+
+	return (ret == 0) ? true : false;
+}
+
+bool
+cleanup_directory(const char *relative_path,
+					int session_id,
+					int command_count,
+					bool need_check_all,
+					bool need_check_use)
+{
+	DIR *dir = NULL;
+	struct dirent *entry = NULL;
+	char full_path[MAXPGPATH] = { "\0" };
+	bool has_holding = false;
+	char target_prefix[MAXPGPATH] = { "\0" };
+	size_t prefix_len = 0;
+
+	if (!need_check_all)
+		snprintf(target_prefix, MAXPGPATH - 1, "%s_%d_%d", VECPATH, session_id, command_count);
+	else
+		snprintf(target_prefix, MAXPGPATH - 1, "%s_", VECPATH);
+
+	prefix_len = strlen(target_prefix);
+	dir = opendir(relative_path);
+
+	if (dir == NULL)
+	{
+		ereport(WARNING,
+				(errmsg("Cannot open cleanup directory %s",
+				relative_path)));
+		return false;
+	}
+
+	while ((entry = readdir(dir)) != NULL)
+	{
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+			continue;
+
+		snprintf(full_path, sizeof(full_path), "%s/%s", relative_path, entry->d_name);
+
+		if (entry->d_type == DT_DIR)
+		{
+			if (!cleanup_directory(full_path, session_id, command_count, need_check_all, need_check_use))
+				return false;
+		}
+		else
+		{
+			if ((strncmp(entry->d_name, target_prefix, prefix_len) == 0) || (need_check_all && strstr(full_path, ".store")))
+			{
+				if (need_check_use && !is_file_in_use(full_path))
+				{
+					has_holding = true;
+					elog(DEBUG1, "The vectorization file has been held %s", entry->d_name);
+					continue;
+				}
+
+				if (remove(full_path) != 0)
+					ereport(WARNING,
+							(errmsg("Cleanup removed file %s",
+							full_path)));
+
+				elog(DEBUG1, "Vectorization clean file %s", full_path);
+			}
+		}
+	}
+
+	if (closedir(dir) != 0)
+	{
+		ereport(WARNING,
+				(errmsg("Cannot close cleanup directory %s",
+				relative_path)));
+		return false;
+	}
+
+	return has_holding ? false :true;
+}
+
+void
+VecClearEndWrapper(void)
+{
+	char remove_path[MAXPGPATH] = { "\0" };
+	char temp_path[MAXPGPATH] = { "\0" };
+	Oid tblspcOid = InvalidOid;
+
+	tblspcOid = MyDatabaseTableSpace ? MyDatabaseTableSpace : DEFAULTTABLESPACE_OID;
+	TempTablespacePath(temp_path, tblspcOid);
+	snprintf(remove_path, sizeof(remove_path), "%s", temp_path);
+	cleanup_directory(remove_path, gp_session_id, gp_command_count, false, false);
+}
 
 static void
 CollectTime(VecExecuteState* estate, int plan_id)
@@ -279,6 +379,7 @@ ExecutorEndWrapper(QueryDesc *queryDesc)
 		if (vec_exec_end_prev)
 			(*vec_exec_end_prev)(queryDesc);
 		VecExecutorEnd(queryDesc);
+		VecClearEndWrapper();
 		return;
 	}
 

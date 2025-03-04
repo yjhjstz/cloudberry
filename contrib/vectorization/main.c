@@ -9,28 +9,49 @@
  *--------------------------------------------------------------------
  */
 #include "postgres.h"
+
+#include <sys/stat.h>
+
 #include "access/printtup_vec.h"
 #include "cdb/cdbvars.h"
-#include "utils/guc.h"
 #include "optimizer/planner.h"
+#include "postmaster/bgworker.h"
+#include "postmaster/bgworker_internals.h"
+#include "postmaster/interrupt.h"
+#include "postmaster/postmaster.h"
+#include "storage/ipc.h"
+#include "storage/pmsignal.h"
+#include "storage/proc.h"
+#include "utils/guc.h"
 
-#include "utils/guc_vec.h"
 #include "hook/hook.h"
-#include "utils/am_vec.h"
 #include "optimizer/planner_vec.h"
 #include "tcop/tcopprot.h"
-#include "vecnodes/nodes.h"
+#include "utils/am_vec.h"
+#include "utils/guc_vec.h"
 #include "vecexecutor/executor.h"
 #include "vecexecutor/nodeShareInputScan.h"
+#include "vecnodes/nodes.h"
 
+#include "catalog/pg_tablespace_d.h"
 #include "transform.h"
-
 PG_MODULE_MAGIC;
 
 exec_simple_query_hook_type exec_simple_query_hook_prev = NULL;
 static void exec_simple_query_vec(const char *query_string);
+static bool CleanupWorker(bool is_init);
+static bool rm_all_vec_path(const char *path);
 
 void		_PG_init(void);
+
+PG_FUNCTION_INFO_V1(clearfile);
+
+Datum
+clearfile(PG_FUNCTION_ARGS)
+{
+	bool flag = PG_GETARG_BOOL(0);
+	PG_RETURN_BOOL(CleanupWorker(flag));
+}
 
 void
 _PG_init(void)
@@ -191,6 +212,7 @@ _PG_init(void)
 
     RegisterVectorExtensibleNode();
 
+    CleanupWorker(true);
 }
 
 static void
@@ -207,6 +229,45 @@ exec_simple_query_vec(const char *query_string)
 		exec_simple_query_hook_prev(query_string);
 	else
 		exec_simple_query(query_string);
+}
+
+static bool
+rm_all_vec_path(const char *dir)
+{
+	char command[MAXPGPATH] = { "\0" };
+	int ret = 0;
+
+	snprintf(command, sizeof(command), "rm -rf %s", dir);
+	ret = system(command);
+	if (ret != 0)
+	{
+		ereport(WARNING,
+				(errmsg("Deleting vectorization directory %s failed.",
+				dir)));
+		return false;
+	}
+	return true;
+}
+
+static bool
+CleanupWorker(bool is_init)
+{
+	Oid tblspcOid = InvalidOid;
+	char ts_path[MAXPGPATH] = { "\0" };
+	char temp_path[MAXPGPATH] = { "\0" };
+	char vec_path[MAXPGPATH] = { "\0" };
+	bool ret = false;
+
+	tblspcOid = MyDatabaseTableSpace ? MyDatabaseTableSpace : DEFAULTTABLESPACE_OID;
+	TempTablespacePath(ts_path, tblspcOid);
+	snprintf(temp_path, sizeof(temp_path), "%s", ts_path);
+	snprintf(vec_path, sizeof(vec_path), "%s/%s*", ts_path, VECPATH);
+	ret = cleanup_directory(temp_path, 0, 0, true, false);
+
+	if (ret || is_init)
+		return rm_all_vec_path(vec_path);
+
+	return ret;
 }
 
 PG_FUNCTION_INFO_V1(vector_stddev_in);

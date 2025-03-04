@@ -20,11 +20,15 @@
 #include "utils/tuptable_vec.h"
 #include "vecexecutor/execnodes.h"
 #include "nodes/extensible.h"
+#include "storage/fd.h"
 
 #define EXEC_FLAG_VECTOR 0x8000 /* Vector execute plan */
 #define VEC_EXTENSION_NAME "vector"
 
 #define VECTOR_EXTENSION_CONTEXT "VectorExtensionContext"
+
+/* Uniform path name for vectorized files */
+#define VECPATH "VECTORIZATION"
 
 typedef struct VectorExtensionContext
 {
@@ -108,4 +112,11 @@ extern bool find_extension_context(List *context);
 extern void PostBuildVecPlan(PlanState *planstate, VecExecuteState *estate);
 extern void ExecVecSetTupleBound(int64 tuples_needed, PlanState *child_node, PlanState *limit_node);
 extern VecExecuteState * GetVecExecuteState(PlanState *ps);
+
+extern bool cleanup_directory(const char *relative_path,
+							int session_id,
+							int command_count,
+							bool need_check_all,
+							bool need_check_use);
+extern void VecClearEndWrapper(void);
 #endif							/* VEC_EXECUTOR_H */

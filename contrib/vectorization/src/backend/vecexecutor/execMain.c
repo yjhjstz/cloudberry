@@ -194,23 +194,14 @@ static int plan_num = 0;
 static char *
 build_materialize_file_name()
 {
-	Oid tblspcOid = InvalidOid;
-	time_t timestamp = time(NULL);
-	int random_number = 0;
-	char ts_path[128] = { 0 };
 	char *file_name = NULL;
-
-	tblspcOid = MyDatabaseTableSpace ? MyDatabaseTableSpace : DEFAULTTABLESPACE_OID;
-
-	TempTablespacePath(ts_path, tblspcOid);
+	Oid tblspcOid = InvalidOid;
+	char ts_path[PATH_MAX] = { "\0" };
 
 	file_name = palloc0(PATH_MAX);
-	srand((unsigned int)timestamp);
-	random_number = rand();
-
-	snprintf(file_name, PATH_MAX - 1, "%s/%s%s%d.%d",
-			ts_path, PG_TEMP_FILE_PREFIX, "materialize", MyProcPid, random_number);
-
+	tblspcOid = MyDatabaseTableSpace ? MyDatabaseTableSpace : DEFAULTTABLESPACE_OID;
+	TempTablespacePath(ts_path, tblspcOid);
+	snprintf(file_name, PATH_MAX - 1, "%s/%s_%d_%d_%s.%s.%d", ts_path, VECPATH, gp_session_id, gp_command_count, "vec", "materialize", MyProcPid);
 	return file_name;
 }
 
