@@ -1,17 +1,17 @@
 MODULE_big = vectorization
 
-top_builddir = ../../
+top_builddir = ../..
 
 REGRESS_DIR = src/test/regress
 VECHEADERS = src/include
 BACKENDS = src/backend
-PAX_DIR = ${top_builddir}/contrib/pax_storage/
+PAX_DIR = ${top_builddir}/contrib/pax_storage
 
 ARROW = $(BACKENDS)/utils/arrow
 PLAN = $(BACKENDS)/optimizer
 MISC = $(BACKENDS)/utils/misc
 VHEAP = $(BACKENDS)/utils/vheap
-HOOK = $(BACKENDS)/hook/
+HOOK = $(BACKENDS)/hook
 EXECUTOR = $(BACKENDS)/vecexecutor
 AM = $(BACKENDS)/utils/am
 ACCESS = $(BACKENDS)/access
