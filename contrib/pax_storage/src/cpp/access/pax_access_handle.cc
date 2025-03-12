@@ -543,6 +543,19 @@ void PaxAccessMethod::RelationVacuum(Relation /*onerel*/,
   /* PAX: micro-partitions have no dead tuples, so vacuum is empty */
 }
 
+BlockSequence *PaxAccessMethod::RelationGetBlockSequences(Relation rel,
+                                                          int *numSequences) {
+  // PAX not support brin index yet
+  NOT_IMPLEMENTED_YET;
+  return nullptr;
+}
+
+void PaxAccessMethod::RelationGetBlockSequence(Relation rel, BlockNumber blkNum,
+                                               BlockSequence *sequence) {
+  // PAX not support brin index yet
+  NOT_IMPLEMENTED_YET;
+}
+
 bool PaxAccessMethod::RelationNeedsToastTable(Relation /*rel*/) {
   // PAX never used the toasting, don't create the toast table from Cloudberry 7
 
@@ -764,6 +777,10 @@ static const TableAmRoutine kPaxColumnMethods = {
     .index_validate_scan = paxc::PaxAccessMethod::IndexValidateScan,
 
     .relation_size = paxc::PaxAccessMethod::RelationSize,
+    .relation_get_block_sequences =
+        paxc::PaxAccessMethod::RelationGetBlockSequences,
+    .relation_get_block_sequence =
+        paxc::PaxAccessMethod::RelationGetBlockSequence,
     .relation_needs_toast_table =
         paxc::PaxAccessMethod::RelationNeedsToastTable,
 
