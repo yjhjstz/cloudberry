@@ -34,8 +34,8 @@
 #include "access/pax_table_cluster.h"
 #include "access/pax_updater.h"
 #include "access/paxc_rel_options.h"
-#include "clustering/zorder_utils.h"
 #include "catalog/pax_catalog.h"
+#include "clustering/zorder_utils.h"
 #include "comm/guc.h"
 #include "comm/pax_memory.h"
 #include "comm/pax_resource.h"
@@ -223,6 +223,11 @@ void CCPaxAccessMethod::TupleInsert(Relation relation, TupleTableSlot *slot,
   {
     MemoryContext old_ctx;
     Assert(cbdb::pax_memory_context);
+
+#ifdef FAULT_INJECTOR
+    FaultInjector_InjectFaultIfSet("pax_insert", DDLNotSpecified, "",
+                                   RelationGetRelationName(relation));
+#endif
 
     old_ctx = MemoryContextSwitchTo(cbdb::pax_memory_context);
     CPaxInserter::TupleInsert(relation, slot, cid, options, bistate);
@@ -557,9 +562,10 @@ double PaxAccessMethod::IndexBuildRangeScan(
   EState *estate;
   ExprContext *econtext;
   Snapshot snapshot;
+  TransactionId OldestXmin;
 
   bool checking_uniqueness pg_attribute_unused();
-  bool need_unregister_snapshot;
+  bool need_unregister_snapshot = false;
   BlockNumber previous_blkno = InvalidBlockNumber;
 
   Assert(OidIsValid(index_relation->rd_rel->relam));
@@ -584,10 +590,28 @@ double PaxAccessMethod::IndexBuildRangeScan(
   econtext->ecxt_scantuple = slot;
   predicate = ExecPrepareQual(index_info->ii_Predicate, estate);
 
+  /*
+   * Prepare for scan of the base relation.  In a normal index build, we use
+   * SnapshotAny because we must retrieve all tuples and do our own time
+   * qual checks (because we have to index RECENTLY_DEAD tuples). In a
+   * concurrent build, or during bootstrap, we take a regular MVCC snapshot
+   * and index whatever's live according to that.
+   */
+  OldestXmin = InvalidTransactionId;
+
+  /* okay to ignore lazy VACUUMs here */
+  if (!IsBootstrapProcessingMode() && !index_info->ii_Concurrent)
+    OldestXmin = GetOldestNonRemovableTransactionId(heap_relation);
+
   if (!scan) {
-    snapshot = RegisterSnapshot(GetTransactionSnapshot());
+    if (!TransactionIdIsValid(OldestXmin)) {
+      snapshot = RegisterSnapshot(GetTransactionSnapshot());
+      need_unregister_snapshot = true;
+    } else {
+      need_unregister_snapshot = false;
+      snapshot = SnapshotAny;
+    }
     scan = table_beginscan(heap_relation, snapshot, 0, NULL);
-    need_unregister_snapshot = true;
   } else {
     snapshot = scan->rs_snapshot;
     need_unregister_snapshot = false;
@@ -974,18 +998,18 @@ static void paxProcessUtility(PlannedStmt *pstmt, const char *queryString,
 
 #if defined(USE_MANIFEST_API)
           auto pax_rel = table_open(RelationRelationId, AccessShareLock);
-          scan = systable_beginscan(pax_rel, InvalidOid, false, GetActiveSnapshot(),
-                                    0, nullptr);
+          scan = systable_beginscan(pax_rel, InvalidOid, false,
+                                    GetActiveSnapshot(), 0, nullptr);
           while (HeapTupleIsValid(tuple = systable_getnext(scan))) {
             Datum datum;
             bool isnull;
 
-            datum = heap_getattr(tuple, Anum_pg_class_relam,
-                                 pax_rel->rd_att, &isnull);
+            datum = heap_getattr(tuple, Anum_pg_class_relam, pax_rel->rd_att,
+                                 &isnull);
             if (isnull || DatumGetObjectId(datum) != PAX_TABLE_AM_OID) continue;
 
-            datum = heap_getattr(tuple, Anum_pg_class_oid,
-                                 pax_rel->rd_att, &isnull);
+            datum = heap_getattr(tuple, Anum_pg_class_oid, pax_rel->rd_att,
+                                 &isnull);
             Assert(!isnull);
             Oid relid = DatumGetObjectId(datum);
             relids = lappend_oid(relids, relid);
@@ -993,7 +1017,8 @@ static void paxProcessUtility(PlannedStmt *pstmt, const char *queryString,
           systable_endscan(scan);
           table_close(pax_rel, AccessShareLock);
 #else
-          auto pax_aux_rel = table_open(PAX_TABLES_RELATION_ID, AccessShareLock);
+          auto pax_aux_rel =
+              table_open(PAX_TABLES_RELATION_ID, AccessShareLock);
           scan = systable_beginscan(pax_aux_rel, InvalidOid, false,
                                     GetActiveSnapshot(), 0, NULL);
 
