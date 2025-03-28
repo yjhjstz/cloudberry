@@ -1,5 +1,7 @@
-create or replace language plpython3u;
-CREATE
+-- start_ignore
+create extension if not exists gp_inject_fault;
+create extension if not exists plpython3u;
+-- end_ignore
 
 -- Helper function, to call either __gp_aoseg, or gp_aocsseg, depending
 -- on whether the table is row- or column-oriented. This allows us to

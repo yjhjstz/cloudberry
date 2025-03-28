@@ -164,7 +164,6 @@ SELECT count(*) FROM
 -- aggregation. Force spilling in both cases by setting work_mem low.
 --
 SET work_mem='64kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 -- Produce results with sorting.
 SET enable_hashagg=FALSE;
 SET optimizer_enable_hashagg=FALSE;
@@ -178,7 +177,7 @@ SELECT DISTINCT g%1000 FROM generate_series(0,9999) g;
    ->  Sort
          Sort Key: ((generate_series % 1000))
          ->  Function Scan on generate_series
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 CREATE TABLE distinct_group_1 AS
@@ -200,7 +199,7 @@ SELECT DISTINCT g%1000 FROM generate_series(0,9999) g;
  HashAggregate
    Group Key: (generate_series % 1000)
    ->  Function Scan on generate_series
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (4 rows)
 
 CREATE TABLE distinct_hash_1 AS
@@ -212,7 +211,6 @@ SELECT DISTINCT (g%1000)::text FROM generate_series(0,9999) g;
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
 SET enable_sort=TRUE;
 SET work_mem TO DEFAULT;
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 -- Compare results
 (SELECT * FROM distinct_hash_1 EXCEPT SELECT * FROM distinct_group_1)
   UNION ALL
@@ -237,8 +235,6 @@ DROP TABLE distinct_group_2;
 -- very own regression file.
 --
 CREATE TEMP TABLE disttable (f1 integer);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'f1' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 INSERT INTO DISTTABLE VALUES(1);
 INSERT INTO DISTTABLE VALUES(2);
 INSERT INTO DISTTABLE VALUES(3);
@@ -336,11 +332,7 @@ SELECT null IS NOT DISTINCT FROM null as "yes";
 -- DISABLE ORCA. Please fix me later if ORCA resolve the problem.
 SET optimizer TO off;
 CREATE TABLE distinct_1(a int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 CREATE TABLE distinct_2(a int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 INSERT INTO distinct_1 VALUES(1),(2),(NULL);
 INSERT INTO distinct_2 VALUES(1),(NULL);
 EXPLAIN SELECT * FROM distinct_1, distinct_2 WHERE distinct_1.a IS DISTINCT FROM distinct_2.a;
@@ -439,8 +431,6 @@ CREATE TABLE cities (
     population      float,
     altitude        int
 ); 
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'name' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 CREATE TABLE capitals (
     state           char(2)
 ) INHERITS (cities);

@@ -1,4 +1,3 @@
-SET gp_enable_ao_indexscan = ON;
 --
 -- CREATE_INDEX
 -- Create ancillary data structures (i.e. indices)
@@ -82,6 +81,7 @@ CREATE INDEX gpolygonind ON polygon_tbl USING gist (f1);
 CREATE INDEX gcircleind ON circle_tbl USING gist (f1);
 
 INSERT INTO POINT_TBL(f1) VALUES (NULL);
+ANALYZE POINT_TBL;
 
 CREATE INDEX gpointind ON point_tbl USING gist (f1);
 
@@ -453,7 +453,7 @@ INSERT INTO func_index_heap VALUES('QWERTY');
 -- this should fail because of unsafe column type (anonymous record)
 create index on func_index_heap ((f1 || f2), (row(f1, f2)));
 
-SET default_table_access_method=heap;
+
 --
 -- Test unique index with included columns
 --
@@ -752,9 +752,9 @@ CREATE TABLE dupindexcols AS
 CREATE INDEX dupindexcols_i ON dupindexcols (f1, id, f1 text_pattern_ops);
 ANALYZE dupindexcols;
 
--- EXPLAIN (COSTS OFF)
---   SELECT count(*) FROM dupindexcols
---     WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
+EXPLAIN (COSTS OFF)
+  SELECT count(*) FROM dupindexcols
+    WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
 SELECT count(*) FROM dupindexcols
   WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
 

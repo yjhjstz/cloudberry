@@ -6,6 +6,14 @@ clang-tidy.result
 src/test/regress/hooktest/**
 src/test/regress/query_info_hook_test/**
 src/test/regress/expected/oid_wraparound_1.out
+
+/contrib/pax_storage/src/test/isolation2/expected/distributed_snapshot.out
+/src/test/isolation2/expected/distributed_snapshot.out
+/src/test/isolation2/expected/local_directory_table_mixed.out
+src/test/isolation2/expected/resgroup/resgroup_io_limit.out
+src/test/isolation2/sql/distributed_snapshot.sql
+src/test/isolation2/sql/local_directory_table_mixed.sql
+src/test/isolation2/sql/resgroup/resgroup_io_limit.sql
 # pb
 **/*.pb.h
 **/*.pb.cc

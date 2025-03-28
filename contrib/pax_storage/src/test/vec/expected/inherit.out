@@ -534,6 +534,11 @@ SELECT relname, d.* FROM ONLY d, pg_class where d.tableoid = pg_class.oid;
 ---------+----+----+----+----
 (0 rows)
 
+-- Confirm PRIMARY KEY adds NOT NULL constraint to child table
+CREATE TEMP TABLE z (b TEXT, PRIMARY KEY(aa, b)) inherits (a);
+INSERT INTO z VALUES (NULL, 'text'); -- should fail
+ERROR:  null value in column "aa" of relation "z" violates not-null constraint  (seg2 127.0.0.1:7004 pid=5583)
+DETAIL:  Failing row contains (null, text).
 -- Check inherited UPDATE with all children excluded
 create table some_tab (a int, b int) distributed randomly;
 create table some_tab_child () inherits (some_tab);
@@ -713,6 +718,7 @@ NOTICE:  merging column "tomorrow" with inherited definition
 DROP TABLE firstparent, secondparent, jointchild, thirdparent, otherchild;
 -- Test changing the type of inherited columns
 insert into d values('test','one','two','three');
+alter table z drop constraint z_pkey;
 alter table a alter column aa type integer using bit_length(aa);
 select * from d;
  aa | bb  | cc  |  dd   
@@ -813,8 +819,6 @@ drop table derived;
 drop table base;
 create table p1(ff1 int);
 create table p2(f1 text);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'f1' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 create function p2text(p2) returns text as 'select $1.f1' language sql;
 create table c1(f3 int) inherits(p1,p2);
 insert into c1 values(123456789, 'hi', 42);
@@ -1145,7 +1149,7 @@ drop cascades to table inhts
 drop cascades to table inht3
 drop cascades to table inht4
 -- Test non-inheritable indices [UNIQUE, EXCLUDE] constraints
-CREATE TABLE test_constraints (id int, val1 varchar, val2 int);
+CREATE TABLE test_constraints (id int, val1 varchar, val2 int, UNIQUE(val1, val2));
 CREATE TABLE test_constraints_inh () INHERITS (test_constraints);
 \d+ test_constraints
                                    Table "public.test_constraints"
@@ -1154,9 +1158,12 @@ CREATE TABLE test_constraints_inh () INHERITS (test_constraints);
  id     | integer           |           |          |         | plain    |              | 
  val1   | character varying |           |          |         | extended |              | 
  val2   | integer           |           |          |         | plain    |              | 
+Indexes:
+    "test_constraints_val1_val2_key" UNIQUE CONSTRAINT, btree (val1, val2)
 Child tables: test_constraints_inh
-Distributed by: (id)
+Distributed by: (val1, val2)
 
+ALTER TABLE ONLY test_constraints DROP CONSTRAINT test_constraints_val1_val2_key;
 \d+ test_constraints
                                    Table "public.test_constraints"
  Column |       Type        | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -1165,7 +1172,7 @@ Distributed by: (id)
  val1   | character varying |           |          |         | extended |              | 
  val2   | integer           |           |          |         | plain    |              | 
 Child tables: test_constraints_inh
-Distributed by: (id)
+Distributed by: (val1, val2)
 
 \d+ test_constraints_inh
                                  Table "public.test_constraints_inh"
@@ -1175,7 +1182,7 @@ Distributed by: (id)
  val1   | character varying |           |          |         | extended |              | 
  val2   | integer           |           |          |         | plain    |              | 
 Inherits: test_constraints
-Distributed by: (id)
+Distributed by: (val1, val2)
 
 DROP TABLE test_constraints_inh;
 DROP TABLE test_constraints;
@@ -1332,12 +1339,12 @@ drop cascades to table patest2
 --
 -- Test merge-append plans for inheritance trees
 --
-create table matest0 (id serial, name text);
-create table matest1 (id integer) inherits (matest0);
+create table matest0 (id serial primary key, name text);
+create table matest1 (id integer primary key) inherits (matest0);
 NOTICE:  merging column "id" with inherited definition
-create table matest2 (id integer) inherits (matest0);
+create table matest2 (id integer primary key) inherits (matest0);
 NOTICE:  merging column "id" with inherited definition
-create table matest3 (id integer) inherits (matest0);
+create table matest3 (id integer primary key) inherits (matest0);
 NOTICE:  merging column "id" with inherited definition
 create index matest0i on matest0 ((1-id));
 create index matest1i on matest1 ((1-id));
@@ -1478,7 +1485,7 @@ explain (verbose, costs off) select min(1-id) from matest0;
                              ->  Sort
                                    Output: matest0_3.id, ((1 - matest0_3.id))
                                    Sort Key: ((1 - matest0_3.id))
-                                   ->  Seq Scan on public.matest2 matest0_3
+                                   ->  Index Only Scan using matest2_pkey on public.matest2 matest0_3
                                          Output: matest0_3.id, (1 - matest0_3.id)
                                          Filter: ((1 - matest0_3.id) IS NOT NULL)
                              ->  Index Scan using matest3i on public.matest3 matest0_4

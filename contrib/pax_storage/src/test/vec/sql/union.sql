@@ -354,7 +354,7 @@ SELECT '3.4'::numeric UNION SELECT 'foo';
 
 CREATE TEMP TABLE t1 (a text, b text);
 CREATE INDEX t1_ab_idx on t1 ((a || b));
-CREATE TEMP TABLE t2 (ab text);
+CREATE TEMP TABLE t2 (ab text primary key);
 INSERT INTO t1 VALUES ('a', 'b'), ('x', 'y');
 INSERT INTO t2 VALUES ('ab'), ('xy');
 ANALYZE t1;
@@ -385,7 +385,9 @@ explain (costs off)
 
 CREATE TEMP TABLE t1c (b text, a text);
 ALTER TABLE t1c INHERIT t1;
+CREATE TEMP TABLE t2c (primary key (ab)) INHERITS (t2);
 INSERT INTO t1c VALUES ('v', 'w'), ('c', 'd'), ('m', 'n'), ('e', 'f');
+INSERT INTO t2c VALUES ('vw'), ('cd'), ('mn'), ('ef');
 CREATE INDEX t1c_ab_idx on t1c ((a || b));
 
 set enable_seqscan = on;
@@ -416,8 +418,8 @@ reset enable_sort;
 -- Coerce GPDB to produce same plan as in upstream
 set enable_seqscan=off;
 
-create table events (event_id int);
-create table other_events (event_id int);
+create table events (event_id int primary key);
+create table other_events (event_id int primary key);
 create table events_child () inherits (events);
 
 explain (costs off)
@@ -548,3 +550,4 @@ select * from
    union all
    select *, 1 as x from int8_tbl b) ss
 where (x = 0) or (q1 >= q2 and q1 <= q2);
+

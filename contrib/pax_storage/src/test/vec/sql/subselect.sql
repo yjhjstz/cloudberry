@@ -320,19 +320,19 @@ select * from numeric_table
 -- Test case for bug #4290: bogus calculation of subplan param sets
 --
 
-create temp table ta (id int, val int);
+create temp table ta (id int primary key, val int);
 
 insert into ta values(1,1);
 insert into ta values(2,2);
 
-create temp table tb (id int, aval int);
+create temp table tb (id int primary key, aval int);
 
 insert into tb values(1,1);
 insert into tb values(2,1);
 insert into tb values(3,2);
 insert into tb values(4,2);
 
-create temp table tc (id int, aid int);
+create temp table tc (id int primary key, aid int);
 
 insert into tc values(1,1);
 insert into tc values(2,2);
@@ -411,6 +411,20 @@ from
    from int8_tbl) sq0
   join
   int4_tbl i4 on dummy = i4.f1;
+
+--
+-- Test case for subselect within UPDATE of INSERT...ON CONFLICT DO UPDATE
+--
+create temp table upsert(key int4 primary key, val text);
+insert into upsert values(1, 'val') on conflict (key) do update set val = 'not seen';
+insert into upsert values(1, 'val') on conflict (key) do update set val = 'seen with subselect ' || (select f1 from int4_tbl where f1 != 0 order by f1 limit 1)::text;
+
+select * from upsert;
+
+with aa as (select 'int4_tbl' u from int4_tbl limit 1)
+insert into upsert values (1, 'x'), (999, 'y')
+on conflict (key) do update set val = (select u from aa)
+returning *;
 
 --
 -- Test case for cross-type partial matching in hashed subplan (bug #7597)
@@ -645,6 +659,12 @@ insert into notinouter values (null), (1);
 select * from notinouter where a not in (select b from notininner);
 
 --
+-- Check we behave sanely in corner case of empty SELECT list (bug #8648)
+--
+create temp table nocolumns();
+select exists(select * from nocolumns);
+
+--
 -- Check behavior with a SubPlan in VALUES (bug #14924)
 --
 select val.x
@@ -787,16 +807,10 @@ set optimizer to off;
 -- Test that LIMIT can be pushed to SORT through a subquery that just projects
 -- columns.  We check for that having happened by looking to see if EXPLAIN
 -- ANALYZE shows that a top-N sort was used.  We must suppress or filter away
--- all the non-invariant parts of the EXPLAIN ANALYZE output.
+-- all the non-invariant parts of the EXPLAIN ANALYZE output. Use a replicated
+-- table to genarate a plan like: Limit -> Subquery -> Sort
 --
--- GPDB_12_MERGE_FIXME: we need to revisit the following test because it is not
--- testing what it advertized in the above comment. Specificly, we don't
--- execute top-N sort for the planner plan. Orca on the other hand never honors
--- ORDER BY in a subquery, as permitted by the SQL spec.  Consider rewriting
--- the test using a replicated table so that we get the plan stucture like
--- this: Limit -> Subquery -> Sort
---
-create table sq_limit (pk int, c1 int, c2 int);
+create table sq_limit (pk int primary key, c1 int, c2 int) distributed replicated;
 insert into sq_limit values
     (1, 1, 1),
     (2, 2, 2),
@@ -811,6 +825,7 @@ create function explain_sq_limit() returns setof text language plpgsql as
 $$
 declare ln text;
 begin
+    set local enable_parallel=off;
     for ln in
         explain (analyze, summary off, timing off, costs off)
         select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3
@@ -818,17 +833,11 @@ begin
         ln := regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
         return next ln;
     end loop;
+    reset enable_parallel;
 end;
 $$;
 
--- the number of returned rows changes with the different segment, so ignore the "actual rows"
--- start_matchignore
--- m/.*actual rows=.*/
--- end_matchignore
-
--- start_ignore
 select * from explain_sq_limit();
--- end_ignore
 
 -- a subpath is sorted under a subqueryscan. however, the subqueryscan is not.
 -- whether the order of subpath can applied to the subqueryscan is up-to-implement.
@@ -882,14 +891,21 @@ explain (verbose, costs off)
 with x as (select * from (select f1, current_database() from subselect_tbl) ss)
 select * from x where f1 = 1;
 
+
 -- Volatile functions prevent inlining
--- GPDB_12_MERGE_FIXME: inlining happens on GPDB: But the plan seems OK
--- nevertheless. Is the GPDB planner smart, and notices that this is
--- ok to inline, or is it doing something that would be unsafe in more
--- complicated queries? Investigte
+-- Prevent inlining happens on GPDB, inlining may cause wrong results.
+-- For example, nextval() function.
 explain (verbose, costs off)
 with x as (select * from (select f1, random() from subselect_tbl) ss)
 select * from x where f1 = 1;
+
+create temporary sequence ts;
+create table vol_test(a int, b int);
+explain (verbose, costs off)
+with x as (select * from (select a, nextval('ts') from vol_test) ss)
+select * from x where a = 1;
+drop sequence ts;
+drop table vol_test;
 
 -- SELECT FOR UPDATE cannot be inlined
 -- GPDB: select statement with locking clause is not easy to fully supported
@@ -910,11 +926,6 @@ with x as not materialized (select * from (select f1, current_database() as n fr
 select * from x, x x2 where x.n = x2.n;
 
 -- Multiply-referenced CTEs can't be inlined if they contain outer self-refs
--- start_ignore
--- GPDB_12_MERGE_FIXME: This currenty produces incorrect results on GPDB.
--- It's not a new issue, but it was exposed by this new upstream test case
--- with the PostgreSQL v12 merge.
--- See https://github.com/greenplum-db/gpdb/issues/10014
 explain (verbose, costs off)
 with recursive x(a) as
   ((values ('a'), ('b'))
@@ -931,7 +942,6 @@ with recursive x(a) as
     select z.a || z1.a as a from z cross join z as z1
     where length(z.a || z1.a) < 5))
 select * from x;
--- end_ignore
 
 explain (verbose, costs off)
 with recursive x(a) as
@@ -971,3 +981,57 @@ with x as (select * from subselect_tbl)
 select * from x for update;
 
 set gp_cte_sharing to off;
+
+-- Ensure that both planners produce valid plans for the query with the nested
+-- SubLink, which contains attributes referenced in query's GROUP BY clause.
+-- Due to presence of non-grouping columns in targetList, ORCA performs query
+-- normalization, during which ORCA establishes a correspondence between vars
+-- from targetlist entries to grouping attributes. And this process should
+-- correctly handle nested structures. The inner part of SubPlan in the test
+-- should contain only t.j.
+-- start_ignore
+drop table if exists t;
+-- end_ignore
+create table t (i int, j int) distributed by (i);
+insert into t values (1, 2);
+
+explain (verbose, costs off)
+select j,
+(select j from (select j) q2)
+from t
+group by i, j;
+
+select j,
+(select j from (select j) q2)
+from t
+group by i, j;
+
+-- Ensure that both planners produce valid plans for the query with the nested
+-- SubLink when this SubLink is inside the GROUP BY clause. Attribute, which is
+-- not grouping column (1 as c), is added to query targetList to make ORCA
+-- perform query normalization. During normalization ORCA modifies the vars of
+-- the grouping elements of targetList in order to produce a new Query tree.
+-- The modification of vars inside nested part of SubLinks should be handled
+-- correctly. ORCA shouldn't fall back due to missing variable entry as a result
+-- of incorrect query normalization.
+explain (verbose, costs off)
+select j, 1 as c,
+(select j from (select j) q2) q1
+from t
+group by j, q1;
+
+select j, 1 as c,
+(select j from (select j) q2) q1
+from t
+group by j, q1;
+
+-- Ensure that both planners produce valid plans for the query with the nested
+-- SubLink, and this SubLink is under aggregation. ORCA shouldn't fall back due
+-- to missing variable entry as a result of incorrect query normalization. ORCA
+-- should correctly process args of the aggregation during normalization.
+explain (verbose, costs off)
+select (select max((select t.i))) from t;
+
+select (select max((select t.i))) from t;
+
+drop table t;

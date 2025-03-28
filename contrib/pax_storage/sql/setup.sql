@@ -1,6 +1,6 @@
 -- start_ignore
 create schema pax_test;
-CREATE EXTENSION gp_inject_fault;
+CREATE EXTENSION if not exists gp_inject_fault;
 -- end_ignore
 
 CREATE OR REPLACE FUNCTION pax_get_catalog_rows(rel regclass,

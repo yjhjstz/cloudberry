@@ -93,6 +93,10 @@ SELECT relname, b.* FROM ONLY b, pg_class where b.tableoid = pg_class.oid;
 SELECT relname, c.* FROM ONLY c, pg_class where c.tableoid = pg_class.oid;
 SELECT relname, d.* FROM ONLY d, pg_class where d.tableoid = pg_class.oid;
 
+-- Confirm PRIMARY KEY adds NOT NULL constraint to child table
+CREATE TEMP TABLE z (b TEXT, PRIMARY KEY(aa, b)) inherits (a);
+INSERT INTO z VALUES (NULL, 'text'); -- should fail
+
 -- Check inherited UPDATE with all children excluded
 create table some_tab (a int, b int) distributed randomly;
 create table some_tab_child () inherits (some_tab);
@@ -201,6 +205,7 @@ DROP TABLE firstparent, secondparent, jointchild, thirdparent, otherchild;
 
 -- Test changing the type of inherited columns
 insert into d values('test','one','two','three');
+alter table z drop constraint z_pkey;
 alter table a alter column aa type integer using bit_length(aa);
 select * from d;
 
@@ -377,9 +382,10 @@ DROP TABLE inht1, inhs1 CASCADE;
 
 
 -- Test non-inheritable indices [UNIQUE, EXCLUDE] constraints
-CREATE TABLE test_constraints (id int, val1 varchar, val2 int);
+CREATE TABLE test_constraints (id int, val1 varchar, val2 int, UNIQUE(val1, val2));
 CREATE TABLE test_constraints_inh () INHERITS (test_constraints);
 \d+ test_constraints
+ALTER TABLE ONLY test_constraints DROP CONSTRAINT test_constraints_val1_val2_key;
 \d+ test_constraints
 \d+ test_constraints_inh
 DROP TABLE test_constraints_inh;
@@ -479,10 +485,10 @@ drop table patest0 cascade;
 -- Test merge-append plans for inheritance trees
 --
 
-create table matest0 (id serial, name text);
-create table matest1 (id integer) inherits (matest0);
-create table matest2 (id integer) inherits (matest0);
-create table matest3 (id integer) inherits (matest0);
+create table matest0 (id serial primary key, name text);
+create table matest1 (id integer primary key) inherits (matest0);
+create table matest2 (id integer primary key) inherits (matest0);
+create table matest3 (id integer primary key) inherits (matest0);
 
 create index matest0i on matest0 ((1-id));
 create index matest1i on matest1 ((1-id));

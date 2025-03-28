@@ -91,15 +91,9 @@ create function int8alias1cmp(int8, int8alias1) returns int
   strict immutable language internal as 'btint8cmp';
 alter operator family integer_ops using btree add
   function 1 int8alias1cmp (int8, int8alias1);
-create table ec0 (ff int8, f1 int8, f2 int8);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'ff' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
-create table ec1 (ff int8, f1 int8alias1, f2 int8alias2);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'ff' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
-create table ec2 (xf int8, x1 int8alias1, x2 int8alias2);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'xf' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+create table ec0 (ff int8 primary key, f1 int8, f2 int8);
+create table ec1 (ff int8 primary key, f1 int8alias1, f2 int8alias2);
+create table ec2 (xf int8 primary key, x1 int8alias1, x2 int8alias2);
 -- for the moment we only want to look at nestloop plans
 set enable_nestloop = on;
 set enable_hashjoin = off;
@@ -116,17 +110,17 @@ explain (costs off)
  Vec Gather Motion 1:1  (slice1; segments: 1)
    ->  Vec Seq Scan on ec0
          Filter: ((ff = '42'::bigint) AND (f1 = '42'::bigint) AND (ff = f1))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (4 rows)
 
 explain (costs off)
   select * from ec0 where ff = f1 and f1 = '42'::int8alias1;
-                              QUERY PLAN                               
------------------------------------------------------------------------
+                       QUERY PLAN                        
+---------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on ec0
-         Filter: ((ff = '42'::int8alias1) AND (f1 = '42'::int8alias1))
- Optimizer: Postgres query optimizer
+         Filter: ((ff = f1) AND (f1 = '42'::int8alias1))
+ Optimizer: GPORCA
 (4 rows)
 
 explain (costs off)
@@ -136,7 +130,7 @@ explain (costs off)
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on ec1
          Filter: ((ff = f1) AND (f1 = '42'::int8alias1))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (4 rows)
 
 explain (costs off)
@@ -146,7 +140,7 @@ explain (costs off)
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on ec1
          Filter: ((ff = f1) AND (f1 = '42'::int8alias2))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (4 rows)
 
 explain (costs off)
@@ -156,11 +150,12 @@ explain (costs off)
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Nested Loop
          Join Filter: (ec1.ff = ec2.x1)
-         ->  Broadcast Motion 3:3  (slice2; segments: 3)
-               ->  Seq Scan on ec2
          ->  Seq Scan on ec1
                Filter: (ff = '42'::bigint)
- Optimizer: Pivotal Optimizer (GPORCA)
+         ->  Materialize
+               ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                     ->  Seq Scan on ec2
+ Optimizer: GPORCA
 (8 rows)
 
 explain (costs off)
@@ -169,13 +164,13 @@ explain (costs off)
 ---------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Nested Loop
+         Join Filter: (ec1.ff = ec2.x1)
          ->  Seq Scan on ec1
                Filter: (ff = '42'::int8alias1)
          ->  Materialize
                ->  Broadcast Motion 3:3  (slice2; segments: 3)
                      ->  Seq Scan on ec2
-                           Filter: (x1 = '42'::int8alias1)
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (9 rows)
 
 explain (costs off)
@@ -189,7 +184,7 @@ explain (costs off)
                ->  Seq Scan on ec2
                      Filter: ('42'::bigint = x1)
          ->  Seq Scan on ec1
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (8 rows)
 
 explain (costs off)
@@ -203,7 +198,7 @@ explain (costs off)
                ->  Seq Scan on ec2
                      Filter: (x1 = '42'::int8alias1)
          ->  Seq Scan on ec1
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (8 rows)
 
 explain (costs off)
@@ -217,7 +212,7 @@ explain (costs off)
                ->  Seq Scan on ec2
                      Filter: (x1 = '42'::int8alias2)
          ->  Seq Scan on ec1
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (8 rows)
 
 create index ec1_expr1 on ec1((ff + 1));
@@ -248,7 +243,7 @@ explain (costs off)
                                        ->  Seq Scan on ec1
                                        ->  Seq Scan on ec1 ec1_1
                            ->  Seq Scan on ec1 ec1_2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (14 rows)
 
 explain (costs off)
@@ -275,7 +270,7 @@ explain (costs off)
                                        ->  Seq Scan on ec1
                                        ->  Seq Scan on ec1 ec1_1
                            ->  Seq Scan on ec1 ec1_2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (14 rows)
 
 explain (costs off)
@@ -319,7 +314,7 @@ explain (costs off)
                                        ->  Seq Scan on ec1 ec1_4
                                        ->  Seq Scan on ec1 ec1_5
                            ->  Seq Scan on ec1 ec1_6
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (25 rows)
 
 -- let's try that as a mergejoin
@@ -366,7 +361,7 @@ explain (costs off)
                                        ->  Seq Scan on ec1 ec1_4
                                        ->  Seq Scan on ec1 ec1_5
                            ->  Seq Scan on ec1 ec1_6
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (25 rows)
 
 -- check partially indexed scan
@@ -397,7 +392,7 @@ explain (costs off)
                                        ->  Seq Scan on ec1
                                        ->  Seq Scan on ec1 ec1_1
                            ->  Seq Scan on ec1 ec1_2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (14 rows)
 
 -- let's try that as a mergejoin
@@ -427,7 +422,7 @@ explain (costs off)
                                        ->  Seq Scan on ec1
                                        ->  Seq Scan on ec1 ec1_1
                            ->  Seq Scan on ec1 ec1_2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (14 rows)
 
 -- check effects of row-level security
@@ -436,7 +431,6 @@ set enable_mergejoin = off;
 alter table ec1 enable row level security;
 create policy p1 on ec1 using (f1 < '5'::int8alias1);
 create user regress_user_ectest;
-NOTICE:  resource queue required -- using default resource queue "pg_default"
 grant select on ec0 to regress_user_ectest;
 grant select on ec1 to regress_user_ectest;
 -- without any RLS, we'll treat {a.ff, b.ff, 43} as an EquivalenceClass
@@ -446,14 +440,13 @@ explain (costs off)
                           QUERY PLAN                           
 ---------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
-   ->  Nested Loop
+   ->  Hash Join
+         Hash Cond: (a.ff = b.ff)
          ->  Seq Scan on ec0 a
                Filter: (ff = '43'::int8alias1)
-         ->  Materialize
-               ->  Broadcast Motion 3:3  (slice2; segments: 3)
-                     ->  Seq Scan on ec1 b
-                           Filter: (ff = '43'::int8alias1)
- Optimizer: Postgres query optimizer
+         ->  Hash
+               ->  Seq Scan on ec1 b
+ Optimizer: GPORCA
 (9 rows)
 
 set session authorization regress_user_ectest;
@@ -466,14 +459,14 @@ explain (costs off)
                                     QUERY PLAN                                    
 ----------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
-   ->  Nested Loop
-         Join Filter: (a.ff = b.ff)
+   ->  Hash Join
+         Hash Cond: (a.ff = b.ff)
          ->  Seq Scan on ec0 a
                Filter: (ff = '43'::int8alias1)
-         ->  Materialize
+         ->  Hash
                ->  Seq Scan on ec1 b
-                     Filter: ((f1 < '5'::int8alias1) AND (ff = '43'::int8alias1))
- Optimizer: Postgres query optimizer
+                     Filter: (f1 < '5'::int8alias1)
+ Optimizer: GPORCA
 (9 rows)
 
 reset session authorization;
@@ -488,7 +481,7 @@ explain (costs off)
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on tenk1
          Filter: ((unique1 = unique1) AND (unique2 = unique2))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (4 rows)
 
 -- this could be converted, but isn't at present
@@ -499,13 +492,11 @@ explain (costs off)
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on tenk1
          Filter: ((unique1 = unique1) OR (unique2 = unique2))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (4 rows)
 
 -- check that we recognize equivalence with dummy domains in the way
 create temp table undername (f1 name, f2 int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'f1' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 create temp view overview as
   select f1::information_schema.sql_identifier as sqli, f2 from undername;
 explain (costs off)  -- this should not require a sort

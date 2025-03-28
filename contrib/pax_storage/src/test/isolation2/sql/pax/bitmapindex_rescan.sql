@@ -11,8 +11,8 @@ create index yolo_idx on yolo using btree (a);
 1: begin;
 2: begin;
 1: insert into yolo select i, i from generate_series(1, 10000) i;
-2: insert into yolo select i, i from generate_series(1, 2) i;
 1: commit;
+2: insert into yolo select i, i from generate_series(1, 2) i;
 2: abort;
 
 analyze yolo;

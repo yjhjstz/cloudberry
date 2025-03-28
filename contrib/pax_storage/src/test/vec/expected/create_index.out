@@ -1,4 +1,3 @@
-SET gp_enable_ao_indexscan = ON;
 --
 -- CREATE_INDEX
 -- Create ancillary data structures (i.e. indices)
@@ -62,6 +61,7 @@ ERROR:  pax only support btree/hash/gin/bitmap indexes (pax_access_handle.cc:736
 CREATE INDEX gcircleind ON circle_tbl USING gist (f1);
 ERROR:  pax only support btree/hash/gin/bitmap indexes (pax_access_handle.cc:736)
 INSERT INTO POINT_TBL(f1) VALUES (NULL);
+ANALYZE POINT_TBL;
 CREATE INDEX gpointind ON point_tbl USING gist (f1);
 ERROR:  pax only support btree/hash/gin/bitmap indexes (pax_access_handle.cc:736)
 CREATE TEMP TABLE gpolygon_tbl AS
@@ -1448,7 +1448,6 @@ btree, for table "public.func_index_heap"
 -- this should fail because of unsafe column type (anonymous record)
 create index on func_index_heap ((f1 || f2), (row(f1, f2)));
 ERROR:  column "row" has pseudo-type record
-SET default_table_access_method=heap;
 --
 -- Test unique index with included columns
 --
@@ -1982,9 +1981,19 @@ CREATE TABLE dupindexcols AS
   SELECT unique1 as id, stringu2::text as f1 FROM tenk1;
 CREATE INDEX dupindexcols_i ON dupindexcols (f1, id, f1 text_pattern_ops);
 ANALYZE dupindexcols;
--- EXPLAIN (COSTS OFF)
---   SELECT count(*) FROM dupindexcols
---     WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
+EXPLAIN (COSTS OFF)
+  SELECT count(*) FROM dupindexcols
+    WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
+                                                      QUERY PLAN                                                      
+----------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         ->  Partial Aggregate
+               ->  Index Only Scan using dupindexcols_i on dupindexcols
+                     Index Cond: ((f1 >= 'WA'::text) AND (f1 <= 'ZZZ'::text) AND (id < 1000) AND (f1 ~<~ 'YX'::text))
+ Optimizer: Postgres query optimizer
+(6 rows)
+
 SELECT count(*) FROM dupindexcols
   WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
  count 
@@ -2113,15 +2122,15 @@ explain (costs off)
 -- are used.
 explain (costs off)
   select * from boolindex where b order by i limit 10;
-                   QUERY PLAN                   
-------------------------------------------------
- Limit
-   ->  Gather Motion 3:1  (slice1; segments: 3)
+                     QUERY PLAN                     
+----------------------------------------------------
+ Vec Limit
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)
          Merge Key: i
-         ->  Limit
-               ->  Sort
+         ->  Vec Limit
+               ->  Vec Sort
                      Sort Key: i
-                     ->  Seq Scan on boolindex
+                     ->  Vec Seq Scan on boolindex
                            Filter: b
  Optimizer: Postgres query optimizer
 (9 rows)
@@ -2270,13 +2279,16 @@ WHERE classid = 'pg_class'::regclass AND
  index concur_reindex_ind3                | column c1 of table concur_reindex_tab                      | a
  index concur_reindex_ind4                | column c1 of table concur_reindex_tab                      | a
  index concur_reindex_ind4                | column c2 of table concur_reindex_tab                      | a
+ materialized view concur_reindex_matview | access method pax                                          | n
  materialized view concur_reindex_matview | schema public                                              | n
+ table concur_reindex_tab                 | access method pax                                          | n
  table concur_reindex_tab                 | schema public                                              | n
-(8 rows)
+(10 rows)
 
 REINDEX INDEX concur_reindex_ind1;
 REINDEX TABLE concur_reindex_tab;
 REINDEX TABLE concur_reindex_matview;
+NOTICE:  table "concur_reindex_matview" has no indexes to reindex
 SELECT pg_describe_object(classid, objid, objsubid) as obj,
        pg_describe_object(refclassid,refobjid,refobjsubid) as objref,
        deptype
@@ -2297,9 +2309,11 @@ WHERE classid = 'pg_class'::regclass AND
  index concur_reindex_ind3                | column c1 of table concur_reindex_tab                      | a
  index concur_reindex_ind4                | column c1 of table concur_reindex_tab                      | a
  index concur_reindex_ind4                | column c2 of table concur_reindex_tab                      | a
+ materialized view concur_reindex_matview | access method pax                                          | n
  materialized view concur_reindex_matview | schema public                                              | n
+ table concur_reindex_tab                 | access method pax                                          | n
  table concur_reindex_tab                 | schema public                                              | n
-(8 rows)
+(10 rows)
 
 -- Check that comments are preserved
 CREATE TABLE testcomment (i int);
@@ -2364,9 +2378,12 @@ DROP TABLE concur_replident;
 CREATE TABLE concur_appclass_tab(i tsvector, j tsvector, k tsvector);
 CREATE INDEX concur_appclass_ind on concur_appclass_tab
   USING gist (i tsvector_ops (siglen='1000'), j tsvector_ops (siglen='500'));
+ERROR:  pax only support btree/hash/gin/bitmap indexes (pax_access_handle.cc:591)
 CREATE INDEX concur_appclass_ind_2 on concur_appclass_tab
   USING gist (k tsvector_ops (siglen='300'), j tsvector_ops);
+ERROR:  pax only support btree/hash/gin/bitmap indexes (pax_access_handle.cc:591)
 REINDEX TABLE concur_appclass_tab;
+NOTICE:  table "concur_appclass_tab" has no indexes to reindex
 \d concur_appclass_tab
          Table "public.concur_appclass_tab"
  Column |   Type   | Collation | Nullable | Default 
@@ -2374,9 +2391,6 @@ REINDEX TABLE concur_appclass_tab;
  i      | tsvector |           |          | 
  j      | tsvector |           |          | 
  k      | tsvector |           |          | 
-Indexes:
-    "concur_appclass_ind" gist (i tsvector_ops (siglen='1000'), j tsvector_ops (siglen='500'))
-    "concur_appclass_ind_2" gist (k tsvector_ops (siglen='300'), j)
 
 DROP TABLE concur_appclass_tab;
 -- Partitions
@@ -2456,11 +2470,13 @@ WHERE classid = 'pg_class'::regclass AND
  table concur_reindex_part                | schema public                              | n
  table concur_reindex_part_0              | schema public                              | n
  table concur_reindex_part_0              | table concur_reindex_part                  | a
+ table concur_reindex_part_0_1            | access method pax                          | n
  table concur_reindex_part_0_1            | schema public                              | n
  table concur_reindex_part_0_1            | table concur_reindex_part_0                | a
+ table concur_reindex_part_0_2            | access method pax                          | n
  table concur_reindex_part_0_2            | schema public                              | n
  table concur_reindex_part_0_2            | table concur_reindex_part_0                | a
-(19 rows)
+(21 rows)
 
 REINDEX INDEX concur_reindex_part_index_0_1;
 REINDEX INDEX concur_reindex_part_index_0_2;
@@ -2508,11 +2524,13 @@ WHERE classid = 'pg_class'::regclass AND
  table concur_reindex_part                | schema public                              | n
  table concur_reindex_part_0              | schema public                              | n
  table concur_reindex_part_0              | table concur_reindex_part                  | a
+ table concur_reindex_part_0_1            | access method pax                          | n
  table concur_reindex_part_0_1            | schema public                              | n
  table concur_reindex_part_0_1            | table concur_reindex_part_0                | a
+ table concur_reindex_part_0_2            | access method pax                          | n
  table concur_reindex_part_0_2            | schema public                              | n
  table concur_reindex_part_0_2            | table concur_reindex_part_0                | a
-(19 rows)
+(21 rows)
 
 SELECT relid, parentrelid, level FROM pg_partition_tree('concur_reindex_part_index')
   ORDER BY relid, level;
@@ -2947,21 +2965,19 @@ SELECT  b.relname,
         ELSE 'relfilenode has changed' END
   FROM reindex_before b JOIN pg_class a ON b.oid = a.oid
   ORDER BY 1;
-       relname        | relkind |           case           
-----------------------+---------+--------------------------
- matview              | m       | relfilenode is unchanged
- matview_col1_idx     | i       | relfilenode has changed
- pg_toast_TABLE       | t       | relfilenode is unchanged
- pg_toast_TABLE_index | i       | relfilenode has changed
- table1               | r       | relfilenode is unchanged
- table1_col1_seq      | S       | relfilenode is unchanged
- table1_pkey          | i       | relfilenode has changed
- table2               | r       | relfilenode is unchanged
- table2_col1_seq      | S       | relfilenode is unchanged
- table2_col2_idx      | i       | relfilenode has changed
- table2_pkey          | i       | relfilenode has changed
- view                 | v       | relfilenode is unchanged
-(12 rows)
+     relname      | relkind |           case           
+------------------+---------+--------------------------
+ matview          | m       | relfilenode is unchanged
+ matview_col1_idx | i       | relfilenode has changed
+ table1           | r       | relfilenode is unchanged
+ table1_col1_seq  | S       | relfilenode is unchanged
+ table1_pkey      | i       | relfilenode has changed
+ table2           | r       | relfilenode is unchanged
+ table2_col1_seq  | S       | relfilenode is unchanged
+ table2_col2_idx  | i       | relfilenode has changed
+ table2_pkey      | i       | relfilenode has changed
+ view             | v       | relfilenode is unchanged
+(10 rows)
 
 REINDEX SCHEMA schema_to_reindex;
 BEGIN;

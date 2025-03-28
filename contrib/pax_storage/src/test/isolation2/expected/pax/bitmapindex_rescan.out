@@ -18,10 +18,10 @@ BEGIN
 BEGIN
 1: insert into yolo select i, i from generate_series(1, 10000) i;
 INSERT 10000
-2: insert into yolo select i, i from generate_series(1, 2) i;
-INSERT 2
 1: commit;
 COMMIT
+2: insert into yolo select i, i from generate_series(1, 2) i;
+INSERT 2
 2: abort;
 ABORT
 

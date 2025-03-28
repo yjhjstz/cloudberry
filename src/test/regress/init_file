@@ -189,8 +189,8 @@ m/ The shortest establish conn time: \d+\.\d+ ms, segindex: \d+,/
 s/ The shortest establish conn time: \d+\.\d+ ms, segindex: \d+,/ The shortest establish conn time: xx\.xx ms, segindex: xx,/
 m/ The longest  establish conn time: \d+\.\d+ ms, segindex: \d+/
 s/ The longest  establish conn time: \d+\.\d+ ms, segindex: \d+/ The longest  establish conn time: xx\.xx ms, segindex: xx/
-m/\(dbsize\.c\:\d+\)/
-s/\(dbsize\.c:\d+\)/\(dbsize\.c:XXX\)/
+m/\s*\([a-zA-Z_0-9]+\.c\:\d+\)/
+s/\s*\([a-zA-Z_0-9]+\.c\:\d+\)//
 
 # ignore resource queue ids
 m/resource queue id: \d+/

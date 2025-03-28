@@ -63,12 +63,15 @@ $$;
 -- estimated size.
 create table simple as
   select generate_series(1, 60000) AS id, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+alter table simple set (parallel_workers = 2);
 analyze simple;
 
 -- Make a relation whose size we will under-estimate.  We want stats
 -- to say 1000 rows, but actually there are 20,000 rows.
 create table bigger_than_it_looks as
   select generate_series(1, 60000) as id, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+-- alter table bigger_than_it_looks set (autovacuum_enabled = 'false');
+alter table bigger_than_it_looks set (parallel_workers = 2);
 analyze bigger_than_it_looks;
 update pg_class set reltuples = 1000 where relname = 'bigger_than_it_looks';
 
@@ -76,6 +79,8 @@ update pg_class set reltuples = 1000 where relname = 'bigger_than_it_looks';
 -- kind of skew that breaks our batching scheme.  We want stats to say
 -- 2 rows, but actually there are 20,000 rows with the same key.
 create table extremely_skewed (id int, t text);
+-- alter table extremely_skewed set (autovacuum_enabled = 'false');
+alter table extremely_skewed set (parallel_workers = 2);
 analyze extremely_skewed;
 insert into extremely_skewed
   select 42 as id, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -86,6 +91,7 @@ update pg_class
 
 -- Make a relation with a couple of enormous tuples.
 create table wide as select generate_series(1, 2) as id, rpad('', 320000, 'x') as t;
+alter table wide set (parallel_workers = 2);
 ANALYZE wide;
 
 -- The "optimal" case: the hash table fits in memory; we plan for 1
@@ -307,8 +313,10 @@ rollback to settings;
 
 create table join_foo as select generate_series(1, 3) as id, 'xxxxx'::text as t;
 analyze join_foo;
+alter table join_foo set (parallel_workers = 0);
 create table join_bar as select generate_series(1, 20000) as id, 'xxxxx'::text as t;
 analyze join_bar;
+alter table join_bar set (parallel_workers = 2);
 
 -- multi-batch with rescan, parallel-oblivious
 savepoint settings;
@@ -463,9 +471,13 @@ rollback to settings;
 -- parallel with parallel-aware hash join (hits ExecParallelHashLoadTuple and
 -- sts_puttuple oversized tuple cases because it's multi-batch)
 
--- GPDB_12_MERGE_FIXME: I (Heikki) could not cajole the planner to create a
+-- NOTE: I (Heikki) could not cajole the planner to create a
 -- plan like in upstream. I accepted the plan you get, but now this doesn't
 -- exercise the special code path it's supposed to.
+
+-- Greenplum does not support parallel scan or parallel hash join now, the
+-- following cases will not hit the code path is supposed to be. We leave
+-- it here for maybe future wrk.
 
 savepoint settings;
 set max_parallel_workers_per_gather = 2;

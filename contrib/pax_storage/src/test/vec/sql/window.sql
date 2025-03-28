@@ -2,6 +2,7 @@
 -- wrong result for some core case. Turn it on to run the existing tests
 -- and minimize the difference from upstream.
 set enable_incremental_sort=on;
+
 --
 -- WINDOW FUNCTIONS
 --
@@ -19,7 +20,7 @@ INSERT INTO empsalary VALUES
 ('personnel', 5, 3500, '2007-12-10'),
 ('sales', 4, 4800, '2007-08-08'),
 ('personnel', 2, 3900, '2006-12-23'),
-('develop', 7, 4200, '2008-01-01'),
+('develop', 7, 4200, '2008-01-02'),
 ('develop', 9, 4500, '2008-01-01'),
 ('sales', 3, 4800, '2007-08-01'),
 ('develop', 8, 6000, '2006-10-01'),
@@ -969,8 +970,8 @@ SELECT * FROM
           empno,
           salary,
           enroll_date,
-          row_number() OVER (PARTITION BY depname ORDER BY empno) AS first_emp,
-          row_number() OVER (PARTITION BY depname ORDER BY empno DESC) AS last_emp
+          row_number() OVER (PARTITION BY depname ORDER BY enroll_date) AS first_emp,
+          row_number() OVER (PARTITION BY depname ORDER BY enroll_date DESC) AS last_emp
    FROM empsalary) emp
 WHERE first_emp = 1 OR last_emp = 1;
 
@@ -979,8 +980,8 @@ SELECT * FROM
           empno,
           salary,
           enroll_date,
-          row_number() OVER (PARTITION BY depname ORDER BY empno) AS first_emp,
-          row_number() OVER (PARTITION BY depname ORDER BY empno DESC) AS last_emp
+          row_number() OVER (PARTITION BY depname ORDER BY enroll_date) AS first_emp,
+          row_number() OVER (PARTITION BY depname ORDER BY enroll_date DESC) AS last_emp
    FROM empsalary) emp
 WHERE first_emp = 1 OR last_emp = 1;
 
