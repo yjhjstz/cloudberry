@@ -1,5 +1,5 @@
-#include <parquet/arrow/util/decimal.h>
-#include <parquet/arrow/result.h>
+#include <parquet/internal/arrow/util/decimal.h>
+#include <parquet/internal/arrow/result.h>
 #include <avro/Generic.hh>
 
 #include "avroRead.h"

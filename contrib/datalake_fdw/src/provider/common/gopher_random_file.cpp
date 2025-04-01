@@ -1,4 +1,7 @@
 #include "gopher_random_file.h"
+
+#include <parquet/internal/arrow/buffer.h>
+
 extern "C" {
 #include "postgres.h"
 #include "access/tupdesc.h"
@@ -97,10 +100,10 @@ GopherRandomAccessFile::ReadAt(int64_t position, int64_t nbytes, void *out)
 parquet_arrow::Result<std::shared_ptr<parquet_arrow::Buffer>>
 GopherRandomAccessFile::ReadAt(int64_t position, int64_t nbytes)
 {
-	ARROW_ASSIGN_OR_RAISE(auto buf, parquet_arrow::AllocateResizableBuffer(nbytes));
+	PARQUET_ARROW_ASSIGN_OR_RAISE(auto buf, parquet_arrow::AllocateResizableBuffer(nbytes));
 	if (nbytes > 0)
 	{
-		ARROW_ASSIGN_OR_RAISE(int64_t bytesRead, ReadAt(position, nbytes, buf->mutable_data()));
+		PARQUET_ARROW_ASSIGN_OR_RAISE(int64_t bytesRead, ReadAt(position, nbytes, buf->mutable_data()));
 		RETURN_NOT_OK(buf->Resize(bytesRead));
 	}
 
@@ -124,10 +127,10 @@ GopherRandomAccessFile::Read(int64_t nbytes, void *out)
 parquet_arrow::Result<std::shared_ptr<parquet_arrow::Buffer>>
 GopherRandomAccessFile::Read(int64_t nbytes)
 {
-	ARROW_ASSIGN_OR_RAISE(auto buf, parquet_arrow::AllocateResizableBuffer(nbytes));
+	PARQUET_ARROW_ASSIGN_OR_RAISE(auto buf, parquet_arrow::AllocateResizableBuffer(nbytes));
 	if (nbytes > 0)
 	{
-		ARROW_ASSIGN_OR_RAISE(int64_t bytesRead, Read(nbytes, buf->mutable_data()));
+		PARQUET_ARROW_ASSIGN_OR_RAISE(int64_t bytesRead, Read(nbytes, buf->mutable_data()));
 		RETURN_NOT_OK(buf->Resize(bytesRead));
 	}
 

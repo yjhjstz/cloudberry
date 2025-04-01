@@ -1,10 +1,11 @@
 #ifndef GOPHER_RANDOM_FILE_H
 #define GOPHER_RANDOM_FILE_H
 
-#include <parquet/io/interface_hdw.h>
+#include <parquet/internal/arrow/io/interfaces.h>
+#include <parquet/internal/arrow/io/file.h>
 #include <gopher/gopher.h>
 
-class GopherRandomAccessFile : public parquet::RandomAccessFile
+class GopherRandomAccessFile : public parquet_arrow::io::RandomAccessFile
 {
 public:
 	GopherRandomAccessFile(gopherFS gopherFilesystem, std::string filePath);

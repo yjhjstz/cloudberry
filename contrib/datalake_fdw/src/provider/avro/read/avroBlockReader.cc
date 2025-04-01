@@ -234,8 +234,7 @@ bool avroBlockReader::doReadDataBlock()
         uint32_t c = crc();
         if (checksum != c) {
             throw avro::Exception(
-                boost::format("Checksum did not match for Snappy compression: Expected: %1%, computed: %2%") % checksum
-                % c);
+                fmt::format("Checksum did not match for Snappy compression: Expected: {}, computed: {}", checksum, c));
         }
         os_.reset(new boost::iostreams::filtering_istream());
         os_->push(

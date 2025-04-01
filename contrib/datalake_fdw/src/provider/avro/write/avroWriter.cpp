@@ -1,4 +1,4 @@
-#include <parquet/arrow/util/decimal.h>
+#include <parquet/internal/arrow/util/decimal.h>
 #include <sstream>
 
 #include "avroOssOutputStream.h"

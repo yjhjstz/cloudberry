@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <parquet/api/reader.h>
-#include <parquet/io/interface_hdw.h>
+#include <parquet/internal/arrow/io/interfaces.h>
 #include <gopher/gopher.h>
 #include "base_reader.h"
 

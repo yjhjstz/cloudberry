@@ -4,7 +4,7 @@
 #include <cstdarg>
 #include <cstddef>
 #include <parquet/api/reader.h>
-#include <parquet/io/interface_hdw.h>
+#include <parquet/internal/arrow/io/interfaces.h>
 #include <avro.h>
 
 extern "C"

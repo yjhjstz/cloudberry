@@ -1,4 +1,5 @@
 #include "parquetInputStream.h"
+#include <parquet/platform.h>
 
 namespace Datalake {
 namespace Internal {
@@ -47,7 +48,7 @@ namespace Internal {
 
 ::parquet_arrow::Result<std::shared_ptr<::parquet_arrow::Buffer>> gopherReadFileSystem::ReadAt(int64_t position, int64_t nbytes)
 {
-    std::shared_ptr<parquet::ResizableBuffer> buffer = parquet::AllocateBuffer(NULL, nbytes);
+    std::shared_ptr<parquet_arrow::ResizableBuffer> buffer = parquet::AllocateBuffer(NULL, nbytes);
     seekFile(stream_, position);
     pos_ = position;
     int64_t bytes = readFile(stream_, (void*)(buffer->data()), nbytes);

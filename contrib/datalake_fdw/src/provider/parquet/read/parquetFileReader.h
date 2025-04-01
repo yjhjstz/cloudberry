@@ -10,7 +10,6 @@
 #include <iostream>
 #include <vector>
 #include <parquet/api/reader.h>
-#include <parquet/io/interface_hdw.h>
 
 namespace Datalake {
 namespace Internal {

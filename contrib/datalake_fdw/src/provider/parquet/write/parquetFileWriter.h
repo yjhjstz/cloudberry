@@ -5,7 +5,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
-#include <parquet/io/interface_hdw.h>
+#include <parquet/internal/arrow/io/interfaces.h>
 #include <parquet/file_writer.h>
 #include "parquetOutputStream.h"
 #include "src/common/util.h"

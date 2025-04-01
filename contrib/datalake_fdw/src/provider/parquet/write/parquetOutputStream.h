@@ -1,11 +1,12 @@
 #ifndef DATALAKE_PARQUETOUTPUTSTREAM_H
 #define DATALAKE_PARQUETOUTPUTSTREAM_H
 
-#include <parquet/io/interface_hdw.h>
+#include <parquet/internal/arrow/io/interfaces.h>
+#include <parquet/internal/arrow/io/file.h>
 #include <gopher/gopher.h>
 #include "src/common/fileSystemWrapper.h"
 
-class gopherWriteFileSystem : public ::parquet::FileOutputStream
+class gopherWriteFileSystem : public ::parquet_arrow::io::OutputStream
 {
 public:
     gopherWriteFileSystem(ossFileStream stream) {

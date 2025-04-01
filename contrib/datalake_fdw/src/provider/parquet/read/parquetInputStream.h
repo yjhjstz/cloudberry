@@ -1,13 +1,14 @@
 
 #ifndef DATALAKE_PARQUETINPUTSTREAM_H
 #define DATALAKE_PARQUETINPUTSTREAM_H
-#include <parquet/io/interface_hdw.h>
 #include <gopher/gopher.h>
 #include "src/common/fileSystemWrapper.h"
+#include <parquet/internal/arrow/io/interfaces.h>
+#include <parquet/internal/arrow/result.h>
 
 namespace Datalake {
 namespace Internal {
-class gopherReadFileSystem : public ::parquet::RandomAccessFile {
+class gopherReadFileSystem : public ::parquet_arrow::io::RandomAccessFile {
 
 public:
     gopherReadFileSystem(ossFileStream stream, std::string filePath, bool enableCache) : stream_(stream), filePath_(filePath), enableCache(enableCache) {
@@ -23,7 +24,7 @@ public:
 
     ::parquet_arrow::Result<std::shared_ptr<::parquet_arrow::Buffer>> ReadAt(int64_t position, int64_t nbytes);
 
-    ::parquet_arrow::Result<::parquet_arrow::util::string_view> Peek(int64_t nbytes) {
+    ::parquet_arrow::Result<std::string_view> Peek(int64_t nbytes) {
         return ::parquet_arrow::Status::NotImplemented("Peek not implemented");
     }
 
