@@ -358,7 +358,7 @@ remoteFormatPathName(RelFileNode *relFileNode)
     char *remoteFileName;
 
     remoteFileName =
-        psprintf("/%u/%u/"UINT64_FORMAT"_dirtable", relFileNode->spcNode, relFileNode->dbNode, relFileNode->relNode);;
+        psprintf("/%u/%u/%u_dirtable", relFileNode->spcNode, relFileNode->dbNode, relFileNode->relNode);;
 
     return remoteFileName;
 }

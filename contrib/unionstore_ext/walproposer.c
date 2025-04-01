@@ -175,7 +175,7 @@ static void UnionStoreStartup(void);
 static int  DistributedLog_ZeroPage_if_needed(SlruCtl ctl, int page);
 static void DistributedLog_Extend_if_needed(TransactionId newestXact);
 static void CLOG_Extend_if_needed(TransactionId newestXact);
-static RelFileNodeId AssignNewRelFileNode(void);
+static Oid AssignNewRelFileNode(void);
 static void UnionStore_start_bgworkers(bool FatalError, int pmState, start_bgworker_func startBgworkerFunc);
 
 static shmem_startup_hook_type prev_shmem_startup_hook_type = NULL;
@@ -2707,10 +2707,10 @@ CLOG_Extend_if_needed(TransactionId newestXact)
 /*
  * Assign new relfilenode id
  */
-static RelFileNodeId
+static Oid
 AssignNewRelFileNode(void)
 {
-    RelFileNodeId result;
+    Oid result;
 
     if (ShmemVariableCache->nextRelfilenode & (1L << 63))
     {
@@ -2755,7 +2755,7 @@ AssignNewRelFileNode(void)
 	 */
     if (Gp_role == GP_ROLE_UTILITY)
     {
-        return result | 1L << 63;
+        return result | 1L << (sizeof(result) * 8 - 1);
     }
 
     return result;

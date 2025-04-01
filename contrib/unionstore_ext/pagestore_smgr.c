@@ -1235,7 +1235,7 @@ nm_to_string(NeonMessage * msg)
 				NeonExistsRequest *msg_req = (NeonExistsRequest *) msg;
 
 				appendStringInfoString(&s, "{\"type\": \"NeonExistsRequest\"");
-				appendStringInfo(&s, ", \"rnode\": \"%u/%u/%lu\"",
+				appendStringInfo(&s, ", \"rnode\": \"%u/%u/%u\"",
 								 msg_req->rnode.spcNode,
 								 msg_req->rnode.dbNode,
 								 msg_req->rnode.relNode);
@@ -1251,7 +1251,7 @@ nm_to_string(NeonMessage * msg)
 				NeonNblocksRequest *msg_req = (NeonNblocksRequest *) msg;
 
 				appendStringInfoString(&s, "{\"type\": \"NeonNblocksRequest\"");
-				appendStringInfo(&s, ", \"rnode\": \"%u/%u/%lu\"",
+				appendStringInfo(&s, ", \"rnode\": \"%u/%u/%u\"",
 								 msg_req->rnode.spcNode,
 								 msg_req->rnode.dbNode,
 								 msg_req->rnode.relNode);
@@ -1267,7 +1267,7 @@ nm_to_string(NeonMessage * msg)
 				NeonGetPageRequest *msg_req = (NeonGetPageRequest *) msg;
 
 				appendStringInfoString(&s, "{\"type\": \"NeonGetPageRequest\"");
-				appendStringInfo(&s, ", \"rnode\": \"%u/%u/%lu\"",
+				appendStringInfo(&s, ", \"rnode\": \"%u/%u/%u\"",
 								 msg_req->rnode.spcNode,
 								 msg_req->rnode.dbNode,
 								 msg_req->rnode.relNode);
@@ -1416,7 +1416,7 @@ neon_wallog_page(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum, ch
 		UnionStoreXLogFlush(recptr);
 		lsn = recptr;
 		ereport(SmgrTrace,
-				(errmsg("Page %u of relation %u/%u/%lu.%u was force logged. Evicted at lsn=%X/%X",
+				(errmsg("Page %u of relation %u/%u/%u.%u was force logged. Evicted at lsn=%X/%X",
 						blocknum,
 						reln->smgr_rnode.node.spcNode,
 						reln->smgr_rnode.node.dbNode,
@@ -1446,7 +1446,7 @@ neon_wallog_page(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum, ch
 		if (PageIsNew(buffer))
 		{
 			ereport(SmgrTrace,
-					(errmsg("Page %u of relation %u/%u/%lu.%u is all-zeros",
+					(errmsg("Page %u of relation %u/%u/%u.%u is all-zeros",
 							blocknum,
 							reln->smgr_rnode.node.spcNode,
 							reln->smgr_rnode.node.dbNode,
@@ -1456,7 +1456,7 @@ neon_wallog_page(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum, ch
 		else if (PageIsEmptyHeapPage(buffer))
 		{
 			ereport(SmgrTrace,
-					(errmsg("Page %u of relation %u/%u/%lu.%u is an empty heap page with no LSN",
+					(errmsg("Page %u of relation %u/%u/%u.%u is an empty heap page with no LSN",
 							blocknum,
 							reln->smgr_rnode.node.spcNode,
 							reln->smgr_rnode.node.dbNode,
@@ -1466,7 +1466,7 @@ neon_wallog_page(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum, ch
 		else
 		{
 			ereport(PANIC,
-					(errmsg("Page %u of relation %u/%u/%lu.%u is evicted with zero LSN",
+					(errmsg("Page %u of relation %u/%u/%u.%u is evicted with zero LSN",
 							blocknum,
 							reln->smgr_rnode.node.spcNode,
 							reln->smgr_rnode.node.dbNode,
@@ -1477,7 +1477,7 @@ neon_wallog_page(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum, ch
 	else
 	{
 		ereport(SmgrTrace,
-				(errmsg("Page %u of relation %u/%u/%lu.%u is already wal logged at lsn=%X/%X",
+				(errmsg("Page %u of relation %u/%u/%u.%u is already wal logged at lsn=%X/%X",
 						blocknum,
 						reln->smgr_rnode.node.spcNode,
 						reln->smgr_rnode.node.dbNode,
@@ -1677,7 +1677,7 @@ neon_exists(SMgrRelation reln, ForkNumber forkNum)
 		case T_NeonErrorResponse:
 			ereport(ERROR,
 					(errcode(ERRCODE_IO_ERROR),
-					 errmsg("could not read relation existence of rel %u/%u/%lu.%u from page server at lsn %X/%08X",
+					 errmsg("could not read relation existence of rel %u/%u/%u.%u from page server at lsn %X/%08X",
 							reln->smgr_rnode.node.spcNode,
 							reln->smgr_rnode.node.dbNode,
 							reln->smgr_rnode.node.relNode,
@@ -1755,7 +1755,7 @@ neon_create(SMgrRelation reln, ForkNumber forkNum, bool isRedo)
 			elog(ERROR, "unknown relpersistence '%c'", reln->smgr_relpersistence);
 	}
 
-	elog(SmgrTrace, "Create relation %u/%u/%lu.%u",
+	elog(SmgrTrace, "Create relation %u/%u/%u.%u",
 		 reln->smgr_rnode.node.spcNode,
 		 reln->smgr_rnode.node.dbNode,
 		 reln->smgr_rnode.node.relNode,
@@ -1879,7 +1879,7 @@ neon_extend(SMgrRelation reln, ForkNumber forkNum, BlockNumber blkno,
 	set_cached_relsize(reln->smgr_rnode.node, forkNum, blkno + 1);
 
 	lsn = PageXLogRecPtrGet(((PageHeader) (buffer))->pd_lsn);
-	elog(SmgrTrace, "smgrextend called for %u/%u/%lu.%u blk %u, page LSN: %X/%08X",
+	elog(SmgrTrace, "smgrextend called for %u/%u/%u.%u blk %u, page LSN: %X/%08X",
 		 reln->smgr_rnode.node.spcNode,
 		 reln->smgr_rnode.node.dbNode,
 		 reln->smgr_rnode.node.relNode,
@@ -2108,7 +2108,7 @@ neon_read_at_lsn(RelFileNode rnode, ForkNumber forkNum, BlockNumber blkno,
 		case T_NeonErrorResponse:
 			ereport(ERROR,
 					(errcode(ERRCODE_IO_ERROR),
-					 errmsg("could not read block %u in rel %u/%u/%lu.%u from page server at lsn %X/%08X",
+					 errmsg("could not read block %u in rel %u/%u/%u.%u from page server at lsn %X/%08X",
 							blkno,
 							rnode.spcNode,
 							rnode.dbNode,
@@ -2184,7 +2184,7 @@ neon_read(SMgrRelation reln, ForkNumber forkNum, BlockNumber blkno,
 		{
 			if (!PageIsNew(pageserver_masked))
 			{
-				elog(PANIC, "page is new in MD but not in Page Server at blk %u in rel %u/%u/%lu fork %u (request LSN %X/%08X):\n%s\n",
+				elog(PANIC, "page is new in MD but not in Page Server at blk %u in rel %u/%u/%u fork %u (request LSN %X/%08X):\n%s\n",
 					 blkno,
 					 reln->smgr_rnode.node.spcNode,
 					 reln->smgr_rnode.node.dbNode,
@@ -2196,7 +2196,7 @@ neon_read(SMgrRelation reln, ForkNumber forkNum, BlockNumber blkno,
 		}
 		else if (PageIsNew(buffer))
 		{
-			elog(PANIC, "page is new in Page Server but not in MD at blk %u in rel %u/%u/%lu fork %u (request LSN %X/%08X):\n%s\n",
+			elog(PANIC, "page is new in Page Server but not in MD at blk %u in rel %u/%u/%u fork %u (request LSN %X/%08X):\n%s\n",
 				 blkno,
 				 reln->smgr_rnode.node.spcNode,
 				 reln->smgr_rnode.node.dbNode,
@@ -2213,7 +2213,7 @@ neon_read(SMgrRelation reln, ForkNumber forkNum, BlockNumber blkno,
 
 			if (memcmp(mdbuf_masked, pageserver_masked, BLCKSZ) != 0)
 			{
-				elog(PANIC, "heap buffers differ at blk %u in rel %u/%u/%lu fork %u (request LSN %X/%08X):\n------ MD ------\n%s\n------ Page Server ------\n%s\n",
+				elog(PANIC, "heap buffers differ at blk %u in rel %u/%u/%u fork %u (request LSN %X/%08X):\n------ MD ------\n%s\n------ Page Server ------\n%s\n",
 					 blkno,
 					 reln->smgr_rnode.node.spcNode,
 					 reln->smgr_rnode.node.dbNode,
@@ -2234,7 +2234,7 @@ neon_read(SMgrRelation reln, ForkNumber forkNum, BlockNumber blkno,
 
 				if (memcmp(mdbuf_masked, pageserver_masked, BLCKSZ) != 0)
 				{
-					elog(PANIC, "btree buffers differ at blk %u in rel %u/%u/%lu fork %u (request LSN %X/%08X):\n------ MD ------\n%s\n------ Page Server ------\n%s\n",
+					elog(PANIC, "btree buffers differ at blk %u in rel %u/%u/%u fork %u (request LSN %X/%08X):\n------ MD ------\n%s\n------ Page Server ------\n%s\n",
 						 blkno,
 						 reln->smgr_rnode.node.spcNode,
 						 reln->smgr_rnode.node.dbNode,
@@ -2320,7 +2320,7 @@ neon_write(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum,
 
 	lsn = PageXLogRecPtrGet(((PageHeader) (buffer))->pd_lsn);
 	UnionStoreXLogFlush(lsn);
-	elog(SmgrTrace, "smgrwrite called for %u/%u/%lu.%u blk %u, page LSN: %X/%08X",
+	elog(SmgrTrace, "smgrwrite called for %u/%u/%u.%u blk %u, page LSN: %X/%08X",
 		 reln->smgr_rnode.node.spcNode,
 		 reln->smgr_rnode.node.dbNode,
 		 reln->smgr_rnode.node.relNode,
@@ -2365,7 +2365,7 @@ neon_nblocks(SMgrRelation reln, ForkNumber forknum)
 
 	if (get_cached_relsize(reln->smgr_rnode.node, forknum, &n_blocks))
 	{
-		elog(SmgrTrace, "cached nblocks for %u/%u/%lu.%u: %u blocks",
+		elog(SmgrTrace, "cached nblocks for %u/%u/%u.%u: %u blocks",
 			 reln->smgr_rnode.node.spcNode,
 			 reln->smgr_rnode.node.dbNode,
 			 reln->smgr_rnode.node.relNode,
@@ -2395,7 +2395,7 @@ neon_nblocks(SMgrRelation reln, ForkNumber forknum)
 		case T_NeonErrorResponse:
 			ereport(ERROR,
 					(errcode(ERRCODE_IO_ERROR),
-					 errmsg("could not read relation size of rel %u/%u/%lu.%u from page server at lsn %X/%08X",
+					 errmsg("could not read relation size of rel %u/%u/%u.%u from page server at lsn %X/%08X",
 							reln->smgr_rnode.node.spcNode,
 							reln->smgr_rnode.node.dbNode,
 							reln->smgr_rnode.node.relNode,
@@ -2410,7 +2410,7 @@ neon_nblocks(SMgrRelation reln, ForkNumber forknum)
 	}
 	update_cached_relsize(reln->smgr_rnode.node, forknum, n_blocks);
 
-	elog(SmgrTrace, "neon_nblocks: rel %u/%u/%lu fork %u (request LSN %X/%08X): %u blocks",
+	elog(SmgrTrace, "neon_nblocks: rel %u/%u/%u fork %u (request LSN %X/%08X): %u blocks",
 		 reln->smgr_rnode.node.spcNode,
 		 reln->smgr_rnode.node.dbNode,
 		 reln->smgr_rnode.node.relNode,
@@ -2601,7 +2601,7 @@ neon_start_unlogged_build(SMgrRelation reln)
 	Assert(unlogged_build_rel == NULL);
 
 	ereport(SmgrTrace,
-			(errmsg("starting unlogged build of relation %u/%u/%lu",
+			(errmsg("starting unlogged build of relation %u/%u/%u",
 					reln->smgr_rnode.node.spcNode,
 					reln->smgr_rnode.node.dbNode,
 					reln->smgr_rnode.node.relNode)));
@@ -2656,7 +2656,7 @@ neon_finish_unlogged_build_phase_1(SMgrRelation reln)
 	Assert(unlogged_build_rel == reln);
 
 	ereport(SmgrTrace,
-			(errmsg("finishing phase 1 of unlogged build of relation %u/%u/%lu",
+			(errmsg("finishing phase 1 of unlogged build of relation %u/%u/%u",
 					reln->smgr_rnode.node.spcNode,
 					reln->smgr_rnode.node.dbNode,
 					reln->smgr_rnode.node.relNode)));
@@ -2695,7 +2695,7 @@ neon_end_unlogged_build(SMgrRelation reln, BlockNumber n_blocks)
 	Assert(unlogged_build_rel == reln);
 
 	ereport(SmgrTrace,
-			(errmsg("ending unlogged build of relation %u/%u/%lu",
+			(errmsg("ending unlogged build of relation %u/%u/%u",
 					reln->smgr_rnode.node.spcNode,
 					reln->smgr_rnode.node.dbNode,
 					reln->smgr_rnode.node.relNode)));
@@ -2714,7 +2714,7 @@ neon_end_unlogged_build(SMgrRelation reln, BlockNumber n_blocks)
 		rnode = reln->smgr_rnode;
 		for (int forknum = 0; forknum <= MAX_FORKNUM; forknum++)
 		{
-			elog(SmgrTrace, "forgetting cached relsize for %u/%u/%lu.%u",
+			elog(SmgrTrace, "forgetting cached relsize for %u/%u/%u.%u",
 				 rnode.node.spcNode,
 				 rnode.node.dbNode,
 				 rnode.node.relNode,
@@ -3073,7 +3073,7 @@ neon_index_create(Relation heapRelation,
                   Oid indexRelationId,
                   Oid parentIndexRelid,
                   Oid parentConstraintId,
-                  RelFileNodeId relFileNode,
+                  Oid relFileNode,
                   IndexInfo *indexInfo,
                   List *indexColNames,
                   Oid accessMethodObjectId,
@@ -3206,7 +3206,7 @@ neon_index_build(Relation heap, Relation index, IndexInfo *indexInfo)
         /* Remove local copy */
         for (int forknum = 0; forknum <= MAX_FORKNUM; forknum++)
         {
-            elog(SmgrTrace, "forgetting cached relsize for %u/%u/%lu.%u",
+            elog(SmgrTrace, "forgetting cached relsize for %u/%u/%u.%u",
                  rnode.node.spcNode,
                  rnode.node.dbNode,
                  rnode.node.relNode,

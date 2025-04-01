@@ -429,7 +429,7 @@ lfc_write(RelFileNode rnode, ForkNumber forkNum, BlockNumber blkno,
 typedef struct
 {
 	uint32		pageoffs;
-	RelFileNodeId relfilenode;
+	Oid			relfilenode;
 	Oid			reltablespace;
 	Oid			reldatabase;
 	ForkNumber	forknum;
