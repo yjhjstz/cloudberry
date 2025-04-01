@@ -3957,7 +3957,6 @@ foreach my $run (sort keys %pgdump_runs)
 			if (!ok($output_file =~ $tests{$test}->{regexp},
 					"$run: should dump $test"))
 			{
-				diag("gongxun regexp: $tests{$test}->{regexp}");
 				diag("Review $run results in $tempdir");
 			}
 		}
