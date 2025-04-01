@@ -25,7 +25,7 @@ gpfts: $(OBJS) | submake-libpgport $(SUBMAKE_LIBPQ)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
 
 etcd.c: $(top_builddir)/src/backend/utils/etcd_lib/etcd.c
-	ln -s $< $@
+	ln -fs $< $@
 
 install: all installdirs
 	$(INSTALL_PROGRAM) gpfts$(X) '$(DESTDIR)$(bindir)/gpfts$(X)'
