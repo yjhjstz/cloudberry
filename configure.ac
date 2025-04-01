@@ -891,7 +891,7 @@ AC_SUBST(enable_gpcloud)
 
 AS_IF([test "$enable_orca" = yes || test "$enable_gpcloud" = yes],
 [ # then
-  AX_CXX_COMPILE_STDCXX([14], [noext], [mandatory])
+  AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 ]) # fi
 
 #

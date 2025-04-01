@@ -4,7 +4,7 @@ MODULE_big = pax
 OBJS = \
 	$(WIN32RES) 
 PG_CPPFLAGS = -I/usr/local/include
-PG_CXXFLAGS = -std=c++14
+PG_CXXFLAGS = -std=c++17
 
 PGFILEDESC = "pax - PAX table access method"
 SHLIB_LINK += -luuid

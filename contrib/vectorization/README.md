@@ -21,7 +21,7 @@ see source compile chapter.
 ### Compile and run CBDB
 
 ```
-CFLAGS=-O0 CXXFLAGS='-O0 -std=c++14'  CPPFLAGS='-DGP_SERIALIZATION_DEBUG=1' ./configure --prefix=/home/gpadmin/install/gpdb --enable-debug --enable-cassert --enable-orca --with-python --with-libxml  
+CFLAGS=-O0 CXXFLAGS='-O0 -std=c++17'  CPPFLAGS='-DGP_SERIALIZATION_DEBUG=1' ./configure --prefix=/home/gpadmin/install/gpdb --enable-debug --enable-cassert --enable-orca --with-python --with-libxml  
 make -j8
 make -j8 install
 make create-demo-cluster
