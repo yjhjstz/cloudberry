@@ -16,8 +16,8 @@ VACUUM
 1: EXPLAIN (costs off) SELECT a, b FROM pt WHERE a<4;
  QUERY PLAN                               
 ------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3) 
-   ->  Append                             
+ Gather Motion 6:1  (slice1; segments: 6) 
+   ->  Parallel Append                    
          ->  Seq Scan on pt_1_prt_1 pt_1  
                Filter: (a < 4)            
          ->  Seq Scan on pt_1_prt_2 pt_2  
@@ -92,8 +92,8 @@ VACUUM
 1: EXPLAIN (costs off) SELECT a, b FROM pt WHERE a<4;
  QUERY PLAN                               
 ------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3) 
-   ->  Append                             
+ Gather Motion 6:1  (slice1; segments: 6) 
+   ->  Parallel Append                    
          ->  Seq Scan on pt_1_prt_1 pt_1  
                Filter: (a < 4)            
          ->  Seq Scan on pt_1_prt_2 pt_2  
@@ -162,8 +162,8 @@ VACUUM
 1: EXPLAIN (costs off) SELECT a FROM pt WHERE a<4;
  QUERY PLAN                               
 ------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3) 
-   ->  Append                             
+ Gather Motion 6:1  (slice1; segments: 6) 
+   ->  Parallel Append                    
          ->  Seq Scan on pt_1_prt_1 pt_1  
                Filter: (a < 4)            
          ->  Seq Scan on pt_1_prt_2 pt_2  

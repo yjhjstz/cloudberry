@@ -252,11 +252,12 @@ SELECT amname FROM pg_class c, pg_am am
 (1 row)
 
 ALTER TABLE heaptable SET ACCESS METHOD heap2;
+ERROR:  can't swap relation files for different AM
 SELECT amname FROM pg_class c, pg_am am
   WHERE c.relam = am.oid AND c.oid = 'heaptable'::regclass;
  amname 
 --------
- heap2
+ heap
 (1 row)
 
 SELECT COUNT(a), COUNT(1) FILTER(WHERE a=1) FROM heaptable;
@@ -267,7 +268,7 @@ SELECT COUNT(a), COUNT(1) FILTER(WHERE a=1) FROM heaptable;
 
 -- No support for multiple subcommands
 ALTER TABLE heaptable SET ACCESS METHOD heap, SET ACCESS METHOD heap2;
-ERROR:  cannot have multiple SET ACCESS METHOD subcommands
+ERROR:  can't swap relation files for different AM
 DROP TABLE heaptable;
 -- No support for partitioned tables.
 CREATE TABLE am_partitioned(x INT, y INT)

@@ -49,8 +49,13 @@ for pid in pids_to_check:
     # postgres 271688 cmulong    9u  IPv6 1077090      0t0  UDP [::1]:42130->[::1]:42130
     # We check count of those connections which have not been established.
     # Use the regex for example: "TCP <ip>:\d+ .*" (without '->')
+    #
+    # in python3.6, capture_output is not supported
+    # in python3.7, capture_output is supported
+    # use stdout=PIPE and stderr=STDOUT instead of capture_output.
+    # https://docs.python.org/3.7/library/subprocess.html#subprocess.run
     lsof_ret = subprocess.run(["lsof", "-i", "-nP", "-a", "-p", str(pid)],
-        capture_output=True, check=True).stdout
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
     plpy.info(
         f'Checking postgres backend {pid}, ' \
         f'lsof output:\n{os.linesep.join(map(str, lsof_ret.splitlines()))}')

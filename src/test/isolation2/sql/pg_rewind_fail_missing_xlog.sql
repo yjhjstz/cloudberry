@@ -25,7 +25,7 @@ INSERT INTO tst_missing_tbl values(2),(1),(5);
 
 -- Make the test faster by not preserving any extra wal segment files
 !\retcode gpconfig -c wal_keep_size -v 0;
-!\retcode gpstop -ari;
+!\retcode gpstop -arf;
 
 -- Test 1: Ensure that pg_rewind doesn't fail due to checkpoints inadvertently
 -- recycling WAL when a former primary is marked down in configuration, while it
@@ -106,6 +106,7 @@ INSERT INTO tst_missing_tbl values(2),(1),(5);
 3: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'suspend', dbid) FROM gp_segment_configuration WHERE role='p' AND content = 1;
 1U&: CHECKPOINT;
 3: SELECT gp_wait_until_triggered_fault('checkpoint_after_redo_calculated', 1, dbid) FROM gp_segment_configuration WHERE role='p' AND content = 1;
+3: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'skip', dbid) FROM gp_segment_configuration WHERE role='m' AND content = 1;
 
 -- Stop the primary immediately and promote the mirror.
 3: SELECT pg_ctl(datadir, 'stop', 'immediate') FROM gp_segment_configuration WHERE role='p' AND content = 1;
@@ -113,7 +114,6 @@ INSERT INTO tst_missing_tbl values(2),(1),(5);
 -- Wait for the segment promotion finished and accept the connection
 3: select connectSeg(600,port,hostname) from gp_segment_configuration where content = 1 and role = 'p';
 -- Wait for the end of recovery CHECKPOINT completed after the mirror was promoted
-3: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'skip', dbid) FROM gp_segment_configuration WHERE role='p' AND content = 1;
 3: SELECT gp_wait_until_triggered_fault('checkpoint_after_redo_calculated', 1, dbid) FROM gp_segment_configuration WHERE role = 'p' AND content = 1;
 3: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'reset', dbid) FROM gp_segment_configuration WHERE role = 'p' AND content = 1;
 3: SELECT role, preferred_role from gp_segment_configuration where content = 1;

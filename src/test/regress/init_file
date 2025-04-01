@@ -162,6 +162,9 @@ s/Temporary failure in name resolution/Name or service not known/
 m/ERROR:  could not devise a query plan for the given query \(.*\)/
 s/ERROR:  could not devise a query plan for the given query \(.*\)/ERROR:  could not devise a query plan for the given query/
 
+m/ERROR:  requested functionality not allowed in FIPS mode \(.*\)/
+s/ERROR:  requested functionality not allowed in FIPS mode \(.*\)/ERROR:  requested functionality not allowed in FIPS mode/
+
 m/^DETAIL:.*gid=.*/
 s/gid=\d+/gid DUMMY/
 

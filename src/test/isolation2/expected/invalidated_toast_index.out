@@ -3,6 +3,10 @@
 -- done as an isolation2 test to make it easy to update the catalogs on all
 -- segments.
 --
+-- start_matchsubs
+-- m/ERROR:  no valid index found for toast relation with Oid \d+/
+-- s/ERROR:  no valid index found for toast relation with Oid \d+/ERROR:  no valid index found for toast relation with Oid XXX/
+-- end_matchsubs
 
 CREATE TABLE toastable_heap(a text, b varchar, c int);
 CREATE
@@ -50,9 +54,9 @@ UPDATE 1
 
 -- Fetch, slice, save, and delete should all fail.
 SELECT * FROM toastable_heap;
-ERROR:  no valid index found for toast relation with Oid 107484 (tuptoaster.c:101)  (seg0 slice1 127.0.0.1:25432 pid=41177) (cdbdisp.c:254)
+ERROR:  no valid index found for toast relation with Oid 233333 (tuptoaster.c:101)  (seg0 slice1 127.0.0.1:25432 pid=41177) (cdbdisp.c:254)
 SELECT substr(a, 500, 1) FROM toastable_heap;
-ERROR:  no valid index found for toast relation with Oid 107484 (tuptoaster.c:101)  (seg0 slice1 127.0.0.1:25432 pid=41177) (cdbdisp.c:254)
+ERROR:  no valid index found for toast relation with Oid 111111 (tuptoaster.c:101)  (seg0 slice1 127.0.0.1:25432 pid=41177) (cdbdisp.c:254)
 UPDATE toastable_heap SET b = repeat('b',100001) WHERE c = 2;
 ERROR:  no valid index found for toast relation with Oid 107484 (tuptoaster.c:101)  (seg0 127.0.0.1:25432 pid=41177) (cdbdisp.c:254)
 DELETE FROM toastable_heap WHERE c = 1;

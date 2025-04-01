@@ -1059,8 +1059,9 @@ INSERT 10
 ----------+------------------+---------+---------------------------------
  relation | RowExclusiveLock | t       | t_lockmods_part_tbl_dml_1_prt_2 
  relation | RowExclusiveLock | t       | t_lockmods_part_tbl_dml_1_prt_1 
+ relation | AccessShareLock  | t       | t_lockmods_part_tbl_dml         
  relation | RowExclusiveLock | t       | t_lockmods_part_tbl_dml         
-(3 rows)
+(4 rows)
 1: ROLLBACK;
 ROLLBACK
 

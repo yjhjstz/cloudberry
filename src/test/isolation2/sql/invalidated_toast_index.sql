@@ -3,6 +3,10 @@
 -- done as an isolation2 test to make it easy to update the catalogs on all
 -- segments.
 --
+-- start_matchsubs
+-- m/ERROR:  no valid index found for toast relation with Oid \d+/
+-- s/ERROR:  no valid index found for toast relation with Oid \d+/ERROR:  no valid index found for toast relation with Oid XXX/
+-- end_matchsubs
 
 CREATE TABLE toastable_heap(a text, b varchar, c int);
 
