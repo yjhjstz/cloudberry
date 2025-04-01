@@ -3150,34 +3150,6 @@ echo >src/include/stamp-ext-h
 AC_CONFIG_HEADERS([src/interfaces/ecpg/include/ecpg_config.h],
                   [echo >src/interfaces/ecpg/include/stamp-h])
 
-# CBDB dependency
-PWD_STR=`pwd`
-dependency_dir=${PWD_STR}/"thirdparty"
-
-DEPENDENCIES_IN="dependencies.sh.in"
-DEPENDENCIES_SH="dependencies.sh"
-if grep '##' $DEPENDENCIES_IN > /dev/null 2>&1 ; then
-  sed "s,##.*##,${dependency_dir}," $DEPENDENCIES_IN > $DEPENDENCIES_SH
-fi
-
-debug=""
-if test "$enable_debug" = yes; then
-	debug="debug"	
-fi
-
-chmod +x dependencies.sh
-if test "$enable_vectorization" = yes; then
-  ./dependencies.sh vectorization ${debug}
-fi
-if test "$enable_gophermeta" = yes; then
-  ./dependencies.sh gopher ${debug}
-fi
-if test "$enable_datalake" = yes; then
-  ./dependencies.sh datalake ${debug}
-fi
-LDFLAGS="$LDFLAGS -L${dependency_dir}/lib"
-CPPFLAGS="$CPPFLAGS -I${dependency_dir}/include"
-# CBDB dependency
 
 AC_OUTPUT
 # The configure args contain '-Wl,-rpath,\$$ORIGIN`, when it falls
