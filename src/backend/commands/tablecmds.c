@@ -1353,7 +1353,8 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 									&& !stmt->partbound && !stmt->partspec
 									/* errorOnEncodingClause */, true);
 
-		AddRelationAttributeEncodings(rel, part_attr_encodings);
+		if(part_attr_encodings)
+			AddRelationAttributeEncodings(rel, part_attr_encodings);
 	}
 	else if (stmt->attr_encodings && (relkind != RELKIND_PARTITIONED_TABLE))
 		AddRelationAttributeEncodings(rel, stmt->attr_encodings);
@@ -4880,8 +4881,8 @@ static void populate_rel_col_encodings(Relation rel, List *stenc, List *withOpti
 							false,
 							newAccessMethod == AO_COLUMN_TABLE_AM_OID, RelationIsAppendOptimized(rel));
 
-
-	AddRelationAttributeEncodings(rel, attr_encodings);
+	if (attr_encodings)
+		AddRelationAttributeEncodings(rel, attr_encodings);
 }
 
 /*
@@ -8760,7 +8761,7 @@ ATExecAddColumn(List **wqueue, AlteredTableInfo *tab, Relation rel,
 		/*
 		 * Store the encoding clause for AO/CO tables.
 		 */
-		if (AMHandlerSupportEncodingClause(tam))
+		if (AMHandlerSupportEncodingClause(tam) && enc)
 			AddRelationAttributeEncodings(rel, enc);
 	}
 
