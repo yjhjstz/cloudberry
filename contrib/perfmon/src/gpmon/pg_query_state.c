@@ -1640,8 +1640,6 @@ enable_qs_runtime(void)
 		return false;
 	if (!pg_atomic_read_u32(pg_qs_on))
 		return false;
-	if (strcmp(GP_VERSION, "1.6.0") <= 0)
-		return false;
 	return true;
 }
 
