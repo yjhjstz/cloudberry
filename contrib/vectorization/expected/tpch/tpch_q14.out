@@ -13,20 +13,20 @@ where
 	l_partkey = p_partkey
 	and l_shipdate >= date '1997-08-01'
 	and l_shipdate < date '1997-08-01' + interval '1 month';
-                                                                       QUERY PLAN                                                                        
----------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
  Vec Finalize Vec Aggregate
    ->  Vec Gather Motion 3:1  (slice1; segments: 3)
          ->  Vec Partial Vec Aggregate
                ->  Vec Hash Join
-                     Hash Cond: (lineitem.l_partkey = part.p_partkey)
-                     ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
-                           Hash Key: lineitem.l_partkey
-                           ->  Vec Seq Scan on lineitem
-                                 Filter: ((l_shipdate >= '08-01-1997'::date) AND (l_shipdate < 'Mon Sep 01 00:00:00 1997'::timestamp without time zone))
+                     Hash Cond: (part.p_partkey = lineitem.l_partkey)
+                     ->  Vec Seq Scan on part
                      ->  Vec Hash
-                           ->  Vec Seq Scan on part
- Optimizer: Pivotal Optimizer (GPORCA)
+                           ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
+                                 Hash Key: lineitem.l_partkey
+                                 ->  Vec Seq Scan on lineitem
+                                       Filter: ((l_shipdate >= '08-01-1997'::date) AND (l_shipdate < 'Mon Sep 01 00:00:00 1997'::timestamp without time zone))
+ Optimizer: GPORCA
 (12 rows)
 
 select

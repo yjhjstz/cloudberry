@@ -64,7 +64,7 @@ LIMIT 100;
                                                                                  ->  Vec Seq Scan on lineitem lineitem_1
                                                    ->  Vec Hash
                                                          ->  Vec Seq Scan on customer
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (30 rows)
 
 select

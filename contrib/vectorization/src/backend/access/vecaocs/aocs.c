@@ -139,7 +139,6 @@ aocs_beginscan_internal_vec(Relation relation,
 	GetAppendOnlyEntryAttributes(RelationGetRelid(relation),
 								 NULL,
 								 NULL,
-								 NULL,
 								 &scan->checksum,
 								 NULL);
 
@@ -233,16 +232,14 @@ open_ds_read(Relation rel, DatumStreamRead **ds, TupleDesc relationTupleDesc,
 						 NameStr(attr->attname));
 
 		RelationOpenSmgr(rel);
-
+		
 		ds[attno] = create_datumstreamread(ct,
 										   clvl,
 										   checksum,
-										    /* safeFSWriteSize */ false,	/* UNDONE:Need to wire
-																			 * down pg_appendonly
-																			 * column */
 										   blksz,
 										   attr,
 										   RelationGetRelationName(rel),
+										   RelationGetRelid(rel),
 										    /* title */ titleBuf.data,
 										   &rel->rd_node,
 										   rel->rd_smgr->smgr_ao);
@@ -255,7 +252,7 @@ open_ds_read(Relation rel, DatumStreamRead **ds, TupleDesc relationTupleDesc,
  */
 static void
 open_datumstreamread_segfile(
-							 char *basepath, RelFileNode node,
+							 char *basepath, Relation rel,
 							 AOCSFileSegInfo *segInfo,
 							 DatumStreamRead *ds,
 							 int colNo)
@@ -264,9 +261,15 @@ open_datumstreamread_segfile(
 	char		fn[MAXPGPATH];
 	int32		fileSegNo;
 
+	RelFileNode node = rel->rd_node;
+	Oid         relid = RelationGetRelid(rel);
+
+	/* Filenum for the column */
+	FileNumber	filenum = GetFilenumForAttribute(relid, colNo + 1);
+
 	AOCSVPInfoEntry *e = getAOCSVPEntry(segInfo, colNo);
 
-	FormatAOSegmentFileName(basepath, segNo, colNo, &fileSegNo, fn);
+	FormatAOSegmentFileName(basepath, segNo, filenum, &fileSegNo, fn);
 	Assert(strlen(fn) + 1 <= MAXPGPATH);
 
 	Assert(ds);
@@ -298,10 +301,11 @@ open_all_datumstreamread_segfiles(Relation rel,
 	{
 		AttrNumber	attno = proj_atts[i];
 
-		open_datumstreamread_segfile(basepath, rel->rd_node, segInfo, ds[attno], attno);
+		RelationOpenSmgr(rel);
+		open_datumstreamread_segfile(basepath, rel, segInfo, ds[attno], attno);
 		datumstreamread_block(ds[attno], blockDirectory, attno);
+		
 	}
-
 	pfree(basepath);
 }
 
@@ -453,7 +457,7 @@ GetRowNum(VecAOCSScanDescData* vscan, AttrNumber attno)
 	}
 	if (rowNum == INT64CONST(-1))
 	{
-		rowNum = scan->cur_seg_row + 1;
+		rowNum = scan->segrowsprocessed + 1;
 	}
 	return rowNum;
 }
@@ -599,7 +603,7 @@ aocs_getnext_vec(AOCSScanDesc scan, ScanDirection direction, TupleTableSlot *slo
 				vscan->islast = true;
 				return false;
 			}
-			scan->cur_seg_row = 0;
+			scan->segrowsprocessed = 0;
 		}
 
 		Assert(scan->cur_seg >= 0);
@@ -666,7 +670,7 @@ aocs_getnext_vec(AOCSScanDesc scan, ScanDirection direction, TupleTableSlot *slo
 								vscan->islast = true;
 								break;
 							}
-							scan->cur_seg_row = 0;
+							scan->segrowsprocessed = 0;
 
 							if (scan->cur_seg > 0)
 							{/*  reset vector description about visual map while open new seg file*/
@@ -812,7 +816,7 @@ initscan_with_colinfo(AOCSScanDesc scan)
 	MemoryContextSwitchTo(oldCtx);
 
 	scan->cur_seg = -1;
-	scan->cur_seg_row = 0;
+	scan->segrowsprocessed = 0;
 	vscan->cur_seg_lm = -1;
 	vscan->cur_seg_filter = -1;
 	scan->columnScanInfo.proj_atts = vscan->proj_atts_full;

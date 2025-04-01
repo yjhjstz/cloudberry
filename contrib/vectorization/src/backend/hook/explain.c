@@ -581,7 +581,7 @@ VecExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 			ExplainPropertyStringInfo("Optimizer", es, "Postgres query optimizer");
 #ifdef USE_ORCA
 		else
-			ExplainPropertyStringInfo("Optimizer", es, "Pivotal Optimizer (GPORCA)");
+			ExplainPropertyStringInfo("Optimizer", es, "GPORCA");
 #endif
 
 		VecExplainCloseGroup("Settings", "Settings", true, es);
@@ -2553,7 +2553,7 @@ VecExplainPrintSettings(ExplainState *es, PlanGenerator planGen)
 			ExplainPropertyStringInfo("Optimizer", es, "Postgres query optimizer");
 #ifdef USE_ORCA
 		else
-			ExplainPropertyStringInfo("Optimizer", es, "Pivotal Optimizer (GPORCA)");
+			ExplainPropertyStringInfo("Optimizer", es, "GPORCA");
 #endif
 
 		for (int i = 0; i < num; i++)
@@ -4059,10 +4059,7 @@ show_sort_keys(SortState *sortstate, List *ancestors, ExplainState *es)
 	Sort	   *plan = (Sort *) sortstate->ss.ps.plan;
 	const char *SortKeystr;
 
-	if (sortstate->noduplicates)
-		SortKeystr = "Sort Key (Distinct)";
-	else
-		SortKeystr = "Sort Key";
+	SortKeystr = "Sort Key";
 
 	show_sort_group_keys((PlanState *) sortstate, SortKeystr,
 						 plan->numCols, 0, plan->sortColIdx,

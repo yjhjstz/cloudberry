@@ -105,6 +105,14 @@ values (1,1,b'0000','1'), (2,2,b'0001','1'),
        (5,16,b'0000','2'), (6,32,b'0001','2'),
        (7,64,b'0010','1'), (8,128,b'0011','1');
 
+create temp table gstest5(id integer, v integer,
+                          unsortable_col1 xid, unsortable_col2 xid);
+insert into gstest5
+values (1,1,'3','1'), (2,2,'3','1'),
+       (3,4,'4','2'), (4,8,'4','2'),
+       (5,16,'4','2'), (6,32,'4','2'),
+       (7,64,'3','1'), (8,128,'3','1');
+
 create temp table gstest_empty (a integer, b integer, v integer);
 
 create function gstest_data(v integer, out a integer, out b integer)
@@ -367,10 +375,7 @@ select ten, sum(distinct four) filter (where four::text ~ '123') from onek a
 group by rollup(ten);
 
 -- More rescan tests
--- start_ignore
--- GPDB_95_MERGE_FIXME: the lateral query with grouping sets do not make right plans
 select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
--- end_ignore
 select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
 
 -- Grouping on text columns
@@ -432,6 +437,30 @@ explain (costs off)
          count(*), sum(v)
     from gstest4 group by grouping sets ((v,unhashable_col),(v,unsortable_col))
    order by 3,5;
+
+select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2))
+ order by 3,5;
+explain (costs off)
+  select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2))
+ order by 3,5;
+
+select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2),())
+ order by 3,5;
+explain (costs off)
+  select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2),())
+ order by 3,5;
 
 -- empty input: first is 0 rows, second 1, third 3 etc.
 select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),a);
@@ -505,10 +534,7 @@ SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY GROUPING SETS(a, b,(
 COMMIT;
 
 -- More rescan tests
--- start_ignore
--- GPDB_95_MERGE_FIXME: the lateral query with grouping sets do not make right plans
 select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
--- end_ignore
 select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
 
 -- Rescan logic changes when there are no empty grouping sets, so test
@@ -593,12 +619,17 @@ set enable_hashagg = false;
 set jit_above_cost = 0;
 
 explain (costs off)
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10);
 
 create table gs_group_1 as
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10) distributed by (g1000);
+
 
 -- Produce results with hash aggregation.
 
@@ -606,21 +637,23 @@ set enable_hashagg = true;
 set enable_sort = false;
 
 explain (costs off)
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10);
 
 create table gs_hash_1 as
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10) distributed by (g1000);
+
+set jit_above_cost to default;
+
 set enable_sort = true;
 set work_mem to default;
 
--- GPDB_12_MERGE_FIXME: the following comparison query has an ORCA plan that
--- relies on "IS NOT DISTINCT FROM" Hash Join, a variant that we likely have
--- lost during the merge with upstream Postgres 12. Disable ORCA for this query
-SET optimizer TO off;
-
--- Compare results
+-- Compare results of ORCA plan that relies on "IS NOT DISTINCT FROM" HASH Join
 
 (select * from gs_hash_1 except select * from gs_group_1)
   union all

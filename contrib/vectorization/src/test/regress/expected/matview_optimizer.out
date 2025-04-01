@@ -29,7 +29,7 @@ EXPLAIN (costs off)
          ->  Redistribute Motion 3:3  (slice1; segments: 3)
                Hash Key: type
                ->  Seq Scan on mvtest_t
- Optimizer: Pivotal Optimizer (GPORCA) version 3.83.0
+ Optimizer: GPORCA
 (8 rows)
 
 CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA distributed by(type);
@@ -75,7 +75,7 @@ NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entr
                            ->  Redistribute Motion 3:3  (slice2; segments: 3)
                                  Hash Key: type
                                  ->  Seq Scan on mvtest_t
- Optimizer: Pivotal Optimizer (GPORCA) version 3.83.0
+ Optimizer: GPORCA
 (12 rows)
 
 CREATE MATERIALIZED VIEW mvtest_tvm AS SELECT * FROM mvtest_tv ORDER BY type;
@@ -110,7 +110,7 @@ EXPLAIN (costs off)
                                        ->  Redistribute Motion 3:3  (slice3; segments: 3)
                                              Hash Key: type
                                              ->  Seq Scan on mvtest_t
- Optimizer: Pivotal Optimizer (GPORCA) version 3.83.0
+ Optimizer: GPORCA
 (13 rows)
 
 CREATE MATERIALIZED VIEW mvtest_tvvm AS SELECT * FROM mvtest_tvv;
@@ -237,29 +237,29 @@ RESET search_path;
 -- confirm pre- and post-refresh contents of nested materialized views
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tmm;
-                      QUERY PLAN                      
-------------------------------------------------------
+                QUERY PLAN                
+------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on mvtest_tmm
- Optimizer: Pivotal Optimizer (GPORCA) version 3.77.0
+ Optimizer: GPORCA
 (3 rows)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvmm;
-                      QUERY PLAN                      
-------------------------------------------------------
+                QUERY PLAN                
+------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on mvtest_tvmm
- Optimizer: Pivotal Optimizer (GPORCA) version 3.77.0
+ Optimizer: GPORCA
 (3 rows)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvvm;
-                      QUERY PLAN                      
-------------------------------------------------------
+                QUERY PLAN                
+------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on mvtest_tvvm
- Optimizer: Pivotal Optimizer (GPORCA) version 3.77.0
+ Optimizer: GPORCA
 (3 rows)
 
 SELECT * FROM mvtest_tmm;
@@ -288,29 +288,29 @@ REFRESH MATERIALIZED VIEW mvtest_tvmm;
 REFRESH MATERIALIZED VIEW mvtest_tvvm;
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tmm;
-                      QUERY PLAN                      
-------------------------------------------------------
+                QUERY PLAN                
+------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on mvtest_tmm
- Optimizer: Pivotal Optimizer (GPORCA) version 3.77.0
+ Optimizer: GPORCA
 (3 rows)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvmm;
-                      QUERY PLAN                      
-------------------------------------------------------
+                QUERY PLAN                
+------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on mvtest_tvmm
- Optimizer: Pivotal Optimizer (GPORCA) version 3.77.0
+ Optimizer: GPORCA
 (3 rows)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvvm;
-                      QUERY PLAN                      
-------------------------------------------------------
+                QUERY PLAN                
+------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on mvtest_tvvm
- Optimizer: Pivotal Optimizer (GPORCA) version 3.77.0
+ Optimizer: GPORCA
 (3 rows)
 
 SELECT * FROM mvtest_tmm;
@@ -666,18 +666,16 @@ GRANT ALL ON SCHEMA matview_schema TO public;
 SET SESSION AUTHORIZATION regress_matview_user;
 CREATE MATERIALIZED VIEW matview_schema.mv_withdata1 (a) AS
   SELECT generate_series(1, 10) WITH DATA DISTRIBUTED BY (a);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
 EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
   CREATE MATERIALIZED VIEW matview_schema.mv_withdata2 (a) AS
   SELECT generate_series(1, 10) WITH DATA DISTRIBUTED BY (a);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
                     QUERY PLAN
 --------------------------------------------------
  Result (actual rows=5 loops=1)
    ->  Result (actual rows=5 loops=1)
          ->  ProjectSet (actual rows=10 loops=1)
                ->  Result (actual rows=1 loops=1)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 REFRESH MATERIALIZED VIEW matview_schema.mv_withdata2;
@@ -696,7 +694,7 @@ NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entr
                One-Time Filter: (gp_execution_segment() = 0)
                ->  ProjectSet (never executed)
                      ->  Result (never executed)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 REFRESH MATERIALIZED VIEW matview_schema.mv_nodata2;

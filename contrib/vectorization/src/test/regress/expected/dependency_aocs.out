@@ -121,10 +121,10 @@ FROM pg_type JOIN pg_class c ON typrelid = c.oid WHERE typname = 'deptest_t';
 RESET SESSION AUTHORIZATION;
 REASSIGN OWNED BY regress_dep_user1 TO regress_dep_user2;
 \dt deptest
-                          List of relations
- Schema |  Name   | Type  |       Owner       |       Storage        
---------+---------+-------+-------------------+----------------------
- public | deptest | table | regress_dep_user2 | append only columnar
+                    List of relations
+ Schema |  Name   | Type  |       Owner       |  Storage  
+--------+---------+-------+-------------------+-----------
+ public | deptest | table | regress_dep_user2 | ao_column
 (1 row)
 
 SELECT typowner = relowner

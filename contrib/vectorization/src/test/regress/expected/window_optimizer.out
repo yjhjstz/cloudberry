@@ -5,6 +5,7 @@ set enable_incremental_sort=on;
 --
 -- WINDOW FUNCTIONS
 --
+SET optimizer_trace_fallback=on;
 CREATE TEMPORARY TABLE empsalary (
     depname varchar,
     empno bigint,
@@ -669,7 +670,7 @@ select first_value(max(x)) over (), y
                      ->  Streaming Partial HashAggregate
                            Group Key: (ten + four)
                            ->  Seq Scan on tenk1
- Optimizer: Pivotal Optimizer (GPORCA) version 3.83.0
+ Optimizer: GPORCA
 (10 rows)
 
 -- test non-default frame specifications
@@ -1211,6 +1212,8 @@ SELECT * FROM v_window;
 (10 rows)
 
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                     pg_get_viewdef                                     
 ---------------------------------------------------------------------------------------
   SELECT i.i,                                                                         +
@@ -1238,6 +1241,8 @@ SELECT * FROM v_window;
 (10 rows)
 
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                               pg_get_viewdef                                               
 -----------------------------------------------------------------------------------------------------------
   SELECT i.i,                                                                                             +
@@ -1264,6 +1269,8 @@ SELECT * FROM v_window;
 (10 rows)
 
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                            pg_get_viewdef                                            
 -----------------------------------------------------------------------------------------------------
   SELECT i.i,                                                                                       +
@@ -1290,6 +1297,8 @@ SELECT * FROM v_window;
 (10 rows)
 
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                            pg_get_viewdef                                           
 ----------------------------------------------------------------------------------------------------
   SELECT i.i,                                                                                      +
@@ -1316,6 +1325,8 @@ SELECT * FROM v_window;
 (10 rows)
 
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                     pg_get_viewdef                                     
 ---------------------------------------------------------------------------------------
   SELECT i.i,                                                                         +
@@ -1341,6 +1352,8 @@ SELECT * FROM v_window;
 (10 rows)
 
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                      pg_get_viewdef                                      
 -----------------------------------------------------------------------------------------
   SELECT i.i,                                                                           +
@@ -1353,6 +1366,8 @@ CREATE TEMP VIEW v_window AS
 	SELECT i, min(i) over (order by i range between '1 day' preceding and '10 days' following) as min_i
   FROM generate_series(now(), now()+'100 days'::interval, '1 hour') i;
 SELECT pg_get_viewdef('v_window');
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
                                                       pg_get_viewdef                                                       
 ---------------------------------------------------------------------------------------------------------------------------
   SELECT i.i,                                                                                                             +
@@ -3003,6 +3018,8 @@ WINDOW w AS (ORDER BY x groups between 1 preceding and 1 following);
 
 -- with UNION
 SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM tenk1 UNION ALL SELECT * FROM tenk2)s LIMIT 0;
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation
  count 
 -------
 (0 rows)
@@ -3027,10 +3044,10 @@ from t1 where f1 = f2;
          Partition By: f1
          Order By: f2
          ->  Sort
-               Sort Key: f1
+               Sort Key: f1, f2
                ->  Seq Scan on t1
                      Filter: (f1 = f2)
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (9 rows)
 
 select f1, sum(f1) over (partition by f1 order by f2
@@ -3077,10 +3094,10 @@ from t1 where f1 = f2;
          Partition By: f1
          Order By: f2
          ->  Sort
-               Sort Key: f1
+               Sort Key: f1, f2
                ->  Seq Scan on t1
                      Filter: (f1 = f2)
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (9 rows)
 
 select f1, sum(f1) over (partition by f1 order by f2
@@ -3181,6 +3198,8 @@ SELECT sum(salary), row_number() OVER (ORDER BY depname), sum(
 ) FILTER (WHERE depname <> 'sales') OVER (ORDER BY depname DESC) AS "filtered_sum",
     depname
 FROM empsalary GROUP BY depname;
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Aggregate functions with FILTER
   sum  | row_number | filtered_sum |  depname  
 -------+------------+--------------+-----------
  25100 |          1 |        22600 | develop
@@ -3199,7 +3218,7 @@ SELECT * FROM
 WHERE depname = 'sales';
                                    QUERY PLAN                                    
 ---------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
+ Gather Motion 1:1  (slice1; segments: 1)
    ->  WindowAgg
          Partition By: (((depname)::text || 'A'::text)), depname
          ->  Sort
@@ -3211,7 +3230,7 @@ WHERE depname = 'sales';
                                  Sort Key: depname
                                  ->  Seq Scan on empsalary
                                        Filter: ((depname)::text = 'sales'::text)
- Optimizer: Pivotal Optimizer (GPORCA) version 3.83.0
+ Optimizer: GPORCA
 (13 rows)
 
 -- pushdown is unsafe because there's a PARTITION BY clause without depname:
@@ -3240,7 +3259,7 @@ WHERE depname = 'sales';
                                        ->  Redistribute Motion 3:3  (slice3; segments: 3)
                                              Hash Key: enroll_date
                                              ->  Seq Scan on empsalary
- Optimizer: Pivotal Optimizer (GPORCA) version 3.23.0
+ Optimizer: GPORCA
 (17 rows)
 
 -- pushdown is unsafe because the subquery contains window functions and the qual is volatile:
@@ -3265,7 +3284,7 @@ WHERE depname = 'sales' OR RANDOM() > 0.5;
                                  Sort Key: depname
                                  ->  Seq Scan on empsalary
                                        Filter: (((depname)::text = 'sales'::text) OR (random() > '0.5'::double precision))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (13 rows)
 
 -- Test Sort node collapsing
@@ -3278,7 +3297,7 @@ SELECT * FROM
 WHERE depname = 'sales';
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
+ Gather Motion 1:1  (slice1; segments: 1)
    ->  WindowAgg
          Partition By: depname, empno
          Order By: enroll_date
@@ -3291,7 +3310,7 @@ WHERE depname = 'sales';
                            Sort Key: depname, empno
                            ->  Seq Scan on empsalary
                                  Filter: ((depname)::text = 'sales'::text)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (14 rows)
 
 -- Test Sort node reordering
@@ -3314,7 +3333,7 @@ FROM empsalary;
                      ->  Sort
                            Sort Key: depname, salary, enroll_date
                            ->  Seq Scan on empsalary
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (13 rows)
 
 -- Test incremental sorting
@@ -3328,8 +3347,6 @@ SELECT * FROM
           row_number() OVER (PARTITION BY depname ORDER BY enroll_date DESC) AS last_emp
    FROM empsalary) emp
 WHERE first_emp = 1 OR last_emp = 1;
-NOTICE:  One or more columns in the following table(s) do not have statistics: empsalary
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
                                     QUERY PLAN
 ----------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
@@ -3346,7 +3363,7 @@ HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For 
                            ->  Sort
                                  Sort Key: depname, enroll_date
                                  ->  Seq Scan on empsalary
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (15 rows)
 
 SELECT * FROM
@@ -3358,8 +3375,6 @@ SELECT * FROM
           row_number() OVER (PARTITION BY depname ORDER BY enroll_date DESC) AS last_emp
    FROM empsalary) emp
 WHERE first_emp = 1 OR last_emp = 1;
-NOTICE:  One or more columns in the following table(s) do not have statistics: empsalary
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
   depname  | empno | salary | enroll_date | first_emp | last_emp 
 -----------+-------+--------+-------------+-----------+----------
  develop   |     9 |   4500 | 01-01-2008  |         4 |        1
@@ -3522,6 +3537,8 @@ FROM (VALUES
 ) AS t(p, i, f, v)
 WINDOW wnd AS (PARTITION BY p ORDER BY i ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
 ORDER BY p, i;
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Aggregate functions with FILTER
    row    | nstrict_filt | nstrict_init_filt | strict_filt | strict_init_filt 
 ----------+--------------+-------------------+-------------+------------------
  1,1:NULL | +NULL        | MI+NULL           |             | MI
@@ -3569,6 +3586,8 @@ FROM (VALUES
 ) AS t(i, v)
 WINDOW wnd AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
 ORDER BY i;
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Aggregate functions with FILTER
  row |    inverse    | noinverse 
 -----+---------------+-----------
  1:a | a             | a
@@ -3734,6 +3753,10 @@ JOIN sum_following ON sum_following.i = vs.i
 WINDOW fwd AS (
 	ORDER BY vs.i ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
 );
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: SIRV functions
+INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner
+DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: SIRV functions
  eq1 | eq2 | eq3 
 -----+-----+-----
  t   | t   | t
@@ -4249,10 +4272,10 @@ AS $$
     WINDOW w AS (ORDER BY s ROWS BETWEEN CURRENT ROW AND GROUP_SIZE FOLLOWING)
 $$ LANGUAGE SQL STABLE;
 EXPLAIN (costs off) SELECT * FROM pg_temp.f(2);
-              QUERY PLAN               
----------------------------------------
+     QUERY PLAN     
+--------------------
  Function Scan on f
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (2 rows)
 
 SELECT * FROM pg_temp.f(2);
@@ -4265,3 +4288,4 @@ SELECT * FROM pg_temp.f(2);
  {5}
 (5 rows)
 
+RESET optimizer_trace_fallback;

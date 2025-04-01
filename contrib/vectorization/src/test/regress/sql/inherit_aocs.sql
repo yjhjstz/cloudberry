@@ -94,6 +94,10 @@ SELECT relname, b.* FROM ONLY b, pg_class where b.tableoid = pg_class.oid;
 SELECT relname, c.* FROM ONLY c, pg_class where c.tableoid = pg_class.oid;
 SELECT relname, d.* FROM ONLY d, pg_class where d.tableoid = pg_class.oid;
 
+-- Confirm PRIMARY KEY adds NOT NULL constraint to child table
+CREATE TEMP TABLE z (b TEXT, PRIMARY KEY(aa, b)) inherits (a);
+INSERT INTO z VALUES (NULL, 'text'); -- should fail
+
 -- Check inherited UPDATE with all children excluded
 create table some_tab (a int, b int) distributed randomly;
 create table some_tab_child () inherits (some_tab);
@@ -202,6 +206,7 @@ DROP TABLE firstparent, secondparent, jointchild, thirdparent, otherchild;
 
 -- Test changing the type of inherited columns
 insert into d values('test','one','two','three');
+alter table z drop constraint z_pkey;
 alter table a alter column aa type integer using bit_length(aa);
 select * from d;
 
@@ -378,9 +383,10 @@ DROP TABLE inht1, inhs1 CASCADE;
 
 
 -- Test non-inheritable indices [UNIQUE, EXCLUDE] constraints
-CREATE TABLE test_constraints (id int, val1 varchar, val2 int);
+CREATE TABLE test_constraints (id int, val1 varchar, val2 int, UNIQUE(val1, val2));
 CREATE TABLE test_constraints_inh () INHERITS (test_constraints);
 \d+ test_constraints
+ALTER TABLE ONLY test_constraints DROP CONSTRAINT test_constraints_val1_val2_key;
 \d+ test_constraints
 \d+ test_constraints_inh
 DROP TABLE test_constraints_inh;
@@ -399,6 +405,33 @@ ALTER TABLE test_ex_constraints DROP CONSTRAINT test_ex_constraints_dkey_c_excl;
 \d+ test_ex_constraints_inh
 DROP TABLE test_ex_constraints_inh;
 DROP TABLE test_ex_constraints;
+
+-- Test non-inheritable foreign key constraints
+CREATE TABLE test_primary_constraints(id int PRIMARY KEY);
+CREATE TABLE test_foreign_constraints(id1 int REFERENCES test_primary_constraints(id));
+CREATE TABLE test_foreign_constraints_inh () INHERITS (test_foreign_constraints);
+\d+ test_primary_constraints
+\d+ test_foreign_constraints
+ALTER TABLE test_foreign_constraints DROP CONSTRAINT test_foreign_constraints_id1_fkey;
+\d+ test_foreign_constraints
+\d+ test_foreign_constraints_inh
+DROP TABLE test_foreign_constraints_inh;
+DROP TABLE test_foreign_constraints;
+DROP TABLE test_primary_constraints;
+
+-- Test foreign key behavior
+create table inh_fk_1 (a int primary key);
+insert into inh_fk_1 values (1), (2), (3);
+create table inh_fk_2 (x int primary key, y int references inh_fk_1 on delete cascade);
+insert into inh_fk_2 values (11, 1), (22, 2), (33, 3);
+create table inh_fk_2_child () inherits (inh_fk_2);
+insert into inh_fk_2_child values (111, 1), (222, 2);
+-- The cascading deletion doesn't work on GPDB, because foreign keys are not
+-- enforced in general. So this produces different result than on upstream.
+delete from inh_fk_1 where a = 1;
+select * from inh_fk_1 order by 1;
+select * from inh_fk_2 order by 1, 2;
+drop table inh_fk_1, inh_fk_2, inh_fk_2_child;
 
 -- Test that parent and child CHECK constraints can be created in either order
 create table p1(f1 int);
@@ -479,10 +512,10 @@ drop table patest0 cascade;
 -- Test merge-append plans for inheritance trees
 --
 
-create table matest0 (id serial, name text);
-create table matest1 (id integer) inherits (matest0);
-create table matest2 (id integer) inherits (matest0);
-create table matest3 (id integer) inherits (matest0);
+create table matest0 (id serial primary key, name text);
+create table matest1 (id integer primary key) inherits (matest0);
+create table matest2 (id integer primary key) inherits (matest0);
+create table matest3 (id integer primary key) inherits (matest0);
 
 create index matest0i on matest0 ((1-id));
 create index matest1i on matest1 ((1-id));

@@ -535,6 +535,11 @@ SELECT relname, d.* FROM ONLY d, pg_class where d.tableoid = pg_class.oid;
 ---------+----+----+----+----
 (0 rows)
 
+-- Confirm PRIMARY KEY adds NOT NULL constraint to child table
+CREATE TEMP TABLE z (b TEXT, PRIMARY KEY(aa, b)) inherits (a);
+INSERT INTO z VALUES (NULL, 'text'); -- should fail
+ERROR:  null value in column "aa" of relation "z" violates not-null constraint  (seg2 127.0.0.1:7004 pid=21600)
+DETAIL:  Failing row contains (null, text).
 -- Check inherited UPDATE with all children excluded
 create table some_tab (a int, b int) distributed randomly;
 create table some_tab_child () inherits (some_tab);
@@ -714,6 +719,7 @@ NOTICE:  merging column "tomorrow" with inherited definition
 DROP TABLE firstparent, secondparent, jointchild, thirdparent, otherchild;
 -- Test changing the type of inherited columns
 insert into d values('test','one','two','three');
+alter table z drop constraint z_pkey;
 alter table a alter column aa type integer using bit_length(aa);
 select * from d;
  aa | bb  | cc  |  dd   
@@ -1156,7 +1162,7 @@ drop cascades to table inhts
 drop cascades to table inht3
 drop cascades to table inht4
 -- Test non-inheritable indices [UNIQUE, EXCLUDE] constraints
-CREATE TABLE test_constraints (id int, val1 varchar, val2 int);
+CREATE TABLE test_constraints (id int, val1 varchar, val2 int, UNIQUE(val1, val2));
 CREATE TABLE test_constraints_inh () INHERITS (test_constraints);
 \d+ test_constraints
                                                              Table "public.test_constraints"
@@ -1166,9 +1172,12 @@ CREATE TABLE test_constraints_inh () INHERITS (test_constraints);
  val1   | character varying |           |          |         | extended |              | none             | 0                 | 32768      | 
  val2   | integer           |           |          |         | plain    |              | none             | 0                 | 32768      | 
 Checksum: t
+Indexes:
+    "test_constraints_val1_val2_key" UNIQUE CONSTRAINT, btree (val1, val2)
 Child tables: test_constraints_inh
-Distributed by: (id)
+Distributed by: (val1, val2)
 
+ALTER TABLE ONLY test_constraints DROP CONSTRAINT test_constraints_val1_val2_key;
 \d+ test_constraints
                                                              Table "public.test_constraints"
  Column |       Type        | Collation | Nullable | Default | Storage  | Stats target | Compression Type | Compression Level | Block Size | Description 
@@ -1178,7 +1187,7 @@ Distributed by: (id)
  val2   | integer           |           |          |         | plain    |              | none             | 0                 | 32768      | 
 Checksum: t
 Child tables: test_constraints_inh
-Distributed by: (id)
+Distributed by: (val1, val2)
 
 \d+ test_constraints_inh
                                                            Table "public.test_constraints_inh"
@@ -1189,7 +1198,7 @@ Distributed by: (id)
  val2   | integer           |           |          |         | plain    |              | none             | 0                 | 32768      | 
 Checksum: t
 Inherits: test_constraints
-Distributed by: (id)
+Distributed by: (val1, val2)
 
 DROP TABLE test_constraints_inh;
 DROP TABLE test_constraints;
@@ -1234,6 +1243,89 @@ Distributed by: (dkey)
 
 DROP TABLE test_ex_constraints_inh;
 DROP TABLE test_ex_constraints;
+-- Test non-inheritable foreign key constraints
+CREATE TABLE test_primary_constraints(id int PRIMARY KEY);
+CREATE TABLE test_foreign_constraints(id1 int REFERENCES test_primary_constraints(id));
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'id1' as the Apache Cloudberry data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+WARNING:  referential integrity (FOREIGN KEY) constraints are not supported in Apache Cloudberry, will not be enforced
+CREATE TABLE test_foreign_constraints_inh () INHERITS (test_foreign_constraints);
+NOTICE:  table has parent, setting distribution columns to match parent table
+\d+ test_primary_constraints
+                                                   Table "public.test_primary_constraints"
+ Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Compression Type | Compression Level | Block Size | Description 
+--------+---------+-----------+----------+---------+---------+--------------+------------------+-------------------+------------+-------------
+ id     | integer |           | not null |         | plain   |              | none             | 0                 | 32768      | 
+Checksum: t
+Indexes:
+    "test_primary_constraints_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+    TABLE "test_foreign_constraints" CONSTRAINT "test_foreign_constraints_id1_fkey" FOREIGN KEY (id1) REFERENCES test_primary_constraints(id)
+Distributed by: (id)
+
+\d+ test_foreign_constraints
+                                                   Table "public.test_foreign_constraints"
+ Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Compression Type | Compression Level | Block Size | Description 
+--------+---------+-----------+----------+---------+---------+--------------+------------------+-------------------+------------+-------------
+ id1    | integer |           |          |         | plain   |              | none             | 0                 | 32768      | 
+Checksum: t
+Foreign-key constraints:
+    "test_foreign_constraints_id1_fkey" FOREIGN KEY (id1) REFERENCES test_primary_constraints(id)
+Child tables: test_foreign_constraints_inh
+Distributed by: (id1)
+
+ALTER TABLE test_foreign_constraints DROP CONSTRAINT test_foreign_constraints_id1_fkey;
+\d+ test_foreign_constraints
+                                                   Table "public.test_foreign_constraints"
+ Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Compression Type | Compression Level | Block Size | Description 
+--------+---------+-----------+----------+---------+---------+--------------+------------------+-------------------+------------+-------------
+ id1    | integer |           |          |         | plain   |              | none             | 0                 | 32768      | 
+Checksum: t
+Child tables: test_foreign_constraints_inh
+Distributed by: (id1)
+
+\d+ test_foreign_constraints_inh
+                                                 Table "public.test_foreign_constraints_inh"
+ Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Compression Type | Compression Level | Block Size | Description 
+--------+---------+-----------+----------+---------+---------+--------------+------------------+-------------------+------------+-------------
+ id1    | integer |           |          |         | plain   |              | none             | 0                 | 32768      | 
+Checksum: t
+Inherits: test_foreign_constraints
+Distributed by: (id1)
+
+DROP TABLE test_foreign_constraints_inh;
+DROP TABLE test_foreign_constraints;
+DROP TABLE test_primary_constraints;
+-- Test foreign key behavior
+create table inh_fk_1 (a int primary key);
+insert into inh_fk_1 values (1), (2), (3);
+create table inh_fk_2 (x int primary key, y int references inh_fk_1 on delete cascade);
+WARNING:  referential integrity (FOREIGN KEY) constraints are not supported in Apache Cloudberry, will not be enforced
+insert into inh_fk_2 values (11, 1), (22, 2), (33, 3);
+create table inh_fk_2_child () inherits (inh_fk_2);
+NOTICE:  table has parent, setting distribution columns to match parent table
+insert into inh_fk_2_child values (111, 1), (222, 2);
+-- The cascading deletion doesn't work on GPDB, because foreign keys are not
+-- enforced in general. So this produces different result than on upstream.
+delete from inh_fk_1 where a = 1;
+select * from inh_fk_1 order by 1;
+ a 
+---
+ 2
+ 3
+(2 rows)
+
+select * from inh_fk_2 order by 1, 2;
+  x  | y 
+-----+---
+  11 | 1
+  22 | 2
+  33 | 3
+ 111 | 1
+ 222 | 2
+(5 rows)
+
+drop table inh_fk_1, inh_fk_2, inh_fk_2_child;
 -- Test that parent and child CHECK constraints can be created in either order
 create table p1(f1 int);
 create table p1_c1() inherits(p1);
@@ -1374,12 +1466,12 @@ drop cascades to table patest2
 --
 -- Test merge-append plans for inheritance trees
 --
-create table matest0 (id serial, name text);
-create table matest1 (id integer) inherits (matest0);
+create table matest0 (id serial primary key, name text);
+create table matest1 (id integer primary key) inherits (matest0);
 NOTICE:  merging column "id" with inherited definition
-create table matest2 (id integer) inherits (matest0);
+create table matest2 (id integer primary key) inherits (matest0);
 NOTICE:  merging column "id" with inherited definition
-create table matest3 (id integer) inherits (matest0);
+create table matest3 (id integer primary key) inherits (matest0);
 NOTICE:  merging column "id" with inherited definition
 create index matest0i on matest0 ((1-id));
 create index matest1i on matest1 ((1-id));

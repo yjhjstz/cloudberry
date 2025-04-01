@@ -42,7 +42,7 @@ order by
                                  ->  Vec Hash
                                        ->  Vec Seq Scan on orders
                                              Filter: ((o_orderdate >= '07-01-1996'::date) AND (o_orderdate < 'Tue Oct 01 00:00:00 1996'::timestamp without time zone))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (20 rows)
 
 select

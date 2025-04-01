@@ -4,9 +4,6 @@
 -- GPDB:
 -- One of the queries EXPLAINed in this file executes on one or two segments,
 -- depending on random choice by the planner. Accept either plan.
--- start_matchignore
--- m/^.*Extra Text:.*/
--- end_matchignore
 -- start_matchsubs
 -- m/ Gather Motion [12]:1  \(slice1; segments: [12]\)/
 -- s/ Gather Motion [12]:1  \(slice1; segments: [12]\)/ Gather Motion XXX/
@@ -2186,7 +2183,7 @@ declare cur SCROLL CURSOR for select 1 from list_part where a > (select 1) and a
 move 3 from cur;
 -- Ensure we get two rows.
 fetch backward all from cur;
-ERROR:  backward scan is not supported in this version of Cloudberry Database
+ERROR:  backward scan is not supported in this version of Apache Cloudberry
 commit;
 begin;
 -- Test run-time pruning using stable functions
@@ -2220,8 +2217,8 @@ explain (analyze, costs off, summary off, timing off) select * from list_part wh
 
 -- Ensure pruning does not take place when the expression contains a Var.
 explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(1) + a;
-                            QUERY PLAN                            
-------------------------------------------------------------------
+                               QUERY PLAN                               
+------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Append (actual rows=0 loops=1)
          ->  Seq Scan on list_part1 list_part_1 (actual rows=0 loops=1)
@@ -2414,7 +2411,7 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                                              Index Cond: (a = ANY ('{0,0,1}'::integer[]))
                      ->  Sort (actual rows=N loops=N)
                            Sort Key: a.a
-                           Sort Method:  quicksort  Memory: 30kB
+                           Sort Method:  quicksort  Memory: 60kB
                            ->  Partition Selector (selector id: $0) (actual rows=N loops=N)
                                  ->  Seq Scan on lprt_a a (actual rows=N loops=N)
                                        Filter: (a = ANY ('{0,0,1}'::integer[]))
@@ -2467,7 +2464,7 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                      Merge Cond: (ab.a = a.a)
                      ->  Sort (actual rows=N loops=N)
                            Sort Key: ab.a
-                           Sort Method:  quicksort  Memory: 100kB
+                           Sort Method:  quicksort  Memory: 50kB
                            ->  Append (actual rows=N loops=N)
                                  Partition Selectors: $0
                                  ->  Bitmap Heap Scan on ab_a1_b1 ab_1 (actual rows=N loops=N)
@@ -2513,7 +2510,7 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                      Merge Cond: (ab.a = a.a)
                      ->  Sort (actual rows=N loops=N)
                            Sort Key: ab.a
-                           Sort Method:  quicksort  Memory: 50kB
+                           Sort Method:  quicksort  Memory: 25kB
                            ->  Append (actual rows=N loops=N)
                                  Partition Selectors: $0
                                  ->  Bitmap Heap Scan on ab_a1_b1 ab_1 (actual rows=N loops=N)
@@ -2548,7 +2545,7 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                      Merge Cond: (ab.a = a.a)
                      ->  Sort (actual rows=N loops=N)
                            Sort Key: ab.a
-                           Sort Method:  quicksort  Memory: 50kB
+                           Sort Method:  quicksort  Memory: 25kB
                            ->  Append (actual rows=N loops=N)
                                  Partition Selectors: $0
                                  ->  Bitmap Heap Scan on ab_a1_b1 ab_1 (never executed)
@@ -2647,8 +2644,8 @@ select * from ab where a = (select max(a) from lprt_a) and b = (select max(a)-1 
 -- Test run-time partition pruning with UNION ALL parents
 explain (analyze, costs off, summary off, timing off)
 select * from (select * from ab where a = 1 union all select * from ab) ab where b = (select 1);
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
+                                     QUERY PLAN                                      
+-------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    InitPlan 1 (returns $0)  (slice2)
      ->  Result (actual rows=1 loops=1)
@@ -2693,8 +2690,8 @@ select * from (select * from ab where a = 1 union all select * from ab) ab where
 -- A case containing a UNION ALL with a non-partitioned child.
 explain (analyze, costs off, summary off, timing off)
 select * from (select * from ab where a = 1 union all (values(10,5)) union all select * from ab) ab where b = (select 1);
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
+                                     QUERY PLAN                                      
+-------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    InitPlan 1 (returns $0)  (slice2)
      ->  Result (actual rows=1 loops=1)
@@ -2716,7 +2713,7 @@ select * from (select * from ab where a = 1 union all (values(10,5)) union all s
                      ->  Bitmap Index Scan on ab_a1_b3_a_idx (never executed)
                            Index Cond: (a = 1)
          ->  Result (actual rows=0 loops=1)
-               One-Time Filter: (gp_execution_segment() = 1)
+               One-Time Filter: (gp_execution_segment() = 2)
                ->  Result (actual rows=0 loops=1)
                      One-Time Filter: (5 = $0)
          ->  Seq Scan on ab_a1_b1 ab_1 (actual rows=0 loops=1)
@@ -3246,8 +3243,8 @@ select * from listp where b = 1;
 -- which match the given parameter.
 prepare q1 (int,int) as select * from listp where b in ($1,$2);
 explain (analyze, costs off, summary off, timing off)  execute q1 (1,1);
-                            QUERY PLAN                            
-------------------------------------------------------------------
+                            QUERY PLAN                             
+-------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Append (actual rows=0 loops=1)
          Subplans Removed: 1
@@ -3257,8 +3254,8 @@ explain (analyze, costs off, summary off, timing off)  execute q1 (1,1);
 (6 rows)
 
 explain (analyze, costs off, summary off, timing off)  execute q1 (2,2);
-                            QUERY PLAN                            
-------------------------------------------------------------------
+                            QUERY PLAN                             
+-------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Append (actual rows=0 loops=1)
          Subplans Removed: 1
@@ -3339,17 +3336,17 @@ select * from stable_qual_pruning where a < localtimestamp;
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Append (actual rows=0 loops=1)
          ->  Seq Scan on stable_qual_pruning1 stable_qual_pruning_1 (actual rows=0 loops=1)
-               Filter: (a < 'Sun Apr 24 03:04:04.470608 2022'::timestamp without time zone)
+               Filter: (a < 'Mon Oct 14 23:09:32.667368 2024'::timestamp without time zone)
          ->  Seq Scan on stable_qual_pruning2 stable_qual_pruning_2 (actual rows=0 loops=1)
-               Filter: (a < 'Sun Apr 24 03:04:04.470608 2022'::timestamp without time zone)
+               Filter: (a < 'Mon Oct 14 23:09:32.667368 2024'::timestamp without time zone)
  Optimizer: Postgres query optimizer
 (7 rows)
 
 -- timestamp < timestamptz comparison is only stable, not immutable
 explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning where a < '2000-02-01'::timestamptz;
-                                      QUERY PLAN                                      
---------------------------------------------------------------------------------------
+                                         QUERY PLAN                                         
+--------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Append (actual rows=0 loops=1)
          Subplans Removed: 2
@@ -3387,7 +3384,7 @@ select * from stable_qual_pruning
 -----------------------------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Seq Scan on stable_qual_pruning2 stable_qual_pruning (actual rows=0 loops=1)
-         Filter: (a = ANY ('{"Tue Feb 01 00:00:00 2000","Sun Apr 24 03:04:04.486178 2022"}'::timestamp without time zone[]))
+         Filter: (a = ANY ('{"Tue Feb 01 00:00:00 2000","Mon Oct 14 23:09:32.675018 2024"}'::timestamp without time zone[]))
  Optimizer: Postgres query optimizer
 (4 rows)
 
@@ -3418,8 +3415,8 @@ select * from stable_qual_pruning
 explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(null::timestamptz[]);
-                                     QUERY PLAN                                      
--------------------------------------------------------------------------------------
+                                         QUERY PLAN                                         
+--------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    ->  Append (actual rows=0 loops=1)
          ->  Seq Scan on stable_qual_pruning1 stable_qual_pruning_1 (actual rows=0 loops=1)
@@ -3773,13 +3770,13 @@ explain (costs off) select * from pph_arrpart where a in ('{4, 5}', '{1}');
 drop table pph_arrpart;
 -- enum type list partition key
 create type pp_colors as enum ('green', 'blue', 'black');
-create table pp_enumpart (a pp_colors) partition by list (a);
+create table pp_enumpart (col1 int, a pp_colors) partition by list (a);
 create table pp_enumpart_green partition of pp_enumpart for values in ('green');
 create table pp_enumpart_blue partition of pp_enumpart for values in ('blue');
 explain (costs off) select * from pp_enumpart where a = 'blue';
-                   QUERY PLAN                   
-------------------------------------------------
- Gather Motion 1:1  (slice1; segments: 1)
+                QUERY PLAN                
+------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on pp_enumpart_blue pp_enumpart
          Filter: (a = 'blue'::pp_colors)
  Optimizer: Postgres query optimizer
@@ -4280,8 +4277,8 @@ create index on rangep (a);
 -- Ensure run-time pruning works on the nested Merge Append
 explain (analyze on, costs off, timing off, summary off)
 select * from rangep where b IN((select 1),(select 2)) order by a;
-                                                QUERY PLAN                                                 
------------------------------------------------------------------------------------------------------------
+                                                    QUERY PLAN                                                    
+------------------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
    Merge Key: rangep.a
    InitPlan 1 (returns $0)  (slice2)

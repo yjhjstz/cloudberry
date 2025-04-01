@@ -15,8 +15,6 @@ CREATE TEMP TABLE abbrev_abort_uuids (
     abort_decreasing uuid,
     noabort_increasing uuid,
     noabort_decreasing uuid);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'id' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 INSERT INTO abbrev_abort_uuids (abort_increasing, abort_decreasing, noabort_increasing, noabort_decreasing)
     SELECT
         ('00000000-0000-0000-0000-'||to_char(g.i, '000000000000FM'))::uuid abort_increasing,
@@ -33,15 +31,11 @@ INSERT INTO abbrev_abort_uuids (abort_increasing, abort_decreasing, noabort_incr
     SELECT abort_increasing, abort_decreasing, noabort_increasing, noabort_decreasing
     FROM abbrev_abort_uuids
     WHERE (id < 10 OR id > 19990) AND id % 3 = 0 AND abort_increasing is not null AND gp_segment_id = 0;
-NOTICE:  One or more columns in the following table(s) do not have statistics: abbrev_abort_uuids
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
 ----
 -- Check sort node uses of tuplesort wrt. abbreviated keys
 ----
 -- plain sort triggering abbreviated abort
 SELECT abort_increasing, abort_decreasing FROM abbrev_abort_uuids ORDER BY abort_increasing OFFSET 20000 - 4;
-NOTICE:  One or more columns in the following table(s) do not have statistics: abbrev_abort_uuids
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
            abort_increasing           |           abort_decreasing           
 --------------------------------------+--------------------------------------
  00000000-0000-0000-0000-000000019995 | 00000000-0000-0000-0000-000000000005
@@ -136,7 +130,7 @@ SELECT id, noabort_increasing, noabort_decreasing FROM abbrev_abort_uuids ORDER 
          ->  Sort
                Sort Key: noabort_increasing, id
                ->  Seq Scan on abbrev_abort_uuids
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT id, noabort_increasing, noabort_decreasing FROM abbrev_abort_uuids ORDER BY noabort_increasing, id LIMIT 5;
@@ -159,7 +153,7 @@ SELECT id, noabort_increasing, noabort_decreasing FROM abbrev_abort_uuids ORDER 
          ->  Sort
                Sort Key: noabort_decreasing, id
                ->  Seq Scan on abbrev_abort_uuids
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT id, noabort_increasing, noabort_decreasing FROM abbrev_abort_uuids ORDER BY noabort_decreasing, id LIMIT 5;
@@ -186,7 +180,7 @@ SELECT id, abort_increasing, abort_decreasing FROM abbrev_abort_uuids ORDER BY a
          ->  Sort
                Sort Key: abort_increasing, id
                ->  Seq Scan on abbrev_abort_uuids
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT id, abort_increasing, abort_decreasing FROM abbrev_abort_uuids ORDER BY abort_increasing, id LIMIT 5;
@@ -209,7 +203,7 @@ SELECT id, abort_increasing, abort_decreasing FROM abbrev_abort_uuids ORDER BY a
          ->  Sort
                Sort Key: abort_decreasing, id
                ->  Seq Scan on abbrev_abort_uuids
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT id, abort_increasing, abort_decreasing FROM abbrev_abort_uuids ORDER BY abort_decreasing, id LIMIT 5;
@@ -365,7 +359,7 @@ EXPLAIN (COSTS OFF) DECLARE c SCROLL CURSOR FOR SELECT noabort_decreasing FROM a
    ->  Sort
          Sort Key: noabort_decreasing
          ->  Seq Scan on abbrev_abort_uuids
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 DECLARE c SCROLL CURSOR FOR SELECT noabort_decreasing FROM abbrev_abort_uuids ORDER BY noabort_decreasing;
@@ -407,7 +401,6 @@ COMMIT;
 BEGIN;
 SET LOCAL enable_indexscan = false;
 SET LOCAL work_mem = '100kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 -- unfortunately can't show analyze output confirming sort method,
 -- the memory used output wouldn't be stable
 EXPLAIN (COSTS OFF) DECLARE c SCROLL CURSOR FOR SELECT noabort_decreasing FROM abbrev_abort_uuids ORDER BY noabort_decreasing;
@@ -418,7 +411,7 @@ EXPLAIN (COSTS OFF) DECLARE c SCROLL CURSOR FOR SELECT noabort_decreasing FROM a
    ->  Sort
          Sort Key: noabort_decreasing
          ->  Seq Scan on abbrev_abort_uuids
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 DECLARE c SCROLL CURSOR FOR SELECT noabort_decreasing FROM abbrev_abort_uuids ORDER BY noabort_decreasing;
@@ -488,7 +481,6 @@ FROM (
 -- disk based (see also above)
 BEGIN;
 SET LOCAL work_mem = '100kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 SELECT
     (array_agg(id ORDER BY id DESC NULLS FIRST))[0:5],
     (array_agg(abort_increasing ORDER BY abort_increasing DESC NULLS LAST))[0:5],
@@ -512,8 +504,6 @@ ROLLBACK;
 -- test tuplesort mark/restore
 ---
 CREATE TEMP TABLE test_mark_restore(col1 int, col2 int, col12 int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'col1' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 -- need a few duplicates for mark/restore to matter
 INSERT INTO test_mark_restore(col1, col2, col12)
    SELECT a.i, b.i, a.i * b.i FROM generate_series(1, 500) a(i), generate_series(1, 5) b(i);
@@ -576,7 +566,6 @@ EXPLAIN (COSTS OFF) :qry;
 
 -- test mark/restore with on-disk sorts
 SET LOCAL work_mem = '100kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 EXPLAIN (COSTS OFF) :qry;
                                                                                        QUERY PLAN                                                                                        
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

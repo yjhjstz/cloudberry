@@ -72,7 +72,7 @@ order by
                                                    ->  Vec Hash
                                                          ->  Vec Seq Scan on part
                                                                Filter: ((p_name)::text ~~ 'burnished%'::text)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (34 rows)
 
 select

@@ -40,10 +40,10 @@ order by
                Group Key: part.p_brand, part.p_type, part.p_size
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: part.p_brand, part.p_type, part.p_size
-                     ->  Vec Streaming Vec HashAggregate
+                     ->  Vec HashAggregate
                            Group Key: part.p_brand, part.p_type, part.p_size, partsupp.ps_suppkey
                            ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
-                                 Hash Key: part.p_brand, part.p_type, part.p_size, partsupp.ps_suppkey, partsupp.ps_suppkey
+                                 Hash Key: part.p_brand, part.p_type, part.p_size, partsupp.ps_suppkey
                                  ->  Vec Hash Left Anti Semi (Not-In) Join
                                        Hash Cond: (partsupp.ps_suppkey = supplier.s_suppkey)
                                        ->  Vec Hash Join
@@ -56,7 +56,7 @@ order by
                                              ->  Vec Broadcast Motion 3:3  (slice4; segments: 3)
                                                    ->  Vec Seq Scan on supplier
                                                          Filter: ((s_comment)::text ~~ '%Customer%Complaints%'::text)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (25 rows)
 
 select

@@ -40,7 +40,7 @@ order by
                                              Filter: ((o_comment)::text !~~ '%unusual%deposits%'::text)
                                  ->  Vec Hash
                                        ->  Vec Seq Scan on customer
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (19 rows)
 
 select

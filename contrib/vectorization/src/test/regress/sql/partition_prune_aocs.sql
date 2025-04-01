@@ -6,9 +6,6 @@ SET default_table_access_method=ao_column;
 -- GPDB:
 -- One of the queries EXPLAINed in this file executes on one or two segments,
 -- depending on random choice by the planner. Accept either plan.
--- start_matchignore
--- m/^.*Extra Text:.*/
--- end_matchignore
 -- start_matchsubs
 -- m/ Gather Motion [12]:1  \(slice1; segments: [12]\)/
 -- s/ Gather Motion [12]:1  \(slice1; segments: [12]\)/ Gather Motion XXX/
@@ -488,6 +485,7 @@ $$
 declare
     ln text;
 begin
+    set local enable_parallel = off;
     for ln in
         execute format('explain (analyze, costs off, summary off, timing off) %s',
             $1)
@@ -497,6 +495,7 @@ begin
         ln := regexp_replace(ln, 'Rows Removed by Filter: \d+', 'Rows Removed by Filter: N');
         return next ln;
     end loop;
+    reset enable_parallel;
 end;
 $$;
 
@@ -939,7 +938,7 @@ drop table pph_arrpart;
 
 -- enum type list partition key
 create type pp_colors as enum ('green', 'blue', 'black');
-create table pp_enumpart (a pp_colors) partition by list (a);
+create table pp_enumpart (col1 int, a pp_colors) partition by list (a);
 create table pp_enumpart_green partition of pp_enumpart for values in ('green');
 create table pp_enumpart_blue partition of pp_enumpart for values in ('blue');
 explain (costs off) select * from pp_enumpart where a = 'blue';
@@ -1119,6 +1118,11 @@ create table listp (a int) partition by list(a);
 create table listp_12 partition of listp for values in(1,2) partition by list(a);
 create table listp_12_1 partition of listp_12 for values in(1);
 create table listp_12_2 partition of listp_12 for values in(2);
+
+-- Force the 2nd subnode of the Append to be non-parallel.  This results in
+-- a nested Append node because the mixed parallel / non-parallel paths cannot
+-- be pulled into the top-level Append.
+alter table listp_12_1 set (parallel_workers = 0);
 
 -- Ensure that listp_12_2 is not scanned.  (The nested Append is not seen in
 -- the plan as it's pulled in setref.c due to having just a single subnode).

@@ -269,7 +269,8 @@ SELECT * FROM CASE_TBL WHERE NULLIF(1, 2) = 2;
 --------------------------
  Result
    One-Time Filter: false
-(2 rows)
+ Optimizer: GPORCA
+(3 rows)
 
 explain (costs off)
 SELECT * FROM CASE_TBL WHERE NULLIF(1, 1) IS NOT NULL;
@@ -277,7 +278,8 @@ SELECT * FROM CASE_TBL WHERE NULLIF(1, 1) IS NOT NULL;
 --------------------------
  Result
    One-Time Filter: false
-(2 rows)
+ Optimizer: GPORCA
+(3 rows)
 
 explain (costs off)
 SELECT * FROM CASE_TBL WHERE NULLIF(1, null) = 2;
@@ -285,7 +287,8 @@ SELECT * FROM CASE_TBL WHERE NULLIF(1, null) = 2;
 --------------------------
  Result
    One-Time Filter: false
-(2 rows)
+ Optimizer: GPORCA
+(3 rows)
 
 --
 -- Examples of updates involving tables

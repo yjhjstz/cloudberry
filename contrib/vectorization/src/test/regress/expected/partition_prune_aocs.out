@@ -5,9 +5,6 @@ SET default_table_access_method=ao_column;
 -- GPDB:
 -- One of the queries EXPLAINed in this file executes on one or two segments,
 -- depending on random choice by the planner. Accept either plan.
--- start_matchignore
--- m/^.*Extra Text:.*/
--- end_matchignore
 -- start_matchsubs
 -- m/ Gather Motion [12]:1  \(slice1; segments: [12]\)/
 -- s/ Gather Motion [12]:1  \(slice1; segments: [12]\)/ Gather Motion XXX/
@@ -2185,7 +2182,7 @@ declare cur SCROLL CURSOR for select 1 from list_part where a > (select 1) and a
 move 3 from cur;
 -- Ensure we get two rows.
 fetch backward all from cur;
-ERROR:  backward scan is not supported in this version of Cloudberry Database
+ERROR:  backward scan is not supported in this version of Apache Cloudberry
 commit;
 begin;
 -- Test run-time pruning using stable functions
@@ -2259,6 +2256,7 @@ $$
 declare
     ln text;
 begin
+    set local enable_parallel = off;
     for ln in
         execute format('explain (analyze, costs off, summary off, timing off) %s',
             $1)
@@ -2268,6 +2266,7 @@ begin
         ln := regexp_replace(ln, 'Rows Removed by Filter: \d+', 'Rows Removed by Filter: N');
         return next ln;
     end loop;
+    reset enable_parallel;
 end;
 $$;
 prepare ab_q4 (int, int) as
@@ -3685,8 +3684,8 @@ deallocate mt_q1;
 prepare mt_q2 (int) as select * from ma_test where a >= $1 order by b limit 1;
 -- Ensure output list looks sane when the MergeAppend has no subplans.
 explain (analyze, verbose, costs off, summary off, timing off) execute mt_q2 (35);
-                                                                                            QUERY PLAN                                                                                             
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                         QUERY PLAN                                                                                                         
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Limit (actual rows=0 loops=1)
    Output: ma_test.a, ma_test.b
    ->  Gather Motion 3:1  (slice1; segments: 3) (actual rows=0 loops=1)
@@ -3698,7 +3697,7 @@ explain (analyze, verbose, costs off, summary off, timing off) execute mt_q2 (35
                      Output: ma_test.a, ma_test.b
                      Sort Key: ma_test.b
                      Sort Method:  quicksort  Memory: 75kB
-   Max Memory: 25kB  Avg Memory: 25kb (3 segments)
+   Max Memory: 25kB  Avg Memory: 25kB (3 segments)
                      ->  Append (actual rows=0 loops=1)
                            Subplans Removed: 3
  Settings: enable_hashjoin = 'off', enable_indexonlyscan = 'off', enable_mergejoin = 'off', enable_seqscan = 'off', enable_sort = 'off', optimizer = 'off', plan_cache_mode = 'force_generic_plan'
@@ -3840,13 +3839,13 @@ explain (costs off) select * from pph_arrpart where a in ('{4, 5}', '{1}');
 drop table pph_arrpart;
 -- enum type list partition key
 create type pp_colors as enum ('green', 'blue', 'black');
-create table pp_enumpart (a pp_colors) partition by list (a);
+create table pp_enumpart (col1 int, a pp_colors) partition by list (a);
 create table pp_enumpart_green partition of pp_enumpart for values in ('green');
 create table pp_enumpart_blue partition of pp_enumpart for values in ('blue');
 explain (costs off) select * from pp_enumpart where a = 'blue';
                    QUERY PLAN                   
 ------------------------------------------------
- Gather Motion 1:1  (slice1; segments: 1)
+ Gather Motion 3:1  (slice1; segments: 3)
    ->  Seq Scan on pp_enumpart_blue pp_enumpart
          Filter: (a = 'blue'::pp_colors)
  Optimizer: Postgres query optimizer
@@ -4291,6 +4290,10 @@ create table listp (a int) partition by list(a);
 create table listp_12 partition of listp for values in(1,2) partition by list(a);
 create table listp_12_1 partition of listp_12 for values in(1);
 create table listp_12_2 partition of listp_12 for values in(2);
+-- Force the 2nd subnode of the Append to be non-parallel.  This results in
+-- a nested Append node because the mixed parallel / non-parallel paths cannot
+-- be pulled into the top-level Append.
+alter table listp_12_1 set (parallel_workers = 0);
 -- Ensure that listp_12_2 is not scanned.  (The nested Append is not seen in
 -- the plan as it's pulled in setref.c due to having just a single subnode).
 select explain_parallel_append('select * from listp where a = (select 1);');

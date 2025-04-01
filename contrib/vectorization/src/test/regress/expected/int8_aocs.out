@@ -313,15 +313,7 @@ SELECT q1, q2, q1 - q2 AS minus FROM INT8_TBL;
 (5 rows)
 
 SELECT q1, q2, q1 * q2 AS multiply FROM INT8_TBL;
-        q1        |        q2         |       multiply       
-------------------+-------------------+----------------------
-              123 |               456 |                56088
-              123 |  4567890123456789 |   561850485185185047
- 4567890123456789 |               123 |   561850485185185047
- 4567890123456789 |  4567890123456789 |  4868582358072306617
- 4567890123456789 | -4567890123456789 | -4868582358072306617
-(5 rows)
-
+ERROR:  Execute plan for garrow_record_batch_reader_read_next error: [record-batch-reader][read-next]: Invalid: overflow. (execMain.c:2058)  (seg0 slice1 127.0.1.1:7002 pid=9596) (execMain.c:2058)
 SELECT q1, q2, q1 * q2 AS multiply FROM INT8_TBL
  WHERE q1 < 1000 or (q2 > 0 and q2 < 1000);
         q1        |        q2        |      multiply      

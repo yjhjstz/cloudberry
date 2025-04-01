@@ -60,7 +60,7 @@ LIMIT 20;
                                                    ->  Vec Hash
                                                          ->  Vec Seq Scan on orders
                                                                Filter: ((o_orderdate >= '06-01-1993'::date) AND (o_orderdate < 'Wed Sep 01 00:00:00 1993'::timestamp without time zone))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (27 rows)
 
 select

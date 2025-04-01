@@ -1,4 +1,3 @@
-SET default_table_access_method=ao_column;
 -- Create a new database to be certain that we'll be able to create objects with
 -- the Oids specified in this test. We have tighter control when we don't have
 -- to deal with leftover objects in the regression database.
@@ -8,15 +7,15 @@ CREATE DATABASE oid_wraparound;
 -- Create the functions that we will be using to set and observe the Oid counter
 -- on the master and the segments.
 CREATE OR REPLACE FUNCTION gp_set_next_oid_master(new_oid Oid)
-	RETURNS VOID
+	RETURNS SETOF VOID
 	AS '@libdir@/regress.so', 'gp_set_next_oid'
 	LANGUAGE C EXECUTE ON COORDINATOR;
 CREATE OR REPLACE FUNCTION gp_set_next_oid_segments(new_oid Oid)
-	RETURNS VOID
+	RETURNS SETOF VOID
 	AS '@libdir@/regress.so', 'gp_set_next_oid'
 	LANGUAGE C EXECUTE ON ALL SEGMENTS;
 CREATE OR REPLACE FUNCTION gp_get_next_oid_master()
-	RETURNS OID
+	RETURNS SETOF OID
 	AS '@libdir@/regress.so', 'gp_get_next_oid'
 	LANGUAGE C EXECUTE ON COORDINATOR;
 CREATE OR REPLACE FUNCTION gp_get_next_oid_segments()

@@ -1398,7 +1398,7 @@ select ir from test_range_spgist where ir -|- int4range(10,20) order by ir;
          Sort Key: ir
          ->  Seq Scan on test_range_spgist
                Filter: (ir -|- '[10,20)'::int4range)
- Optimizer: Pivotal Optimizer (GPORCA) version 3.44.0
+ Optimizer: GPORCA
 (7 rows)
 
 select ir from test_range_spgist where ir -|- int4range(10,20) order by ir;
@@ -1433,7 +1433,7 @@ select count(*) from test_range_elem where int4range(i,i+10) <@ int4range(10,30)
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Seq Scan on test_range_elem
                Filter: (int4range(i, (i + 10)) <@ '[10,30)'::int4range)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 select count(*) from test_range_elem where int4range(i,i+10) <@ int4range(10,30);

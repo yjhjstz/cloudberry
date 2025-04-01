@@ -55,7 +55,7 @@ SELECT * FROM fast_emp4000
                Sort Key: ((home_base[0])[0])
                ->  Seq Scan on fast_emp4000
                      Filter: (home_base <@ '(2000,1000),(200,200)'::box)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (8 rows)
 
 SELECT * FROM fast_emp4000
@@ -76,7 +76,7 @@ SELECT count(*) FROM fast_emp4000 WHERE home_base && '(1000,1000,0,0)'::box;
          ->  Partial Aggregate
                ->  Seq Scan on fast_emp4000
                      Filter: (home_base && '(1000,1000),(0,0)'::box)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM fast_emp4000 WHERE home_base && '(1000,1000,0,0)'::box;
@@ -94,7 +94,7 @@ SELECT count(*) FROM fast_emp4000 WHERE home_base IS NULL;
          ->  Partial Aggregate
                ->  Seq Scan on fast_emp4000
                      Filter: (home_base IS NULL)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM fast_emp4000 WHERE home_base IS NULL;

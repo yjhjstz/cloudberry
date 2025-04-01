@@ -5,14 +5,8 @@
 CREATE SCHEMA shared_scan;
 SET search_path = shared_scan;
 CREATE TABLE foo (a int, b int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 CREATE TABLE bar (c int, d int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'c' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 CREATE TABLE jazz(e int, f int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'e' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 INSERT INTO foo values (1, 2);
 INSERT INTO bar SELECT i, i from generate_series(1, 100)i;
 INSERT INTO jazz VALUES (2, 2), (3, 3);
@@ -60,7 +54,7 @@ EXPLAIN (COSTS OFF)
          ->  Hash
                ->  Seq Scan on jazz
                      Filter: (e = f)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (19 rows)
 
 SET statement_timeout = '15s';
@@ -85,11 +79,7 @@ FROM (SELECT *,
 (1 row)
 
 CREATE TABLE t1 (a int, b int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 CREATE TABLE t2 (a int);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 -- ORCA plan contains a Shared Scan producer with a unsorted Motion below it
 EXPLAIN (COSTS OFF)
 WITH cte AS (SELECT * FROM t1 WHERE random() < 0.1 LIMIT 10) SELECT a, 1, 1 FROM cte JOIN t2 USING (a);
@@ -111,7 +101,7 @@ WITH cte AS (SELECT * FROM t1 WHERE random() < 0.1 LIMIT 10) SELECT a, 1, 1 FROM
                                  ->  Shared Scan (share slice:id 3:0)
                      ->  Hash
                            ->  Seq Scan on t2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (17 rows)
 
 -- This functions returns one more column than expected.
@@ -155,7 +145,7 @@ WITH cte AS (SELECT * FROM t1 WHERE random() < 0.1 ORDER BY b LIMIT 10) SELECT a
                                  ->  Shared Scan (share slice:id 3:0)
                      ->  Hash
                            ->  Seq Scan on t2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (20 rows)
 
 --- This functions returns one more column than expected.

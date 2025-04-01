@@ -46,7 +46,7 @@ LIMIT 10;
                                                    ->  Vec Broadcast Motion 3:3  (slice2; segments: 3)
                                                          ->  Vec Seq Scan on customer
                                                                Filter: (c_mktsegment = 'AUTOMOBILE'::text)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (22 rows)
 
 select

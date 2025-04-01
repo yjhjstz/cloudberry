@@ -62,7 +62,7 @@ order by
                                                                            Group Key: lineitem_1.l_suppkey
                                                                            ->  Vec Seq Scan on lineitem lineitem_1
                                                                                  Filter: ((l_shipdate >= '08-01-1997'::date) AND (l_shipdate < 'Mon Jun 01 00:00:00 1998'::timestamp without time zone))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (32 rows)
 
 select

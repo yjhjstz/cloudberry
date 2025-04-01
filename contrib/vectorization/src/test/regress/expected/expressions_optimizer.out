@@ -105,7 +105,7 @@ select count(*) from date_tbl
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Seq Scan on date_tbl
                Filter: ((f1 >= '01-01-1997'::date) AND (f1 <= '01-01-1998'::date))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 select count(*) from date_tbl
@@ -124,7 +124,7 @@ select count(*) from date_tbl
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Seq Scan on date_tbl
                Filter: ((f1 < '01-01-1997'::date) OR (f1 > '01-01-1998'::date))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 select count(*) from date_tbl
@@ -143,7 +143,7 @@ select count(*) from date_tbl
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Seq Scan on date_tbl
                Filter: (((f1 >= '01-01-1997'::date) AND (f1 <= '01-01-1998'::date)) OR ((f1 >= '01-01-1998'::date) AND (f1 <= '01-01-1997'::date)))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 select count(*) from date_tbl
@@ -162,7 +162,7 @@ select count(*) from date_tbl
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Seq Scan on date_tbl
                Filter: (((f1 < '01-01-1997'::date) OR (f1 > '01-01-1998'::date)) AND ((f1 < '01-01-1998'::date) OR (f1 > '01-01-1997'::date)))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 select count(*) from date_tbl
@@ -208,7 +208,7 @@ explain (verbose, costs off) select * from numeric_view;
    Output: f1, ((f1)::numeric(16,4)), ((f1)::numeric), f2, ((f2)::numeric(16,4)), f2
    ->  Seq Scan on public.numeric_tbl
          Output: f1, (f1)::numeric(16,4), f1, f2, (f2)::numeric(16,4), f2
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (5 rows)
 
 -- bpchar, lacking planner support for its length coercion function,
@@ -247,7 +247,7 @@ explain (verbose, costs off) select * from bpchar_view
    ->  Index Scan using bpchar_tbl_f1_key on public.bpchar_tbl
          Output: f1, (f1)::character(14), f1, f2, (f2)::character(14), f2
          Index Cond: ((bpchar_tbl.f1)::bpchar = 'foo'::bpchar)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 rollback;

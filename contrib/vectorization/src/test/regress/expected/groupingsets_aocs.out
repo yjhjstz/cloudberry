@@ -79,6 +79,7 @@ create temp table gstest3 (a integer, b integer, c integer, d integer);
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
 HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 copy gstest3 from stdin;
+alter table gstest3 add primary key (a);
 create temp table gstest4(id integer, v integer,
                           unhashable_col unhashable_bit(4), unsortable_col xid);
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'id' as the Cloudberry Database data distribution key for this table.
@@ -88,6 +89,13 @@ values (1,1,b'0000','1'), (2,2,b'0001','1'),
        (3,4,b'0010','2'), (4,8,b'0011','2'),
        (5,16,b'0000','2'), (6,32,b'0001','2'),
        (7,64,b'0010','1'), (8,128,b'0011','1');
+create temp table gstest5(id integer, v integer,
+                          unsortable_col1 xid, unsortable_col2 xid);
+insert into gstest5
+values (1,1,'3','1'), (2,2,'3','1'),
+       (3,4,'4','2'), (4,8,'4','2'),
+       (5,16,'4','2'), (6,32,'4','2'),
+       (7,64,'3','1'), (8,128,'3','1');
 create temp table gstest_empty (a integer, b integer, v integer);
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Cloudberry Database data distribution key for this table.
 HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
@@ -422,9 +430,14 @@ select a, b, grouping(a, b), sum(t1.v), max(t2.c)
 select a, d, grouping(a,b,c)
   from gstest3
  group by grouping sets ((a,b), (a,c));
-ERROR:  column "gstest3.d" must appear in the GROUP BY clause or be used in an aggregate function
-LINE 1: select a, d, grouping(a,b,c)
-                  ^
+ a | d | grouping 
+---+---+----------
+ 2 | 2 |        1
+ 2 | 2 |        2
+ 1 | 1 |        1
+ 1 | 1 |        2
+(4 rows)
+
 -- check that distinct grouping columns are kept separate
 -- even if they are equal()
 explain (costs off)
@@ -1039,8 +1052,6 @@ group by rollup(ten);
 (11 rows)
 
 -- More rescan tests
--- start_ignore
--- GPDB_95_MERGE_FIXME: the lateral query with grouping sets do not make right plans
 select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
  a | a | four | ten | count 
 ---+---+------+-----+-------
@@ -1116,7 +1127,6 @@ select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, co
  2 | 2 |      |     |  1000
 (70 rows)
 
--- end_ignore
 select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
                                                                         array                                                                         
 ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1336,6 +1346,80 @@ explain (costs off)
  Optimizer: Postgres query optimizer
 (13 rows)
 
+select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2))
+ order by 3,5;
+ unsortable_col1 | unsortable_col2 | grouping | count | sum 
+-----------------+-----------------+----------+-------+-----
+               4 |                 |        1 |     4 |  60
+               3 |                 |        1 |     4 | 195
+                 |               2 |        2 |     4 |  60
+                 |               1 |        2 |     4 | 195
+(4 rows)
+
+explain (costs off)
+  select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2))
+ order by 3,5;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   Merge Key: (GROUPING(unsortable_col1, unsortable_col2)), (sum(v))
+   ->  Sort
+         Sort Key: (GROUPING(unsortable_col1, unsortable_col2)), (sum(v))
+         ->  Finalize HashAggregate
+               Group Key: unsortable_col1, unsortable_col2, (GROUPINGSET_ID())
+               ->  Redistribute Motion 3:3  (slice2; segments: 3)
+                     Hash Key: (GROUPINGSET_ID())
+                     ->  Partial HashAggregate
+                           Hash Key: unsortable_col1
+                           Hash Key: unsortable_col2
+                           ->  Seq Scan on gstest5
+ Optimizer: Postgres query optimizer
+(13 rows)
+
+select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2),())
+ order by 3,5;
+ unsortable_col1 | unsortable_col2 | grouping | count | sum 
+-----------------+-----------------+----------+-------+-----
+               4 |                 |        1 |     4 |  60
+               3 |                 |        1 |     4 | 195
+                 |               2 |        2 |     4 |  60
+                 |               1 |        2 |     4 | 195
+                 |                 |        3 |     8 | 255
+(5 rows)
+
+explain (costs off)
+  select unsortable_col1, unsortable_col2,
+       grouping(unsortable_col1, unsortable_col2),
+       count(*), sum(v)
+  from gstest5 group by grouping sets ((unsortable_col1),(unsortable_col2),())
+ order by 3,5;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   Merge Key: (GROUPING(unsortable_col1, unsortable_col2)), (sum(v))
+   ->  Sort
+         Sort Key: (GROUPING(unsortable_col1, unsortable_col2)), (sum(v))
+         ->  Finalize HashAggregate
+               Group Key: unsortable_col1, unsortable_col2, (GROUPINGSET_ID())
+               ->  Redistribute Motion 3:3  (slice2; segments: 3)
+                     Hash Key: (GROUPINGSET_ID())
+                     ->  Partial MixedAggregate
+                           Hash Key: unsortable_col1
+                           Hash Key: unsortable_col2
+                           Group Key: ()
+                           ->  Seq Scan on gstest5
+ Optimizer: Postgres query optimizer
+(14 rows)
+
 -- empty input: first is 0 rows, second 1, third 3 etc.
 select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),a);
  a | b | sum | count 
@@ -1416,16 +1500,28 @@ explain (costs off)
 select a, d, grouping(a,b,c)
   from gstest3
  group by grouping sets ((a,b), (a,c));
-ERROR:  column "gstest3.d" must appear in the GROUP BY clause or be used in an aggregate function
-LINE 1: select a, d, grouping(a,b,c)
-                  ^
+ a | d | grouping 
+---+---+----------
+ 1 | 1 |        1
+ 1 | 1 |        2
+ 2 | 2 |        1
+ 2 | 2 |        2
+(4 rows)
+
 explain (costs off)
   select a, d, grouping(a,b,c)
     from gstest3
    group by grouping sets ((a,b), (a,c));
-ERROR:  column "gstest3.d" must appear in the GROUP BY clause or be used in an aggregate function
-LINE 2:   select a, d, grouping(a,b,c)
-                    ^
+                QUERY PLAN                
+------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  HashAggregate
+         Hash Key: a, b
+         Hash Key: a, c
+         ->  Seq Scan on gstest3
+ Optimizer: Postgres query optimizer
+(6 rows)
+
 -- simple rescan tests
 select a, b, sum(v.x)
   from (values (1),(2)) v(x), gstest_data(v.x)
@@ -1647,9 +1743,10 @@ EXPLAIN (COSTS OFF) SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY 
                        Group Key: b
                      ->  Sort
                            Sort Key: a
-                           ->  Seq Scan on gstest3
+                           ->  Bitmap Heap Scan on gstest3
+                                 ->  Bitmap Index Scan on gstest3_pkey
  Optimizer: Postgres query optimizer
-(15 rows)
+(16 rows)
 
 SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY GROUPING SETS(a, b,()) ORDER BY a, b;
  a | b | count | max | max 
@@ -1663,8 +1760,6 @@ SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY GROUPING SETS(a, b,(
 
 COMMIT;
 -- More rescan tests
--- start_ignore
--- GPDB_95_MERGE_FIXME: the lateral query with grouping sets do not make right plans
 select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
  a | a | four | ten | count 
 ---+---+------+-----+-------
@@ -1740,7 +1835,6 @@ select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, co
  2 | 2 |      |     |  1000
 (70 rows)
 
--- end_ignore
 select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
                                                                         array                                                                         
 ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1793,7 +1887,6 @@ select array(select row(v.a,s1.*) from (select two,four, count(*) from onek grou
 -- test the knapsack
 set enable_indexscan = false;
 set work_mem = '64kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 explain (costs off)
   select unique1,
          count(two), count(four), count(ten),
@@ -1846,7 +1939,6 @@ explain (costs off)
 (14 rows)
 
 set work_mem = '384kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 explain (costs off)
   select unique1,
          count(two), count(four), count(ten),
@@ -1902,11 +1994,13 @@ create table bug_16784(i int, j int);
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'i' as the Cloudberry Database data distribution key for this table.
 HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 analyze bug_16784;
+alter table bug_16784 set (autovacuum_enabled = 'false');
+WARNING:  autovacuum is not supported in Cloudberry
+ERROR:  unrecognized parameter "autovacuum_enabled"
 update pg_class set reltuples = 10 where relname='bug_16784';
 ERROR:  permission denied: "pg_class" is a system catalog
 insert into bug_16784 select g/10, g from generate_series(1,40) g;
 set work_mem='64kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 set enable_sort = false;
 select * from
   (values (1),(2)) v(a),
@@ -2100,91 +2194,86 @@ select g%1000 as g1000, g%100 as g100, g%10 as g10, g
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column(s) named 'g1000' as the Cloudberry Database data distribution key for this table.
 HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 analyze gs_data_1;
+alter table gs_data_1 set (autovacuum_enabled = 'false');
+WARNING:  autovacuum is not supported in Cloudberry
+ERROR:  unrecognized parameter "autovacuum_enabled"
 update pg_class set reltuples = 10 where relname='gs_data_1';
 ERROR:  permission denied: "pg_class" is a system catalog
 set work_mem='64kB';
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
 -- Produce results with sorting.
 set enable_sort = true;
 set enable_hashagg = false;
 set jit_above_cost = 0;
 explain (costs off)
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
-                          QUERY PLAN                          
---------------------------------------------------------------
- Finalize GroupAggregate
-   Group Key: g1000, g100, g10, (GROUPINGSET_ID())
-   ->  Gather Motion 3:1  (slice1; segments: 3)
-         Merge Key: g1000, g100, g10, (GROUPINGSET_ID())
-         ->  Sort
-               Sort Key: g1000, g100, g10, (GROUPINGSET_ID())
-               ->  Partial GroupAggregate
-                     Group Key: g1000, g100, g10
-                     Group Key: g1000, g100
-                     Group Key: g1000
-                     Group Key: ()
-                     Sort Key: g100, g10
-                       Group Key: g100, g10
-                       Group Key: g100
-                     Sort Key: g10, g1000
-                       Group Key: g10, g1000
-                       Group Key: g10
-                     ->  Sort
-                           Sort Key: g1000, g100, g10
-                           ->  Seq Scan on gs_data_1
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10);
+                          QUERY PLAN                           
+---------------------------------------------------------------
+ GroupAggregate
+   Group Key: ((g.g % 1000)), ((g.g % 100)), ((g.g % 10))
+   Group Key: ((g.g % 1000)), ((g.g % 100))
+   Group Key: ((g.g % 1000))
+   Group Key: ()
+   Sort Key: ((g.g % 100)), ((g.g % 10))
+     Group Key: ((g.g % 100)), ((g.g % 10))
+     Group Key: ((g.g % 100))
+   Sort Key: ((g.g % 10)), ((g.g % 1000))
+     Group Key: ((g.g % 10)), ((g.g % 1000))
+     Group Key: ((g.g % 10))
+   ->  Sort
+         Sort Key: ((g.g % 1000)), ((g.g % 100)), ((g.g % 10))
+         ->  Function Scan on generate_series g
  Optimizer: Postgres query optimizer
-(21 rows)
+(15 rows)
 
 create table gs_group_1 as
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column(s) named 'g100' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10) distributed by (g1000);
 -- Produce results with hash aggregation.
 set enable_hashagg = true;
 set enable_sort = false;
 explain (costs off)
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
-                          QUERY PLAN                          
---------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
-   ->  Finalize HashAggregate
-         Group Key: g1000, g100, g10, (GROUPINGSET_ID())
-         ->  Redistribute Motion 3:3  (slice2; segments: 3)
-               Hash Key: g1000, g100, g10, (GROUPINGSET_ID())
-               ->  Partial MixedAggregate
-                     Hash Key: g1000, g100, g10
-                     Hash Key: g1000, g100
-                     Hash Key: g1000
-                     Hash Key: g100, g10
-                     Hash Key: g100
-                     Hash Key: g10, g1000
-                     Hash Key: g10
-                     Group Key: ()
-                     ->  Seq Scan on gs_data_1
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10);
+                          QUERY PLAN                           
+---------------------------------------------------------------
+ GroupAggregate
+   Group Key: ((g.g % 1000)), ((g.g % 100)), ((g.g % 10))
+   Group Key: ((g.g % 1000)), ((g.g % 100))
+   Group Key: ((g.g % 1000))
+   Group Key: ()
+   Sort Key: ((g.g % 100)), ((g.g % 10))
+     Group Key: ((g.g % 100)), ((g.g % 10))
+     Group Key: ((g.g % 100))
+   Sort Key: ((g.g % 10)), ((g.g % 1000))
+     Group Key: ((g.g % 10)), ((g.g % 1000))
+     Group Key: ((g.g % 10))
+   ->  Sort
+         Sort Key: ((g.g % 1000)), ((g.g % 100)), ((g.g % 10))
+         ->  Function Scan on generate_series g
  Optimizer: Postgres query optimizer
-(16 rows)
+(15 rows)
 
 create table gs_hash_1 as
-select g100, g10, sum(g::numeric), count(*), max(g::text)
-from gs_data_1 group by cube (g1000, g100,g10);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column(s) named 'g100' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+select g1000, g100, g10, sum(g::numeric), count(*), max(g::text) from
+  (select g%1000 as g1000, g%100 as g100, g%10 as g10, g
+   from generate_series(0,199999) g) s
+group by cube (g1000,g100,g10) distributed by (g1000);
+set jit_above_cost to default;
 set enable_sort = true;
 set work_mem to default;
-WARNING:  "work_mem": setting is deprecated, and may be removed in a future release.
--- GPDB_12_MERGE_FIXME: the following comparison query has an ORCA plan that
--- relies on "IS NOT DISTINCT FROM" Hash Join, a variant that we likely have
--- lost during the merge with upstream Postgres 12. Disable ORCA for this query
-SET optimizer TO off;
--- Compare results
+-- Compare results of ORCA plan that relies on "IS NOT DISTINCT FROM" HASH Join
 (select * from gs_hash_1 except select * from gs_group_1)
   union all
 (select * from gs_group_1 except select * from gs_hash_1);
- g100 | g10 | sum | count | max 
-------+-----+-----+-------+-----
+ g1000 | g100 | g10 | sum | count | max 
+-------+------+-----+-----+-------+-----
 (0 rows)
 
 RESET optimizer;

@@ -71,6 +71,8 @@ EXPLAIN (ANALYZE) SELECT * from boxes LEFT JOIN apples ON apples.id = boxes.appl
 -- s/Maximum Memory Used: \d+/Maximum Memory Used: ###/
 -- m/Workers: \d+/
 -- s/Workers: \d+/Workers: ##/
+-- m/Subworkers: \d+/
+-- s/Subworkers: \d+/Subworkers: ##/
 -- m/Average: \d+/
 -- s/Average: \d+/Average: ##/
 -- m/Total memory used across slices: \d+/

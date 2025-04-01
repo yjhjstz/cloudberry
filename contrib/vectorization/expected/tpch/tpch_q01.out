@@ -35,7 +35,7 @@ order by
                            Group Key: l_returnflag, l_linestatus
                            ->  Vec Seq Scan on lineitem
                                  Filter: (l_shipdate <= 'Mon Aug 17 00:00:00 1998'::timestamp without time zone)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (13 rows)
 
 select

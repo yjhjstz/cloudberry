@@ -264,8 +264,8 @@ SELECT f1 FROM INTERVAL_TBL_OF r1 ORDER BY f1;
    Merge Key: f1
    ->  Sort
          Sort Key: f1
-         ->  Seq Scan on interval_tbl_of
- Optimizer: Pivotal Optimizer (GPORCA) version 3.9.0
+         ->  Seq Scan on interval_tbl_of r1
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT f1 FROM INTERVAL_TBL_OF r1 ORDER BY f1;

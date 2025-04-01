@@ -53,8 +53,8 @@ select explain_filter('explain select * from int8_tbl i8');
                                 explain_filter                                
 ------------------------------------------------------------------------------
  Vec Gather Motion N:N  (slice1; segments: N)  (cost=N.N..N.N rows=N width=N)
-   ->  Vec Seq Scan on int8_tbl  (cost=N.N..N.N rows=N width=N)
- Optimizer: Pivotal Optimizer (GPORCA)
+   ->  Vec Seq Scan on int8_tbl i8  (cost=N.N..N.N rows=N width=N)
+ Optimizer: GPORCA
 (3 rows)
 
 select explain_filter('explain (analyze) select * from int8_tbl i8');
@@ -62,15 +62,15 @@ select explain_filter('explain (analyze) select * from int8_tbl i8');
 --------------------------------------------------------------------------------------------------------------------
  Vec Gather Motion N:N  (slice1; segments: N)  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
    Executor Memory: NkB  Segments: N  Max: NkB (segment N)
-   ->  Vec Seq Scan on int8_tbl  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
+   ->  Vec Seq Scan on int8_tbl i8  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
          Executor Memory: NkB  Segments: N  Max: NkB (segment N)
  Planning Time: N.N ms
    (slice0)    Executor memory: 1042K bytes.
    (slice1)    Executor memory: 1310K bytes avg x N workers, 1348K bytes max (seg0).
  Memory used:  NkB
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
  Execution Time: N.N ms
-(8 rows)
+(10 rows)
 
 select explain_filter('explain (analyze, verbose) select * from int8_tbl i8');
                                                    explain_filter                                                   
@@ -78,7 +78,7 @@ select explain_filter('explain (analyze, verbose) select * from int8_tbl i8');
  Vec Gather Motion N:N  (slice1; segments: N)  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
    Output: q1, q2
    Executor Memory: NkB  Segments: N  Max: NkB (segment N)
-   ->  Vec Seq Scan on public.int8_tbl  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
+   ->  Vec Seq Scan on public.int8_tbl i8  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
          Output: q1, q2
          Executor Memory: NkB  Segments: N  Max: NkB (segment N)
  Settings: optimizer = 'on'
@@ -86,7 +86,7 @@ select explain_filter('explain (analyze, verbose) select * from int8_tbl i8');
    (slice0)    Executor memory: 1042K bytes.
    (slice1)    Executor memory: 1310K bytes avg x N workers, 1348K bytes max (seg0).
  Memory used:  NkB
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
  Execution Time: N.N ms
 (11 rows)
 
@@ -95,117 +95,117 @@ select explain_filter('explain (analyze, buffers, format text) select * from int
 --------------------------------------------------------------------------------------------------------------------
  Vec Gather Motion N:N  (slice1; segments: N)  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
    Executor Memory: NkB  Segments: N  Max: NkB (segment N)
-   ->  Vec Seq Scan on int8_tbl  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
+   ->  Vec Seq Scan on int8_tbl i8  (cost=N.N..N.N rows=N width=N) (actual time=N.N..N.N rows=N loops=N)
          Executor Memory: NkB  Segments: N  Max: NkB (segment N)
  Planning Time: N.N ms
    (slice0)    Executor memory: 1042K bytes.
    (slice1)    Executor memory: 1310K bytes avg x N workers, 1348K bytes max (seg0).
  Memory used:  NkB
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
  Execution Time: N.N ms
-(8 rows)
+(10 rows)
 
 select explain_filter('explain (analyze, buffers, format json) select * from int8_tbl i8');
-                 explain_filter                  
--------------------------------------------------
- [                                              +
-   {                                            +
-     "Plan": {                                  +
-       "Node Type": "Vec Gather Motion",        +
-       "Senders": N,                            +
-       "Receivers": N,                          +
-       "Slice": N,                              +
-       "Segments": N,                           +
-       "Gang Type": "primary reader",           +
-       "Parallel Aware": false,                 +
-       "Async Capable": false,                  +
-       "Startup Cost": N.N,                     +
-       "Total Cost": N.N,                       +
-       "Plan Rows": N,                          +
-       "Plan Width": N,                         +
-       "Actual Startup Time": N.N,              +
-       "Actual Total Time": N.N,                +
-       "Actual Rows": N,                        +
-       "Actual Loops": N,                       +
-       "Shared Hit Blocks": N,                  +
-       "Shared Read Blocks": N,                 +
-       "Shared Dirtied Blocks": N,              +
-       "Shared Written Blocks": N,              +
-       "Local Hit Blocks": N,                   +
-       "Local Read Blocks": N,                  +
-       "Local Dirtied Blocks": N,               +
-       "Local Written Blocks": N,               +
-       "Temp Read Blocks": N,                   +
-       "Temp Written Blocks": N,                +
-       "Plans": [                               +
-         {                                      +
-           "Node Type": "Vec Seq Scan",         +
-           "Parent Relationship": "Outer",      +
-           "Slice": N,                          +
-           "Segments": N,                       +
-           "Gang Type": "primary reader",       +
-           "Parallel Aware": false,             +
-           "Async Capable": false,              +
-           "Relation Name": "int8_tbl",         +
-           "Alias": "int8_tbl",                 +
-           "Startup Cost": N.N,                 +
-           "Total Cost": N.N,                   +
-           "Plan Rows": N,                      +
-           "Plan Width": N,                     +
-           "Actual Startup Time": N.N,          +
-           "Actual Total Time": N.N,            +
-           "Actual Rows": N,                    +
-           "Actual Loops": N,                   +
-           "Shared Hit Blocks": N,              +
-           "Shared Read Blocks": N,             +
-           "Shared Dirtied Blocks": N,          +
-           "Shared Written Blocks": N,          +
-           "Local Hit Blocks": N,               +
-           "Local Read Blocks": N,              +
-           "Local Dirtied Blocks": N,           +
-           "Local Written Blocks": N,           +
-           "Temp Read Blocks": N,               +
-           "Temp Written Blocks": N             +
-         }                                      +
-       ]                                        +
-     },                                         +
-     "Settings": {                              +
-       "Optimizer": "Pivotal Optimizer (GPORCA)"+
-     },                                         +
-     "Planning": {                              +
-       "Shared Hit Blocks": N,                  +
-       "Shared Read Blocks": N,                 +
-       "Shared Dirtied Blocks": N,              +
-       "Shared Written Blocks": N,              +
-       "Local Hit Blocks": N,                   +
-       "Local Read Blocks": N,                  +
-       "Local Dirtied Blocks": N,               +
-       "Local Written Blocks": N,               +
-       "Temp Read Blocks": N,                   +
-       "Temp Written Blocks": N                 +
-     },                                         +
-     "Planning Time": N.N,                      +
-     "Triggers": [                              +
-     ],                                         +
-     "Slice statistics": [                      +
-       {                                        +
-         "Slice": N,                            +
-         "Executor Memory": N                   +
-       },                                       +
-       {                                        +
-         "Slice": N,                            +
-         "Executor Memory": {                   +
-           "Average": N,                        +
-           "Workers": N,                        +
-           "Maximum Memory Used": N             +
-         }                                      +
-       }                                        +
-     ],                                         +
-     "Statement statistics": {                  +
-       "Memory used": N                         +
-     },                                         +
-     "Execution Time": N.N                      +
-   }                                            +
+               explain_filter                
+---------------------------------------------
+ [                                          +
+   {                                        +
+     "Plan": {                              +
+       "Node Type": "Vec Gather Motion",    +
+       "Senders": N,                        +
+       "Receivers": N,                      +
+       "Slice": N,                          +
+       "Segments": N,                       +
+       "Gang Type": "primary reader",       +
+       "Parallel Aware": false,             +
+       "Async Capable": false,              +
+       "Startup Cost": N.N,                 +
+       "Total Cost": N.N,                   +
+       "Plan Rows": N,                      +
+       "Plan Width": N,                     +
+       "Actual Startup Time": N.N,          +
+       "Actual Total Time": N.N,            +
+       "Actual Rows": N,                    +
+       "Actual Loops": N,                   +
+       "Shared Hit Blocks": N,              +
+       "Shared Read Blocks": N,             +
+       "Shared Dirtied Blocks": N,          +
+       "Shared Written Blocks": N,          +
+       "Local Hit Blocks": N,               +
+       "Local Read Blocks": N,              +
+       "Local Dirtied Blocks": N,           +
+       "Local Written Blocks": N,           +
+       "Temp Read Blocks": N,               +
+       "Temp Written Blocks": N,            +
+       "Plans": [                           +
+         {                                  +
+           "Node Type": "Vec Seq Scan",     +
+           "Parent Relationship": "Outer",  +
+           "Slice": N,                      +
+           "Segments": N,                   +
+           "Gang Type": "primary reader",   +
+           "Parallel Aware": false,         +
+           "Async Capable": false,          +
+           "Relation Name": "int8_tbl",     +
+           "Alias": "i8",                   +
+           "Startup Cost": N.N,             +
+           "Total Cost": N.N,               +
+           "Plan Rows": N,                  +
+           "Plan Width": N,                 +
+           "Actual Startup Time": N.N,      +
+           "Actual Total Time": N.N,        +
+           "Actual Rows": N,                +
+           "Actual Loops": N,               +
+           "Shared Hit Blocks": N,          +
+           "Shared Read Blocks": N,         +
+           "Shared Dirtied Blocks": N,      +
+           "Shared Written Blocks": N,      +
+           "Local Hit Blocks": N,           +
+           "Local Read Blocks": N,          +
+           "Local Dirtied Blocks": N,       +
+           "Local Written Blocks": N,       +
+           "Temp Read Blocks": N,           +
+           "Temp Written Blocks": N         +
+         }                                  +
+       ]                                    +
+     },                                     +
+     "Settings": {                          +
+       "Optimizer": "GPORCA"                +
+     },                                     +
+     "Planning": {                          +
+       "Shared Hit Blocks": N,              +
+       "Shared Read Blocks": N,             +
+       "Shared Dirtied Blocks": N,          +
+       "Shared Written Blocks": N,          +
+       "Local Hit Blocks": N,               +
+       "Local Read Blocks": N,              +
+       "Local Dirtied Blocks": N,           +
+       "Local Written Blocks": N,           +
+       "Temp Read Blocks": N,               +
+       "Temp Written Blocks": N             +
+     },                                     +
+     "Planning Time": N.N,                  +
+     "Triggers": [                          +
+     ],                                     +
+     "Slice statistics": [                  +
+       {                                    +
+         "Slice": N,                        +
+         "Executor Memory": N               +
+       },                                   +
+       {                                    +
+         "Slice": N,                        +
+         "Executor Memory": {               +
+           "Average": N,                    +
+           "Workers": N,                    +
+           "Maximum Memory Used": N         +
+         }                                  +
+       }                                    +
+     ],                                     +
+     "Statement statistics": {              +
+       "Memory used": N                     +
+     },                                     +
+     "Execution Time": N.N                  +
+   }                                        +
  ]
 (1 row)
 
@@ -251,7 +251,7 @@ select explain_filter('explain (analyze, buffers, format xml) select * from int8
            <Parallel-Aware>false</Parallel-Aware>                      +
            <Async-Capable>false</Async-Capable>                        +
            <Relation-Name>int8_tbl</Relation-Name>                     +
-           <Alias>int8_tbl</Alias>                                     +
+           <Alias>i8</Alias>                                           +
            <Startup-Cost>N.N</Startup-Cost>                            +
            <Total-Cost>N.N</Total-Cost>                                +
            <Plan-Rows>N</Plan-Rows>                                    +
@@ -274,7 +274,7 @@ select explain_filter('explain (analyze, buffers, format xml) select * from int8
        </Plans>                                                        +
      </Plan>                                                           +
      <Settings>                                                        +
-       <Optimizer>Pivotal Optimizer (GPORCA)</Optimizer>               +
+       <Optimizer>GPORCA</Optimizer>                                   +
      </Settings>                                                       +
      <Planning>                                                        +
        <Shared-Hit-Blocks>N</Shared-Hit-Blocks>                        +
@@ -314,88 +314,88 @@ select explain_filter('explain (analyze, buffers, format xml) select * from int8
 (1 row)
 
 select explain_filter('explain (analyze, buffers, format yaml) select * from int8_tbl i8');
-               explain_filter                
----------------------------------------------
- - Plan:                                    +
-     Node Type: "Vec Gather Motion"         +
-     Senders: N                             +
-     Receivers: N                           +
-     Slice: N                               +
-     Segments: N                            +
-     Gang Type: "primary reader"            +
-     Parallel Aware: false                  +
-     Async Capable: false                   +
-     Startup Cost: N.N                      +
-     Total Cost: N.N                        +
-     Plan Rows: N                           +
-     Plan Width: N                          +
-     Actual Startup Time: N.N               +
-     Actual Total Time: N.N                 +
-     Actual Rows: N                         +
-     Actual Loops: N                        +
-     Shared Hit Blocks: N                   +
-     Shared Read Blocks: N                  +
-     Shared Dirtied Blocks: N               +
-     Shared Written Blocks: N               +
-     Local Hit Blocks: N                    +
-     Local Read Blocks: N                   +
-     Local Dirtied Blocks: N                +
-     Local Written Blocks: N                +
-     Temp Read Blocks: N                    +
-     Temp Written Blocks: N                 +
-     Plans:                                 +
-       - Node Type: "Vec Seq Scan"          +
-         Parent Relationship: "Outer"       +
-         Slice: N                           +
-         Segments: N                        +
-         Gang Type: "primary reader"        +
-         Parallel Aware: false              +
-         Async Capable: false               +
-         Relation Name: "int8_tbl"          +
-         Alias: "int8_tbl"                  +
-         Startup Cost: N.N                  +
-         Total Cost: N.N                    +
-         Plan Rows: N                       +
-         Plan Width: N                      +
-         Actual Startup Time: N.N           +
-         Actual Total Time: N.N             +
-         Actual Rows: N                     +
-         Actual Loops: N                    +
-         Shared Hit Blocks: N               +
-         Shared Read Blocks: N              +
-         Shared Dirtied Blocks: N           +
-         Shared Written Blocks: N           +
-         Local Hit Blocks: N                +
-         Local Read Blocks: N               +
-         Local Dirtied Blocks: N            +
-         Local Written Blocks: N            +
-         Temp Read Blocks: N                +
-         Temp Written Blocks: N             +
-   Settings:                                +
-     Optimizer: "Pivotal Optimizer (GPORCA)"+
-   Planning:                                +
-     Shared Hit Blocks: N                   +
-     Shared Read Blocks: N                  +
-     Shared Dirtied Blocks: N               +
-     Shared Written Blocks: N               +
-     Local Hit Blocks: N                    +
-     Local Read Blocks: N                   +
-     Local Dirtied Blocks: N                +
-     Local Written Blocks: N                +
-     Temp Read Blocks: N                    +
-     Temp Written Blocks: N                 +
-   Planning Time: N.N                       +
-   Triggers:                                +
-   Slice statistics:                        +
-     - Slice: N                             +
-       Executor Memory: N                   +
-     - Slice: N                             +
-       Executor Memory:                     +
-         Average: N                         +
-         Workers: N                         +
-         Maximum Memory Used: N             +
-   Statement statistics:                    +
-     Memory used: N                         +
+             explain_filter             
+----------------------------------------
+ - Plan:                               +
+     Node Type: "Vec Gather Motion"    +
+     Senders: N                        +
+     Receivers: N                      +
+     Slice: N                          +
+     Segments: N                       +
+     Gang Type: "primary reader"       +
+     Parallel Aware: false             +
+     Async Capable: false              +
+     Startup Cost: N.N                 +
+     Total Cost: N.N                   +
+     Plan Rows: N                      +
+     Plan Width: N                     +
+     Actual Startup Time: N.N          +
+     Actual Total Time: N.N            +
+     Actual Rows: N                    +
+     Actual Loops: N                   +
+     Shared Hit Blocks: N              +
+     Shared Read Blocks: N             +
+     Shared Dirtied Blocks: N          +
+     Shared Written Blocks: N          +
+     Local Hit Blocks: N               +
+     Local Read Blocks: N              +
+     Local Dirtied Blocks: N           +
+     Local Written Blocks: N           +
+     Temp Read Blocks: N               +
+     Temp Written Blocks: N            +
+     Plans:                            +
+       - Node Type: "Vec Seq Scan"     +
+         Parent Relationship: "Outer"  +
+         Slice: N                      +
+         Segments: N                   +
+         Gang Type: "primary reader"   +
+         Parallel Aware: false         +
+         Async Capable: false          +
+         Relation Name: "int8_tbl"     +
+         Alias: "i8"                   +
+         Startup Cost: N.N             +
+         Total Cost: N.N               +
+         Plan Rows: N                  +
+         Plan Width: N                 +
+         Actual Startup Time: N.N      +
+         Actual Total Time: N.N        +
+         Actual Rows: N                +
+         Actual Loops: N               +
+         Shared Hit Blocks: N          +
+         Shared Read Blocks: N         +
+         Shared Dirtied Blocks: N      +
+         Shared Written Blocks: N      +
+         Local Hit Blocks: N           +
+         Local Read Blocks: N          +
+         Local Dirtied Blocks: N       +
+         Local Written Blocks: N       +
+         Temp Read Blocks: N           +
+         Temp Written Blocks: N        +
+   Settings:                           +
+     Optimizer: "GPORCA"               
+   Planning:                           +
+     Shared Hit Blocks: N              +
+     Shared Read Blocks: N             +
+     Shared Dirtied Blocks: N          +
+     Shared Written Blocks: N          +
+     Local Hit Blocks: N               +
+     Local Read Blocks: N              +
+     Local Dirtied Blocks: N           +
+     Local Written Blocks: N           +
+     Temp Read Blocks: N               +
+     Temp Written Blocks: N            +
+   Planning Time: N.N                  +
+   Triggers:                           +
+   Slice statistics:                   +
+     - Slice: N                        +
+       Executor Memory: N              +
+     - Slice: N                        +
+       Executor Memory:                +
+         Average: N                    +
+         Workers: N                    +
+         Maximum Memory Used: N        +
+   Statement statistics:               +
+     Memory used: N                    +
    Execution Time: N.N
 (1 row)
 
@@ -403,82 +403,82 @@ select explain_filter('explain (buffers, format text) select * from int8_tbl i8'
                                 explain_filter                                
 ------------------------------------------------------------------------------
  Vec Gather Motion N:N  (slice1; segments: N)  (cost=N.N..N.N rows=N width=N)
-   ->  Vec Seq Scan on int8_tbl  (cost=N.N..N.N rows=N width=N)
- Optimizer: Pivotal Optimizer (GPORCA)
+   ->  Vec Seq Scan on int8_tbl i8  (cost=N.N..N.N rows=N width=N)
+ Optimizer: GPORCA
 (3 rows)
 
 select explain_filter('explain (buffers, format json) select * from int8_tbl i8');
-                 explain_filter                  
--------------------------------------------------
- [                                              +
-   {                                            +
-     "Plan": {                                  +
-       "Node Type": "Vec Gather Motion",        +
-       "Senders": N,                            +
-       "Receivers": N,                          +
-       "Slice": N,                              +
-       "Segments": N,                           +
-       "Gang Type": "primary reader",           +
-       "Parallel Aware": false,                 +
-       "Async Capable": false,                  +
-       "Startup Cost": N.N,                     +
-       "Total Cost": N.N,                       +
-       "Plan Rows": N,                          +
-       "Plan Width": N,                         +
-       "Shared Hit Blocks": N,                  +
-       "Shared Read Blocks": N,                 +
-       "Shared Dirtied Blocks": N,              +
-       "Shared Written Blocks": N,              +
-       "Local Hit Blocks": N,                   +
-       "Local Read Blocks": N,                  +
-       "Local Dirtied Blocks": N,               +
-       "Local Written Blocks": N,               +
-       "Temp Read Blocks": N,                   +
-       "Temp Written Blocks": N,                +
-       "Plans": [                               +
-         {                                      +
-           "Node Type": "Vec Seq Scan",         +
-           "Parent Relationship": "Outer",      +
-           "Slice": N,                          +
-           "Segments": N,                       +
-           "Gang Type": "primary reader",       +
-           "Parallel Aware": false,             +
-           "Async Capable": false,              +
-           "Relation Name": "int8_tbl",         +
-           "Alias": "int8_tbl",                 +
-           "Startup Cost": N.N,                 +
-           "Total Cost": N.N,                   +
-           "Plan Rows": N,                      +
-           "Plan Width": N,                     +
-           "Shared Hit Blocks": N,              +
-           "Shared Read Blocks": N,             +
-           "Shared Dirtied Blocks": N,          +
-           "Shared Written Blocks": N,          +
-           "Local Hit Blocks": N,               +
-           "Local Read Blocks": N,              +
-           "Local Dirtied Blocks": N,           +
-           "Local Written Blocks": N,           +
-           "Temp Read Blocks": N,               +
-           "Temp Written Blocks": N             +
-         }                                      +
-       ]                                        +
-     },                                         +
-     "Settings": {                              +
-       "Optimizer": "Pivotal Optimizer (GPORCA)"+
-     },                                         +
-     "Planning": {                              +
-       "Shared Hit Blocks": N,                  +
-       "Shared Read Blocks": N,                 +
-       "Shared Dirtied Blocks": N,              +
-       "Shared Written Blocks": N,              +
-       "Local Hit Blocks": N,                   +
-       "Local Read Blocks": N,                  +
-       "Local Dirtied Blocks": N,               +
-       "Local Written Blocks": N,               +
-       "Temp Read Blocks": N,                   +
-       "Temp Written Blocks": N                 +
-     }                                          +
-   }                                            +
+              explain_filter               
+-------------------------------------------
+ [                                        +
+   {                                      +
+     "Plan": {                            +
+       "Node Type": "Vec Gather Motion",  +
+       "Senders": N,                      +
+       "Receivers": N,                    +
+       "Slice": N,                        +
+       "Segments": N,                     +
+       "Gang Type": "primary reader",     +
+       "Parallel Aware": false,           +
+       "Async Capable": false,            +
+       "Startup Cost": N.N,               +
+       "Total Cost": N.N,                 +
+       "Plan Rows": N,                    +
+       "Plan Width": N,                   +
+       "Shared Hit Blocks": N,            +
+       "Shared Read Blocks": N,           +
+       "Shared Dirtied Blocks": N,        +
+       "Shared Written Blocks": N,        +
+       "Local Hit Blocks": N,             +
+       "Local Read Blocks": N,            +
+       "Local Dirtied Blocks": N,         +
+       "Local Written Blocks": N,         +
+       "Temp Read Blocks": N,             +
+       "Temp Written Blocks": N,          +
+       "Plans": [                         +
+         {                                +
+           "Node Type": "Vec Seq Scan",   +
+           "Parent Relationship": "Outer",+
+           "Slice": N,                    +
+           "Segments": N,                 +
+           "Gang Type": "primary reader", +
+           "Parallel Aware": false,       +
+           "Async Capable": false,        +
+           "Relation Name": "int8_tbl",   +
+           "Alias": "i8",                 +
+           "Startup Cost": N.N,           +
+           "Total Cost": N.N,             +
+           "Plan Rows": N,                +
+           "Plan Width": N,               +
+           "Shared Hit Blocks": N,        +
+           "Shared Read Blocks": N,       +
+           "Shared Dirtied Blocks": N,    +
+           "Shared Written Blocks": N,    +
+           "Local Hit Blocks": N,         +
+           "Local Read Blocks": N,        +
+           "Local Dirtied Blocks": N,     +
+           "Local Written Blocks": N,     +
+           "Temp Read Blocks": N,         +
+           "Temp Written Blocks": N       +
+         }                                +
+       ]                                  +
+     },                                   +
+     "Settings": {                        +
+       "Optimizer": "GPORCA"              +
+     },                                   +
+     "Planning": {                        +
+       "Shared Hit Blocks": N,            +
+       "Shared Read Blocks": N,           +
+       "Shared Dirtied Blocks": N,        +
+       "Shared Written Blocks": N,        +
+       "Local Hit Blocks": N,             +
+       "Local Read Blocks": N,            +
+       "Local Dirtied Blocks": N,         +
+       "Local Written Blocks": N,         +
+       "Temp Read Blocks": N,             +
+       "Temp Written Blocks": N           +
+     }                                    +
+   }                                      +
  ]
 (1 row)
 
@@ -703,7 +703,7 @@ select jsonb_pretty(
              "Shared Written Blocks": 0                     +
          },                                                 +
          "Settings": {                                      +
-             "Optimizer": "Pivotal Optimizer (GPORCA)",     +
+             "Optimizer": "GPORCA",                         +
              "optimizer": "on",                             +
              "enable_parallel": "off",                      +
              "parallel_setup_cost": "0",                    +
@@ -744,9 +744,9 @@ select explain_filter('explain (verbose) select * from int8_tbl i8');
 ------------------------------------------------------------------------------
  Vec Gather Motion N:N  (slice1; segments: N)  (cost=N.N..N.N rows=N width=N)
    Output: q1, q2
-   ->  Vec Seq Scan on public.int8_tbl  (cost=N.N..N.N rows=N width=N)
+   ->  Vec Seq Scan on public.int8_tbl i8  (cost=N.N..N.N rows=N width=N)
          Output: q1, q2
  Settings: optimizer = 'on'
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 

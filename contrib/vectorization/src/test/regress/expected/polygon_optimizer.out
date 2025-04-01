@@ -84,7 +84,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p << polygon '((300,300),(400,600),(600
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p << '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p << polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -102,7 +102,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p &< polygon '((300,300),(400,600),(600
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p &< '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p &< polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -120,7 +120,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p && polygon '((300,300),(400,600),(600
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p && '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p && polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -138,7 +138,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p &> polygon '((300,300),(400,600),(600
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p &> '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p &> polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -156,7 +156,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p >> polygon '((300,300),(400,600),(600
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p >> '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p >> polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -174,7 +174,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p <<| polygon '((300,300),(400,600),(60
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p <<| '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p <<| polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -192,7 +192,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p &<| polygon '((300,300),(400,600),(60
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p &<| '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p &<| polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -210,7 +210,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p |&> polygon '((300,300),(400,600),(60
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p |&> '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p |&> polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -228,7 +228,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p |>> polygon '((300,300),(400,600),(60
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p |>> '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p |>> polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -246,7 +246,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p <@ polygon '((300,300),(400,600),(600
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p <@ '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p <@ polygon '((300,300),(400,600),(600,500),(700,200))';
@@ -264,7 +264,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p @> polygon '((340,550),(343,552),(341
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p @> '((340,550),(343,552),(341,553))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p @> polygon '((340,550),(343,552),(341,553))';
@@ -282,7 +282,7 @@ SELECT count(*) FROM quad_poly_tbl WHERE p ~= polygon '((200, 300),(210, 310),(2
          ->  Partial Aggregate
                ->  Seq Scan on quad_poly_tbl
                      Filter: (p ~= '((200,300),(210,310),(230,290))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM quad_poly_tbl WHERE p ~= polygon '((200, 300),(210, 310),(230, 290))';
@@ -308,7 +308,7 @@ FROM quad_poly_tbl WHERE p <@ polygon '((300,300),(400,600),(600,500),(700,200))
                      Sort Key: ((p <-> '(123,456)'::point))
                      ->  Seq Scan on quad_poly_tbl
                            Filter: (p <@ '((300,300),(400,600),(600,500),(700,200))'::polygon)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (10 rows)
 
 CREATE TEMP TABLE quad_poly_tbl_ord_idx2 AS

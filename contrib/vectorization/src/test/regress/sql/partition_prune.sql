@@ -5,9 +5,6 @@
 -- GPDB:
 -- One of the queries EXPLAINed in this file executes on one or two segments,
 -- depending on random choice by the planner. Accept either plan.
--- start_matchignore
--- m/^.*Extra Text:.*/
--- end_matchignore
 -- start_matchsubs
 -- m/ Gather Motion [12]:1  \(slice1; segments: [12]\)/
 -- s/ Gather Motion [12]:1  \(slice1; segments: [12]\)/ Gather Motion XXX/
@@ -940,7 +937,7 @@ drop table pph_arrpart;
 
 -- enum type list partition key
 create type pp_colors as enum ('green', 'blue', 'black');
-create table pp_enumpart (a pp_colors) partition by list (a);
+create table pp_enumpart (col1 int, a pp_colors) partition by list (a);
 create table pp_enumpart_green partition of pp_enumpart for values in ('green');
 create table pp_enumpart_blue partition of pp_enumpart for values in ('blue');
 explain (costs off) select * from pp_enumpart where a = 'blue';

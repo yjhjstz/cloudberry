@@ -216,8 +216,8 @@ select unique1, unique2, nextval('testseq')
                            Sort Key: tenk1.unique2
                            ->  Seq Scan on public.tenk1
                                  Output: unique1, unique2
- Optimizer: Pivotal Optimizer (GPORCA)
  Settings: optimizer=on
+ Optimizer: GPORCA
 (16 rows)
 
 -- In gpdb, our sequence can only promise monotonicity due to MPP structure
@@ -256,8 +256,8 @@ select unique1, unique2, generate_series(1,10)
                            Sort Key: tenk1.unique2
                            ->  Seq Scan on public.tenk1
                                  Output: unique1, unique2
- Optimizer: Pivotal Optimizer (GPORCA)
  Settings: optimizer=on
+ Optimizer: GPORCA
 (16 rows)
 
 select unique1, unique2, generate_series(1,10)
@@ -294,8 +294,8 @@ select unique1, unique2, generate_series(1,10)
                                  Sort Key: tenk1.tenthous
                                  ->  Seq Scan on public.tenk1
                                        Output: unique1, unique2, tenthous
- Optimizer: Pivotal Optimizer (GPORCA)
  Settings: optimizer=on
+ Optimizer: GPORCA
 (18 rows)
 
 select unique1, unique2, generate_series(1,10)
@@ -383,7 +383,7 @@ select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
                                              Group Key: tenk1.thousand
                                              ->  Seq Scan on public.tenk1
                                                    Output: thousand, tenthous
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (24 rows)
 
 select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2

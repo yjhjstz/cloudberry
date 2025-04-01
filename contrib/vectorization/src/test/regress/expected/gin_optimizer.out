@@ -5,8 +5,6 @@
 -- GIN itself.
 -- Create and populate a test table with a GIN index.
 create table gin_test_tbl(i int4[]) with (autovacuum_enabled = off);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'i' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 create index gin_test_idx on gin_test_tbl using gin (i)
   with (fastupdate = on, gin_pending_list_limit = 4096);
 insert into gin_test_tbl select array[1, 2, g] from generate_series(1, 20000) g;
@@ -52,7 +50,7 @@ select count(*) from gin_test_tbl where i @> array[1, 999];
          ->  Partial Aggregate
                ->  Seq Scan on gin_test_tbl
                      Filter: (i @> '{1,999}'::integer[])
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select count(*) from gin_test_tbl where i @> array[1, 999];
@@ -72,7 +70,7 @@ select count(*) > 0 as ok from gin_test_tbl where i @> array[1];
          ->  Partial Aggregate
                ->  Seq Scan on gin_test_tbl
                      Filter: (i @> '{1}'::integer[])
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select count(*) > 0 as ok from gin_test_tbl where i @> array[1];
@@ -84,8 +82,6 @@ select count(*) > 0 as ok from gin_test_tbl where i @> array[1];
 reset gin_fuzzy_search_limit;
 -- Test optimization of empty queries
 create temp table t_gin_test_tbl(i int4[], j int4[]);
-NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'i' as the Cloudberry Database data distribution key for this table.
-HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 create index on t_gin_test_tbl using gin (i, j);
 insert into t_gin_test_tbl
 values
@@ -109,7 +105,7 @@ select * from t_gin_test_tbl where array[0] <@ i;
          Recheck Cond: (i @> '{0}'::integer[])
          ->  Bitmap Index Scan on t_gin_test_tbl_i_j_idx
                Index Cond: (i @> '{0}'::integer[])
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select * from t_gin_test_tbl where array[0] <@ i;
@@ -131,7 +127,7 @@ select * from t_gin_test_tbl where i @> '{}';
          Recheck Cond: (i @> '{}'::integer[])
          ->  Bitmap Index Scan on t_gin_test_tbl_i_j_idx
                Index Cond: (i @> '{}'::integer[])
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select * from t_gin_test_tbl where i @> '{}';
@@ -239,7 +235,7 @@ select count(*) from t_gin_test_tbl where j @> array[50];
          ->  Partial Aggregate
                ->  Seq Scan on t_gin_test_tbl
                      Filter: (j @> '{50}'::integer[])
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select count(*) from t_gin_test_tbl where j @> array[50];
@@ -257,7 +253,7 @@ select count(*) from t_gin_test_tbl where j @> array[2];
          ->  Partial Aggregate
                ->  Seq Scan on t_gin_test_tbl
                      Filter: (j @> '{2}'::integer[])
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select count(*) from t_gin_test_tbl where j @> array[2];
@@ -275,7 +271,7 @@ select count(*) from t_gin_test_tbl where j @> '{}'::int[];
          ->  Partial Aggregate
                ->  Seq Scan on t_gin_test_tbl
                      Filter: (j OPERATOR(pg_catalog.@>) '{}'::anyarray)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 select count(*) from t_gin_test_tbl where j @> '{}'::int[];

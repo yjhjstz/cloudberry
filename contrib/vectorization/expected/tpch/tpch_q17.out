@@ -40,7 +40,7 @@ where
                                        ->  Vec Hash
                                              ->  Vec Seq Scan on part
                                                    Filter: ((p_brand = 'Brand#54'::text) AND (p_container = 'SM CAN'::text))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (22 rows)
 
 select

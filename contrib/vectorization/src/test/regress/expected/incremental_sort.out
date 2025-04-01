@@ -570,6 +570,7 @@ select * from (select * from t order by a) s order by a, b limit 55;
 (55 rows)
 
 -- Test EXPLAIN ANALYZE with only a fullsort group.
+set max_parallel_workers_per_gather = 0;
 select explain_analyze_without_memory('select * from (select * from t order by a) s order by a, b limit 55');
                                               explain_analyze_without_memory                                               
 ---------------------------------------------------------------------------------------------------------------------------
@@ -588,6 +589,7 @@ select explain_analyze_without_memory('select * from (select * from t order by a
  Optimizer: Postgres query optimizer
 (13 rows)
 
+reset max_parallel_workers_per_gather;
 select jsonb_pretty(explain_analyze_inc_sort_nodes_without_memory('select * from (select * from t order by a) s order by a, b limit 55'));
                   jsonb_pretty                   
 -------------------------------------------------
@@ -793,6 +795,7 @@ select * from t left join (select * from (select * from t order by a) v order by
 
 rollback;
 -- Test EXPLAIN ANALYZE with both fullsort and presorted groups.
+set max_parallel_workers_per_gather = 0;
 select explain_analyze_without_memory('select * from (select * from t order by a) s order by a, b limit 70');
                                          explain_analyze_without_memory                                         
 ----------------------------------------------------------------------------------------------------------------
@@ -812,6 +815,7 @@ select explain_analyze_without_memory('select * from (select * from t order by a
  Optimizer: Postgres query optimizer
 (14 rows)
 
+reset max_parallel_workers_per_gather;
 select jsonb_pretty(explain_analyze_inc_sort_nodes_without_memory('select * from (select * from t order by a) s order by a, b limit 70'));
                   jsonb_pretty                   
 -------------------------------------------------
@@ -1701,8 +1705,8 @@ from tenk1 t1
 join tenk1 t2 on t1.unique1 = t2.unique2
 join tenk1 t3 on t2.unique1 = t3.unique1
 order by count(*);
-                                           QUERY PLAN                                            
--------------------------------------------------------------------------------------------------
+                                        QUERY PLAN                                         
+-------------------------------------------------------------------------------------------
  Finalize Aggregate
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Partial Aggregate

@@ -45,7 +45,7 @@ EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
                One-Time Filter: (gp_execution_segment() = 0)
                ->  ProjectSet (actual rows=3 loops=1)
                      ->  Result (actual rows=1 loops=1)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 -- WITH NO DATA, passes.
@@ -62,7 +62,7 @@ EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
                One-Time Filter: (gp_execution_segment() = 0)
                ->  ProjectSet (never executed)
                      ->  Result (never executed)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 -- EXECUTE and WITH DATA, passes.
@@ -80,7 +80,7 @@ EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
                One-Time Filter: (gp_execution_segment() = 0)
                ->  ProjectSet (actual rows=3 loops=1)
                      ->  Result (actual rows=1 loops=1)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 -- EXECUTE and WITH NO DATA, passes.
@@ -97,7 +97,7 @@ EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
                One-Time Filter: (gp_execution_segment() = 1)
                ->  ProjectSet (never executed)
                      ->  Result (never executed)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 RESET SESSION AUTHORIZATION;

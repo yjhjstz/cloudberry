@@ -44,7 +44,9 @@ SELECT i FROM vactst ORDER BY 1;
 VACUUM (FULL, FREEZE) vactst;
 VACUUM (ANALYZE, FULL) vactst;
 
-CREATE TABLE vaccluster (i INT);
+CREATE TABLE vaccluster (i INT PRIMARY KEY);
+ALTER TABLE vaccluster CLUSTER ON vaccluster_pkey;
+CLUSTER vaccluster;
 
 CREATE FUNCTION do_analyze() RETURNS VOID VOLATILE LANGUAGE SQL
 	AS 'ANALYZE pg_am';
@@ -105,7 +107,7 @@ VACUUM (PARALLEL 2, FULL TRUE) pvactst; -- error, cannot use both PARALLEL and F
 VACUUM (PARALLEL) pvactst; -- error, cannot use PARALLEL option without parallel degree
 
 -- Test different combinations of parallel and full options for temporary tables
-CREATE TEMPORARY TABLE tmp (a int);
+CREATE TEMPORARY TABLE tmp (a int PRIMARY KEY);
 CREATE INDEX tmp_idx1 ON tmp (a);
 VACUUM (PARALLEL 1, FULL FALSE) tmp; -- parallel vacuum disabled for temp tables
 VACUUM (PARALLEL 0, FULL TRUE) tmp; -- can specify parallel disabled (even though that's implied by FULL)
@@ -113,7 +115,7 @@ RESET min_parallel_index_scan_size;
 DROP TABLE pvactst;
 
 -- INDEX_CLEANUP option
-CREATE TABLE no_index_cleanup (i INT, t TEXT);
+CREATE TABLE no_index_cleanup (i INT PRIMARY KEY, t TEXT);
 -- Use uncompressed data stored in toast.
 CREATE INDEX no_index_cleanup_idx ON no_index_cleanup(t);
 ALTER TABLE no_index_cleanup ALTER COLUMN t SET STORAGE EXTERNAL;
@@ -123,10 +125,44 @@ ANALYZE no_index_cleanup;
 -- index cleanup option is ignored if VACUUM FULL
 VACUUM (INDEX_CLEANUP TRUE, FULL TRUE) no_index_cleanup;
 VACUUM (FULL TRUE) no_index_cleanup;
+-- Toast inherits the value from its parent table.
+-- start_ignore
+ALTER TABLE no_index_cleanup SET (vacuum_index_cleanup = false);
+DELETE FROM no_index_cleanup WHERE i < 15;
+-- Nothing is cleaned up.
+VACUUM no_index_cleanup;
+-- Both parent relation and toast are cleaned up.
+ALTER TABLE no_index_cleanup SET (vacuum_index_cleanup = true);
+VACUUM no_index_cleanup;
+ALTER TABLE no_index_cleanup SET (vacuum_index_cleanup = auto);
+VACUUM no_index_cleanup;
+-- Parameter is set for both the parent table and its toast relation.
+INSERT INTO no_index_cleanup(i, t) VALUES (generate_series(31,60),
+    repeat('1234567890',269));
+DELETE FROM no_index_cleanup WHERE i < 45;
+-- Only toast index is cleaned up.
+ALTER TABLE no_index_cleanup SET (vacuum_index_cleanup = off,
+    toast.vacuum_index_cleanup = yes);
+VACUUM no_index_cleanup;
+-- Only parent is cleaned up.
+ALTER TABLE no_index_cleanup SET (vacuum_index_cleanup = true,
+    toast.vacuum_index_cleanup = false);
+-- end_ignore
+VACUUM no_index_cleanup;
 -- Test some extra relations.
 VACUUM (INDEX_CLEANUP FALSE) vaccluster;
 VACUUM (INDEX_CLEANUP AUTO) vactst; -- index cleanup option is ignored if no indexes
 VACUUM (INDEX_CLEANUP FALSE, FREEZE TRUE) vaccluster;
+
+-- TRUNCATE option
+CREATE TEMP TABLE vac_truncate_test(i INT NOT NULL, j text);
+INSERT INTO vac_truncate_test VALUES (1, NULL), (NULL, NULL);
+VACUUM (TRUNCATE FALSE, DISABLE_PAGE_SKIPPING) vac_truncate_test;
+SELECT pg_relation_size('vac_truncate_test') > 0;
+VACUUM (DISABLE_PAGE_SKIPPING) vac_truncate_test;
+SELECT pg_relation_size('vac_truncate_test') = 0;
+VACUUM (TRUNCATE FALSE, FULL TRUE) vac_truncate_test;
+DROP TABLE vac_truncate_test;
 
 -- partitioned table
 CREATE TABLE vacparted (a int, b char) PARTITION BY LIST (a);
@@ -142,7 +178,7 @@ VACUUM ANALYZE vacparted(a,b,a);
 ANALYZE vacparted(a,b,b);
 
 -- partitioned table with index
-CREATE TABLE vacparted_i (a int, b varchar(100))
+CREATE TABLE vacparted_i (a int primary key, b varchar(100))
   PARTITION BY HASH (a);
 CREATE TABLE vacparted_i1 PARTITION OF vacparted_i
   FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -247,7 +283,7 @@ VACUUM (ANALYZE) vacowned_part2;
 RESET ROLE;
 -- Partitioned table and one partition owned by other user.
 ALTER TABLE vacowned_parted OWNER TO regress_vacuum;
-ALTER TABLE vacowned_part1 OWNER TO regress_vacuum;
+ALTER TABLE vacowned_part2 OWNER TO CURRENT_USER;
 SET ROLE regress_vacuum;
 VACUUM vacowned_parted;
 VACUUM vacowned_part1;
@@ -261,6 +297,7 @@ VACUUM (ANALYZE) vacowned_part2;
 RESET ROLE;
 -- Only one partition owned by other user.
 ALTER TABLE vacowned_parted OWNER TO CURRENT_USER;
+ALTER TABLE vacowned_part1 OWNER TO regress_vacuum;
 SET ROLE regress_vacuum;
 VACUUM vacowned_parted;
 VACUUM vacowned_part1;
@@ -275,6 +312,7 @@ RESET ROLE;
 -- Only partitioned table owned by other user.
 ALTER TABLE vacowned_parted OWNER TO regress_vacuum;
 ALTER TABLE vacowned_part1 OWNER TO CURRENT_USER;
+ALTER TABLE vacowned_part2 OWNER TO CURRENT_USER;
 SET ROLE regress_vacuum;
 VACUUM vacowned_parted;
 VACUUM vacowned_part1;

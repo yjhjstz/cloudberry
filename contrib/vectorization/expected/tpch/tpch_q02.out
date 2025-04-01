@@ -97,7 +97,7 @@ LIMIT 100;
                                        ->  Vec Hash
                                              ->  Vec Seq Scan on part
                                                    Filter: ((p_size = 36) AND ((p_type)::text ~~ '%COPPER'::text))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (52 rows)
 
 select

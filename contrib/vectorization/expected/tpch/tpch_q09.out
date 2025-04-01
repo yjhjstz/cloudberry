@@ -73,7 +73,7 @@ order by
                                                                      ->  Vec Seq Scan on supplier
                                                                ->  Vec Hash
                                                                      ->  Vec Seq Scan on nation
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (40 rows)
 
 select

@@ -214,7 +214,7 @@ explain (costs off) SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
                ->  Index Scan using wowidx on test_tsvector
                      Index Cond: (a @@ '''wr'' | ''qh'''::tsquery)
                      Filter: (a @@ '''wr'' | ''qh'''::tsquery)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
@@ -372,7 +372,7 @@ explain (costs off) SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
                ->  Index Scan using wowidx on test_tsvector
                      Index Cond: (a @@ '''wr'' | ''qh'''::tsquery)
                      Filter: (a @@ '''wr'' | ''qh'''::tsquery)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
@@ -554,7 +554,7 @@ EXPLAIN (costs off) SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
                ->  Index Scan using wowidx2 on test_tsvector
                      Index Cond: (a @@ '''wr'' | ''qh'''::tsquery)
                      Filter: (a @@ '''wr'' | ''qh'''::tsquery)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
@@ -722,7 +722,7 @@ EXPLAIN (costs off) SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
                ->  Index Scan using wowidx on test_tsvector
                      Index Cond: (a @@ '''wr'' | ''qh'''::tsquery)
                      Filter: (a @@ '''wr'' | ''qh'''::tsquery)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (7 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
@@ -884,7 +884,7 @@ explain (costs off) SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
          ->  Partial Aggregate
                ->  Seq Scan on test_tsvector
                      Filter: (a @@ '''wr'' | ''qh'''::tsquery)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
@@ -1041,7 +1041,7 @@ SELECT count(*) FROM test_tsvector WHERE a @@ '!qh';
          ->  Partial Aggregate
                ->  Seq Scan on test_tsvector
                      Filter: (a @@ '!''qh'''::tsquery)
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ '!qh';
@@ -1059,7 +1059,7 @@ SELECT count(*) FROM test_tsvector WHERE a @@ 'wr' AND a @@ '!qh';
          ->  Partial Aggregate
                ->  Seq Scan on test_tsvector
                      Filter: ((a @@ '''wr'''::tsquery) AND (a @@ '!''qh'''::tsquery))
- Optimizer: Pivotal Optimizer (GPORCA)
+ Optimizer: GPORCA
 (6 rows)
 
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr' AND a @@ '!qh';
@@ -2389,9 +2389,10 @@ select * from test_tsquery, to_tsquery('new') q where txtsample @@ q;
    ->  Nested Loop
          Join Filter: (txtsample @@ ('''new'''::tsquery))
          ->  Seq Scan on test_tsquery
-         ->  Result
- Optimizer: Pivotal Optimizer (GPORCA)
-(6 rows)
+         ->  Materialize
+               ->  Result
+ Optimizer: GPORCA
+(7 rows)
 
 -- to_tsquery(regconfig, text) is an immutable function.
 -- That allows us to get rid of using function scan and join at all.
@@ -2403,9 +2404,10 @@ select * from test_tsquery, to_tsquery('english', 'new') q where txtsample @@ q;
    ->  Nested Loop
          Join Filter: (txtsample @@ ('''new'''::tsquery))
          ->  Seq Scan on test_tsquery
-         ->  Result
- Optimizer: Pivotal Optimizer (GPORCA)
-(6 rows)
+         ->  Materialize
+               ->  Result
+ Optimizer: GPORCA
+(7 rows)
 
 -- test finding items in GIN's pending list
 create temp table pendtest (ts tsvector);
