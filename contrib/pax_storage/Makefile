@@ -117,6 +117,9 @@ regress_test:
 	make -C $(PAX_REGRESS_DIR) icw_test
 
 isolation2_test:
+	@echo "Begin running pax isolation2 tests"
+	make -C $(PAX_REGRESS_DIR) regress_link
+	@echo "Current PGOPTIONS=$(PGOPTIONS)"
 	make -C $(PAX_ISOLATION2_DIR) installcheck
 
 .PHONY: uninstall-data

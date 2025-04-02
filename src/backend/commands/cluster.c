@@ -1476,15 +1476,15 @@ swap_relation_files(Oid r1, Oid r2, bool target_is_pg_class,
 	 */
 	if ((relform1->relkind == RELKIND_RELATION ||
 		relform1->relkind == RELKIND_MATVIEW)
-		&& !(IsAccessMethodAO(relform1->relam) || 
-			IsAccessMethodAO(relform2->relam)))
+		&& (relform1->relam == PAX_AM_OID || 
+			relform2->relam == PAX_AM_OID))
 	{
 		const TableAmRoutine *tam;
 		Oid relam;
 
 		relam = relform1->relam;
 		if (relam != relform2->relam)
-			elog(ERROR, "can't swap relation files for different AM");
+			elog(ERROR, "PAX not allow swap relation files for different AM");
 
 		tam = GetTableAmRoutineByAmId(relam);
 		if (tam->swap_relation_files)
