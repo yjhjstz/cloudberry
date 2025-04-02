@@ -1,3 +1,7 @@
+-- start_matchignore
+-- m/INFO:  GPORCA failed to produce a plan, falling back to Postgres-based planner/
+-- m/DETAIL:  Falling back to Postgres-based planner because GPORCA does not support the following feature: Non-default collation/
+-- end_matchignore
 SET default_table_access_method=ao_column;
 SET enable_incremental_sort=on;
 --
