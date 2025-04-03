@@ -256,14 +256,12 @@ RelationGetAttributeOptions(Relation rel)
 void
 AddRelationAttributeEncodings(Relation rel, List *attr_encodings)
 {
+	if (!attr_encodings)
+		return;
 	Oid relid = RelationGetRelid(rel);
 	ListCell *lc;
 	ListCell *lc_filenum;
 	List *filenums = NIL;
-
-	if (!attr_encodings) {
-		return;
-	}
 
 	filenums = GetNextNAvailableFilenums(relid, attr_encodings->length);
 
