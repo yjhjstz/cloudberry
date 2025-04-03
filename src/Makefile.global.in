@@ -209,6 +209,7 @@ with_uuid	= @with_uuid@
 with_zlib	= @with_zlib@
 with_libbz2	= @with_libbz2@
 with_apr_config	= @with_apr_config@
+with_thirdparty = @with_thirdparty@
 enable_shared	= @enable_shared@
 enable_rpath	= @enable_rpath@
 # NLS is not supported in Cloudberry, see comment documenting

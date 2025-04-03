@@ -130,6 +130,10 @@ PGAC_ARG_REQ(with, libs,      [DIRS], [alternative spelling of --with-libraries]
              [LIBRARY_DIRS=$withval])
 
 
+PGAC_ARG_REQ(with, thirdparty, [DIRS], [look for additional thirdparty root in DIRS],
+             [THIRDPARTY_ROOT_DIRS=$withval])
+
+
 #
 # 64-bit integer date/time storage is now the only option, but to avoid
 # unnecessary breakage of build scripts, continue to accept an explicit
@@ -1020,6 +1024,30 @@ for dir in $LIBRARY_DIRS $SRCH_LIB; do
   fi
 done
 IFS=$ac_save_IFS
+
+
+#
+# thirdparty root directories
+#
+ac_save_IFS=$IFS
+IFS="${IFS}${PATH_SEPARATOR}"
+# THIRDPARTY_ROOT_DIRS comes from command line.
+for dir in $THIRDPARTY_ROOT_DIRS; do
+  if test -d "$dir"/lib; then
+    LIBDIRS="$LIBDIRS -L$dir"/lib
+  fi
+  if test -d "$dir"/lib64; then
+    LIBDIRS="$LIBDIRS -L$dir"/lib64
+  fi
+done
+for dir in $THIRDPARTY_ROOT_DIRS; do
+  if test -d "$dir"/include; then
+    INCLUDES="$INCLUDES -I$dir"/include
+  fi
+done
+AC_SUBST(with_thirdparty)
+IFS=$ac_save_IFS
+
 
 #
 # Enable thread-safe client libraries

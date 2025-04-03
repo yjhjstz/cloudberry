@@ -750,6 +750,7 @@ ICU_LIBS
 ICU_CFLAGS
 with_icu
 enable_thread_safety
+with_thirdparty
 INCLUDES
 enable_perfmon
 enable_gophermeta
@@ -875,6 +876,7 @@ with_template
 with_includes
 with_libraries
 with_libs
+with_thirdparty
 enable_integer_datetimes
 with_pgport
 enable_rpath
@@ -1649,6 +1651,7 @@ Optional Packages:
   --with-includes=DIRS    look for additional header files in DIRS
   --with-libraries=DIRS   look for additional libraries in DIRS
   --with-libs=DIRS        alternative spelling of --with-libraries
+  --with-thirdparty=DIRS  look for additional thirdparty root in DIRS
   --with-pgport=PORTNUM   set default port number [5432]
   --with-blocksize=BLOCKSIZE
                           set table block size in kB [8]
@@ -3213,6 +3216,29 @@ if test "${with_libs+set}" = set; then :
       ;;
     *)
       LIBRARY_DIRS=$withval
+      ;;
+  esac
+
+fi
+
+
+
+
+
+
+
+# Check whether --with-thirdparty was given.
+if test "${with_thirdparty+set}" = set; then :
+  withval=$with_thirdparty;
+  case $withval in
+    yes)
+      as_fn_error $? "argument required for --with-thirdparty option" "$LINENO" 5
+      ;;
+    no)
+      as_fn_error $? "argument required for --with-thirdparty option" "$LINENO" 5
+      ;;
+    *)
+      THIRDPARTY_ROOT_DIRS=$withval
       ;;
   esac
 
@@ -9748,6 +9774,30 @@ $as_echo "$as_me: WARNING: *** Library directory $dir does not exist." >&2;}
   fi
 done
 IFS=$ac_save_IFS
+
+
+#
+# thirdparty root directories
+#
+ac_save_IFS=$IFS
+IFS="${IFS}${PATH_SEPARATOR}"
+# THIRDPARTY_ROOT_DIRS comes from command line.
+for dir in $THIRDPARTY_ROOT_DIRS; do
+  if test -d "$dir"/lib; then
+    LIBDIRS="$LIBDIRS -L$dir"/lib
+  fi
+  if test -d "$dir"/lib64; then
+    LIBDIRS="$LIBDIRS -L$dir"/lib64
+  fi
+done
+for dir in $THIRDPARTY_ROOT_DIRS; do
+  if test -d "$dir"/include; then
+    INCLUDES="$INCLUDES -I$dir"/include
+  fi
+done
+
+IFS=$ac_save_IFS
+
 
 #
 # Enable thread-safe client libraries
