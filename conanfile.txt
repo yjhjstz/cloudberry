@@ -1,0 +1,4 @@
+[requires]
+orc/1.9.2@hashdata/testing
+gopher/4.0.x@hashdata/testing
+parquet/19.0.1@hashdata/testing
