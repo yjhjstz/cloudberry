@@ -211,12 +211,12 @@ std::string Provider::generateWriteFileName(std::string writePrefix, std::string
 	if (!writePrefix.empty())
 	{
 		fileName << writePrefix;
+		if (fileName.str().back() != '/')
+		{
+			fileName << "/";
+		}
 	}
 
-	if (fileName.str().back() != '/')
-	{
-		fileName << "/";
-	}
 	fileName << timestamp << "/";
 	fileName << uuid_str << "-" << segid;
 	if (!suffix.empty())

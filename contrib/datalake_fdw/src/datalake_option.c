@@ -662,7 +662,7 @@ void parserUri(dataLakeOptions *opt)
 		len = strlen(uri);
 		if (len <= 0)
 		{
-			opt->prefix = NULL;
+			opt->prefix = pstrdup("");
 			return;
 		}
 		char* prefix = (char*)palloc0(len + 1);
