@@ -1043,7 +1043,7 @@ nm_pack_request(NeonRequest * msg)
 				pq_sendint64(&s, msg_req->req.lsn);
 				pq_sendint32(&s, msg_req->rnode.spcNode);
 				pq_sendint32(&s, msg_req->rnode.dbNode);
-				pq_sendint64(&s, msg_req->rnode.relNode);
+				pq_sendint32(&s, msg_req->rnode.relNode);
 				pq_sendbyte(&s, msg_req->forknum);
 
 				break;
@@ -1056,7 +1056,7 @@ nm_pack_request(NeonRequest * msg)
 				pq_sendint64(&s, msg_req->req.lsn);
 				pq_sendint32(&s, msg_req->rnode.spcNode);
 				pq_sendint32(&s, msg_req->rnode.dbNode);
-				pq_sendint64(&s, msg_req->rnode.relNode);
+				pq_sendint32(&s, msg_req->rnode.relNode);
 				pq_sendbyte(&s, msg_req->forknum);
 
 				break;
@@ -1079,7 +1079,7 @@ nm_pack_request(NeonRequest * msg)
 				pq_sendint64(&s, msg_req->req.lsn);
 				pq_sendint32(&s, msg_req->rnode.spcNode);
 				pq_sendint32(&s, msg_req->rnode.dbNode);
-				pq_sendint64(&s, msg_req->rnode.relNode);
+				pq_sendint32(&s, msg_req->rnode.relNode);
 				pq_sendbyte(&s, msg_req->forknum);
 				pq_sendint32(&s, msg_req->blkno);
 				pq_sendint64(&s, msg_req->local_lsn);

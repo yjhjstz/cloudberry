@@ -82,7 +82,7 @@ variables:
       - "off"
     description: "是否包含 pgvector 扩展组件"
   CBDB_BUILD_UNIONSTORE_EXT:
-    value: "off"
+    value: "on"
     options:
       - "on"
       - "off"

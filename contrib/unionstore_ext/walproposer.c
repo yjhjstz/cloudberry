@@ -201,7 +201,12 @@ pg_init_walproposer(void)
 
 	XLogInsert_hook = UnionStoreXLogInsert;
 
+#if 0
+	/*
+	 * RelfileNode is reset to uint32, we do not need this function any more.
+	 */
 	NewSegRelfilenode_assign_hook = AssignNewRelFileNode;
+#endif
 
 	WalProposerRegister();
 }
@@ -2630,7 +2635,7 @@ DistributedLog_ZeroPage_if_needed(SlruCtl ctl, int page)
 
 	XLogBeginInsert();
 	XLogRegisterData((char *) (&page), sizeof(int));
-	XLogRecPtr endPos = XLogInsert(RM_DISTRIBUTEDLOG_ID, DISTRIBUTEDLOG_ZEROPAGE);
+	XLogInsert(RM_DISTRIBUTEDLOG_ID, DISTRIBUTEDLOG_ZEROPAGE);
 	return slotno;
 }
 
@@ -2643,7 +2648,6 @@ DistributedLog_Extend_if_needed(TransactionId newestXact)
 	SlruCtl ctl = (SlruCtl)DistributedLog_Ctl();
 	int endPage = TransactionIdToPage(newestXact);
 	int         startPage;
-	FullTransactionId nextXid;
 	TransactionId oldestXmin;
 
 	LWLockAcquire(DistributedLogControlLock, LW_EXCLUSIVE);
@@ -2707,7 +2711,7 @@ CLOG_Extend_if_needed(TransactionId newestXact)
 /*
  * Assign new relfilenode id
  */
-static Oid
+static Oid PG_USED_FOR_ASSERTS_ONLY
 AssignNewRelFileNode(void)
 {
     Oid result;

@@ -62,8 +62,6 @@ unionstore.tar.gz:
 	git clone -b main https://${GIT_USERNAME}:${GIT_PASSWORD}@code.hashdata.xyz/cloudberry/unionstore.git $(HOME)/unionstore && \
 	rm -rf $(HOME)/unionstore/vendor/unionstore_walredo && \
 	git clone -b main https://${GIT_USERNAME}:${GIT_PASSWORD}@code.hashdata.xyz/cloudberry/unionstore_walredo.git $(HOME)/unionstore/vendor/unionstore_walredo && \
-	cp -r $(top_builddir)/* $(HOME)/unionstore/vendor/postgres-v14/ && \
-	cp -r $(top_builddir)/* $(HOME)/unionstore/vendor/postgres-v15/ && \
 	cd $(HOME)/unionstore && \
 	MAKELEVEL=0 make -sj 12 && \
 	tar --exclude='deps' --exclude='build' -czf unionstore.tar.gz pg_install target/release unionstore_deploy.sh && \
