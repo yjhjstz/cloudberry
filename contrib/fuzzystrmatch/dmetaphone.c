@@ -101,7 +101,9 @@ The remaining code is authored by Andrew Dunstan <amdunstan@ncshp.org> and
 #include "utils/builtins.h"
 
 /* turn off assertions for embedded function */
+#ifndef NDEBUG
 #define NDEBUG
+#endif
 
 #else							/* DMETAPHONE_MAIN */
 

@@ -92,7 +92,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/hdw_gopher_cache/hdw_gopher_cache.o
 
 
-SHLIB_LINK += -lgopher -lparquet -lorc -larchive -lavrocpp -ljansson -larrow  -lavro -lcurl -lyaml
+SHLIB_LINK += -lgopher -lparquet -lorc -larchive -lavrocpp -ljansson -larrow -lavro -lcurl -lyaml -lboost_iostreams -lsnappy -lprotobuf -lstdc++ -lm
 PG_CPPFLAGS = -DENABLE_NLS -DSNAPPY_CODEC_AVAILABLE
 
 EXTENSION = datalake_fdw
@@ -121,7 +121,7 @@ REGRESS_OPTS += --init-file=test/init_file
 PG_CPPFLAGS += -fPIC
 PG_CFLAGS += -Wno-error=stringop-overflow
 PG_CFLAGS += -I $(shell pg_config --includedir)
-PG_LDFLAGS += -I $(shell pg_config --ldflags)
+PG_LDFLAGS += $(shell pg_config --ldflags)
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

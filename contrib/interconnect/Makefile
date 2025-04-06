@@ -30,7 +30,7 @@ OBJS += proxy/ic_proxy_key.o
 OBJS += proxy/ic_proxy_packet.o
 OBJS += proxy/ic_proxy_pkt_cache.o
 OBJS += proxy/ic_proxy_iobuf.o
-SHLIB_LINK += $(filter -luv, $(LIBS))
+SHLIB_LINK += $(filter -luv, $(LIBS)) -pthread -ldl
 endif  # enable_ic_proxy
 
 ifdef USE_PGXS
