@@ -54,10 +54,17 @@ build: $(SRC) $(CSRC)
 		mkdir -p build && \
 		cd build && \
 		cmake -DCMAKE_INSTALL_PREFIX=$(DESTDIR)$(prefix) \
-			-DUSE_MANIFEST_API=$(USE_MANIFEST_API) \
-			-DUSE_PAX_CATALOG=$(USE_PAX_CATALOG) .. ; \
+			-DCMAKE_PREFIX_PATH=$(with_thirdparty)   \
+			-DUSE_MANIFEST_API=$(USE_MANIFEST_API)   \
+			-DOPENSSL_ROOT_DIR=/usr/local            \
+			-DOPENSSL_USE_STATIC_LIBS=ON             \
+			-DSNAPPY_HOME=/usr/local                 \
+			-DZSTD_HOME=/usr/local                   \
+			-DZLIB_HOME=/usr/local                   \
+			-DLZ4_HOME=/usr/local/                   \
+			-DUSE_PAX_CATALOG=$(USE_PAX_CATALOG) .. ;\
 	fi
-	cd build && make -j8
+	cd build && $(MAKE) VERBOSE=1
 	@cp -f build/src/cpp/libpax.so pax.so
 
 install-data: build

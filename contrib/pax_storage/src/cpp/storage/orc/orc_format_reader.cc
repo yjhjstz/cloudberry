@@ -460,6 +460,7 @@ static std::unique_ptr<PaxColumn> BuildEncodingColumn(
   }
 
   Assert(false);
+  return nullptr;
 }
 
 static std::unique_ptr<PaxColumn> BuildEncodingBitPackedColumn(
@@ -515,6 +516,7 @@ static std::unique_ptr<PaxColumn> BuildEncodingBitPackedColumn(
   }
 
   Assert(false);
+  return nullptr;
 }
 
 static std::unique_ptr<PaxColumn> BuildEncodingDecimalColumn(

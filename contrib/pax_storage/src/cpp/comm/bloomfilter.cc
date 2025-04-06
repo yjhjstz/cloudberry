@@ -42,7 +42,7 @@ BloomFilter::~BloomFilter() { PAX_FREE(bitset_); }
 
 static int optimal_k(uint64 bitset_bits, int64 total_elems) {
   int k = rint(log(2.0) * bitset_bits / total_elems);
-  return Max(1, Min(k, MAX_HASH_FUNCS));
+  return std::max(1, std::min(k, MAX_HASH_FUNCS));
 }
 
 static inline uint32 mod_m(uint32 val, uint64 bits) {
@@ -88,7 +88,7 @@ void BloomFilter::Create(size_t total_elems, int bloom_work_mem, uint64 seed) {
   // number of elements.  Also, if rounding down the size of the bitset to
   // the next lowest power of two turns out to be a significant drop, the
   // false positive rate still won't exceed 2% in almost all cases.
-  bitset_bytes = Min((uint64)bloom_work_mem, total_elems * 2);
+  bitset_bytes = std::min((uint64)bloom_work_mem, total_elems * 2);
 
   // Size in bits should be the highest power of two <= target.  bitset_bits
   // is uint64 because PG_UINT32_MAX is 2^32 - 1, not 2^32

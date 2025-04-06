@@ -157,4 +157,12 @@ extern Oid GetDefaultOpClass(Oid type_id, Oid am_id);
 #pragma GCC diagnostic pop
 #endif
 
+#undef Max
+#undef Min
+#undef IsPowerOf2
+#undef gettext
+#undef dgettext
+#undef ngettext
+#undef dngettext
+
 #endif  // SRC_CPP_COMM_CBDB_API_H_

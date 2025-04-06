@@ -152,7 +152,7 @@ void PaxCopyAllDataFiles(Relation rel, const RelFileNode *newrnode,
     auto size = file1->FileLength();
     int64 offset = 0;
     while (size > 0) {
-      auto batch_len = Min(size, buffer_size);
+      auto batch_len = std::min(size, buffer_size);
       file1->ReadN(buffer, batch_len);
       file2->WriteN(buffer, batch_len);
       if (need_wal)

@@ -1,22 +1,17 @@
-## protobuf
-include(FindProtobuf)
-find_package(Protobuf 3.6.1 REQUIRED)
+find_package(protobuf REQUIRED CONFIG)
+find_package(zstd REQUIRED zstd::libzstd_static)
+find_package(tabulate REQUIRED CONFIG)
+find_package(ZLIB REQUIRED)
+find_package(lz4 REQUIRED CONFIG)
+find_package(tabulate REQUIRED CONFIG)
 
-# ztsd
-# in our image snapshot, zstd is managed using pkg-config, so so the pkg-config method is used first here
-find_package(PkgConfig QUIET)
-if(PKGCONFIG_FOUND)
-    pkg_check_modules(ZSTD libzstd)
-endif()
-if(NOT ZSTD_FOUND)
-    find_package(ZSTD QUIET)
-    if(NOT ZSTD_FOUND)
-        message(FATAL_ERROR "zstd not found")
-    endif()
-endif()
+if (USE_MANIFEST_API)
+    find_package(yyjson REQUIRED CONFIG)
+endif ()
 
-## for vectorazition
 if (VEC_BUILD)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLIB REQUIRED glib-2.0)
-endif(VEC_BUILD)
+    find_package(Arrow REQUIRED CONFIG)
+    find_package(ArrowDataset REQUIRED CONFIG)
+endif ()

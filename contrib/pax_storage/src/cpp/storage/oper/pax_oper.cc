@@ -92,7 +92,7 @@ static inline int32 bit_cmp(const VarBit *arg1, const VarBit *arg2) {
   bytelen1 = VARBITBYTES(arg1);
   bytelen2 = VARBITBYTES(arg2);
 
-  cmp = memcmp(VARBITS(arg1), VARBITS(arg2), Min(bytelen1, bytelen2));
+  cmp = memcmp(VARBITS(arg1), VARBITS(arg2), std::min(bytelen1, bytelen2));
   if (cmp == 0) {
     bitlen1 = VARBITLEN(arg1);
     bitlen2 = VARBITLEN(arg2);
@@ -140,7 +140,7 @@ static bool ByteaLT(const void *l, const void *r, Oid /*collation*/) {
   len1 = VARSIZE_ANY_EXHDR(arg1);
   len2 = VARSIZE_ANY_EXHDR(arg2);
 
-  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), Min(len1, len2));
+  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), std::min(len1, len2));
 
   return (cmp < 0) || ((cmp == 0) && (len1 < len2));
 }
@@ -154,7 +154,7 @@ static bool ByteaLE(const void *l, const void *r, Oid /*collation*/) {
   len1 = VARSIZE_ANY_EXHDR(arg1);
   len2 = VARSIZE_ANY_EXHDR(arg2);
 
-  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), Min(len1, len2));
+  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), std::min(len1, len2));
 
   return (cmp < 0) || ((cmp == 0) && (len1 <= len2));
 }
@@ -180,7 +180,7 @@ static bool ByteaGE(const void *l, const void *r, Oid /*collation*/) {
   len1 = VARSIZE_ANY_EXHDR(arg1);
   len2 = VARSIZE_ANY_EXHDR(arg2);
 
-  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), Min(len1, len2));
+  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), std::min(len1, len2));
 
   return (cmp > 0) || ((cmp == 0) && (len1 >= len2));
 }
@@ -194,7 +194,7 @@ static bool ByteaGT(const void *l, const void *r, Oid /*collation*/) {
   len1 = VARSIZE_ANY_EXHDR(arg1);
   len2 = VARSIZE_ANY_EXHDR(arg2);
 
-  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), Min(len1, len2));
+  cmp = memcmp(VARDATA_ANY(arg1), VARDATA_ANY(arg2), std::min(len1, len2));
   return (cmp > 0) || ((cmp == 0) && (len1 > len2));
 }
 
@@ -612,7 +612,7 @@ static inline int VarstrCmp(const char *arg1, int len1, const char *arg2,
   CBDB_CHECK(OidIsValid(collid), cbdb::CException::ExType::kExTypeLogicError,
              fmt("[collid=%u] not support", collid));
   if (LocaleIsC(collid)) {
-    rc = memcmp(arg1, arg2, Min(len1, len2));
+    rc = memcmp(arg1, arg2, std::min(len1, len2));
     if ((rc == 0) && (len1 != len2)) rc = (len1 < len2) ? -1 : 1;
   } else if (collid == DEFAULT_COLLATION_OID) {
     char a1buf[TEXTBUFLEN];
@@ -1329,7 +1329,7 @@ static inline int32 network_cmp_internal(const inet *a1, const inet *a2) {
   if (ip_family(a1) == ip_family(a2)) {
     int order;
 
-    order = bitncmp(ip_addr(a1), ip_addr(a2), Min(ip_bits(a1), ip_bits(a2)));
+    order = bitncmp(ip_addr(a1), ip_addr(a2), std::min(ip_bits(a1), ip_bits(a2)));
     if (order != 0) return order;
     order = ((int)ip_bits(a1)) - ((int)ip_bits(a2));
     if (order != 0) return order;

@@ -177,7 +177,7 @@ class BitmapTpl final {
                   sizeof(T) == 8);
     static_assert(BM_WORD_BITS == (1 << BM_WORD_SHIFTS));
     policy_ = policy;
-    policy(raw_, Max(initial_size, 16));
+    policy(raw_, std::max(initial_size, 16U));
   }
   explicit BitmapTpl(const BitmapRaw<T> &raw, BitmapMemoryPolicy policy) {
     static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
@@ -260,7 +260,7 @@ class BitmapTpl final {
   static void DefaultBitmapMemoryPolicy(BitmapRaw<T> &raw, uint32 index) {
     auto old_bitmap = raw.bitmap;
     auto old_size = raw.size;
-    auto size = Max(BM_INDEX_WORD_OFF(index) + 1, old_size * 2);
+    auto size = std::max((unsigned long)BM_INDEX_WORD_OFF(index) + 1, old_size * 2);
     auto p = PAX_NEW_ARRAY<T>(size);
     if (old_size > 0) memcpy(p, old_bitmap, sizeof(T) * old_size);
     memset(&p[old_size], 0, sizeof(T) * (size - old_size));

@@ -126,7 +126,7 @@ if (USE_MANIFEST_API)
     set(pax_catalog_src ${pax_catalog_src} catalog/pax_manifest_impl.cc)
   else()
     # use manifest implementation
-    set(pax_target_include ${pax_target_include} ${TOP_DIR}/dependency/yyjson/src)
+    set(pax_target_include ${pax_target_include} ${CMAKE_CURRENT_BINARY_DIR})
     set(pax_catalog_src ${pax_catalog_src} ${manifest_src})
   endif()
 else() # USE_MANIFEST_API
@@ -148,44 +148,36 @@ set(pax_vec_src ${pax_vec_src}
 )
 endif()
 
-# add tabulate which used in the UDF
-SET(INSTALL_TABULATE OFF)
-add_subdirectory(contrib/tabulate)
-
 #### pax.so
-set(pax_target_src  ${PROTO_SRCS} ${pax_storage_src} ${pax_clustering_src} ${pax_exceptions_src}
+set(pax_target_src  ${pax_PROTO_SOURCES} ${pax_storage_src} ${pax_clustering_src} ${pax_exceptions_src}
   ${pax_access_src} ${pax_comm_src} ${pax_catalog_src} ${pax_vec_src})
-set(pax_target_include ${pax_target_include} ${ZTSD_HEADER} ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR} contrib/tabulate/include)
-set(pax_target_link_libs ${pax_target_link_libs} protobuf zstd z postgres)
+set(pax_target_include ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR})
+set(pax_target_link_libs ${pax_target_link_libs} protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB tabulate::tabulate postgres)
 if (PAX_USE_LZ4)
-  list(APPEND pax_target_link_libs lz4)
+  list(APPEND pax_target_link_libs LZ4::lz4_static)
 endif()
 set(pax_target_link_directories ${PROJECT_SOURCE_DIR}/../../src/backend/)
-set(pax_target_dependencies generate_protobuf create_sql_script)
+set(pax_target_dependencies paxformat create_sql_script)
 
 add_library(pax SHARED ${pax_target_src})
 set_target_properties(pax PROPERTIES OUTPUT_NAME pax)
 
 if(USE_MANIFEST_API AND NOT USE_PAX_CATALOG)
-  set(pax_target_link_libs ${pax_target_link_libs} yyjson)
+  set(pax_target_link_libs ${pax_target_link_libs} yyjson::yyjson)
 endif()
 
 # vec build
 if (VEC_BUILD)
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(GLIB REQUIRED glib-2.0)
   set(pax_target_include
       ${pax_target_include}
       ${VEC_HOME}/src/include # for utils/tuptable_vec.h
-      ${INSTALL_HOME}/include  # for arrow-glib/arrow-glib.h and otehr arrow interface
       ${GLIB_INCLUDE_DIRS} # for glib-object.h
   )
-  set(pax_target_link_directories
-      ${pax_target_link_directories}
-      ${INSTALL_HOME}/lib)
   set(pax_target_link_libs
       ${pax_target_link_libs}
-      arrow arrow_dataset)
+      Arrow::arrow_shared
+      ArrowDataset::arrow_dataset_shared
+)
 endif(VEC_BUILD)
 
 target_include_directories(pax PUBLIC ${pax_target_include})
@@ -204,7 +196,8 @@ add_custom_command(TARGET pax POST_BUILD
                 copy_if_different $<TARGET_FILE:pax> ${CMAKE_CURRENT_SOURCE_DIR}/../../pax.so)
 
 if (BUILD_GTEST)
-  add_subdirectory(contrib/googletest)
+  find_package(GTest REQUIRED)
+
   ADD_DEFINITIONS(-DRUN_GTEST)
   file(GLOB test_case_sources
     pax_gtest_helper.cc
@@ -213,15 +206,16 @@ if (BUILD_GTEST)
     ${CMAKE_CURRENT_SOURCE_DIR}/*/*/*_test.cc)
 
   add_executable(test_main ${pax_target_src} ${test_case_sources})
-  add_dependencies(test_main ${pax_target_dependencies} gtest gmock)
-  target_include_directories(test_main PUBLIC ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR} ${gtest_SOURCE_DIR}/include contrib/cpp-stub/src/ contrib/cpp-stub/src_linux/)
+  add_dependencies(test_main ${pax_target_dependencies} GTest::gtest_main GTest::gmock)
+  target_include_directories(test_main PUBLIC ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR} ${gtest_SOURCE_DIR}/include)
 
   target_link_directories(test_main PUBLIC ${pax_target_link_directories})
-  target_link_libraries(test_main PUBLIC ${pax_target_link_libs} gtest gmock postgres)
+  target_link_libraries(test_main PUBLIC ${pax_target_link_libs} GTest::gtest_main GTest::gmock postgres)
 endif(BUILD_GTEST)
 
 if(BUILD_GBENCH)
-  add_subdirectory(contrib/googlebench)
+  find_package(benchmark REQUIRED)
+
   ADD_DEFINITIONS(-DRUN_GBENCH)
   file(GLOB bench_sources
       pax_gbench.cc
@@ -229,13 +223,16 @@ if(BUILD_GBENCH)
       ${CMAKE_CURRENT_SOURCE_DIR}/*/*/*_bench.cc)
 
     add_executable(bench_main ${pax_target_src} ${bench_sources})
-    add_dependencies(bench_main ${pax_target_dependencies} gtest gmock)
-    target_include_directories(bench_main PUBLIC ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR} contrib/googlebench/include contrib/cpp-stub/src/ contrib/cpp-stub/src_linux/)
+    add_dependencies(bench_main ${pax_target_dependencies} GTest::gtest_main GTest::gmock)
+    target_include_directories(bench_main PUBLIC ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR})
     link_directories(contrib/googlebench/src)
     target_link_directories(bench_main PUBLIC ${pax_target_link_directories})
-    target_link_libraries(bench_main PUBLIC ${pax_target_link_libs} gtest gmock benchmark postgres)
+    target_link_libraries(bench_main PUBLIC ${pax_target_link_libs} GTest::gtest_main GTest::gmock benchmark::benchmark_main postgres)
     if (VEC_BUILD)
-      target_link_libraries(bench_main PRIVATE arrow arrow_dataset)
+      target_link_libraries(bench_main PRIVATE
+              Arrow::arrow_shared
+              ArrowDataset::arrow_dataset_shared
+      )
     endif(VEC_BUILD)
 endif(BUILD_GBENCH)
 

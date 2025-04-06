@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(TOP_DIR ${PROJECT_SOURCE_DIR}/../..)
 set(CBDB_INCLUDE_DIR ${TOP_DIR}/src/include)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-function -Wno-redundant-move -Wno-error=redundant-move -Wno-error=ignored-qualifiers -Wuninitialized -Winit-self -Wstrict-aliasing -Wno-missing-field-initializers -Wno-unused-parameter -Wno-clobbered -Wno-sized-deallocation -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-error=maybe-uninitialized -Wno-unused-function -Wno-redundant-move -Wno-error=redundant-move -Wno-error=ignored-qualifiers -Wuninitialized -Winit-self -Wstrict-aliasing -Wno-missing-field-initializers -Wno-unused-parameter -Wno-clobbered -Wno-sized-deallocation -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-parameter -Wno-parameter-name")
 
 option(USE_MANIFEST_API "Use manifest API" ON)
@@ -53,26 +53,19 @@ message(STATUS "PAX BUILD TYPE: ${CMAKE_BUILD_TYPE}")
 
 if(BUILD_GBENCH)
   SET(BUILD_GTEST ON)
-  SET(BENCHMARK_ENABLE_INSTALL OFF) # disable benchmark install() target
 endif(BUILD_GBENCH)
-
-if (BUILD_GTEST)
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -no-pie -fno-stack-protector -Wall -Wno-unused-function  -Wno-unused-variable")
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-access-control -fno-inline -Wno-pmf-conversions -Wl,--allow-multiple-definition -no-pie -fno-stack-protector")
-endif(BUILD_GTEST)
 
 # Vec options
 CHECK_SYMBOL_EXISTS(USE_VECTORIZATION "${PG_CONFIG_HEADER_FILE}" VEC_BUILD)
 if (VEC_BUILD)
   set(VEC_HOME "${PROJECT_SOURCE_DIR}/../vectorization")
-  set(INSTALL_HOME "${PROJECT_SOURCE_DIR}/../../thirdparty")
 
   if (BUILD_RB_RET_DICT)
     ADD_DEFINITIONS(-DBUILD_RB_RET_DICT)
   endif(BUILD_RB_RET_DICT)
 
   ADD_DEFINITIONS(-DVEC_BUILD)
-  message(STATUS "Build pax with vectorization support, VEC_HOME=${VEC_HOME} INSTALL_HOME=${INSTALL_HOME}, BUILD_RB_RET_DICT=${BUILD_RB_RET_DICT}")
+  message(STATUS "Build pax with vectorization support, VEC_HOME=${VEC_HOME} BUILD_RB_RET_DICT=${BUILD_RB_RET_DICT}")
 else()
   message(STATUS "Build pax without vectorization support")
 endif(VEC_BUILD)
@@ -82,18 +75,3 @@ endif(VEC_BUILD)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/")
 include(FindDependencies)
 add_subdirectory(src/cpp)
-
-if(USE_MANIFEST_API AND NOT USE_PAX_CATALOG)
-    set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(SAVED_CMAKE_INSTALL_SO_NO_EXE ${CMAKE_INSTALL_SO_NO_EXE})
-    set(SAVED_CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-
-    set(BUILD_SHARED_LIBS ON)
-    set(CMAKE_INSTALL_SO_NO_EXE OFF)
-    set(CMAKE_INSTALL_LIBDIR "lib")
-    add_subdirectory(${CMAKE_SOURCE_DIR}/../../dependency/yyjson ${CMAKE_BINARY_DIR}/yyjson_build)
-
-    set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
-    set(CMAKE_INSTALL_SO_NO_EXE ${SAVED_CMAKE_INSTALL_SO_NO_EXE})
-    set(CMAKE_INSTALL_LIBDIR ${SAVED_CMAKE_INSTALL_LIBDIR})
-endif()
