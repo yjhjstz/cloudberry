@@ -175,8 +175,9 @@ if (VEC_BUILD)
   )
   set(pax_target_link_libs
       ${pax_target_link_libs}
-      Arrow::arrow_shared
-      ArrowDataset::arrow_dataset_shared
+      Arrow::arrow_static
+      ArrowDataset::arrow_dataset_static
+      ${OPENTELEMETRY_LIBS}
 )
 endif(VEC_BUILD)
 
@@ -230,8 +231,9 @@ if(BUILD_GBENCH)
     target_link_libraries(bench_main PUBLIC ${pax_target_link_libs} GTest::gtest_main GTest::gmock benchmark::benchmark_main postgres)
     if (VEC_BUILD)
       target_link_libraries(bench_main PRIVATE
-              Arrow::arrow_shared
-              ArrowDataset::arrow_dataset_shared
+              Arrow::arrow_static
+              ArrowDataset::arrow_dataset_static
+              ${OPENTELEMETRY_LIBS}
       )
     endif(VEC_BUILD)
 endif(BUILD_GBENCH)

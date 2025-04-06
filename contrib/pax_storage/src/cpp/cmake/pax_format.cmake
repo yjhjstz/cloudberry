@@ -90,8 +90,8 @@ set(pax_vec_src ${pax_vec_src}
 
 endif()
 
-set(pax_target_include ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR})
-set(pax_target_link_libs uuid protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB)
+set(pax_target_include ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR} ${UUID_INCLUDE_DIRS})
+set(pax_target_link_libs ${UUID_LINK_LIBRARIES} protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB)
 if (PAX_USE_LZ4)
   list(APPEND pax_target_link_libs LZ4::lz4_static)
 endif()
@@ -106,8 +106,9 @@ if (VEC_BUILD)
   )
   set(pax_target_link_libs
       ${pax_target_link_libs}
-      Arrow::arrow_shared
-      ArrowDataset::arrow_dataset_shared
+      Arrow::arrow_static
+      ArrowDataset::arrow_dataset_static
+      ${OPENTELEMETRY_LIBS}
 )
 endif(VEC_BUILD)
 
