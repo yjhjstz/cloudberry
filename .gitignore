@@ -79,3 +79,6 @@ dependencies.sh
 /thirdparty/
 src/test/regress/regression.diffs
 src/test/regress/regression.out
+gpcontrib/orafce/sqlparse.c
+gpcontrib/orafce/sqlparse.h
+gpcontrib/orafce/sqlscan.c
