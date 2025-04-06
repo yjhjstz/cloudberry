@@ -53,6 +53,7 @@ SUBDIRS = \
 		tsm_system_rows \
 		tsm_system_time \
 		unaccent	\
+		unionstore_ext \
 		vacuumlo
 
 # Cloudberry-specific additions (to ease merge pain).

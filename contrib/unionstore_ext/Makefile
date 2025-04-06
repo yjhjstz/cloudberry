@@ -18,6 +18,7 @@ OBJS = \
 	accessext/usbrin.o \
 	accessext/usbitmap.o
 
+PG_CFLAGS = -Wno-error=array-bounds -Wno-error=misleading-indentation -Wno-error=unused-variable -Wno-error=unused-function
 PG_CPPFLAGS = -I$(libpq_srcdir)
 SHLIB_LINK_INTERNAL = $(libpq)
 
@@ -51,32 +52,13 @@ REGRESS = set_up boolean char name varchar text int2 int4 int8 oid float8 float4
 
 REGRESS_OPTS = --init-file=init_file --load-extension=unionstore
 
+ifdef USE_PGXS
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
+else
+subdir = contrib/unionstore_ext
 top_builddir = ../..
-
-all: unionstore.tar.gz
-
-unionstore.tar.gz:
-	git clone -b main https://${GIT_USERNAME}:${GIT_PASSWORD}@code.hashdata.xyz/cloudberry/unionstore.git $(HOME)/unionstore && \
-	rm -rf $(HOME)/unionstore/vendor/unionstore_walredo && \
-	git clone -b main https://${GIT_USERNAME}:${GIT_PASSWORD}@code.hashdata.xyz/cloudberry/unionstore_walredo.git $(HOME)/unionstore/vendor/unionstore_walredo && \
-	cd $(HOME)/unionstore && \
-	MAKELEVEL=0 make -sj 12 && \
-	tar --exclude='deps' --exclude='build' -czf unionstore.tar.gz pg_install target/release unionstore_deploy.sh && \
-	cd - && mv $(HOME)/unionstore/unionstore.tar.gz ./
-
-install: install_unionstore
-
-install_unionstore:
-	cp unionstore.tar.gz $(GPHOME)
-
-clean: clean_unionstore
-
-clean_unionstore:
-	rm -f $(GPHOME)/unionstore.tar.gz && \
-	rm -rf $(HOME)/unionstore && \
-	rm -f unionstore.tar.gz
-
-.PHONY: all install clean
+include $(top_builddir)/src/Makefile.global
+include $(top_srcdir)/contrib/contrib-global.mk
+endif
