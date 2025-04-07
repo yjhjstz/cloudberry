@@ -42,6 +42,12 @@ if [ -x "${GPHOME}/ext/jdk/bin/java" ]; then
     CLASSPATH=${JAVA_HOME}/lib/dt.jar:${JAVA_HOME}/lib/tool.jar
 fi
 
+#setup python
+if [ -x "${GPHOME}/ext/python/bin/python3" ]; then
+    PYTHONPATH="${GPHOME}/ext/python/lib/python3.10/site-packages:${PYTHONPATH}"
+    PATH="${GPHOME}/ext/python/bin:${PATH}"
+fi
+
 export GPHOME
 export PATH
 export PYTHONPATH
