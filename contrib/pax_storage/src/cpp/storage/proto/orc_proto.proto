@@ -19,8 +19,8 @@
 syntax = "proto2";
 package pax.porc.proto;
 
-import "pax.proto";
-import "micro_partition_stats.proto";
+import "storage/proto/pax.proto";
+import "storage/proto/micro_partition_stats.proto";
 
 message ColumnStatistics {
   // is all of rows are null

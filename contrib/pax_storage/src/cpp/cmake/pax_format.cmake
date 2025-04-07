@@ -114,14 +114,12 @@ endif(VEC_BUILD)
 
 add_library(paxformat SHARED ${pax_storage_src} ${pax_clustering_src} ${pax_exceptions_src} ${pax_comm_src} ${pax_vec_src})
 
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/storage/proto")
-
 protobuf_generate(
         TARGET
         paxformat
         PROTOS ${protobuf_files}
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/storage/proto"
-        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/storage/proto"
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/"
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/"
         OUT_VAR pax_PROTO_SOURCES
 )
 
@@ -132,52 +130,19 @@ target_link_libraries(paxformat PUBLIC ${pax_target_link_libs})
 set_target_properties(paxformat PROPERTIES
   OUTPUT_NAME paxformat)
 
-# export headers
-set(PAX_COMM_HEADERS
-  comm/bitmap.h
-  comm/cbdb_api.h
-  comm/log.h
-  comm/cbdb_wrappers.h
-  comm/pax_rel.h
-  comm/pax_memory.h
-  comm/guc.h
+set(PAX_PROTO_HEADERS
+    ${CMAKE_CURRENT_BINARY_DIR}/storage/proto/micro_partition_stats.pb.h
+    ${CMAKE_CURRENT_BINARY_DIR}/storage/proto/orc_proto.pb.h
+    ${CMAKE_CURRENT_BINARY_DIR}/storage/proto/pax.pb.h
 )
 
-set(PAX_EXCEPTION_HEADERS
-  exceptions/CException.h
+install(FILES ${PAX_PROTO_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include/pax/storage/proto
 )
 
-set(PAX_CLUSTERING_HEADERS
-  clustering/clustering.h
-  clustering/clustering_reader.h
-  clustering/clustering_writer.h
-  clustering/index_clustering.h
-  clustering/lexical_clustering.h
-  clustering/zorder_clustering.h
-  clustering/zorder_utils.h
-)
-
-# TODO(gongxun):
-# We should explicitly specify the headers
-# that need to be exported, and use the syntax of
-# install(FILES,...) to install the header files
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/storage
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/pax
-  FILES_MATCHING
-  PATTERN "*.h"
-)
-
-install(FILES ${PAX_COMM_HEADERS}
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/pax/comm
-)
-
-install(FILES ${PAX_EXCEPTION_HEADERS}
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/pax/exceptions
-)
-
-install(FILES ${PAX_CLUSTERING_HEADERS}
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/pax/clustering
-)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include/pax
+        FILES_MATCHING PATTERN "*.h")
 
 ## install dynamic libraray
 install(TARGETS paxformat
