@@ -46,6 +46,7 @@ fi
 if [ -x "${GPHOME}/ext/python/bin/python3" ]; then
     PYTHONPATH="${GPHOME}/ext/python/lib/python3.10/site-packages:${PYTHONPATH}"
     PATH="${GPHOME}/ext/python/bin:${PATH}"
+    LD_LIBRARY_PATH="${GPHOME}/ext/python/lib:${LD_LIBRARY_PATH}"
 fi
 
 export GPHOME
