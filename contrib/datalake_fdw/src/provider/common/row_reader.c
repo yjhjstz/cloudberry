@@ -4,6 +4,7 @@
 #include "nodes/parsenodes.h"
 #include "gopher/gopher.h"
 
+#include "src/common/fileSystemWrapper.h"
 #include "src/provider/iceberg/iceberg_task_reader.h"
 #include "src/provider/hudi/hudi_task_reader.h"
 #include "row_reader.h"
@@ -244,42 +245,17 @@ checkInterrupt(void)
 	return true;
 }
 
-static void GetGopherSocketPath(char *dest)
-{
-	snprintf(dest, 1024, "/tmp/.s.gopher.%d", PostPortNumber);
-}
-
 ProtocolContext *
 createContext(dataLakeOptions *options)
 {
 	ProtocolContext *context;
-	HdfsConfigInfo  *hdfsConfig;
 	gopherConfig    *gopherConfig;
 	gopherFS        fs;
-	const char      *serverName = options->server_name;
 
 	context = (ProtocolContext *)palloc0(sizeof(ProtocolContext));
 
-	if (!serverName)
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("invalid URI, \"server_name\" option(s) missing")));
-
-	hdfsConfig = parseHdfsConfig("gphdfs.conf", options->hdfs_cluster_name);
-	if (!hdfsConfig)
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("server \"%s\" is not found in gphdfs.conf", serverName)));
-
 	disableCacheFile = !isCacheEnabled(options->cache_enabled);
-
-	formKrbCCName(hdfsConfig);
-
-	char connect_path[1024] = {0};
-	GetGopherSocketPath(connect_path);
-	hdfsConfig->gopherPath = pstrdup(connect_path);
-
-	gopherConfig = gopherCreateConfig(hdfsConfig);
+	gopherConfig = createGopherConfig((void*)(options->gopher));
 	gopherUserCanceledCallBack(&checkInterrupt);
 
 	fs = gopherConnect(*gopherConfig);

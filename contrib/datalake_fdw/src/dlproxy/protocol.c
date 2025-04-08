@@ -408,7 +408,7 @@ internal_get_external_fragments(char *profile,
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
-			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
 		else
 			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
 
@@ -470,7 +470,7 @@ get_external_schema(char *profile, char *relName, char *schemaName, List *locati
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
-			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
 		else
 			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
 
