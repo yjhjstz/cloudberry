@@ -40,6 +40,7 @@ if [ -x "${GPHOME}/ext/jdk/bin/java" ]; then
     JAVA_HOME="${GPHOME}/ext/jdk"
     PATH="${JAVA_HOME}/bin:${PATH}"
     CLASSPATH=${JAVA_HOME}/lib/dt.jar:${JAVA_HOME}/lib/tool.jar
+    LD_LIBRARY_PATH=${JAVA_HOME}/jre/lib/amd64/server/:${JAVA_HOME}/jre/lib/aarch64/server/:${LD_LIBRARY_PATH}
 fi
 
 #setup python
