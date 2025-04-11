@@ -1656,6 +1656,10 @@ def checkTableInconsistentEntry(cat):
         columns.remove("dtlocation")
         castcols.remove("dtlocation")
 
+    if catname == "pg_class":
+        columns.remove("relmvrefcount")
+        castcols.remove("relmvrefcount")
+
     if cat.tableHasConsistentOids():
         qry = inconsistentEntryQuery(GV.max_content, catname, ['oid'], columns, castcols)
     else:

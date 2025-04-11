@@ -96,7 +96,7 @@ ifeq ($(enable_vectorization),yes)
 endif
 
 .PHONY: icw_test
-icw_test: pax-test regress_test pax_vec_test isolation2_test
+icw_test: pax-test pax_vec_test regress_test isolation2_test
 
 .PHONY: pax_vec_test
 pax_vec_test:

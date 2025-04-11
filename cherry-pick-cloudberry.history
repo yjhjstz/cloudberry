@@ -1,6 +1,11 @@
 Record the cherry-pick history from Cloudberry(github), make it easy
 to find the start commit for cherry-pick.
 
+Author: jiaqizho <zhoujiaqi@hashdata.cn>
+# PAX already been cherry-picked.
+cherry-pick start commit: 77863a64c43117f64f9fdd90176f707ee6417255
+cherry-pick end commit: 49d49b87eee30fbd9bc777e2717be6bf658d89dc
+
 Author: Hao Wu <gfphoenix78@gmail.com>
 cherry-pick start commit: 04d7ba708c3dc91bb854acdb994f810759d29650
 cherry-pick end commit: 612ef79d4c8a65e481dfcf05f5218268430002e9
@@ -13,7 +18,6 @@ cherry-pick end commit: b54afa4602af9897a6ab909b67a3dcdb29d149e0
 Author: Hao Wu <gfphoenix78@gmail.com>
 cherry-pick start commit: fc562a99b1469f0b92742b83bd249365e35c2c5e
 cherry-pick end commit: 74808061fa642568f714f32743f3b64fe6ccd3a2
-
 
 Author: jiaqizho <zhoujiaqi@hashdata.cn>
 Date: Mon Sep 30 11:07:24 CST 2024
