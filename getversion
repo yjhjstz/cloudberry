@@ -15,7 +15,7 @@ generate_dev_version() {
 
 # If we are in a Git repository and have git installed, build the version
 # string using the latest tag in case it's reachable
-if type git >/dev/null 2>&1 && [ -d '.git' ] ; then
+if type git >/dev/null 2>&1 && [ -e '.git' ] ; then
 
 	# Check for tag reachability, in case of shallow clones we might not
 	# be able to use git describe since the commit which was tagged is
