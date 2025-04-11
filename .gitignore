@@ -82,3 +82,4 @@ src/test/regress/regression.out
 gpcontrib/orafce/sqlparse.c
 gpcontrib/orafce/sqlparse.h
 gpcontrib/orafce/sqlscan.c
+BUILD_NUMBER
