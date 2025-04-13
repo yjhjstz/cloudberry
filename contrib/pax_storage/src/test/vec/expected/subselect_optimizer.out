@@ -1689,9 +1689,9 @@ select * from explain_sq_limit();
    Executor Memory: xxx  Segments: 1  Max: 1kB (segment -1)
    ->  Vec Limit (actual rows=3 loops=1)
          Executor Memory: xxx  Segments: 1  Max: 1kB (segment 2)
-         ->  Vec Subquery Scan on x (actual rows=8 loops=1)
+         ->  Vec Subquery Scan on x (actual rows=3 loops=1)
                Executor Memory: xxx  Segments: 1  Max: 1kB (segment 2)
-               ->  Vec Sort (actual rows=8 loops=1)
+               ->  Vec Sort (actual rows=3 loops=1)
                      Sort Key: sq_limit.c1, sq_limit.pk
                      Executor Memory: xxx  Segments: 1  Max: 1kB (segment 2)
                      ->  Vec Seq Scan on sq_limit (actual rows=8 loops=1)

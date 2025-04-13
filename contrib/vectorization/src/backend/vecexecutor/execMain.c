@@ -3944,9 +3944,19 @@ PostBuildVecPlan(PlanState *ps, VecExecuteState *estate)
 		return;
 	target_plan = target_state->plan;
 
-
-
-	left_estate = GetVecExecuteState(ps->lefttree);
+	/*
+	 * SubqueryScanState has only one child node in ps->subplan instead of
+	 * ps->lefttree, so we can take the subplan as left_estate.
+	 */
+	if (IsA(ps, SubqueryScanState))
+	{
+		SubqueryScanState *subqueryState = (SubqueryScanState *) ps;
+		left_estate = GetVecExecuteState(subqueryState->subplan);
+	}
+	else
+	{
+		left_estate = GetVecExecuteState(ps->lefttree);
+	}
 
 	left_source = left_estate ? left_estate->plan : NULL;
 	right_estate = IsA(ps, HashJoinState) ?
