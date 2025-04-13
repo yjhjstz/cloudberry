@@ -1820,10 +1820,10 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 	else
 		garrow_store_ptr(estate->reader, pcontext.reader);
 
-	if (DEBUG1 >= log_min_messages)
+	if (Debug_print_plan)
 	{
 		g_autofree gchar *str = garrow_execute_plan_to_string(estate->plan);
-		elog(DEBUG1, "arrow plan: %s", str);
+		elog(LOG, "arrow plan in BuildVecPlan: %s", str);
 	}
 }
 
@@ -3975,8 +3975,9 @@ PostBuildVecPlan(PlanState *ps, VecExecuteState *estate)
 	garrow_time_collector_table_push_back(estate->time_collector);
 	SetArrowPlan(ps, result);
 
+	if (Debug_print_plan)
 	{
 		g_autofree gchar *plan_str = garrow_execute_plan_to_string(result);
-		elog(DEBUG2, "arrow plan in plan(%d): %s", ps->plan->plan_node_id, plan_str);
+		elog(LOG, "arrow plan for plan(%d) in PostBuildVecPlan: %s", ps->plan->plan_node_id, plan_str);
 	}
 }
