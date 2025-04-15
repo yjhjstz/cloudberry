@@ -1,6 +1,6 @@
 package org.apache.iceberg.hive;
 
-import cn.hashdata.dlagent.api.security.SecureLogin;
+import cn.cbdb.dlagent.api.security.SecureLogin;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -36,7 +36,7 @@ import org.apache.iceberg.util.LocationUtil;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import cn.hashdata.dlagent.plugins.hive.utilities.DlCachedClientPool;
+import cn.cbdb.dlagent.plugins.hive.utilities.DlCachedClientPool;
 
 import java.util.List;
 import java.util.Map;

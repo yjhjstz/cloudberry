@@ -4,7 +4,7 @@
  *		hive_auto_sync Auto sync hive metadata
  *
  *
- *	Copyright Hashdata Development Group
+ *	Copyright cbdb Development Group
  *
  *	IDENTIFICATION
  *		contrib/datalake_apiary/hive_sync_bgworker/hive_auto_sync.c
@@ -212,7 +212,7 @@ hive_sync_main(Datum main_arg)
 	pqsignal(SIGQUIT, hiveSyncQuickdie);
 	pqsignal(SIGHUP, hiveSyncQuickdie);
 
-	/* hashdata 3x default block sigquit */
+	/* cbdb 3x default block sigquit */
 	sigdelset(&BlockSig, SIGQUIT);
 
 	BackgroundWorkerUnblockSignals();

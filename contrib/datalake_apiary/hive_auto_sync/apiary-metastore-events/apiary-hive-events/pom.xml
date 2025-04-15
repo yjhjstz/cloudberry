@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>cn.hashdata.apiary</groupId>
+    <groupId>cn.cbdb.apiary</groupId>
     <artifactId>apiary-metastore-events-parent</artifactId>
     <version>7.3.8</version>
   </parent>

@@ -2,39 +2,39 @@
   <property>
     <!--set event listener-->
     <name>hive.metastore.event.listeners</name>
-    <value>cn.hashdata.apiary.kafka.listener.HiveMetaStoreEventListener</value>
+    <value>cn.cbdb.apiary.kafka.listener.HiveMetaStoreEventListener</value>
     <description>Hive event listener to listen metastore and write event to kafka</description>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.bootstrap.servers</name>
+    <name>cn.cbdb.apiary.kafka.bootstrap.servers</name>
     <value>192.168.176.205:19092,192.168.176.205:19093,192.168.176.205:19094</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.hdw.catalog.name</name>
+    <name>cn.cbdb.apiary.kafka.hdw.catalog.name</name>
     <value>hdw_test</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.hive.cluster.name</name>
+    <name>cn.cbdb.apiary.kafka.hive.cluster.name</name>
     <value>cluster-1</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.autosync.catalogs</name>
+    <name>cn.cbdb.apiary.kafka.autosync.catalogs</name>
     <value>hive,ctg</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.autosync.databases.hive</name>
+    <name>cn.cbdb.apiary.kafka.autosync.databases.hive</name>
     <value>test,sync_test</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.security.protocol</name>
+    <name>cn.cbdb.apiary.kafka.security.protocol</name>
     <value>SASL_PLAINTEXT</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.sasl.mechanism</name>
+    <name>cn.cbdb.apiary.kafka.sasl.mechanism</name>
     <value>SCRAM-SHA-256</value>
   </property>
   <property>
-    <name>cn.hashdata.apiary.kafka.sasl.jaas.config</name>
+    <name>cn.cbdb.apiary.kafka.sasl.jaas.config</name>
     <value>org.apache.kafka.common.security.scram.ScramLoginModule required username="xxxxx" password="xxxxx";</value>
   </property>
 </configuration>

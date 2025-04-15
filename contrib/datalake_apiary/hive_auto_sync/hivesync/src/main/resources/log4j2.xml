@@ -18,7 +18,7 @@
         <AppenderRef ref="HiveSyncFile"/>
     </Root>
 
-    <Logger name="cn.hashdata.hivesync" level="info" additivity="false">
+    <Logger name="cn.cbdb.hivesync" level="info" additivity="false">
         <AppenderRef ref="HiveSyncFile"/>
     </Logger>
     <Logger name="org.apache.kafka" level="info" additivity="false">

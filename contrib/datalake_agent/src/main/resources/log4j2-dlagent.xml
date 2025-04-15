@@ -19,7 +19,7 @@
         <AppenderRef ref="RollingFile"/>
     </Root>
 
-    <Logger name="cn.hashdata.dlagent" level="${spring:dlagent.log.level}"/>
+    <Logger name="cn.cbdb.dlagent" level="${spring:dlagent.log.level}"/>
 
     <!-- The levels below are tuned to provide minimal output, change to INFO or DEBUG to troubleshoot -->
     <Logger name="org.apache.hadoop" level="warn"/>

@@ -93,7 +93,7 @@ public class KafkaMessageSender {
     props.put(KAFKA_SECURITY.unprefixedKey(), kafkaProtocol);
     if (kafkaProtocol.equals("SASL_PLAINTEXT")) {
       props.put(KAFKA_MECHANISM.unprefixedKey(), stringProperty(conf, KAFKA_MECHANISM));
-      props.put(KAFKA_SASL_JAAS_CONFIG.unprefixedKey(), "cn.hashdata.apiary.shaded." + stringProperty(conf, KAFKA_SASL_JAAS_CONFIG));
+      props.put(KAFKA_SASL_JAAS_CONFIG.unprefixedKey(), "cn.cbdb.apiary.shaded." + stringProperty(conf, KAFKA_SASL_JAAS_CONFIG));
     }
     props.put("key.serializer", "org.apache.kafka.common.serialization.LongSerializer");
     props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");

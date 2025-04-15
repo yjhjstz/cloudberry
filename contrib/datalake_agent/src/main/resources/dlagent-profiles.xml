@@ -29,21 +29,21 @@ under the License.
         <name>hive</name>
         <description>A profile for reading and writing data via HIVE</description>
         <plugins>
-            <metadata>cn.hashdata.dlagent.plugins.hive.HiveMetadataFetcher</metadata>
+            <metadata>cn.cbdb.dlagent.plugins.hive.HiveMetadataFetcher</metadata>
         </plugins>
     </profile>
     <profile>
         <name>iceberg</name>
         <description>A profile for reading and writing data via Iceberg</description>
         <plugins>
-            <metadata>cn.hashdata.dlagent.plugins.iceberg.IcebergMetadataFetcher</metadata>
+            <metadata>cn.cbdb.dlagent.plugins.iceberg.IcebergMetadataFetcher</metadata>
         </plugins>
     </profile>
     <profile>
         <name>hudi</name>
         <description>A profile for reading and writing data via Hudi</description>
         <plugins>
-            <metadata>cn.hashdata.dlagent.plugins.hudi.HudiMetadataFetcher</metadata>
+            <metadata>cn.cbdb.dlagent.plugins.hudi.HudiMetadataFetcher</metadata>
         </plugins>
     </profile>
 </profiles>

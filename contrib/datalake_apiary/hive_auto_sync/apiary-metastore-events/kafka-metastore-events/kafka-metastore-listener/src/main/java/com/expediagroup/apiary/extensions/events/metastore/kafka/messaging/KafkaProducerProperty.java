@@ -40,7 +40,7 @@ public enum KafkaProducerProperty implements Property {
   SERDE_CLASS("serde.class", JsonMetaStoreEventSerDe.class.getName()),
   COMPRESSION_TYPE("compression.type", "none"),
   MAX_REQUEST_SIZE("max.request.size", 1048576);
-  private static final String HADOOP_CONF_PREFIX = "cn.hashdata.apiary.kafka.";
+  private static final String HADOOP_CONF_PREFIX = "cn.cbdb.apiary.kafka.";
 
   private final String unprefixedKey;
   private final Object defaultValue;

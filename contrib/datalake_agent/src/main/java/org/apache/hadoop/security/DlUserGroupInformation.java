@@ -35,8 +35,8 @@ import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_KERBEROS
 public class DlUserGroupInformation {
 
     private static final String LOGIN_FAILURE = "Login failure";
-    // place logger into cn.hashdata.dlagent.security package to be governed by agent log level, not hadoop one
-    private static final Logger LOG = LoggerFactory.getLogger("cn.hashdata.dlagent.security.DlAgentUGI");
+    // place logger into cn.cbdb.dlagent.security package to be governed by agent log level, not hadoop one
+    private static final Logger LOG = LoggerFactory.getLogger("cn.cbdb.dlagent.security.DlAgentUGI");
     private static final String MUST_FIRST_LOGIN_FROM_KEYTAB = "loginUserFromKeyTab must be done first";
     private static final String OS_LOGIN_MODULE_NAME = getOSLoginModuleName();
 

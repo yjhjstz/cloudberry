@@ -4,7 +4,7 @@
 
   <parent>
     <artifactId>kafka-metastore-events-parent</artifactId>
-    <groupId>cn.hashdata.apiary</groupId>
+    <groupId>cn.cbdb.apiary</groupId>
     <version>7.3.8</version>
   </parent>
 
@@ -12,7 +12,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>cn.hashdata.apiary</groupId>
+      <groupId>cn.cbdb.apiary</groupId>
       <artifactId>apiary-hive-events</artifactId>
       <version>${project.version}</version>
     </dependency>

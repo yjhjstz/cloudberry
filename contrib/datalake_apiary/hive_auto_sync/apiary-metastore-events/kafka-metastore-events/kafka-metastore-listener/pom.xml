@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>cn.hashdata.apiary</groupId>
+    <groupId>cn.cbdb.apiary</groupId>
     <artifactId>kafka-metastore-events-parent</artifactId>
     <version>7.3.8</version>
   </parent>
@@ -11,7 +11,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>cn.hashdata.apiary</groupId>
+      <groupId>cn.cbdb.apiary</groupId>
       <artifactId>apiary-hive-events</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -54,7 +54,7 @@
               <shadedClassifierName>all</shadedClassifierName>
               <artifactSet>
                 <includes>
-                  <include>cn.hashdata.apiary:*</include>
+                  <include>cn.cbdb.apiary:*</include>
                   <include>org.apache.kafka:*</include>
                 </includes>
               </artifactSet>
