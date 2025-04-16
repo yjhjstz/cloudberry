@@ -54,7 +54,7 @@ SUBDIRS = \
 		tsm_system_time \
 		unaccent	\
 		unionstore_ext  \
-                unionstore_walredo \
+		unionstore_walredo \
 		vacuumlo
 
 # Cloudberry-specific additions (to ease merge pain).
@@ -128,9 +128,15 @@ ALWAYS_SUBDIRS += dfs-tablespace-ext
 endif
 
 ifeq ($(enable_datalake),yes)
-SUBDIRS += datalake_fdw hive_connector datalake_proxy datalake_agent
+SUBDIRS += datalake_fdw hive_connector datalake_proxy datalake_agent datalake_apiary
 else
-ALWAYS_SUBDIRS += datalake_fdw hive_connector datalake_proxy datalake_agent
+ALWAYS_SUBDIRS += datalake_fdw hive_connector datalake_proxy datalake_agent datalake_apiary
+endif
+
+ifeq ($(enable_perfmon), yes)
+SUBDIRS += perfmon
+else
+ALWAYS_SUBDIRS += perfmon
 endif
 
 # Missing:
