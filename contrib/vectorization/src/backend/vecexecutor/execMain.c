@@ -373,9 +373,10 @@ build_is_in(GArrowExpression *expr, GArrowDatum *value_set, gboolean skip_nulls)
 {
 	g_autoptr(GArrowSetLookupOptions) options = NULL;
 	g_autoptr(GArrowExpression) is_in_expr = NULL;
+	g_autoptr(GArrowExpression) list_expr = garrow_copy_ptr(expr);
 	GList *arguments = NULL;
 	options = garrow_set_lookup_options_new(value_set, skip_nulls);
-	arguments = garrow_list_append_ptr(arguments, expr);
+	arguments = garrow_list_append_ptr(arguments, list_expr);
 	is_in_expr = GARROW_EXPRESSION(garrow_call_expression_new("is_in", arguments, GARROW_FUNCTION_OPTIONS(options)));
 	garrow_list_free_ptr(&arguments);
 	return garrow_move_ptr(is_in_expr);
@@ -496,6 +497,7 @@ scalararray_to_expression(ScalarArrayOpExpr *arrayexpr, PlanBuildContext *pconte
 	g_autoptr(GArrowExpression) expr = NULL;
 	g_autoptr(GArrowScalar) val_scalar = NULL;
 	g_autoptr(GArrowDatum) val_datum = NULL;
+	g_autoptr(GArrowDatum) val_array_datum = NULL;
 
 	second_expr = (Expr *) lsecond(arrayexpr->args);
 	if (nodeTag(second_expr) != T_Const)
@@ -524,15 +526,17 @@ scalararray_to_expression(ScalarArrayOpExpr *arrayexpr, PlanBuildContext *pconte
 	array = garrow_base_list_scalar_get_value(GARROW_BASE_LIST_SCALAR(val_scalar));
 	array_datum = garrow_array_datum_new(array);
 	/* is_in need skip null follow pg(in null is false) */
-	return build_is_in(expr, GARROW_DATUM(array_datum), true);
+	val_array_datum = GARROW_DATUM(array_datum);
+	return build_is_in(expr, garrow_move_ptr(val_array_datum), true);
 }
 
 static GArrowExpression *
 build_not_expression(GArrowExpression *expr)
 {
 	g_autoptr(GArrowExpression) not_expr = NULL;
+	g_autoptr(GArrowExpression) list_expr = garrow_copy_ptr(expr);
 	GList *arguments = NULL;
-	arguments = garrow_list_append_ptr(arguments, expr);
+	arguments = garrow_list_append_ptr(arguments, list_expr);
 	not_expr = GARROW_EXPRESSION(garrow_call_expression_new("invert", arguments, NULL));
 	garrow_list_free_ptr(&arguments);
 	return garrow_move_ptr(not_expr);
@@ -544,7 +548,8 @@ build_is_not_null(GArrowExpression *expr)
 
 	GList *arguments = NULL;
 	g_autoptr(GArrowExpression) is_not_null_expr = NULL;
-	arguments = garrow_list_append_ptr(arguments, expr);
+	g_autoptr(GArrowExpression) list_expr = garrow_copy_ptr(expr);
+	arguments = garrow_list_append_ptr(arguments, list_expr);
 	is_not_null_expr = GARROW_EXPRESSION(garrow_call_expression_new("is_valid", arguments, NULL));
 	garrow_list_free_ptr(&arguments);
 	return garrow_move_ptr(is_not_null_expr);
@@ -557,7 +562,8 @@ build_is_null(GArrowExpression *expr, gboolean nan_is_null)
 	GList *arguments = NULL;
 	g_autoptr(GArrowNullOptions) options = NULL;
 	g_autoptr(GArrowExpression) is_null_expr = NULL;
-	arguments = garrow_list_append_ptr(arguments, expr);
+	g_autoptr(GArrowExpression) list_expr = garrow_copy_ptr(expr);
+	arguments = garrow_list_append_ptr(arguments, list_expr);
 	options = garrow_null_options_new(nan_is_null);
 	is_null_expr = GARROW_EXPRESSION(garrow_call_expression_new("is_null", arguments, GARROW_FUNCTION_OPTIONS(options)));
 	garrow_list_free_ptr(&arguments);

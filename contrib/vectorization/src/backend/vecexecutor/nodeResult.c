@@ -168,7 +168,7 @@ ExecVecResult(PlanState *pstate)
 			g_autoptr(GArrowRecordBatch)  filter_batch = NULL;
 			Datum hval = (Datum)0;
 			Datum hval_reduce = (Datum)0;
-			g_autoptr(GArrowRecordBatch) result_batch = GetBatch(candidateOutputSlot);
+			g_autoptr(GArrowRecordBatch) result_batch = garrow_copy_ptr(GetBatch(candidateOutputSlot));
 			hval = evalHashKeyVec(vnode->hash_projector, result_batch, (VecCdbHash *) node->hashFilter, GetNumRows(candidateOutputSlot));
 			hval_reduce =  get_segment_filter(GpIdentity.segindex, hval);
 			filter_datum = GARROW_ARRAY_DATUM(DatumGetPointer(hval_reduce));
