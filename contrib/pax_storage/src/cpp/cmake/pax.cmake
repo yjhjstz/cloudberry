@@ -152,7 +152,7 @@ endif()
 set(pax_target_src  ${pax_PROTO_SOURCES} ${pax_storage_src} ${pax_clustering_src} ${pax_exceptions_src}
   ${pax_access_src} ${pax_comm_src} ${pax_catalog_src} ${pax_vec_src})
 set(pax_target_include ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR})
-set(pax_target_link_libs ${pax_target_link_libs} protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB tabulate::tabulate postgres)
+set(pax_target_link_libs ${pax_target_link_libs} orc::orc protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB tabulate::tabulate postgres)
 if (PAX_USE_LZ4)
   list(APPEND pax_target_link_libs LZ4::lz4_static)
 endif()
@@ -175,8 +175,8 @@ if (VEC_BUILD)
   )
   set(pax_target_link_libs
       ${pax_target_link_libs}
-      Arrow::arrow_static
-      ArrowDataset::arrow_dataset_static
+      Arrow::arrow_shared
+      ArrowDataset::arrow_dataset_shared
       ${OPENTELEMETRY_LIBS}
 )
 endif(VEC_BUILD)
@@ -231,8 +231,8 @@ if(BUILD_GBENCH)
     target_link_libraries(bench_main PUBLIC ${pax_target_link_libs} GTest::gtest_main GTest::gmock benchmark::benchmark_main postgres)
     if (VEC_BUILD)
       target_link_libraries(bench_main PRIVATE
-              Arrow::arrow_static
-              ArrowDataset::arrow_dataset_static
+              Arrow::arrow_shared
+              ArrowDataset::arrow_dataset_shared
               ${OPENTELEMETRY_LIBS}
       )
     endif(VEC_BUILD)

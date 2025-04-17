@@ -61,7 +61,7 @@ build: $(SRC) $(CSRC)
 			-DSNAPPY_HOME=/usr/local                 \
 			-DZSTD_HOME=/usr/local                   \
 			-DZLIB_HOME=/usr/local                   \
-			-DLZ4_HOME=/usr/local/                   \
+			-DLZ4_HOME=/usr/local                    \
 			-DUSE_PAX_CATALOG=$(USE_PAX_CATALOG) .. ;\
 	fi
 	cd build && $(MAKE) VERBOSE=1

@@ -25,3 +25,5 @@ if (VEC_BUILD)
     find_package(Arrow REQUIRED CONFIG)
     find_package(ArrowDataset REQUIRED CONFIG)
 endif ()
+
+find_package(orc REQUIRED CONFIG)
