@@ -1486,13 +1486,7 @@ if test "$with_perl" = yes; then
   if test -z "$PERL"; then
     AC_MSG_ERROR([Perl not found])
   fi
-  PGAC_CHECK_PERL_CONFIGS([archlibexp,privlibexp,useshrplib])
-  if test "$perl_useshrplib" != yes && test "$perl_useshrplib" != true; then
-    AC_MSG_ERROR([cannot build PL/Perl because libperl is not a shared library
-You might have to rebuild your Perl installation.  Refer to the
-documentation for details.  Use --without-perl to disable building
-PL/Perl.])
-  fi
+  PGAC_CHECK_PERL_CONFIGS([archlibexp,privlibexp])
   # On most platforms, archlibexp is also where the Perl include files live ...
   perl_includespec="-I$perl_archlibexp/CORE"
   # ... but on newer macOS versions, we must use -iwithsysroot to look
