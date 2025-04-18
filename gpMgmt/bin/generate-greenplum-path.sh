@@ -46,7 +46,6 @@ fi
 #setup perl
 if [ -x "${GPHOME}/ext/perl/bin/perl" ]; then
     PATH="${GPHOME}/ext/perl/bin:${PATH}"
-    LD_LIBRARY_PATH="${GPHOME}/ext/perl/lib/5.40.2/$(uname -m)-linux-thread-multi/CORE/:${LD_LIBRARY_PATH}"
 fi
 
 #setup python
