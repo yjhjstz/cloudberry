@@ -43,6 +43,12 @@ if [ -x "${GPHOME}/ext/jdk/bin/java" ]; then
     LD_LIBRARY_PATH=${JAVA_HOME}/jre/lib/amd64/server/:${JAVA_HOME}/jre/lib/aarch64/server/:${LD_LIBRARY_PATH}
 fi
 
+#setup perl
+if [ -x "${GPHOME}/ext/perl/bin/perl" ]; then
+    PATH="${GPHOME}/ext/perl/bin:${PATH}"
+    LD_LIBRARY_PATH="${GPHOME}/ext/perl/lib/5.40.2/$(uname -m)-linux-thread-multi/CORE/:${LD_LIBRARY_PATH}"
+fi
+
 #setup python
 if [ -x "${GPHOME}/ext/python/bin/python3" ]; then
     PATH="${GPHOME}/ext/python/bin:${PATH}"
