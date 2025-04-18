@@ -320,6 +320,10 @@ create table t_lockmods_ao1 (c int) with (appendonly=true) distributed randomly;
 -- cases's comments.
 -- Details: https://groups.google.com/a/greenplum.org/g/gpdb-dev/c/wAPKpJzhbpM
 -- Issue: https://github.com/greenplum-db/gpdb/issues/13652
+
+-- ORCA may acquire AccessSharedLock when generating plan, which is not stable
+1: set optimizer = off;
+
 1:DROP TABLE IF EXISTS t_lockmods_part_tbl_dml;
 
 1:CREATE TABLE t_lockmods_part_tbl_dml (a int, b int, c int) PARTITION BY RANGE(b) (START(1) END(3) EVERY(1));

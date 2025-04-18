@@ -1025,6 +1025,11 @@ ABORT
 -- cases's comments.
 -- Details: https://groups.google.com/a/greenplum.org/g/gpdb-dev/c/wAPKpJzhbpM
 -- Issue: https://github.com/greenplum-db/gpdb/issues/13652
+
+-- ORCA may acquire AccessSharedLock when generating plan, which is not stable
+1: set optimizer = off;
+SET
+
 1:DROP TABLE IF EXISTS t_lockmods_part_tbl_dml;
 DROP
 
@@ -1059,9 +1064,8 @@ INSERT 10
 ----------+------------------+---------+---------------------------------
  relation | RowExclusiveLock | t       | t_lockmods_part_tbl_dml_1_prt_2 
  relation | RowExclusiveLock | t       | t_lockmods_part_tbl_dml_1_prt_1 
- relation | AccessShareLock  | t       | t_lockmods_part_tbl_dml         
  relation | RowExclusiveLock | t       | t_lockmods_part_tbl_dml         
-(4 rows)
+(3 rows)
 1: ROLLBACK;
 ROLLBACK
 
