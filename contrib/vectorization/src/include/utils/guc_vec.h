@@ -37,5 +37,6 @@ extern bool gather_motion_take;
 /* enable execution resources */
 extern bool enable_vector_memory_resource;
 extern int pool_threads;
+extern bool print_fallback_log;
 
 #endif   /* GUC_VEC_H */

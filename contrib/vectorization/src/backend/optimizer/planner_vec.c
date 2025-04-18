@@ -58,6 +58,11 @@
 #include <sys/file.h>
 #include <regex.h>
 
+#define FALLBACK_LOG(fmt, ...) do { \
+	if (print_fallback_log) \
+		elog(LOG, "Fallback to non-vectorization: " fmt, ##__VA_ARGS__); \
+} while (0)
+
 planner_hook_type           planner_prev = NULL;
 
 static void arrow_aggref_adapter(List *targetlist);
@@ -95,7 +100,7 @@ is_type_vectorable(Oid typeOid)
 {
 	if (PGTypeToArrowID(typeOid) > 0)
 		return true;
-	elog(DEBUG2, "Fallback to non-vectorization; type %d not support", typeOid);
+	FALLBACK_LOG("type %d not support", typeOid);
 	return false;
 }
 
@@ -105,13 +110,13 @@ is_func_vectorable(Oid funcOid, List* args)
 	const FuncTable *fmgr = get_arrow_fmgr(funcOid);
 	if (!fmgr)
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; funcOid %d not support", funcOid);
+		FALLBACK_LOG("funcOid %d not support", funcOid);
 		return false;
 	}
 
 	if (!fmgr->checkFunc(args))
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; funcOid %d not extra check failed", funcOid);
+		FALLBACK_LOG("funcOid %d not extra check failed", funcOid);
 		return false;
 	}
 	return true;
@@ -139,7 +144,7 @@ is_aggfn_vectorable(Oid aggfnOid)
 {
 	if (get_arrow_agg_fmgr(aggfnOid) != NULL)
 		return true;
-	elog(DEBUG2, "Fallback to non-vectorization; aggfnoid %d not support", aggfnOid);
+	FALLBACK_LOG("aggfnoid %d not support", aggfnOid);
 	return false;
 }
 
@@ -154,12 +159,12 @@ is_scan_type_vectorable(Form_pg_attribute attr)
 	Oid typeOid = attr->atttypid;
 	if (typeOid == TIDOID && attr->attnum != SelfItemPointerAttributeNumber)
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; scan type user tid not support");
+		FALLBACK_LOG("scan type user tid not support");
 		return false;
 	}
 	if (typeOid == BYTEAOID || type_is_array(typeOid))
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; scan type %d not support", typeOid);
+		FALLBACK_LOG("scan type %d not support", typeOid);
 		return false;
 	}
 	if (typeOid == NUMERICOID)
@@ -167,14 +172,14 @@ is_scan_type_vectorable(Form_pg_attribute attr)
 		int32_t numeric_type, precision;
 		if (attr->atttypmod == -1)
 		{
-			elog(DEBUG2, "Fallback to non-vectorization; numeric type precision and scale not specified");
+			FALLBACK_LOG("numeric type precision and scale not specified");
 			return false;
 		}
 		numeric_type = attr->atttypmod - VARHDRSZ;
 		precision = (numeric_type >> 16) & 0xffff;
 		if (precision > VEC_NUMERIC_MAX_PRECISION)
 		{
-			elog(DEBUG2, "Fallback to non-vectorization; numeric type precision %d not support", precision);
+			FALLBACK_LOG("numeric type precision %d not support", precision);
 			return false;
 		}
 	}
@@ -296,7 +301,7 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 			{
 				optimizer_spilling_mem_threshold = 0.0;
 				result = generate_plan(parse, query_string, cursorOptions, boundParams);
-				elog(DEBUG2, "Fallback to non-vectorization; current plan cannot be vectorized");
+				FALLBACK_LOG("current plan cannot be vectorized");
 			}
 			else
 			{
@@ -525,7 +530,7 @@ is_expr_vectorable(Expr* expr, void *context)
 					funcid = aggref->aggfnoid;
 					if(aggref->aggfilter != NULL)
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; agg filter not support");
+						FALLBACK_LOG("agg filter not support");
 						return false;
 					}
 				}
@@ -536,7 +541,7 @@ is_expr_vectorable(Expr* expr, void *context)
 					funcid = wfunc->winfnoid;
 					if(wfunc->aggfilter != NULL)
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; agg filter not support");
+						FALLBACK_LOG("agg filter not support");
 						return false;
 					}
 				}
@@ -564,7 +569,7 @@ is_expr_vectorable(Expr* expr, void *context)
 						|| !IsA(lsecond(arrayexpr->args), Const)
 						|| !arrayexpr->useOr)
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; ScalarArrayOpExpr only support IN operator");
+					FALLBACK_LOG("ScalarArrayOpExpr only support IN operator");
 					return false;
 				}
 
@@ -572,7 +577,7 @@ is_expr_vectorable(Expr* expr, void *context)
 				Const *const_expr = (Const *) lsecond(arrayexpr->args);
 				if (const_expr->constisnull)
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; ScalarArrayOpExpr only support IN operator");
+					FALLBACK_LOG("ScalarArrayOpExpr only support IN operator");
 					return false;
 				}
 			}
@@ -590,7 +595,7 @@ is_expr_vectorable(Expr* expr, void *context)
 				Param *param = (Param *) expr;
 				if (param->paramkind != PARAM_EXEC)
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; PARAM only support PARAM_EXEC");
+					FALLBACK_LOG("PARAM only support PARAM_EXEC");
 					return false;
 				}
 				break;
@@ -608,8 +613,7 @@ is_expr_vectorable(Expr* expr, void *context)
 			break;
 		/* All other expression fallback */
 		default:
-			elog(DEBUG2, "Fallback to non-vectorization; Expression not support %s",
-					nodeToString(expr));
+			FALLBACK_LOG("Expression not support %s", nodeToString(expr));
 			return false;
 			break;
 	}
@@ -632,7 +636,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 
 	if (!rtable)
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; Query without table.");
+		FALLBACK_LOG("Query without table.");
 		return false;
 	}
 
@@ -644,7 +648,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 
 	if (plan->parallel_aware)
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; Query with parallel.");
+		FALLBACK_LOG("Query with parallel.");
 		return false;
 	}
 
@@ -671,7 +675,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 			{
 				if (!plan->lefttree)
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Result without table.");
+					FALLBACK_LOG("Result without table.");
 					return false;
 				}
 			}
@@ -683,14 +687,14 @@ is_plan_vectorable(Plan* plan, List *rtable)
 				if (agg->aggstrategy == AGG_MIXED || agg->groupingSets
 						|| (fallback_distinct_junk(plan)))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Unsupported Agg type.");
+					FALLBACK_LOG("Unsupported Agg type.");
 					return false;
 				}
 				for (int i = 0; i < agg->numCols; i++)
 				{
 					if (agg->grpOperators[i] == ARRAY_EQ_OP)
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; ARRAY_EQ_OP in agg.");
+						FALLBACK_LOG("ARRAY_EQ_OP in agg.");
 						return false;
 					}
 				}
@@ -714,7 +718,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 				    )
 				   )
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; frameOption: %d with "
+					FALLBACK_LOG("frameOption: %d with "
 					             "\"frame\" clause not supported.", frameOptions);
 					return false;
 				}
@@ -730,8 +734,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 						Sort *sort = (Sort *)child;
 						if (sort->numCols < wagg->ordNumCols)
 						{
-							elog(DEBUG2, "Fallback to non-vectorization; "
-										"the number of sort keys: %d in the child Sort "
+							FALLBACK_LOG("the number of sort keys: %d in the child Sort "
 										"is less than the number of \"order by\" keys: %d in WindowAgg.",
 										sort->numCols, wagg->ordNumCols);
 							return false;
@@ -742,8 +745,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 						Motion *motion = (Motion *)child;
 						if (!motion->sendSorted)
 						{
-							elog(DEBUG2, "Fallback to non-vectorization; "
-										"the motion node is NOT sorted.");
+							FALLBACK_LOG("the motion node is NOT sorted.");
 							return false;
 						}
 					}
@@ -753,23 +755,20 @@ is_plan_vectorable(Plan* plan, List *rtable)
 
 						if (agg->aggstrategy != AGG_SORTED)
 						{
-							elog(DEBUG2, "Fallback to non-vectorization; "
-										"the agg node is NOT sorted.");
+							FALLBACK_LOG("the agg node is NOT sorted.");
 							return false;
 						}
 
 						Plan *child_of_agg = child->lefttree;
 						if (!IsA(child_of_agg, Motion) && !IsA(child_of_agg, Sort))
 						{
-							elog(DEBUG2, "Fallback to non-vectorization; "
-										"the child node of GroupAgg is NOT Sort or sorted GatherMotion.");
+							FALLBACK_LOG("the child node of GroupAgg is NOT Sort or sorted GatherMotion.");
 							return false;
 						}
 					}
 					else
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; "
-									"the child node of the WindowAgg is NOT Sort or sorted GatherMotion.");
+						FALLBACK_LOG("the child node of the WindowAgg is NOT Sort or sorted GatherMotion.");
 						return false;
 					}
 				}
@@ -778,7 +777,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 				{
 					if (wagg->partOperators[i] == ARRAY_EQ_OP)
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; ARRAY_EQ_OP in window agg.");
+						FALLBACK_LOG("ARRAY_EQ_OP in window agg.");
 						return false;
 					}
 				}
@@ -790,17 +789,17 @@ is_plan_vectorable(Plan* plan, List *rtable)
 				HashJoin* hash_expr = (HashJoin *)plan;
 				if (!is_expr_vectorable((Expr *)hash_expr->join.joinqual, NULL))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Unsupported join qual expr.");
+					FALLBACK_LOG("Unsupported join qual expr.");
 					return false;
 				}
 				if (!is_expr_vectorable((Expr *)hash_expr->hashkeys, NULL) || joinclauses_type_different((Expr *)hash_expr->hashclauses, NULL))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Unsupported hash key expr.");
+					FALLBACK_LOG("Unsupported hash key expr.");
 					return false;
 				}
 				if (!is_expr_vectorable((Expr *)hash_expr->hashqualclauses, NULL) || !is_expr_vectorable((Expr *)hash_expr->hashclauses, NULL) || joinclauses_type_different((Expr *)hash_expr->hashclauses, NULL))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Unsupported hash clauses expr.");
+					FALLBACK_LOG("Unsupported hash clauses expr.");
 					return false;
 				}
 			}
@@ -810,12 +809,12 @@ is_plan_vectorable(Plan* plan, List *rtable)
 				NestLoop *tstlp = (NestLoop *) plan;
 				if (fallback_nested_loop_jointype(plan) || joinclauses_type_different((Expr *) tstlp->join.joinqual, NULL))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Unsupported nested join type.");
+					FALLBACK_LOG("Unsupported nested join type.");
 					return false;
 				}
 				if (!is_expr_vectorable((Expr *)tstlp->join.joinqual, NULL))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; Unsupported nested join qual expr.");
+					FALLBACK_LOG("Unsupported nested join qual expr.");
 					return false;
 				}
 			}
@@ -826,7 +825,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 
 				if (!is_hash_expr_vectorable((Expr *)motion->hashExprs, NULL))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; hash expr support.");
+					FALLBACK_LOG("hash expr support.");
 					return false;
 				}
 			}
@@ -837,20 +836,17 @@ is_plan_vectorable(Plan* plan, List *rtable)
 
 				if (node->limitOption == LIMIT_OPTION_WITH_TIES)
 				{
-					elog(DEBUG2, "Fallback to non-vectorization;"
-							" LIMIT_OPTION_WITH_TIES is not support.");
+					FALLBACK_LOG("LIMIT_OPTION_WITH_TIES is not support.");
 					return false;
 				}
 				if (node->limitCount && !IsA(node->limitCount, Const))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization;"
-							" LIMIT only support const expr");
+					FALLBACK_LOG("LIMIT only support const expr");
 					return false;
 				}
 				if (node->limitOffset && !IsA(node->limitOffset, Const))
 				{
-					elog(DEBUG2, "Fallback to non-vectorization;"
-							" LIMIT only support const expr");
+					FALLBACK_LOG("LIMIT only support const expr");
 					return false;
 				}
 			}
@@ -871,7 +867,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 					Plan *initNode = (Plan *)lfirst(lc);
 					if (!is_plan_vectorable(initNode, rtable))
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; Append subnode.");	
+						FALLBACK_LOG("Append subnode.");	
 						return false;
 					}
 				}
@@ -886,7 +882,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 					Plan *initNode = (Plan *)lfirst(lc);
 					if (!is_plan_vectorable(initNode, rtable))
 					{
-						elog(DEBUG2, "Fallback to non-vectorization; Sequence subplan.");	
+						FALLBACK_LOG("Sequence subplan.");	
 						return false;
 					}
 				}
@@ -911,7 +907,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 		/* All other plan node fallback */
 		default:
 			{
-				elog(DEBUG2, "Fallback to non-vectorization, node is not supported, tag is : %d", nodeTag(plan));	
+				FALLBACK_LOG("node is not supported, tag is : %d", nodeTag(plan));	
 				return false;
 			}
 	}
@@ -933,7 +929,7 @@ is_foreign_scan_vectorable(ForeignScan *foreignscan)
 	for (i = 0; i < sizeof(vector_foreign_data_wapper_whitelist)/ sizeof(char *); i++)
 		if (strcmp(vector_foreign_data_wapper_whitelist[i], fdw->fdwname) == 0)
 			return true;
-	elog(DEBUG2, "Fallback to non-vectorization, unsupported foreign data wrapper: %s", fdw->fdwname);
+	FALLBACK_LOG("unsupported foreign data wrapper: %s", fdw->fdwname);
 	return false;
 }
 
@@ -1038,7 +1034,7 @@ is_relation_vectorable(Scan* seqscan, List *rtable, bool isForeign)
 	/* Invalid table fallback */
 	if ((rte == NULL) || (rte->rtekind != RTE_RELATION))
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; Invalid relation");
+		FALLBACK_LOG("Invalid relation");
 		return false;
 	}
 
@@ -1056,21 +1052,19 @@ is_relation_vectorable(Scan* seqscan, List *rtable, bool isForeign)
 
 			if (strcmp(def->defname, "transactional") == 0 && defGetBoolean(def))
 			{
-				elog(DEBUG2, "Fallback to non-vectorization;"
-						" foreign table relation is transactional.");
+				FALLBACK_LOG("foreign table relation is transactional.");
 				return false;
 			}
 			if (strcmp(def->defname, "format") == 0 && strcmp(defGetString(def), "orc") != 0)
 			{
-				elog(DEBUG2, "Fallback to non-vectorization;"
-						" foreign table relation is not orc.");
+				FALLBACK_LOG("foreign table relation is not orc.");
 				return false;
 			}
 		}
 	}
 	else if (!(table_scan_flags(rel) & SCAN_SUPPORT_VECTORIZATION))
 	{
-		elog(DEBUG2, "Fallback to non-vectorization; relation does not support vectorization.");
+		FALLBACK_LOG("relation does not support vectorization.");
 		relation_close(rel, AccessShareLock);
 		return false;
 	}
@@ -1100,7 +1094,7 @@ is_relation_vectorable(Scan* seqscan, List *rtable, bool isForeign)
 		/* FIXME: fix this bug to support rle_type */
 		if (strcmp(compresstype, "rle_type") == 0)
 		{
-			elog(DEBUG2, "Fallback to non-vectorization; relation is rel_type compressed.");
+			FALLBACK_LOG("relation is rel_type compressed.");
 			return false;
 		}
 	}
@@ -1154,7 +1148,7 @@ is_sort_collation_vectorable(Sort *sort)
 				}
 			}
 
-			elog(DEBUG2, "Fallback to non-vectorization; Unsupported collation %d : %s. ",
+			FALLBACK_LOG("Unsupported collation %d : %s. ",
 					collform->oid, localeptr);
 			ReleaseSysCache(tp);
 			return false;
@@ -1256,8 +1250,7 @@ is_hash_expr_vectorable(Expr *expr, void *context)
 						|| (con->consttype == DATEOID)
 						|| (con->consttype == TEXTOID))
 					break;
-				elog(DEBUG2, "Fallback to non-vectorization;"
-						" Hash expression const type not support %d",
+				FALLBACK_LOG("Hash expression const type not support %d",
 						con->consttype);
 				return false;
 			}
@@ -1268,8 +1261,7 @@ is_hash_expr_vectorable(Expr *expr, void *context)
 
 				if (bexpr->boolop == AND_EXPR || bexpr->boolop == OR_EXPR)
 					break;
-				elog(DEBUG2, "Fallback to non-vectorization;"
-							 " Hash expression bool expr type not support %d",
+				FALLBACK_LOG("Hash expression bool expr type not support %d",
 					 bexpr->boolop);
 				return false;
 			}
@@ -1283,7 +1275,7 @@ is_hash_expr_vectorable(Expr *expr, void *context)
 				OpExpr *opexpr = (OpExpr *) expr;
 				if (!is_gandiva_func_support(opexpr->opno))
 				{
-					elog(DEBUG2, "converting invalid opexpr to gandiva node, func id : %d",
+					FALLBACK_LOG("converting invalid opexpr to gandiva node, func id : %d",
 						(int) opexpr->opno);
 					return false;
 				}
@@ -1294,15 +1286,14 @@ is_hash_expr_vectorable(Expr *expr, void *context)
 				FuncExpr *opexpr = (FuncExpr *)expr;
 				if (opexpr->funcid != F_SUBSTR_TEXT_INT4_INT4 && opexpr->funcid != F_UPPER_TEXT)
 				{
-					elog(DEBUG2, "converting invalid funcexpr to gandiva node, func id : %d",
+					FALLBACK_LOG("converting invalid funcexpr to gandiva node, func id : %d",
 						(int) opexpr->funcid);
 					return false;
 				}
 			}
 			break;
 		default:
-			elog(DEBUG2, "Fallback to non-vectorization;"
-					" Hash expression not support %s", nodeToString(expr));
+			FALLBACK_LOG("Hash expression not support %s", nodeToString(expr));
 			return false;
 	}
 

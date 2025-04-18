@@ -187,6 +187,15 @@ _PG_init(void)
                             GUC_GPDB_NEED_SYNC,
                             NULL, NULL, NULL);
 
+    DefineCustomBoolVariable("vector.print_fallback_log",
+							 "This guc enables print fallback log",
+							 NULL,
+							 &print_fallback_log,
+							 false,
+							 PGC_USERSET,
+							 GUC_GPDB_NO_SYNC,
+							 NULL, NULL, NULL);
+
     exec_simple_query_hook_prev = exec_simple_query_hook;
     exec_simple_query_hook = exec_simple_query_vec;
 
