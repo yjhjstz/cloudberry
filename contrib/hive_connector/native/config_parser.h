@@ -24,6 +24,7 @@ typedef struct HdfsConfigItem
 	char *krbPrincipal;
 	char *krbKeytab;
 	char *hadoopRpcProtection;
+	char *dataTransferProtocol;
 	char *enableHA;
 	List *haEntries;
 } HdfsConfigItem;

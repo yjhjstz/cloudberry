@@ -290,6 +290,12 @@ formServerCreateStmt(const char *serverName, const char *dataWrapperName, const 
 		appendStringInfo(&sqlBuf, ", hadoop_rpc_protection '%s'", hdfsConf->hadoopRpcProtection);
 	}
 
+	// add data_transfer_protocol to server if exists.
+	if (hdfsConf->dataTransferProtocol)
+	{
+		appendStringInfo(&sqlBuf, ", data_transfer_protocol '%s'", hdfsConf->dataTransferProtocol);
+	}
+
 	// add kerberos config to server if auth_method is kerberos.
 	if (!strcmp(hdfsConf->authMethod, "kerberos"))
 	{

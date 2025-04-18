@@ -29,6 +29,7 @@ static const config_elt hdfsConfigElts[] = {
 	{"krb_principal", offsetof(HdfsConfigItem, krbPrincipal)},
 	{"krb_principal_keytab", offsetof(HdfsConfigItem, krbKeytab)},
 	{"hadoop_rpc_protection", offsetof(HdfsConfigItem, hadoopRpcProtection)},
+	{"data_transfer_protocol", offsetof(HdfsConfigItem, dataTransferProtocol)},
 	{"is_ha_supported", offsetof(HdfsConfigItem, enableHA)},
 };
 
