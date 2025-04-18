@@ -31,7 +31,10 @@ int initializeDefaultMap(List *attNums,
 					 int *defMap,
 					 ExprState **defExprs);
 
-List *transfromHMSPartitions(List *partitions);
+bool
+equalHMSSpecifyMaxPartitonValue(List *partitionValue, char* specifyMaxPartitonValue);
+
+List *transfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue);
 
 Datum
 ExecEvalConst(ExprState *exprstate, ExprContext *econtext,

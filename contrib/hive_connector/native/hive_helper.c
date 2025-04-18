@@ -819,7 +819,7 @@ formCreateStmt3Compatibility3X(HmsHandle *hms,
 	char *keyBuf;
 	char *hdfsPath;
 	const char *sqlFmt = "create readable external table %s(%s) location "
-					  "('gphdfs://%s/%s=%s hive_cluster_name=%s datasource=%s.%s "
+					  "('gphdfs://%s/ hive_cluster_name=%s datasource=%s.%s "
 					  "hdfs_cluster_name=%s cache=%s transactional=%s "
 					  "partition_keys=%s partition_value=%s') format '%s' ";
 
@@ -838,8 +838,6 @@ formCreateStmt3Compatibility3X(HmsHandle *hms,
 			destTableName,
 			field,
 			hdfsPath,
-			partKeys[0],
-			specifyMaxPartitionValue,
 			hiveClusterName,
 			hiveDbName,
 			hiveTableName,

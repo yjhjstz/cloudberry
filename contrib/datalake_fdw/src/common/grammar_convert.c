@@ -550,6 +550,8 @@ ConvertExternalTableStmt(CreateExternalStmt *createExtStmt)
 			parse_options(url, "file_size_limit", "filesizelimit", &foreignOptions);
 			// 5. get partition_keys
 			parse_options(url, "partition_keys", "partitionkeys", &foreignOptions);
+			// 5.1 get partition_values
+			parse_options(url, "partition_value", "partitionvalue", &foreignOptions);
 			// 6. get cache
 			parse_options(url, "cache", "enablecache", &foreignOptions);
 			// 7. get transactional

@@ -1,8 +1,9 @@
 -- read simple table
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
-NOTICE:  table "hive_simple_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_simple_test_1" does not exist, skipping
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=') FORMAT 'orc';
-select * from hive_simple_test_1 order by a;
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from hive_simple_test_1 order by a, b;
  a  |     b     
 ----+-----------
   1 | aaaaabbbb
@@ -16,22 +17,23 @@ select * from hive_simple_test_1 order by a;
   7 | aaaaabbbb
   7 | 
   8 | aaaaabbbb
-  8 | 
   8 | aaaaabbbb
+  8 | 
+  9 | aaaaabbbb
+  9 | aaaaabbbb
   9 | 
-  9 | aaaaabbbb
-  9 | aaaaabbbb
  10 | aaaaabbbb
  10 | aaaaabbbb
-    | 
     | aaaaabbbb
+    | 
 (20 rows)
 
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
-NOTICE:  table "hive_simple_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_simple_test_1" does not exist, skipping
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=aa') FORMAT 'orc';
-select * from hive_simple_test_1 order by a;
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from hive_simple_test_1 order by a, b;
  a  |     b     
 ----+-----------
   1 | aaaaabbbb
@@ -42,25 +44,26 @@ select * from hive_simple_test_1 order by a;
   6 | aaaaabbbb
   6 | aaaaabbbb
   7 | aaaaabbbb
-  7 | 
   7 | aaaaabbbb
+  7 | 
+  8 | aaaaabbbb
   8 | aaaaabbbb
   8 | 
-  8 | aaaaabbbb
+  9 | aaaaabbbb
   9 | aaaaabbbb
   9 | 
-  9 | aaaaabbbb
  10 | aaaaabbbb
  10 | aaaaabbbb
-    | 
     | aaaaabbbb
+    | 
 (20 rows)
 
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
-NOTICE:  table "hive_simple_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_simple_test_1" does not exist, skipping
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value') FORMAT 'orc';
-select * from hive_simple_test_1 order by a;
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from hive_simple_test_1 order by a, b;
  a  |     b     
 ----+-----------
   1 | aaaaabbbb
@@ -74,22 +77,23 @@ select * from hive_simple_test_1 order by a;
   7 | aaaaabbbb
   7 | 
   8 | aaaaabbbb
-  8 | 
   8 | aaaaabbbb
+  8 | 
+  9 | aaaaabbbb
+  9 | aaaaabbbb
   9 | 
-  9 | aaaaabbbb
-  9 | aaaaabbbb
  10 | aaaaabbbb
  10 | aaaaabbbb
-    | 
     | aaaaabbbb
+    | 
 (20 rows)
 
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 -- read partition table
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
-NOTICE:  table "hive_type_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '1', 'paa_cluster', 'hive_type_test_1', 'false');
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -113,8 +117,10 @@ select count(*) from hive_type_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
-NOTICE:  table "hive_type_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '2', 'paa_cluster', 'hive_type_test_1');
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -138,8 +144,10 @@ select count(*) from hive_type_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
-NOTICE:  table "hive_type_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '3', 'paa_cluster', 'hive_type_test_1');
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -168,8 +176,10 @@ select count(*) from hive_type_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
-NOTICE:  table "hive_type_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_type_test_1', '3', 'paa_cluster', 'hive_type_test_1');
+NOTICE:  foreign table "hive_type_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -199,8 +209,10 @@ select count(*) from hive_type_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;
 -- read multi partition key
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '1', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -243,8 +255,10 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '2', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -273,8 +287,10 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '3', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -307,8 +323,10 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '4', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -337,8 +355,10 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '5', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -371,8 +391,10 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '6', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -401,8 +423,10 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
-NOTICE:  table "hive_test_1" does not exist, skipping
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_1', '7', 'paa_cluster', 'hive_test_1');
+NOTICE:  foreign table "hive_test_1" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
@@ -435,14 +459,16 @@ select count(*) from hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
-NOTICE:  table "hive_test_2" does not exist, skipping
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'aa', 'paa_cluster', 'hive_test_2');
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
 (1 row)
 
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
  id |   name    | m  | n  | o  | p  | q  | s  
 ----+-----------+----+----+----+----+----+----
   9 | bbbbcccc  | aa | bb | aa | aa | aa | aa
@@ -467,14 +493,16 @@ select count(*) from hive_test_2;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
-NOTICE:  table "hive_test_2" does not exist, skipping
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'bb', 'paa_cluster', 'hive_test_2');
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
 (1 row)
 
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
  id |   name   | m  | n  | o  | p  | q  | s  
 ----+----------+----+----+----+----+----+----
   8 | ddddbbbb | bb | cc | aa | aa | aa | aa
@@ -482,8 +510,8 @@ select * from hive_test_2 order by id, name, m, n, o, p;
   8 | ddddbbbb | bb | cc | aa | aa | aa | aa
   8 | ddddbbbb | bb | cc | aa | cc | aa | aa
   8 | ddddbbbb | bb | cc | aa | cc | aa | aa
-  8 | ddddbbbb | bb | cc | aa | cc | dd | aa
   8 | ddddbbbb | bb | cc | aa | cc | aa | aa
+  8 | ddddbbbb | bb | cc | aa | cc | dd | aa
   8 | ddddbbbb | bb | cc | bb | aa | aa | aa
 (8 rows)
 
@@ -495,14 +523,16 @@ select count(*) from hive_test_2;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
-NOTICE:  table "hive_test_2" does not exist, skipping
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'cc', 'paa_cluster', 'hive_test_2');
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
 (1 row)
 
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
  id |  name  | m  | n  | o  | p  | q  | s  
 ----+--------+----+----+----+----+----+----
   7 | fdsfsf | cc | dd | aa | aa | aa | aa
@@ -521,14 +551,16 @@ select count(*) from hive_test_2;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
-NOTICE:  table "hive_test_2" does not exist, skipping
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', '7', 'paa_cluster', 'hive_test_2');
+NOTICE:  foreign table "hive_test_2" does not exist, skipping
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
  sync_hive_partition_table 
 ---------------------------
  t
 (1 row)
 
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
  id |   name    | m | n  | o  | p  | q  | s  
 ----+-----------+---+----+----+----+----+----
  10 | aaaaabbbb | 7 | aa | aa | aa | aa | aa

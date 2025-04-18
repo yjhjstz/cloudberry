@@ -281,7 +281,7 @@ deserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions 
 		List *partitionValues = list_nth(fragmentInfo, PrivatePartitionData);
 
 		/* transfrom partition values */
-		options->hiveOption->hivePartitionValues = transfromHMSPartitions(partitionValues);
+		options->hiveOption->hivePartitionValues = transfromHMSPartitions(partitionValues, options->hiveOption->specifyMaxPartitonValue);
 		initializeConstraints(options, quals, relation->rd_att);
 	}
 

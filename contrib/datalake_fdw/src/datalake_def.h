@@ -77,6 +77,7 @@
 #define DATALAKE_OPTION_HIVE_TRANSACTIONAL "transactional"
 #define DATALAKE_OPTION_HIVE_CLUSTER_NAME "hive_cluster_name"
 #define DATALAKE_OPTION_HDFS_CLUSTER_NAME "hdfs_cluster_name"
+#define DATALAKE_OPTION_PARTITION_VALUE "partitionvalue"
 
 /* foreign table custom options */
 #define DATALAKE_OPTION_FORMAT_CUSTOM "custom"
@@ -245,6 +246,7 @@ typedef struct hiveOptions
 	char	*datasource;
 	/* whether hive table is partition table */
 	bool	partitiontable;
+	char	*specifyMaxPartitonValue;
 }hiveOptions;
 
 typedef struct dataLakeOptions

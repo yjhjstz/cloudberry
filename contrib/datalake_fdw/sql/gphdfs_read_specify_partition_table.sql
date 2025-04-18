@@ -1,17 +1,17 @@
 -- read simple table
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=') FORMAT 'orc';
-select * from hive_simple_test_1 order by a;
+select * from hive_simple_test_1 order by a, b;
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value=aa') FORMAT 'orc';
-select * from hive_simple_test_1 order by a;
+select * from hive_simple_test_1 order by a, b;
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 CREATE READABLE EXTERNAL TABLE hive_simple_test_1(a int, b text) LOCATION('gphdfs://user/hive/warehouse/hive_specify_partition_load_data_test.db/hive_simple_test_1/ hdfs_cluster_name=paa_cluster partition_value') FORMAT 'orc';
-select * from hive_simple_test_1 order by a;
+select * from hive_simple_test_1 order by a, b;
 DROP EXTERNAL TABLE IF EXISTS hive_simple_test_1;
 
 -- read partition table
@@ -84,24 +84,24 @@ DROP EXTERNAL TABLE IF EXISTS hive_test_1;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'aa', 'paa_cluster', 'hive_test_2');
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
 select count(*) from hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'bb', 'paa_cluster', 'hive_test_2');
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
 select count(*) from hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', 'cc', 'paa_cluster', 'hive_test_2');
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
 select count(*) from hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;
 select sync_hive_partition_table('hive_cluster', 'hive_specify_partition_load_data_test', 'hive_test_2', '7', 'paa_cluster', 'hive_test_2');
-select * from hive_test_2 order by id, name, m, n, o, p;
+select * from hive_test_2 order by id, name, m, n, o, p, q, s;
 select count(*) from hive_test_2;
 DROP EXTERNAL TABLE IF EXISTS hive_test_2;

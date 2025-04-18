@@ -99,6 +99,9 @@ function load_data_to_docker() {
 	BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 	docker cp $BASE_DIR/sql/load_logerror_data.sql services-hive:/sql/
 	docker exec -i services-hive sh -c "hive -f /sql/load_logerror_data.sql"
+
+	docker cp $BASE_DIR/sql/load_hive_specify_partition.sql services-hive:/sql/
+	docker exec -i services-hive sh -c "hive -f /sql/load_hive_specify_partition.sql"
 }
 
 function load_delimiter_data_to_docker() {

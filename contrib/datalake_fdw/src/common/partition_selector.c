@@ -568,8 +568,20 @@ initializeDefaultMap(List *attNums,
 	return nDefaults;
 }
 
+bool
+equalHMSSpecifyMaxPartitonValue(List *partitionValue, char* specifyMaxPartitonValue)
+{
+	ListCell* values = list_head(partitionValue);
+	char *iValues = strVal(lfirst(values));
+	if (strncmp(iValues, specifyMaxPartitonValue, strlen(specifyMaxPartitonValue)) == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
 List *
-transfromHMSPartitions(List *partitions)
+transfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue)
 {
 	ListCell *li;
 	ListCell *lc;
@@ -580,6 +592,14 @@ transfromHMSPartitions(List *partitions)
 		List *values = NIL;
 		List *lValues = (List *) lfirst(lc);
 
+		if (specifyMaxPartitonValue != NULL)
+		{
+			if (!equalHMSSpecifyMaxPartitonValue(lValues, specifyMaxPartitonValue))
+			{
+				continue;
+			}
+		}
+
 		foreach(li, lValues)
 		{
 			char *iValues = strVal(lfirst(li));
@@ -587,6 +607,13 @@ transfromHMSPartitions(List *partitions)
 		}
 
 		result = lappend(result, values);
+	}
+	if (specifyMaxPartitonValue != NULL && result == NIL)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_IO_ERROR),
+						errmsg("External table matching partition value %s not found. "
+						"Verify that the partition value is given correctly.", specifyMaxPartitonValue)));
 	}
 
 	return result;

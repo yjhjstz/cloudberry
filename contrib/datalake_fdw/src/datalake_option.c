@@ -98,6 +98,7 @@ static const struct datalakeFdwOption valid_foreign_options[] = {
 	{DATALAKE_OPTION_CACHE_ENABLED, ForeignTableRelationId},
 	{DATALAKE_OPTION_QUERY_TYPE, ForeignTableRelationId},
 	{DATALAKE_OPTION_METADATA_TABLE_ENABLE, ForeignTableRelationId},
+	{DATALAKE_OPTION_PARTITION_VALUE, ForeignTableRelationId},
 	{NULL, InvalidOid}
 };
 
@@ -402,6 +403,11 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 			{
 				opt->hiveOption->transactional = false;
 			}
+		}
+
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_PARTITION_VALUE) == 0)
+		{
+			opt->hiveOption->specifyMaxPartitonValue = pstrdup(defGetString(def));
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_HIVE_CLUSTER_NAME) == 0)
@@ -994,6 +1000,12 @@ void freeDataLakeOptions(dataLakeOptions *options)
 		{
 			pfree(options->hiveOption->datasource);
 			options->hiveOption->datasource = NULL;
+		}
+
+		if (options->hiveOption->specifyMaxPartitonValue)
+		{
+			pfree(options->hiveOption->specifyMaxPartitonValue);
+			options->hiveOption->specifyMaxPartitonValue = NULL;
 		}
 	}
 
