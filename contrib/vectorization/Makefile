@@ -26,8 +26,10 @@ SUBDIRS = $(VHEAP) $(ARROW) $(AOCS) $(COMMON) $(AM) $(HOOK) $(PLAN) $(MISC) $(EX
 SRC := $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c))
 OBJS = main.o $(patsubst %.c,%.o,$(SRC))
 
-PG_CFLAGS += $(shell pkg-config --cflags glib-2.0 gobject-2.0)
-PG_LDFLAGS += $(shell pkg-config --libs glib-2.0 gobject-2.0)
+arrow_dist_dir = $(abspath $(top_builddir)/contrib/apache-arrow/dist)
+
+PG_CFLAGS += $(shell pkg-config --cflags glib-2.0 gobject-2.0) -I$(arrow_dist_dir)/include
+PG_LDFLAGS += $(shell pkg-config --libs glib-2.0 gobject-2.0) -L$(arrow_dist_dir)/lib
 PG_LDFLAGS += -lgandiva-glib -lgandiva -larrow-glib -larrow -larrow-dataset-glib
 
 PG_CFLAGS += -I$(PAX_DIR)/src/cpp/
@@ -60,16 +62,6 @@ uninstall-data:
 	$(RM) '$(DESTDIR)$(datadir)/cdb_init.d/vectorization--1.0.sql'
 
 uninstall: uninstall-data
-
-debug = ""
-
-ifeq ($(enable_debug), yes)
-	debug = "debug"	
-endif
-
-.PHONY: download_arrow
-download_arrow:
-	sh ../../dependencies.sh vectorization $(debug)
 
 .PHONY: vec_test
 vec_test:

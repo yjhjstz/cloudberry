@@ -1,0 +1,4 @@
+[submodule "contrib/apache-arrow/arrow"]
+	path = contrib/apache-arrow/arrow
+	url = ../../../hashdata/storage/arrow.git
+	branch = hdw

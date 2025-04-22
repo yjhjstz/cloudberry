@@ -12,6 +12,10 @@ $(call recurse,all install,src config)
 
 
 all:
+ifeq ($(or $(enable_vectorization),$(enable_datalake),$(enable_pax)),yes)
+	# make sure apache-arrow is built before others
+	$(MAKE) -C contrib/apache-arrow all
+endif
 	$(MAKE) -C contrib all
 	$(MAKE) -C gpMgmt all
 	$(MAKE) -C gpcontrib all

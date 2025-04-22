@@ -47,6 +47,8 @@ ifeq ($(USE_PAX_CATALOG),)
     USE_PAX_CATALOG := OFF
 endif
 
+arrow_dist_dir = $(abspath $(top_builddir)/contrib/apache-arrow/dist)
+
 .PHONY: install-data build
 build: $(SRC) $(CSRC)
 	@echo "build pax, USE_MANIFEST_API=$(USE_MANIFEST_API) USE_PAX_CATALOG=$(USE_PAX_CATALOG)"
@@ -54,7 +56,7 @@ build: $(SRC) $(CSRC)
 		mkdir -p build && \
 		cd build && \
 		cmake -DCMAKE_INSTALL_PREFIX=$(DESTDIR)$(prefix) \
-			-DCMAKE_PREFIX_PATH=$(with_thirdparty)   \
+			-DCMAKE_PREFIX_PATH="$(with_thirdparty);$(arrow_dist_dir)" \
 			-DUSE_MANIFEST_API=$(USE_MANIFEST_API)   \
 			-DOPENSSL_ROOT_DIR=/usr/local            \
 			-DOPENSSL_USE_STATIC_LIBS=ON             \

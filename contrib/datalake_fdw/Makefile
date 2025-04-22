@@ -118,10 +118,12 @@ REGRESS = setup \
 endif
 REGRESS_OPTS += --init-file=test/init_file
 
-PG_CPPFLAGS += -fPIC
+arrow_dist_dir = $(abspath $(top_builddir)/contrib/apache-arrow/dist)
+
+PG_CPPFLAGS += -fPIC -I$(arrow_dist_dir)/include
 PG_CFLAGS += -Wno-error=stringop-overflow
 PG_CFLAGS += -I $(shell pg_config --includedir)
-PG_LDFLAGS += $(shell pg_config --ldflags)
+PG_LDFLAGS += $(shell pg_config --ldflags) -L$(arrow_dist_dir)/lib
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

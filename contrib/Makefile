@@ -103,16 +103,22 @@ else
 ALWAYS_SUBDIRS += hstore_plpython jsonb_plpython ltree_plpython
 endif
 
-ifeq ($(enable_pax),yes)
-SUBDIRS += pax_storage
+ifeq ($(or $(enable_vectorization),$(enable_datalake),$(enable_pax)),yes)
+SUBDIRS += apache-arrow
 else
-ALWAYS_SUBDIRS += pax_storage
+ALWAYS_SUBDIRS += apache-arrow
 endif
 
 ifeq ($(enable_vectorization),yes)
 SUBDIRS += vectorization
 else
 ALWAYS_SUBDIRS += vectorization
+endif
+
+ifeq ($(enable_pax),yes)
+SUBDIRS += pax_storage
+else
+ALWAYS_SUBDIRS += pax_storage
 endif
 
 ifeq ($(enable_gophermeta),yes)
