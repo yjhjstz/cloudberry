@@ -908,6 +908,71 @@ VecExecutorStart(QueryDesc *queryDesc, int eflags)
 	MemoryContextSwitchTo(oldcontext);
 }
 
+/*
+ * VecExecFilterJunk
+ *
+ * Construct and return a slot with all the junk attributes removed.
+ */
+static TupleTableSlot *
+VecExecFilterJunk(JunkFilter *junkfilter, TupleTableSlot *slot)
+{
+	TupleTableSlot *resultSlot;
+	AttrNumber *cleanMap;
+	TupleDesc	cleanTupType;
+	int			cleanLength;
+	int			i;
+	Datum	   *values;
+	bool	   *isnull;
+	Datum	   *old_values;
+	bool	   *old_isnull;
+
+	/*
+	 * Extract all the values of the old tuple.
+	 */
+	slot_getallattrs(slot);
+	old_values = slot->tts_values;
+	old_isnull = slot->tts_isnull;
+
+	/*
+	 * get info from the junk filter
+	 */
+	cleanTupType = junkfilter->jf_cleanTupType;
+	cleanLength = cleanTupType->natts;
+	cleanMap = junkfilter->jf_cleanMap;
+	resultSlot = junkfilter->jf_resultSlot;
+
+	/*
+	 * Prepare to build a virtual result tuple.
+	 */
+	ExecClearTuple(resultSlot);
+	values = resultSlot->tts_values;
+	isnull = resultSlot->tts_isnull;
+
+	/*
+	 * Transpose data into proper fields of the new tuple.
+	 */
+	for (i = 0; i < cleanLength; i++)
+	{
+		int			j = cleanMap[i];
+
+		if (j == 0)
+		{
+			values[i] = (Datum) 0;
+			isnull[i] = true;
+		}
+		else
+		{
+			values[i] = PointerGetDatum(garrow_copy_ptr(DatumGetPointer(old_values[j - 1])));
+			isnull[i] = old_isnull[j - 1];
+		}
+	}
+
+	/*
+	 * And return the virtual tuple.
+	 */
+	return ExecStoreVirtualTuple(resultSlot);
+}
+
 /* ----------------------------------------------------------------
  *		InitPlan
  *
@@ -1179,7 +1244,8 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 
 			slot = ExecInitExtraTupleSlot(estate, NULL, &TTSOpsVecTuple);
 			j = ExecInitJunkFilter(planstate->plan->targetlist,
-								   slot);
+								   slot,
+								   VecExecFilterJunk);
 
 			InitSlotSchema(slot);
 			TTS_SET_DIRTY(slot);
