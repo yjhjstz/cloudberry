@@ -296,6 +296,12 @@ formServerCreateStmt(const char *serverName, const char *dataWrapperName, const 
 		appendStringInfo(&sqlBuf, ", data_transfer_protocol '%s'", hdfsConf->dataTransferProtocol);
 	}
 
+	// add krb_service_principal to server if exists.
+	if (hdfsConf->krbServicePrincipal)
+	{
+		appendStringInfo(&sqlBuf, ", krb_service_principal '%s'", hdfsConf->krbServicePrincipal);
+	}
+
 	// add kerberos config to server if auth_method is kerberos.
 	if (!strcmp(hdfsConf->authMethod, "kerberos"))
 	{

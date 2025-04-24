@@ -51,6 +51,7 @@ static const struct datalakeFdwOption valid_hdfs_server_options[] = {
 	{DATALAKE_OPTION_HDFS_DFS_HA_NAMENODE, ForeignServerRelationId},
 	{DATALAKE_OPTION_HDFS_DFS_NAMENODE_RPC_ADDR, ForeignServerRelationId},
 	{DATALAKE_OPTION_HDFS_DFS_CLIENT_FAILOVER, ForeignServerRelationId},
+	{DATALAKE_OPTION_HDFS_KRB_SERVICE_PRINCIPAL, ForeignServerRelationId},
 	{NULL, InvalidOid}
 };
 
@@ -767,6 +768,11 @@ void parserHdfsServerOption(dataLakeOptions *datalakeopt, List *options)
 			{
 				datalakeopt->gopher->dfs_client_failover = pstrdup(defGetString(def));
 			}
+
+			if (pg_strcasecmp(def->defname, DATALAKE_OPTION_HDFS_KRB_SERVICE_PRINCIPAL) == 0)
+			{
+				datalakeopt->gopher->krb_service_principal = pstrdup(defGetString(def));
+			}
 		}
 	}
 }
@@ -913,6 +919,12 @@ void freeDataLakeOptions(dataLakeOptions *options)
 		{
 			pfree(options->gopher->dfs_client_failover);
 			options->gopher->dfs_client_failover = NULL;
+		}
+
+		if (options->gopher->krb_service_principal)
+		{
+			pfree(options->gopher->krb_service_principal);
+			options->gopher->krb_service_principal = NULL;
 		}
 
 		pfree(options->gopher);

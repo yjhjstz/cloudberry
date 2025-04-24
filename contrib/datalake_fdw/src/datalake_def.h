@@ -48,6 +48,7 @@
 #define DATALAKE_OPTION_HDFS_DFS_HA_NAMENODE "dfs_ha_namenodes"
 #define DATALAKE_OPTION_HDFS_DFS_NAMENODE_RPC_ADDR "dfs_namenode_rpc_address"
 #define DATALAKE_OPTION_HDFS_DFS_CLIENT_FAILOVER "dfs_client_failover_proxy_provider"
+#define DATALAKE_OPTION_HDFS_KRB_SERVICE_PRINCIPAL "krb_service_principal"
 
 #define DATALAKE_OPTION_HDFS_AUTH_SIMPLE "simple"
 #define DATALAKE_OPTION_HDFS_AUTH_KERBEROS "kerberos"
@@ -213,6 +214,7 @@ typedef struct gopherOptions
 	char*	dfs_ha_namenodes;
 	char*	dfs_ha_namenode_rpc_addr;
 	char*	dfs_client_failover;
+	char*	krb_service_principal;
 	int		hdfs_ha_configs_num;
 
 	/* ftp config */
