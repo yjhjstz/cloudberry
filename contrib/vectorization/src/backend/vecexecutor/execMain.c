@@ -183,7 +183,7 @@ static const char *GetHashJoinProjectName(PlanBuildContext *pcontext, const char
 static GArrowExpression *build_is_distinct_expression(DistinctExpr *dex, PlanBuildContext *pcontext);
 static GArrowExpression *build_null_if_expression(NullIfExpr *dex, PlanBuildContext *pcontext);
 static GArrowExecuteNode*build_orderby_node(PlanState *planstate, GArrowExecutePlan *plan, GArrowExecuteNode *input);
-static GArrowExpression *build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type, int32 typmod);
+static GArrowExpression *build_literal_expression(Datum datum, bool isnull, Oid pg_type, int32 typmod);
 static void BuildMaterializePlan(PlanBuildContext *pcontext, VecExecuteState *estate);
 static GArrowStoreType to_arrow_storetype(StoreType type);
 static void BuildShareScanPlan(PlanBuildContext *pcontext, VecExecuteState *estate);
@@ -510,19 +510,16 @@ scalararray_to_expression(ScalarArrayOpExpr *arrayexpr, PlanBuildContext *pconte
 	/* first GArrowExpression as is_in argument */
 	expr = expr_to_arrow_expression(linitial(arrayexpr->args), pcontext);
 	Assert(expr);
-	if (const_expr->constisnull)
-	{
-		val_scalar = ArrowScalarNew(GARROW_TYPE_NA,
-									const_expr->constvalue, const_expr->consttype, const_expr->consttypmod);
-	}
+
 	elemtype = get_element_type(const_expr->consttype);
 	if (elemtype == InvalidOid)
 	{
 		elog(ERROR, "is_in right is not an array.");
 	}
-	if (!const_expr->constisnull)
-		val_scalar = ArrowScalarNew(PGTypeToArrowID(const_expr->consttype),
-									const_expr->constvalue, const_expr->consttype, const_expr->consttypmod);
+
+	val_scalar = ArrowScalarNew(PGTypeToArrowID(const_expr->consttype),
+								const_expr->constvalue, const_expr->constisnull, const_expr->consttype, const_expr->consttypmod);
+
 	array = garrow_base_list_scalar_get_value(GARROW_BASE_LIST_SCALAR(val_scalar));
 	array_datum = garrow_array_datum_new(array);
 	/* is_in need skip null follow pg(in null is false) */
@@ -704,7 +701,7 @@ build_divide_casewhen(Expr *expr, PlanBuildContext *pcontext)
 	struct_expr = GARROW_EXPRESSION(garrow_call_expression_new(
 			"make_struct", when_arguments, GARROW_FUNCTION_OPTIONS(options)));
 	expr_arguments = garrow_list_prepend_ptr(expr_arguments, struct_expr);
-	default_expr = build_literal_expression(GARROW_TYPE_NA, 0, true, pcontext->case_when_type, -1);
+	default_expr = build_literal_expression(0, true, pcontext->case_when_type, -1);
 	expr_arguments = garrow_list_append_ptr(expr_arguments, default_expr);
 	casewhen_expr = GARROW_EXPRESSION(garrow_call_expression_new("case_when", expr_arguments, NULL));
 	pfree(fields);
@@ -1059,11 +1056,11 @@ replace_expression(List *args, PlanBuildContext *pcontext, const char* name)
 }
 
 static GArrowExpression *
-build_literal_expression(GArrowType type, Datum datum, bool isnull, Oid pg_type, int32 typmod)
+build_literal_expression(Datum datum, bool isnull, Oid pg_type, int32 typmod)
 {
 	g_autoptr(GArrowScalar) val_scalar = NULL;
 	g_autoptr(GArrowDatum) val_datum = NULL;
-	val_scalar = ArrowScalarNew(isnull ? GARROW_TYPE_NA : type, datum, pg_type, typmod);
+	val_scalar = ArrowScalarNew(PGTypeToArrowID(pg_type), datum, isnull, pg_type, typmod);
 	val_datum = GARROW_DATUM(garrow_scalar_datum_new(val_scalar));
 	return GARROW_EXPRESSION(garrow_literal_expression_new(val_datum));
 }
@@ -1121,7 +1118,7 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 				}
 				else if (var->varattno == GpSegmentIdAttributeNumber)
 				{
-					expr = build_literal_expression(PGTypeToArrowID(var->vartype), GpIdentity.segindex, false, var->vartype, -1);
+					expr = build_literal_expression(GpIdentity.segindex, false, var->vartype, -1);
 					break;
 				}
 				else if (pcontext->is_nestloopjoin || (pcontext->is_hashjoin && pcontext->is_hashjoin_after_node))
@@ -1152,8 +1149,7 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 		case T_Const:
 			{
 				Const * const_expr = (Const *) node;
-				expr = build_literal_expression(PGTypeToArrowID(const_expr->consttype),
-												const_expr->constvalue,
+				expr = build_literal_expression(const_expr->constvalue,
 												const_expr->constisnull,
 												const_expr->consttype,
 												const_expr->consttypmod);
@@ -1309,8 +1305,7 @@ expr_to_arrow_expression(Expr *node, PlanBuildContext *pcontext)
 				ParamExecData *prm = &(exprcontext->ecxt_param_exec_vals[param->paramid]);
 				if (param->paramtype == NUMERICOID && prm->value == (Datum) 0)
 					prm->value = NumericGetDatum(int64_to_numeric(0));
-				expr = build_literal_expression(PGTypeToArrowID(param->paramtype),
-												prm->value,
+				expr = build_literal_expression(prm->value,
 												prm->isnull,
 												param->paramtype,
 												param->paramtypmod);
@@ -2219,7 +2214,8 @@ build_null_if_expression(NullIfExpr *dex, PlanBuildContext *pcontext)
 			"make_struct", when_arguments, GARROW_FUNCTION_OPTIONS(options)));
 	expr_arguments = garrow_list_prepend_ptr(expr_arguments, struct_expr);
 	
-	null_expr = build_literal_expression(GARROW_TYPE_NA, 0, true, exprType((Node *) linitial(dex->args)), -1);
+	Oid type = exprType((Node *) linitial(dex->args));
+	null_expr = build_literal_expression(0, true, type, -1);
 	expr_arguments = garrow_list_append_ptr(expr_arguments, null_expr);
 	
 	// Use the first arg as the return value
@@ -3570,7 +3566,7 @@ BuildNestLoopjoin(PlanBuildContext *pcontext, GArrowExecuteNode *left, GArrowExe
 	if (joinqual)
 		filter_expr = build_filter_expression(joinqual, pcontext);
 	else 
-		filter_expr = build_literal_expression(GARROW_TYPE_BOOLEAN, true, false, InvalidOid, -1);
+		filter_expr = build_literal_expression(true, false, BOOLOID, -1);
 	nest_loop_options =
 		garrow_nested_loop_join_node_options_new(type, filter_expr, "", "", &error);
 	if (error)

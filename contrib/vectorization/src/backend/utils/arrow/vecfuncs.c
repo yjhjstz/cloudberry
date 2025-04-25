@@ -199,7 +199,7 @@ pg_numeric_to_numeric128_scalar(Datum datum, int32 typmod)
 }
 
 GArrowScalar *
-ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
+ArrowScalarNew(GArrowType type, Datum datum, bool is_null, Oid pg_type, int32 typmod)
 {
 	g_autoptr(GArrowScalar) ret = NULL;
 	if (pg_type == TIDOID)
@@ -213,82 +213,144 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 	}
 	switch (type)
 	{
-		case GARROW_TYPE_NA:
-			ret = (GArrowScalar*)garrow_null_scalar_new(PGTypeToArrow(pg_type));
-			break;
 		case GARROW_TYPE_BOOLEAN:
-			ret = (GArrowScalar*)garrow_boolean_scalar_new(DatumGetBool(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_boolean_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_boolean_scalar_new(DatumGetBool(datum));
 			break;
+		}
 		case GARROW_TYPE_INT8:
-			ret = (GArrowScalar*)garrow_int8_scalar_new(DatumGetInt8(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_int8_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_int8_scalar_new(DatumGetInt8(datum));
 			break;
+		}
 		case GARROW_TYPE_INT16:
-			ret = (GArrowScalar*)garrow_int16_scalar_new(DatumGetInt16(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_int16_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_int16_scalar_new(DatumGetInt16(datum));
 			break;
+		}
 		case GARROW_TYPE_INT32:
-			ret = (GArrowScalar*)garrow_int32_scalar_new(DatumGetInt32(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_int32_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_int32_scalar_new(DatumGetInt32(datum));
 			break;
+		}
 		case GARROW_TYPE_INT64:
-			ret = (GArrowScalar*)garrow_int64_scalar_new(DatumGetInt64(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_int64_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_int64_scalar_new(DatumGetInt64(datum));
 			break;
+		}
 		case GARROW_TYPE_FLOAT:
-			ret = (GArrowScalar*)garrow_float_scalar_new(DatumGetFloat4(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_float_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_float_scalar_new(DatumGetFloat4(datum));
 			break;
+		}
 		case GARROW_TYPE_DOUBLE:
-			ret = (GArrowScalar*)garrow_double_scalar_new(DatumGetFloat8(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_double_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_double_scalar_new(DatumGetFloat8(datum));
 			break;
+		}
 		case GARROW_TYPE_DATE32:
-			ret = (GArrowScalar*)garrow_date32_scalar_new(DatumGetInt32(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_date32_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_date32_scalar_new(DatumGetInt32(datum));
 			break;
+		}
 		case GARROW_TYPE_DATE64:
-			ret = (GArrowScalar *)garrow_date64_scalar_new(DatumGetInt64(datum));
+		{
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_date64_data_type_new()));
+			else
+				ret = (GArrowScalar*)garrow_date64_scalar_new(DatumGetInt64(datum));
 			break;
+		}
 		case GARROW_TYPE_TIMESTAMP:
 		{
-			g_autoptr(GArrowTimestampDataType) timestamp_data_type = garrow_timestamp_data_type_new(GARROW_TIME_UNIT_MICRO);
-			ret = (GArrowScalar*)garrow_timestamp_scalar_new(timestamp_data_type,DatumGetInt64(datum));
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_timestamp_data_type_new(GARROW_TIME_UNIT_MICRO)));
+			else
+			{
+				g_autoptr(GArrowTimestampDataType) timestamp_data_type = garrow_timestamp_data_type_new(GARROW_TIME_UNIT_MICRO);
+				ret = (GArrowScalar*)garrow_timestamp_scalar_new(timestamp_data_type,DatumGetInt64(datum));
+			}
 			break;
 		}
 		case GARROW_TYPE_NUMERIC128:
 		{
-			ret = pg_numeric_to_numeric128_scalar(datum, typmod);
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_numeric128_data_type_new()));
+			else
+				ret = pg_numeric_to_numeric128_scalar(datum, typmod);
 			break;
 		}
 		case GARROW_TYPE_STRING:
 		{
-			struct varlena *s = (struct varlena *) datum;
-			g_autoptr(GArrowBuffer) buffer = NULL;
-			int len;
-			char *str = NULL;
+			if (is_null)
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_string_data_type_new()));
+			else
+			{
+				struct varlena *s = (struct varlena *) datum;
+				g_autoptr(GArrowBuffer) buffer = NULL;
+				int len;
+				char *str = NULL;
 
-			str = text_to_cstring(s);
-			len = VARSIZE_ANY_EXHDR(s);
-			if (pg_type == BPCHAROID)
-				len = bpchartruelen(str, len);
-			buffer = garrow_buffer_new((guint8 *)str, len);
-			ret = (GArrowScalar*)garrow_string_scalar_new(buffer);
+				str = text_to_cstring(s);
+				len = VARSIZE_ANY_EXHDR(s);
+				if (pg_type == BPCHAROID)
+					len = bpchartruelen(str, len);
+				buffer = garrow_buffer_new((guint8 *)str, len);
+				ret = (GArrowScalar*)garrow_string_scalar_new(buffer);
+			}
 			break;
 		}
 		case GARROW_TYPE_LIST:
 		{
-			ArrayType  *arr;
-			ArrayIterator array_iterator;
-			Datum value;
-			bool isnull;
-			GError *error = NULL;
-			GArrowType arrtype;
-			g_autoptr(GArrowArray) array = NULL;
-
-			arr = DatumGetArrayTypeP(datum);
-			arrtype = PGTypeToArrowID(arr->elemtype);
-			array_iterator = array_create_iterator(arr, 0, NULL);
-
-			switch (arrtype)
+			if (is_null)
 			{
+				g_autoptr(GArrowField) field = garrow_field_new("invalid", GARROW_DATA_TYPE(garrow_null_data_type_new()));
+				ret = (GArrowScalar*)garrow_invalid_scalar_new(GARROW_DATA_TYPE(garrow_list_data_type_new(garrow_move_ptr(field))));
+			}
+			else
+			{
+				ArrayType *arr;
+				ArrayIterator array_iterator;
+				Datum value;
+				bool isnull;
+				GError *error = NULL;
+				GArrowType arrtype;
+				g_autoptr(GArrowArray) array = NULL;
+
+				arr = DatumGetArrayTypeP(datum);
+				arrtype = PGTypeToArrowID(arr->elemtype);
+				array_iterator = array_create_iterator(arr, 0, NULL);
+
+				switch (arrtype)
+				{
 				case GARROW_TYPE_INT8:
 				{
 					g_autoptr(GArrowInt8ArrayBuilder) builder =
-							garrow_int8_array_builder_new();
+						garrow_int8_array_builder_new();
 
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -299,13 +361,13 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																   DatumGetInt8(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_INT16:
 				{
 					g_autoptr(GArrowInt16ArrayBuilder) builder =
-							garrow_int16_array_builder_new();
+						garrow_int16_array_builder_new();
 
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -316,13 +378,13 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																	DatumGetInt16(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_INT32:
 				{
 					g_autoptr(GArrowInt32ArrayBuilder) builder =
-							garrow_int32_array_builder_new();
+						garrow_int32_array_builder_new();
 
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -333,13 +395,13 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																	DatumGetInt32(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_INT64:
 				{
 					g_autoptr(GArrowInt64ArrayBuilder) builder =
-							garrow_int64_array_builder_new();
+						garrow_int64_array_builder_new();
 
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -350,13 +412,13 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																	DatumGetInt64(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_FLOAT:
 				{
 					g_autoptr(GArrowFloatArrayBuilder) builder =
-							garrow_float_array_builder_new();
+						garrow_float_array_builder_new();
 
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -367,13 +429,13 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																	DatumGetFloat4(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_DOUBLE:
 				{
 					g_autoptr(GArrowDoubleArrayBuilder) builder =
-							garrow_double_array_builder_new();
+						garrow_double_array_builder_new();
 
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -384,7 +446,7 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																	 DatumGetFloat8(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_STRING:
@@ -398,18 +460,18 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 							garrow_array_builder_append_null(GARROW_ARRAY_BUILDER(builder), &error);
 						else
 						{
-							struct varlena *s = (struct varlena *) value;
+							struct varlena *s = (struct varlena *)value;
 							char *str = text_to_cstring(s);
 							garrow_string_array_builder_append_string(builder, str, &error);
 						}
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				case GARROW_TYPE_DATE32:
 				{
-				    g_autoptr(GArrowDate32ArrayBuilder) builder =
+					g_autoptr(GArrowDate32ArrayBuilder) builder =
 						garrow_date32_array_builder_new();
 					while (array_iterate(array_iterator, &value, &isnull))
 					{
@@ -420,14 +482,15 @@ ArrowScalarNew(GArrowType type, Datum datum, Oid pg_type, int32 typmod)
 																	 DatumGetInt32(value), &error);
 					}
 					array = garrow_array_builder_finish(
-							GARROW_ARRAY_BUILDER(builder), &error);
+						GARROW_ARRAY_BUILDER(builder), &error);
 					break;
 				}
 				default:
 					elog(ERROR, "unsupported arrow list data type: %d", arrtype);
+				}
+				ret = (void *)garrow_list_scalar_new(array);
+				array_free_iterator(array_iterator);
 			}
-			ret = (void *)garrow_list_scalar_new(array);
-			array_free_iterator(array_iterator);
 			break;
 		}
 		default:
