@@ -37,7 +37,7 @@ $(arrow_build_dir)/arrow/Makefile: $(arrow_cpp_dir)/CMakeLists.txt
 		-DARROW_BUILD_INTEGRATION=OFF \
 		-DARROW_BUILD_SHARED=ON \
 		-DARROW_BUILD_STATIC=OFF \
-		-DARROW_BUILD_TESTS=OFF \
+		-DARROW_BUILD_TESTS=ON \
 		-DARROW_BUILD_UTILITIES=ON \
 		-DARROW_COMPUTE=ON \
 		-DARROW_CSV=ON \
@@ -59,7 +59,7 @@ $(arrow_build_dir)/arrow/Makefile: $(arrow_cpp_dir)/CMakeLists.txt
 		-DARROW_RUNTIME_SIMD_LEVEL=MAX \
 		-DARROW_SIMD_LEVEL=DEFAULT \
 		-DARROW_SNAPPY_USE_SHARED=OFF \
-		-DARROW_TESTING=OFF \
+		-DARROW_TESTING=ON \
 		-DARROW_WITH_OPENTELEMETRY=ON \
 		-DARROW_ZSTD_USE_SHARED=OFF \
 		-DOPENSSL_ROOT_DIR=/usr/local \
@@ -76,6 +76,10 @@ build-arrow: config-arrow
 	$(MAKE) -C $(arrow_build_dir)/arrow install
 
 $(libarrow_path): build-arrow
+
+test-arrow:
+	$(srcdir)/arrow/ci/scripts/cpp_test.sh $(srcdir)/arrow/ \
+		$(arrow_build_dir)/arrow -j16
 
 $(arrow_build_dir)/cglib/build.ninja: $(libarrow_path)
 	meson setup \
@@ -111,3 +115,4 @@ distclean: clean
 .PHONY: all distclean clean install stage-install
 .PHONY:  build-arrow-cglib config-arrow-cglib
 .PHONY:  build-arrow config-arrow
+.PHONY: test-arrow
