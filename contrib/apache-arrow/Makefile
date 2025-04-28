@@ -3,6 +3,7 @@ include $(top_builddir)/src/Makefile.global
 
 arrow_build_dir = $(abspath $(top_builddir)/contrib/apache-arrow/build)
 arrow_dist_dir = $(abspath $(top_builddir)/contrib/apache-arrow/dist)
+arrow_source_dir = $(abspath $(top_builddir)/contrib/apache-arrow/arrow)
 arrow_cpp_dir = $(srcdir)/arrow/cpp
 arrow_cglib_dir = $(srcdir)/arrow/c_glib
 
@@ -78,7 +79,7 @@ build-arrow: config-arrow
 $(libarrow_path): build-arrow
 
 test-arrow:
-	$(srcdir)/arrow/ci/scripts/cpp_test.sh $(srcdir)/arrow/ \
+	$(arrow_source_dir)/ci/scripts/cpp_test.sh $(arrow_source_dir)/ \
 		$(arrow_build_dir)/arrow -j16
 
 $(arrow_build_dir)/cglib/build.ninja: $(libarrow_path)
@@ -110,9 +111,11 @@ clean:
 install: build-arrow-cglib
 	cp -a $(arrow_dist_dir)/* $(prefix)
 
+installcheck: test-arrow
+
 distclean: clean
 
 .PHONY: all distclean clean install stage-install
 .PHONY:  build-arrow-cglib config-arrow-cglib
 .PHONY:  build-arrow config-arrow
-.PHONY: test-arrow
+.PHONY: installcheck test-arrow

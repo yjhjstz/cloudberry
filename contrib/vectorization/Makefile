@@ -55,7 +55,7 @@ install-data:
 
 install: install-data
 
-installcheck: vec_test
+installcheck: vec_test icw_test icw_aocs
 
 .PHONY: uninstall-data
 uninstall-data:
