@@ -54,6 +54,12 @@ if [ -x "${GPHOME}/ext/python/bin/python3" ]; then
     LD_LIBRARY_PATH="${GPHOME}/ext/python/lib:${LD_LIBRARY_PATH}"
 fi
 
+#setup R
+if [ -x "${GPHOME}/ext/R/bin/R" ]; then
+    export R_HOME="${GPHOME}/ext/R"
+    LD_LIBRARY_PATH="${GPHOME}/ext/R/lib:${LD_LIBRARY_PATH}"
+fi
+
 export GPHOME
 export PATH
 export PYTHONPATH
