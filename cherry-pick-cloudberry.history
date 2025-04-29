@@ -1,6 +1,22 @@
 Record the cherry-pick history from Cloudberry(github), make it easy
 to find the start commit for cherry-pick.
 
+Author: Dongxiao Song <songdongxiao@hashdata.cn>
+Date: Thu Apr 29 15:42:41 CST 2025
+cherry-pick start commit: 26b9cda259d07304796a6984c80414f4809a7b5c
+cherry-pick end commit: 964756fdce155256f0a409be892634f73d57bd7b
+
+# These PAX commits were ported from lighnting, skiped.
+Author: Dongxiao Song <songdongxiao@hashdata.cn>
+Date: Thu Apr 29 15:42:41 CST 2025
+cherry-pick start commit: de2cbd9dccee0dcd9457336a3080a7cd5941d79d
+cherry-pick end commit: 26b9cda259d07304796a6984c80414f4809a7b5c
+
+Author: Dongxiao Song <songdongxiao@hashdata.cn>
+Date: Thu Apr 29 15:42:41 CST 2025
+cherry-pick start commit: a1573a244b65f2c02c7aae7e869f73be9dabbe2d
+cherry-pick end commit: f8a46dc69782fe6f98ba61b45727327383487e74
+
 Author: jiaqizho <zhoujiaqi@hashdata.cn>
 # PAX already been cherry-picked.
 cherry-pick start commit: 77863a64c43117f64f9fdd90176f707ee6417255
