@@ -32,7 +32,11 @@ PATH="${GPHOME}/bin:${PATH}"
 LD_LIBRARY_PATH="${GPHOME}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 if [ -e "${GPHOME}/etc/openssl.cnf" ]; then
-	OPENSSL_CONF="${GPHOME}/etc/openssl.cnf"
+	export OPENSSL_CONF="${GPHOME}/etc/openssl.cnf"
+fi
+
+if [ -d "${GPHOME}/lib/ossl-modules/" ]; then
+  export OPENSSL_MODULES=${GPHOME}/lib/ossl-modules/
 fi
 
 #setup JAVA_HOME
@@ -64,7 +68,6 @@ export GPHOME
 export PATH
 export PYTHONPATH
 export LD_LIBRARY_PATH
-export OPENSSL_CONF
 export JAVA_HOME
 export CLASSPATH
 
