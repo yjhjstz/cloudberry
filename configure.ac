@@ -933,7 +933,11 @@ AC_SUBST(enable_preload_ic_module)
 # pax support
 #
 PGAC_ARG_BOOL(enable, pax, no,
+<<<<<<< HEAD
               [enable pax support],
+=======
+              [enable PAX support],
+>>>>>>> c6bddb41db0... Change PAX Plugin to Be Disabled by Default
               [AC_DEFINE(USE_PAX_STORAGE, 1,
                          [Define to 1 to support pax])])
 AC_MSG_RESULT([checking whether to build with pax support ... $enable_pax])
