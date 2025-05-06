@@ -23,7 +23,7 @@ installcheck-cbdb-parallel: install
 	)
 
 
-isolation2_link: pg_isolation2_regress
+isolation2_link: $(PG_ISOLATION2_DIR)/pg_isolation2_regress
 	ln -sf $(PG_REGRESS_DIR)/explain.pm explain.pm
 	ln -sf $(PG_REGRESS_DIR)/atmsort.pm atmsort.pm
 	ln -sf $(PG_REGRESS_DIR)/GPTest.pm GPTest.pm
@@ -34,6 +34,8 @@ isolation2_link: pg_isolation2_regress
 pg_isolation2_regress:
 	make -C $(top_builddir)/src/backend generated-headers
 	make -C $(PG_ISOLATION2_DIR) install
+
+$(PG_ISOLATION2_DIR)/pg_isolation2_regress: pg_isolation2_regress
 
 clean:
 	rm -f pg_isolation2_regress regress.out regress.diffs gpdiff.pl gpstringsubs.pl explain.pm atmsort.pm GPTest.pm sql_isolation_testcase.py
