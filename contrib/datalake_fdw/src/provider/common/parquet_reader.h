@@ -23,6 +23,7 @@ private:
 	void filterRowGroupByOffset(int64_t startOffset, int64_t endOffset);
 	void adjustIntegerStringWithScale(int32_t scale, std::string *strDecimal);
 	Datum formatDecimal(int64_t value, bool isNull, int scale, int typeMod);
+	TIMEUNIT getTimeUnit(const parquet::ColumnDescriptor *field);
 
 protected:
 	Datum readPrimitive(const TypeInfo &typInfo, bool &isNull);

@@ -11,6 +11,7 @@ extern "C"
 #include "nodes/pg_list.h"
 #include "utils/builtins.h"
 #include "utils.h"
+#include "jansson.h"
 }
 
 AvroBlockReader::AvroBlockReader(MemoryContext rowContext,
@@ -29,6 +30,20 @@ AvroBlockReader::AvroBlockReader(MemoryContext rowContext,
 
 AvroBlockReader::~AvroBlockReader() {}
 
+TIMEUNIT
+AvroBlockReader::getTimeUnit(const char *field)
+{
+	auto it = fieldType_.find(field);
+
+	if (it == fieldType_.end())
+		return TIMEUNIT_UNKNOWN;
+
+	if (it->second == "timestamp-micros")
+		return TIMEUNIT_MICROS;
+
+	return TIMEUNIT_MILLIS;
+}
+
 void
 AvroBlockReader::createMapping(List *columnDesc, bool *attrUsed)
 {
@@ -41,7 +56,7 @@ AvroBlockReader::createMapping(List *columnDesc, bool *attrUsed)
 	foreach_with_count(lc, columnDesc, i)
 	{
 		FieldDescription *entry = (FieldDescription *) lfirst(lc);
-		TypeInfo typInfo = {entry->typeOid, entry->typeMod, InvalidOid, -1};
+		TypeInfo typInfo = {entry->typeOid, entry->typeMod, InvalidOid, -1, TIMEUNIT_UNKNOWN};
 
 		typeMap_.push_back(typInfo);
 
@@ -50,6 +65,7 @@ AvroBlockReader::createMapping(List *columnDesc, bool *attrUsed)
 
 		typeMap_[i].columnIndex_ = avro_schema_record_field_get_index(dataSchema_, entry->name);
 		typeMap_[i].fileTypeId_ = mapAvroDataType(avro_typeof(avro_schema_record_field_get(dataSchema_, entry->name)));
+		typeMap_[i].timeUnit_ = getTimeUnit(entry->name);
 	}
 }
 
@@ -87,10 +103,55 @@ AvroBlockReader::prepareRowGroup()
 }
 
 void
+AvroBlockReader::parseAvroSchema(int64_t schemaBufferLength)
+{
+	json_error_t error;
+	json_t *root = json_loadb(schemaBuffer_, schemaBufferLength, JSON_DECODE_ANY, &error);
+
+	if (!root)
+		throw Error("failed to parse avro schema: %s", error.text);
+
+	json_t* fields = json_object_get(root, "fields");
+	if (!json_is_array(fields))
+		throw Error("failed to parse avro schema: Fields is not an array");
+
+	size_t  index;
+	json_t *field;
+	json_array_foreach(fields, index, field)
+	{
+		json_t* nameObj = json_object_get(field, "name");
+		json_t* typeObj = json_object_get(field, "type");
+
+		if (!json_is_string(nameObj) || !json_is_array(typeObj))
+			continue;
+
+		std::string name = json_string_value(nameObj);
+		if (json_array_size(typeObj) >= 2)
+		{
+			json_t* secondType = json_array_get(typeObj, 1);
+			if (!json_is_object(secondType))
+				continue;
+
+			json_t* logicalTypeObj = json_object_get(secondType, "logicalType");
+			if (json_is_string(logicalTypeObj))
+			{
+				std::string logicalType = json_string_value(logicalTypeObj);
+				if (logicalType == "timestamp-micros" || logicalType == "timestamp-millis")
+					fieldType_[name] = logicalType;
+			}
+		}
+	}
+
+    json_decref(root);
+}
+
+void
 AvroBlockReader::open(List *columnDesc, bool *attrUsed, int64_t contentBufferLlength, int64_t schemaBufferLength)
 {
 	if (avro_schema_from_json_length(schemaBuffer_, schemaBufferLength, &dataSchema_))
 		throw Error("failed to parse avro schema: %s, \"%s\", ", avro_strerror(), schemaBuffer_);
+
+	parseAvroSchema(schemaBufferLength);
 
 	createMapping(columnDesc, attrUsed);
 	prepareRowGroup();
@@ -251,7 +312,7 @@ AvroBlockReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 		case TIMESTAMPTZOID:
 		{
 			avro_value_get_long(pfield, &data.int64Value);
-			return TimestampGetDatum(time_t_to_timestamptz(data.int64Value / 1000000)); // micorsec, hudi spec
+			return TimestampGetDatum(time_t_to_timestamptz(transformTimestamp(data.int64Value, typInfo.timeUnit_))); // micorsec, hudi spec
 		}
 		case DATEOID:
 		{

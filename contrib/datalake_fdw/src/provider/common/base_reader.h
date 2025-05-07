@@ -12,6 +12,14 @@ extern "C"
 struct InternalRecord;
 struct List;
 
+typedef enum
+{
+	TIMEUNIT_MILLIS,
+	TIMEUNIT_MICROS,
+	TIMEUNIT_NANOS,
+	TIMEUNIT_UNKNOWN
+} TIMEUNIT;
+
 union ReaderValue
 {
 	bool    boolValue;
@@ -30,6 +38,7 @@ protected:
 		int typeMod_;
 		Oid fileTypeId_;
 		int columnIndex_;
+		TIMEUNIT timeUnit_;
 	};
 
 	int curGroup_;
@@ -45,6 +54,7 @@ protected:
 	virtual void decodeRecord() = 0;
 
 	void populateRecord(InternalRecord *record);
+	int64 transformTimestamp(int64 timestamp, TIMEUNIT timeUnit);
 
 public:
 	BaseFileReader(MemoryContext rowContext);

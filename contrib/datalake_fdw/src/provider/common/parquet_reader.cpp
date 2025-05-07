@@ -21,6 +21,27 @@ ParquetReader::ParquetReader(MemoryContext rowContext, char *filePath, gopherFS 
 ParquetReader::~ParquetReader()
 {}
 
+TIMEUNIT
+ParquetReader::getTimeUnit(const parquet::ColumnDescriptor *field)
+{
+	const auto &logicalType = field->logical_type();
+	if (!logicalType->is_timestamp())
+		return TIMEUNIT_UNKNOWN;
+
+	const auto *timestampType = dynamic_cast<const parquet::TimestampLogicalType*>(logicalType.get());
+	switch (timestampType->time_unit())
+	{
+		case parquet::LogicalType::TimeUnit::MILLIS:
+			return TIMEUNIT_MILLIS;
+		case parquet::LogicalType::TimeUnit::MICROS:
+			return TIMEUNIT_MICROS;
+		case parquet::LogicalType::TimeUnit::NANOS:
+			return TIMEUNIT_NANOS;
+		default:
+			throw Error("parquet error: Unknown timestamp precision");
+	}
+}
+
 void
 ParquetReader::createMapping(List *columnDesc, bool *attrUsed)
 {
@@ -34,7 +55,7 @@ ParquetReader::createMapping(List *columnDesc, bool *attrUsed)
 	foreach_with_count(lc, columnDesc, i)
 	{
 		FieldDescription *entry = (FieldDescription *) lfirst(lc);
-		TypeInfo typInfo = {entry->typeOid, entry->typeMod, InvalidOid, -1};
+		TypeInfo typInfo = {entry->typeOid, entry->typeMod, InvalidOid, -1, TIMEUNIT_UNKNOWN};
 
 		typeMap_.push_back(typInfo);
 
@@ -50,6 +71,7 @@ ParquetReader::createMapping(List *columnDesc, bool *attrUsed)
 			{
 				typeMap_[i].columnIndex_ = j;
 				typeMap_[i].fileTypeId_ = mapParquetDataType(field->physical_type());
+				typeMap_[i].timeUnit_ = getTimeUnit(field);
 				break;
 			}
 		}
@@ -233,7 +255,7 @@ ParquetReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 		case TIMESTAMPTZOID:
 		{
 			((parquet::TypedScanner<parquet::Int64Type> *)scanner.get())->NextValue(&d.int64Value, &isNull);
-			return TimestampGetDatum(time_t_to_timestamptz(d.int64Value / 1000000)); // micorsec, refer to iceberg spec
+			return TimestampGetDatum(time_t_to_timestamptz(transformTimestamp(d.int64Value, typInfo.timeUnit_))); // micorsec, refer to iceberg spec
 		}
 		case DATEOID:
 		{

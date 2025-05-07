@@ -1,4 +1,5 @@
 // #include "postgres.h"
+#include "common.h"
 #include "gopher/gopher.h"
 #include "base_reader.h"
 #include "access/tupdesc.h"
@@ -60,4 +61,20 @@ BaseFileReader::next(InternalRecord *record)
 	curRow_++;
 
 	return true;
+}
+
+int64
+BaseFileReader::transformTimestamp(int64 timestamp, TIMEUNIT timeUnit)
+{
+	switch (timeUnit)
+	{
+		case TIMEUNIT_MILLIS:
+			return timestamp / 1000;
+		case TIMEUNIT_MICROS:
+			return timestamp / 1000000;
+		case TIMEUNIT_NANOS:
+			return timestamp / 1000000000;
+		default:
+			throw Error("Unknown timestamp precision");
+	}
 }

@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <map>
 
 #include <avro.h>
 #include "base_reader.h"
@@ -20,6 +21,10 @@ private:
 	bool  isRecordInited;
 	avro_value_t record_;
 	std::vector<int> rowGroups_;
+	std::map<std::string, std::string> fieldType_;
+
+	void parseAvroSchema(int64_t schemaBufferLength);
+	TIMEUNIT getTimeUnit(const char *field);
 
 public:
 	AvroBlockReader(MemoryContext rowContext,
