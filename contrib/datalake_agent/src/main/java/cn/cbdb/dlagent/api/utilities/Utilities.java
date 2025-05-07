@@ -407,12 +407,12 @@ public class Utilities {
                 literal instanceof Date ||
                 literal instanceof Timestamp ||
                 literal instanceof BigDecimal ||
-                literal instanceof Boolean) {
+                literal instanceof Boolean ||
+                literal instanceof Integer) {
             return literal;
         } else if (literal instanceof Byte ||
-                literal instanceof Short ||
-                literal instanceof Integer) {
-            return ((Number) literal).longValue();
+                literal instanceof Short) {
+            return ((Number) literal).intValue();
         } else if (literal instanceof Float) {
             // to avoid change in precision when upcasting float to double
             // we convert the literal to string and parse it as double.

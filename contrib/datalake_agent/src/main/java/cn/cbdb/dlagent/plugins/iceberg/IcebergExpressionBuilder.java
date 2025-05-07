@@ -86,13 +86,13 @@ public class IcebergExpressionBuilder implements TreeVisitor {
                     .getData()
                     .stream()
                     .map(data -> Utilities.boxLiteral(Utilities.convertDataValue(
-                            collectionOperand.getDataType().getTypeElem(),
+                            filterColumn.getDataType(),
                             data)))
                     .collect(Collectors.toList());
         } else {
             ScalarOperandNode scalarOperand = (ScalarOperandNode) valueOperandNode;
             filterValue = Utilities.boxLiteral(Utilities.convertDataValue(
-                    scalarOperand.getDataType(),
+                    filterColumn.getDataType(),
                     scalarOperand.getValue()));
         }
 
