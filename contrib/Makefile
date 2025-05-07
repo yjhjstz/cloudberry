@@ -103,12 +103,6 @@ else
 ALWAYS_SUBDIRS += hstore_plpython jsonb_plpython ltree_plpython
 endif
 
-ifeq ($(or $(enable_vectorization),$(enable_datalake),$(enable_pax)),yes)
-SUBDIRS += apache-arrow
-else
-ALWAYS_SUBDIRS += apache-arrow
-endif
-
 ifeq ($(enable_vectorization),yes)
 SUBDIRS += vectorization
 else

@@ -40,6 +40,10 @@ html man:
 	$(MAKE) -C doc $@
 
 install:
+ifeq ($(or $(enable_vectorization),$(enable_datalake),$(enable_pax)),yes)
+	# make sure apache-arrow is built before others
+	$(MAKE) -C contrib/apache-arrow $@
+endif
 	$(MAKE) -C contrib $@
 	$(MAKE) -C gpMgmt $@
 	$(MAKE) -C gpcontrib $@
