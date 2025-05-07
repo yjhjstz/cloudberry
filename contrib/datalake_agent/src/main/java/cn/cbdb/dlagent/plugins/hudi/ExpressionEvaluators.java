@@ -96,7 +96,7 @@ public class ExpressionEvaluators implements TreeVisitor {
 
     if (valueOperandNode instanceof CollectionOperandNode) {
       CollectionOperandNode collectionOperand = (CollectionOperandNode) valueOperandNode;
-      dataType = convertDataType(collectionOperand.getDataType());
+      dataType = convertDataType(collectionOperand.getDataType().getTypeElem());
       colValue = collectionOperand
               .getData()
               .stream()
@@ -166,7 +166,7 @@ public class ExpressionEvaluators implements TreeVisitor {
           In in = In.getInstance();
           FieldReferenceExpression rExpr = new FieldReferenceExpression(dataType, colName);
           in.bindFieldReference(rExpr);
-          in.bindVals(l);
+          in.bindVals(l.toArray());
           expression = in;
         } else {
           throw new IllegalArgumentException("value should be instance of List for IN operation");

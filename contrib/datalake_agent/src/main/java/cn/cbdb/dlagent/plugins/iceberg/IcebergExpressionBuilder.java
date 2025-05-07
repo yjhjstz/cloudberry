@@ -86,7 +86,7 @@ public class IcebergExpressionBuilder implements TreeVisitor {
                     .getData()
                     .stream()
                     .map(data -> Utilities.boxLiteral(Utilities.convertDataValue(
-                            collectionOperand.getDataType(),
+                            collectionOperand.getDataType().getTypeElem(),
                             data)))
                     .collect(Collectors.toList());
         } else {
