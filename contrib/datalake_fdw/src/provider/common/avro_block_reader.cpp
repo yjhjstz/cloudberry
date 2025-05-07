@@ -298,7 +298,7 @@ AvroBlockReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 		case TEXTOID:
 		{
 			avro_value_get_string(pfield, &buff, &buffSize);
-			formVarlena(buff, buffSize);
+			formVarlena(buff, buffSize - 1);
 			return PointerGetDatum(result);
 		}
 		case UUIDOID:
