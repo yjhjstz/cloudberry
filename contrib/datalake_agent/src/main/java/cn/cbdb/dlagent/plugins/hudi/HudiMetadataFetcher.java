@@ -126,14 +126,14 @@ public class HudiMetadataFetcher extends BasePlugin implements MetadataFetcher {
                 if (baseFile != null) {
                     data = new Fragment(baseFile.getPath(),
                             new HudiFileFragmentMetadata(convertFileFormat(baseFile.getFileFormat()),
-                                    "DATA"));
+                                    "DATA", baseFile.getLength()));
                 }
 
                 List<Fragment> logFiles = Lists.newArrayList();
                 for (HudiFile logFile : hudiSplit.getLogFiles()) {
                     Fragment log = new Fragment(logFile.getPath(),
                             new HudiFileFragmentMetadata(convertFileFormat(logFile.getFileFormat()),
-                                    "DELTA_LOG"));
+                                    "DELTA_LOG", logFile.getLength()));
                     logFiles.add(log);
                 }
 
