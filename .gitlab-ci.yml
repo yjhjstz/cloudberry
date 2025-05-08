@@ -1,7 +1,36 @@
+stages:
+- build
+- test
+- .post
+
+
 variables:
   ARTIFACTORY_USERNAME: "admin"
   ARTIFACTORY_PASSWORD: "token"
   GIT_STRATEGY: "empty"
+
+.common-cache: &cache-only-pull
+  cache:
+    - key: cache-${CI_PROJECT_ID}-${ARCH}
+      paths:
+        - .cache/
+      when: always
+      policy: pull
+    - key: cache-build-${ARCH}-${CI_PIPELINE_ID}
+      unprotect: true
+      paths:
+        - ${CI_PROJECT_DIR}/build
+        - ${CI_PROJECT_DIR}/scripts
+        - ${CI_PROJECT_DIR}/Makefile
+        - ${CI_PROJECT_DIR}/dist/database
+      when: 'always'
+      policy: pull
+    - key: cache-database-${ARCH}-${CI_PIPELINE_ID}
+      unprotect: true
+      paths:
+        - ${CI_PROJECT_DIR}/database
+      when: 'always'
+      policy: pull
 
 .common:
   parallel:
@@ -21,6 +50,19 @@ variables:
       paths:
         - .cache/
       when: always
+    - key: cache-build-${ARCH}-${CI_PIPELINE_ID}
+      unprotect: true
+      paths:
+        - ${CI_PROJECT_DIR}/build
+        - ${CI_PROJECT_DIR}/scripts
+        - ${CI_PROJECT_DIR}/Makefile
+        - ${CI_PROJECT_DIR}/dist/database
+      when: 'always'
+    - key: cache-database-${ARCH}-${CI_PIPELINE_ID}
+      unprotect: true
+      paths:
+        - ${CI_PROJECT_DIR}/database
+      when: 'always'
 
 .artifacts: &artifacts
   name: "hashdata-lightning"
@@ -87,7 +129,25 @@ build_develop:
     make build-depends
     echo "build database kernel"
     make build-database
-    echo "test database kernel"
+    make package-prepare
+
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+
+test_database:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=off' installcheck" 
     make test-database
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
@@ -95,3 +155,226 @@ build_develop:
     - when: manual
   artifacts:
     <<: *artifacts
+
+test_database-src:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=off' installcheck" 
+    make test-src-test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+# test_arrow:
+#   stage: test
+#   extends: .common
+#   <<: *cache-only-pull
+#   script: |
+#     trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+#     env
+#     set -euxo pipefail
+
+#     export ENV=devel
+#     export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=off' installcheck"
+#     make test-arrow
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+#       when: always
+#     - when: manual
+#   artifacts:
+#     <<: *artifacts
+
+test_pax:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-c default_table_access_method=pax -c optimizer=off -c enable_parallel=off"
+    make test-pax
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+test_vectorization:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c enable_parallel=off"
+    export TEST_TYPE=installcheck
+    make test-vectorization
+
+    export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off"
+
+    export TEST_TYPE=icw_test
+    make test-vectorization
+
+    export TEST_TYPE=icw_aocs
+    make test-vectorization
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+test_database_orca:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=on' installcheck" 
+    make test-database
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+test_database-src_orca:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=on' installcheck" 
+    make test-src-test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+# test_arrow_orca:
+#   stage: test
+#   extends: .common
+#   <<: *cache-only-pull
+#   script: |
+#     trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+#     env
+#     set -euxo pipefail
+
+#     export ENV=devel
+#     export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=on' installcheck"
+#     make test-arrow
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+#       when: always
+#     - when: manual
+#   artifacts:
+#     <<: *artifacts
+
+test_pax_orca:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-c default_table_access_method=pax -c optimizer=on -c enable_parallel=off"
+    make test-pax
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+test_vectorization_orca:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c optimizer=on -c enable_parallel=off"
+    export TEST_TYPE=installcheck
+    make test-vectorization
+
+    export TEST_TYPE=icw_test
+    make test-vectorization
+
+    export TEST_TYPE=icw_aocs
+    make test-vectorization
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+test_parallel:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+    
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    make test-parallel
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - when: manual
+  artifacts:
+    <<: *artifacts
+
+cleanup-cache:
+  stage: .post
+  extends: .common
+  script: |
+    echo "cleanup cache"
+    rm -rfv ${CI_PROJECT_DIR}/*
+  when: always
