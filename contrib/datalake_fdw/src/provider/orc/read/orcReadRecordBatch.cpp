@@ -1,6 +1,6 @@
 #include "orcReadRecordBatch.h"
 #include "arrow/c/bridge.h"
-#include "arrow/adapters/orc/adapter_util.h"
+#include "arrow/adapters/orc/util.h"
 #include <list>
 #include <cassert>
 #include <sstream>
