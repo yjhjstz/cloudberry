@@ -208,6 +208,7 @@ typedef struct gopherOptions
 	char*	krb5_ccname;
 	char*	hadoop_rpc_protection;
 	bool	data_transfer_protocol;
+	char*	hdfs_user;
 
 	/* hdfs ha config  */
 	bool	is_ha_supported;

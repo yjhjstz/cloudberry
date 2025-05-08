@@ -1,0 +1,73 @@
+CREATE EXTENSION IF NOT EXISTS datalake_fdw;
+NOTICE:  extension "datalake_fdw" already exists, skipping
+CREATE EXTENSION IF NOT EXISTS hive_connector;
+NOTICE:  extension "hive_connector" already exists, skipping
+CREATE FOREIGN DATA WRAPPER datalake_fdw
+HANDLER datalake_fdw_handler
+VALIDATOR datalake_fdw_validator
+OPTIONS (mpp_execute 'all segments');
+ERROR:  foreign-data wrapper "datalake_fdw" already exists
+create user hdfs;
+ERROR:  role "hdfs" already exists
+SELECT public.create_foreign_server('hdfs_server', 'hdfs', 'datalake_fdw', 'paa_cluster');
+ create_foreign_server 
+-----------------------
+ t
+(1 row)
+
+GRANT USAGE ON FOREIGN SERVER hdfs_server TO hdfs;
+\c contrib_regression hdfs
+DROP EXTERNAL TABLE IF EXISTS one_file;
+NOTICE:  foreign table "one_file" does not exist, skipping
+CREATE WRITABLE EXTERNAL TABLE one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/avro/onefile hdfs_cluster_name=paa_cluster') FORMAT 'avro';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into one_file values(1, 'aaaaabbbb');
+DROP EXTERNAL TABLE IF EXISTS one_file;
+CREATE WRITABLE EXTERNAL TABLE one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/orc/onefile hdfs_cluster_name=paa_cluster') FORMAT 'orc';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into one_file values(1, 'aaaaabbbb');
+DROP EXTERNAL TABLE IF EXISTS one_file;
+CREATE WRITABLE EXTERNAL TABLE one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/parquet/onefile hdfs_cluster_name=paa_cluster') FORMAT 'parquet';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into one_file values(1, 'aaaaabbbb');
+DROP EXTERNAL TABLE IF EXISTS one_file;
+CREATE WRITABLE EXTERNAL TABLE one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/text/onefile hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+insert into one_file values(1, 'aaaaabbbb');
+DROP EXTERNAL TABLE IF EXISTS read_one_file;
+NOTICE:  foreign table "read_one_file" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE read_one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/avro/onefile hdfs_cluster_name=paa_cluster') FORMAT 'avro';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from read_one_file order by a, b;
+ a |     b     
+---+-----------
+ 1 | aaaaabbbb
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS read_one_file;
+CREATE READABLE EXTERNAL TABLE read_one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/orc/onefile hdfs_cluster_name=paa_cluster') FORMAT 'orc';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from read_one_file order by a, b;
+ a |     b     
+---+-----------
+ 1 | aaaaabbbb
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS read_one_file;
+CREATE READABLE EXTERNAL TABLE read_one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/parquet/onefile hdfs_cluster_name=paa_cluster') FORMAT 'parquet';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from read_one_file order by a, b;
+ a |     b     
+---+-----------
+ 1 | aaaaabbbb
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS read_one_file;
+CREATE READABLE EXTERNAL TABLE read_one_file(a int, b text) LOCATION('gphdfs://ci-test-data/hdfs_user/text/onefile hdfs_cluster_name=paa_cluster') FORMAT 'text';
+NOTICE:  external table syntax will be deprecated in the future HashData version, please use foreign table instead.
+select * from read_one_file order by a, b;
+ a |     b     
+---+-----------
+ 1 | aaaaabbbb
+(1 row)
+

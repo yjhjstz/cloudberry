@@ -10,6 +10,7 @@ extern "C" {
 extern bool external_table_debug;
 extern bool external_table_new_text;
 extern bool external_table_ignore_hidden_file;
+extern bool enable_set_hdfs_user;
 
 struct ProviderInternalWrapper;
 

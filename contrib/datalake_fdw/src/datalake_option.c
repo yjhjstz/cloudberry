@@ -164,6 +164,8 @@ void parserFtpUserMappingOption(dataLakeOptions *opt, List *options);
 
 void parseForeignTableOptions(dataLakeOptions* opt, List *options);
 
+void parseHdfsUserMappingOption(dataLakeOptions* opt, List *options);
+
 void parseOssUserMappingOptions(dataLakeOptions* opt, List *options);
 
 void parseOssServerOption(dataLakeOptions* opt, List *options);
@@ -340,6 +342,19 @@ void parseOssUserMappingOptions(dataLakeOptions* opt, List *options)
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_SECRETKEY) == 0)
 		{
 			opt->gopher->secretKey = pstrdup(defGetString(def));
+		}
+	}
+}
+
+void parseHdfsUserMappingOption(dataLakeOptions* opt, List *options)
+{
+	ListCell   *lc;
+	foreach(lc, options)
+	{
+		DefElem *def = (DefElem *) lfirst(lc);
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_USER) == 0)
+		{
+			opt->gopher->hdfs_user = pstrdup(defGetString(def));
 		}
 	}
 }
@@ -525,6 +540,7 @@ dataLakeOptions *getOptions(Oid foreigntableid)
 	if (pg_strcasecmp(protocol, DATALAKE_HDFS_PROTOCOL) == 0)
 	{
 		parserHdfsServerOption(opt, server->options);
+		parseHdfsUserMappingOption(opt, user->options);
 		parseForeignTableOptions(opt, table->options);
 		opt->prefix = pstrdup(opt->filePath);
 	}
@@ -931,6 +947,12 @@ void freeDataLakeOptions(dataLakeOptions *options)
 		{
 			pfree(options->gopher->krb_service_principal);
 			options->gopher->krb_service_principal = NULL;
+		}
+
+		if (options->gopher->hdfs_user)
+		{
+			pfree(options->gopher->hdfs_user);
+			options->gopher->hdfs_user = NULL;
 		}
 
 		pfree(options->gopher);

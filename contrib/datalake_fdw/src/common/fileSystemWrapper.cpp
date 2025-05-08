@@ -439,6 +439,11 @@ gopherConfig* createGopherConfig(void *opt)
 			conf->krb5_ticket_cache_path = pstrdup(krb5_ccname);
 		}
 
+		if (enable_set_hdfs_user && options->hdfs_user)
+		{
+			conf->hdfs_username = pstrdup(options->hdfs_user);
+		}
+
 		conf->data_transfer_protocol = options->data_transfer_protocol;
 		conf->is_ha_supported = options->is_ha_supported;
 
@@ -652,6 +657,12 @@ void freeGopherConfig(gopherConfig* conf)
 		{
 			pfree(conf->krb_principal);
 			conf->krb_principal = NULL;
+		}
+
+		if (conf->hdfs_username != NULL)
+		{
+			pfree(conf->hdfs_username);
+			conf->hdfs_username = NULL;
 		}
 
 		if (conf->hadoop_rpc_protection != NULL)

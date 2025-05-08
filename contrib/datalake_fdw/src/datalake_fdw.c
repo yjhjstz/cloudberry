@@ -339,6 +339,17 @@ _PG_init(void)
 							NULL,
 							NULL);
 
+	DefineCustomBoolVariable("datalake.enable_set_hdfs_user",
+							"If the value is true, set the user for writing to HDFS based on the users in the user mapping..",
+							NULL,
+							&enable_set_hdfs_user,
+							true,
+							PGC_USERSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
+
 	datalake_prev_ProcessUtility = ProcessUtility_hook;
 	ProcessUtility_hook = datalake_ProcessUtility;
 }
