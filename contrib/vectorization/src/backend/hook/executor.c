@@ -379,7 +379,6 @@ ExecutorEndWrapper(QueryDesc *queryDesc)
 		if (vec_exec_end_prev)
 			(*vec_exec_end_prev)(queryDesc);
 		VecExecutorEnd(queryDesc);
-		VecClearEndWrapper();
 		return;
 	}
 
