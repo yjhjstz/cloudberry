@@ -44,9 +44,9 @@ LIMIT 100;
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Vec Limit
    ->  Vec Gather Motion 3:1  (slice1; segments: 3)
-         Merge Key: (count()), supplier.s_name
+         Merge Key: (count(*)), supplier.s_name
          ->  Vec Sort
-               Sort Key: (count()) DESC, supplier.s_name
+               Sort Key: (count(*)) DESC, supplier.s_name
                ->  Vec HashAggregate
                      Group Key: supplier.s_name
                      ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)

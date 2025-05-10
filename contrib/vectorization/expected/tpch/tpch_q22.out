@@ -48,7 +48,7 @@ order by
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: (SUBSTRING(customer.c_phone FROM 1 FOR 2))
                      ->  Vec Result
-                           Filter: (COALESCE((count()), '0'::bigint) = '0'::bigint)
+                           Filter: (COALESCE((count(*)), '0'::bigint) = '0'::bigint)
                            ->  Vec Hash Left Join
                                  Hash Cond: (customer.c_custkey = orders.o_custkey)
                                  ->  Vec Nested Loop

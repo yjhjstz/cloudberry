@@ -23,9 +23,9 @@ order by
                                                QUERY PLAN                                               
 --------------------------------------------------------------------------------------------------------
  Vec Gather Motion 3:1  (slice1; segments: 3)
-   Merge Key: (count()), (count(orders.o_orderkey))
+   Merge Key: (count(*)), (count(orders.o_orderkey))
    ->  Vec Sort
-         Sort Key: (count()) DESC, (count(orders.o_orderkey)) DESC
+         Sort Key: (count(*)) DESC, (count(orders.o_orderkey)) DESC
          ->  Vec HashAggregate
                Group Key: (count(orders.o_orderkey))
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
