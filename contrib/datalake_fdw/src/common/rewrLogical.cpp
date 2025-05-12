@@ -235,7 +235,7 @@ void readLogical::extraFragmentLists(std::vector<ListContainer> &lists, List *fr
 		ListContainer obj;
 		List *fragment = (List*)lfirst(cell);
 		obj.keyName = strVal(list_nth(fragment, 0));
-		obj.size = atoi(strVal(list_nth(fragment, 1)));
+		obj.size = atoll(strVal(list_nth(fragment, 1)));
 		lists.push_back(obj);
 	}
 	sort(lists.begin(), lists.end(), cmp);
