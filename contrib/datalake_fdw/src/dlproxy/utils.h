@@ -33,6 +33,6 @@ char	   *GetNamespaceName(Oid nsp_oid);
 #define ENV_DLPROXY_HOST      "DLPROXY_HOST"
 #define ENV_DLPROXY_PORT      "DLPROXY_PORT"
 #define DLPROXY_DEFAULT_HOST  "localhost"
-#define DLPROXY_DEFAULT_PORT  5888
+#define DLPROXY_DEFAULT_PORT  3888
 
 #endif							/* _UTILS_H_ */
