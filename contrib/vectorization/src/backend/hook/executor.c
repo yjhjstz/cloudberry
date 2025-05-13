@@ -1312,10 +1312,7 @@ VecExecInitNode(Plan *node, EState *estate, int eflags)
 	if (node == NULL)
 		return NULL;
 
-	if (!(eflags & EXEC_FLAG_VECTOR))
-	{
-		return VecExecInitNode(node, estate, eflags);
-	}
+	Assert(eflags & EXEC_FLAG_VECTOR);
 
 	/*
 	 * Make sure there's enough stack available. Need to check here, in
