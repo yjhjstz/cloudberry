@@ -251,7 +251,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 	bool		shouldDispatch;
 	bool		needDtx;
 	List 		*volatile toplevelOidCache = NIL;
-	bool		has_writable_operation = false;
 
 	/* sanity checks: queryDesc must not be started already */
 	Assert(queryDesc != NULL);
@@ -404,7 +403,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 				queryDesc->plannedstmt->hasModifyingCTE)
 			{
 				estate->es_output_cid = GetCurrentCommandId(true);
-				has_writable_operation = true;
 			}
 
 			/*
@@ -421,7 +419,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 		case CMD_DELETE:
 		case CMD_UPDATE:
 			estate->es_output_cid = GetCurrentCommandId(true);
-			has_writable_operation = true;
 			break;
 
 		default:
@@ -555,11 +552,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 	}
 	else
 		shouldDispatch = false;
-
-	if (IS_QD_OR_SINGLENODE() && has_writable_operation)
-	{
-		InitExtendProtocolData();
-	}
 
 	/*
 	 * We don't eliminate aliens if we don't have an MPP plan
@@ -4299,11 +4291,9 @@ MaintainMaterializedViewStatus(QueryDesc *queryDesc, CmdType operation)
 	int relid = -1;
 
 	/*
-	 * Process epd first to get the addected relations..
+	 * Process epd first to get the affected relations.
 	 */
-	ConsumeExtendProtocolData(EP_TAG_I, &inserted);
-	ConsumeExtendProtocolData(EP_TAG_U, &updated);
-	ConsumeExtendProtocolData(EP_TAG_D, &deleted);
+	ConsumeAndProcessExtendProtocolData_IUD(&inserted, &updated, &deleted);
 
 	relid = -1;
 	while((relid = bms_next_member(inserted, relid)) >= 0)
@@ -4355,7 +4345,7 @@ MaintainMaterializedViewStatus(QueryDesc *queryDesc, CmdType operation)
 				bms_is_empty(deleted))
 			{
 				ereport(WARNING,
-					(errmsg("fail to find leafs of partitioned table: %u ", rte->relid)));
+					(errmsg("fail to find leafs of partitioned table: %s", get_rel_name(rte->relid))));
 			}
 			/* Should already be processed, just bypass. */
 			continue;
