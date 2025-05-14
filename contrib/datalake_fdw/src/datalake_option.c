@@ -34,6 +34,7 @@ static const struct datalakeFdwOption valid_oss_server_options[] = {
 	{DATALAKE_OPTION_ISVIRTUAL, ForeignServerRelationId},
 	{DATALAKE_OPTION_ISHTTPS, ForeignServerRelationId},
 	{DATALAKE_OPTION_LISTV2, ForeignServerRelationId},
+	{DATALAKE_OPTION_REGION, ForeignServerRelationId},
 	{NULL, InvalidOid}
 };
 
@@ -294,6 +295,11 @@ void parseOssServerOption(dataLakeOptions* opt, List *options)
 			{
 				opt->gopher->useVirtualHost = false;
 			}
+		}
+
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_REGION) == 0)
+		{
+			opt->gopher->region = pstrdup(defGetString(def));
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_PROTOCOL) == 0)
@@ -880,6 +886,12 @@ void freeDataLakeOptions(dataLakeOptions *options)
 		{
 			pfree(options->gopher->host);
 			options->gopher->host = NULL;
+		}
+
+		if (options->gopher->region)
+		{
+			pfree(options->gopher->region);
+			options->gopher->region = NULL;
 		}
 
 		/* hdfs */

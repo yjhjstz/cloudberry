@@ -548,6 +548,11 @@ gopherConfig* createGopherConfig(void *opt)
 			conf->endpoint = pstrdup(endpoint);
 		}
 
+		if (options->region)
+		{
+			conf->region = pstrdup(options->region);
+		}
+
 		conf->useVirtualHost = options->useVirtualHost;
 		conf->useHttps = options->useHttps;
 		conf->useListV2 = options->useListV2;

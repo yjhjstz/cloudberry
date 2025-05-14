@@ -34,6 +34,7 @@
 #define DATALAKE_OPTION_ISVIRTUAL "isvirtual"
 #define DATALAKE_OPTION_ISHTTPS "ishttps"
 #define DATALAKE_OPTION_LISTV2 "listv2"
+#define DATALAKE_OPTION_REGION "region"
 
 /* server hdfs options */
 #define DATALAKE_OPTION_HDFS_NAMENODE "hdfs_namenodes"
@@ -198,7 +199,7 @@ typedef struct gopherOptions
 	int		port;
 	char*	host;
 	bool	enableCache;
-
+	char*	region;
 	/* hdfs config */
 	char* 	hdfs_namenode_host;
 	int 	hdfs_namenode_port;
