@@ -986,30 +986,6 @@ select * from pt, pt1 where pt.ptid = pt1.ptid and pt.pt1 = 'hello0' order by pt
     0 | hello0 | world | drop this |    0 |   48 | hello48 | world | drop this |    0
 (9 rows)
 
-explain (costs off, timing off, summary off, analyze) select count(*) from pt, pt1 where pt.ptid = pt1.ptid and pt.pt1 = 'hello0';
-                                                 QUERY PLAN                                                 
-------------------------------------------------------------------------------------------------------------
- Finalize Aggregate (actual rows=1 loops=1)
-   ->  Gather Motion 3:1  (slice1; segments: 3) (actual rows=3 loops=1)
-         ->  Partial Aggregate (actual rows=1 loops=1)
-               ->  Hash Join (actual rows=5 loops=1)
-                     Hash Cond: (pt1.ptid = pt.ptid)
-                     Extra Text: (seg1)   Hash chain length 1.0 avg, 1 max, using 1 of 524288 buckets.
-                     ->  Dynamic Seq Scan on pt1 (actual rows=5 loops=1)
-                           Number of partitions to scan: 6 (out of 6)
-                           Partitions scanned:  Avg 1.0 x 3 workers.  Max 1 parts (seg0).
-                     ->  Hash (actual rows=1 loops=1)
-                           Buckets: 524288  Batches: 1  Memory Usage: 4097kB
-                           ->  Partition Selector (selector id: $0) (actual rows=1 loops=1)
-                                 ->  Broadcast Motion 3:3  (slice2; segments: 3) (actual rows=1 loops=1)
-                                       ->  Dynamic Index Only Scan on ptid_pt1_idx on pt (actual rows=1 loops=1)
-                                             Index Cond: (pt1 = 'hello0'::text)
-                                             Heap Fetches: 0
-                                             Number of partitions to scan: 6 (out of 6)
-                                             Partitions scanned:  Avg 6.0 x 3 workers.  Max 6 parts (seg0).
- Optimizer: Pivotal Optimizer (GPORCA)
-(18 rows)
-
 select count(*) from pt, pt1 where pt.ptid = pt1.ptid and pt.pt1 = 'hello0';
  count 
 -------

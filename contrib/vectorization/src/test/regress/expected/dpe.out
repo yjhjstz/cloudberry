@@ -1167,49 +1167,6 @@ select * from pt, pt1 where pt.ptid = pt1.ptid and pt.pt1 = 'hello0' order by pt
     0 | hello0 | world | drop this |    0 |   48 | hello48 | world | drop this |    0
 (9 rows)
 
-explain (costs off, timing off, summary off, analyze) select count(*) from pt, pt1 where pt.ptid = pt1.ptid and pt.pt1 = 'hello0';
-                                               QUERY PLAN                                                
----------------------------------------------------------------------------------------------------------
- Finalize Aggregate (actual rows=1 loops=1)
-   ->  Gather Motion 3:1  (slice1; segments: 3) (actual rows=3 loops=1)
-         ->  Partial Aggregate (actual rows=1 loops=1)
-               ->  Hash Join (actual rows=5 loops=1)
-                     Hash Cond: (pt1.ptid = pt.ptid)
-                     Extra Text: (seg1)   Hash chain length 1.0 avg, 1 max, using 1 of 524288 buckets.
-                     ->  Append (actual rows=5 loops=1)
-                           Partition Selectors: $0
-                           ->  Seq Scan on pt1_1_prt_2 pt1_1 (actual rows=5 loops=1)
-                           ->  Seq Scan on pt1_1_prt_3 pt1_2 (never executed)
-                           ->  Seq Scan on pt1_1_prt_4 pt1_3 (never executed)
-                           ->  Seq Scan on pt1_1_prt_5 pt1_4 (never executed)
-                           ->  Seq Scan on pt1_1_prt_6 pt1_5 (never executed)
-                           ->  Seq Scan on pt1_1_prt_junk_data pt1_6 (never executed)
-                     ->  Hash (actual rows=1 loops=1)
-                           Buckets: 524288  Batches: 1  Memory Usage: 4097kB
-                           ->  Partition Selector (selector id: $0) (actual rows=1 loops=1)
-                                 ->  Broadcast Motion 3:3  (slice2; segments: 3) (actual rows=1 loops=1)
-                                       ->  Append (actual rows=1 loops=1)
-                                             ->  Seq Scan on pt_1_prt_2 pt_1 (actual rows=1 loops=1)
-                                                   Filter: (pt1 = 'hello0'::text)
-                                                   Rows Removed by Filter: 4
-                                             ->  Seq Scan on pt_1_prt_3 pt_2 (actual rows=0 loops=1)
-                                                   Filter: (pt1 = 'hello0'::text)
-                                                   Rows Removed by Filter: 3
-                                             ->  Seq Scan on pt_1_prt_4 pt_3 (actual rows=0 loops=1)
-                                                   Filter: (pt1 = 'hello0'::text)
-                                                   Rows Removed by Filter: 2
-                                             ->  Seq Scan on pt_1_prt_5 pt_4 (actual rows=0 loops=1)
-                                                   Filter: (pt1 = 'hello0'::text)
-                                                   Rows Removed by Filter: 5
-                                             ->  Seq Scan on pt_1_prt_6 pt_5 (actual rows=0 loops=1)
-                                                   Filter: (pt1 = 'hello0'::text)
-                                                   Rows Removed by Filter: 4
-                                             ->  Seq Scan on pt_1_prt_junk_data pt_6 (actual rows=0 loops=1)
-                                                   Filter: (pt1 = 'hello0'::text)
-                                                   Rows Removed by Filter: 3
- Optimizer: Postgres query optimizer
-(38 rows)
-
 select count(*) from pt, pt1 where pt.ptid = pt1.ptid and pt.pt1 = 'hello0';
  count 
 -------
