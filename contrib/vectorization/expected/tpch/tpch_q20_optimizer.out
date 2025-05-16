@@ -44,7 +44,7 @@ order by
    ->  Vec Sort
          Sort Key: supplier.s_name
          ->  Vec Hash Semi Join
-               Hash Cond: (supplier.s_suppkey = lineitem.l_suppkey)
+               Hash Cond: (supplier.s_suppkey = partsupp.ps_suppkey)
                ->  Vec Hash Join
                      Hash Cond: (supplier.s_nationkey = nation.n_nationkey)
                      ->  Vec Seq Scan on supplier
@@ -54,7 +54,7 @@ order by
                                        Filter: (n_name = 'RUSSIA'::text)
                ->  Vec Hash
                      ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
-                           Hash Key: lineitem.l_suppkey
+                           Hash Key: partsupp.ps_suppkey
                            ->  Vec Hash Join
                                  Hash Cond: ((lineitem.l_partkey = partsupp.ps_partkey) AND (lineitem.l_suppkey = partsupp.ps_suppkey))
                                  Join Filter: ((partsupp.ps_availqty)::numeric > ((0.5 * sum(lineitem.l_quantity))))
@@ -65,16 +65,15 @@ order by
                                              ->  Vec Seq Scan on lineitem
                                                    Filter: ((l_shipdate >= '01-01-1997'::date) AND (l_shipdate < 'Thu Jan 01 00:00:00 1998'::timestamp without time zone))
                                  ->  Vec Hash
-                                       ->  Vec Redistribute Motion 3:3  (slice5; segments: 3)
-                                             Hash Key: partsupp.ps_partkey, partsupp.ps_suppkey
+                                       ->  Vec Broadcast Motion 3:3  (slice5; segments: 3)
                                              ->  Vec Hash Semi Join
                                                    Hash Cond: (partsupp.ps_partkey = part.p_partkey)
                                                    ->  Vec Seq Scan on partsupp
                                                    ->  Vec Hash
                                                          ->  Vec Seq Scan on part
                                                                Filter: ((p_name)::text ~~ 'burnished%'::text)
- Optimizer: Postgres query optimizer
-(35 rows)
+ Optimizer: GPORCA
+(34 rows)
 
 select
 	s_name,

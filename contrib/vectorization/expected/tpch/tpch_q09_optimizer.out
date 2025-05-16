@@ -32,8 +32,8 @@ group by
 order by
 	nation,
 	o_year desc;
-                                                                           QUERY PLAN                                                                           
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
  Vec Gather Motion 3:1  (slice1; segments: 3)
    Merge Key: nation.n_name, (EXTRACT(year FROM orders.o_orderdate))
    ->  Vec GroupAggregate
@@ -43,36 +43,38 @@ order by
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: nation.n_name, (EXTRACT(year FROM orders.o_orderdate))
                      ->  Vec Hash Join
-                           Hash Cond: (supplier.s_nationkey = nation.n_nationkey)
-                           ->  Vec Hash Join
-                                 Hash Cond: (lineitem.l_suppkey = supplier.s_suppkey)
-                                 ->  Vec Hash Join
-                                       Hash Cond: (orders.o_orderkey = lineitem.l_orderkey)
-                                       ->  Vec Seq Scan on orders
-                                       ->  Vec Hash
-                                             ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
-                                                   Hash Key: lineitem.l_orderkey
-                                                   ->  Vec Hash Join
-                                                         Hash Cond: ((partsupp.ps_suppkey = lineitem.l_suppkey) AND (partsupp.ps_partkey = lineitem.l_partkey))
-                                                         ->  Vec Seq Scan on partsupp
-                                                         ->  Vec Hash
-                                                               ->  Vec Redistribute Motion 3:3  (slice4; segments: 3)
-                                                                     Hash Key: lineitem.l_partkey
-                                                                     ->  Vec Hash Join
-                                                                           Hash Cond: (lineitem.l_partkey = part.p_partkey)
-                                                                           ->  Vec Seq Scan on lineitem
-                                                                           ->  Vec Hash
-                                                                                 ->  Vec Broadcast Motion 3:3  (slice5; segments: 3)
-                                                                                       ->  Vec Seq Scan on part
-                                                                                             Filter: ((p_name)::text ~~ '%seashell%'::text)
-                                 ->  Vec Hash
-                                       ->  Vec Broadcast Motion 3:3  (slice6; segments: 3)
-                                             ->  Vec Seq Scan on supplier
+                           Hash Cond: ((partsupp.ps_suppkey = lineitem.l_suppkey) AND (partsupp.ps_partkey = lineitem.l_partkey))
+                           ->  Vec Seq Scan on partsupp
                            ->  Vec Hash
-                                 ->  Vec Broadcast Motion 3:3  (slice7; segments: 3)
-                                       ->  Vec Seq Scan on nation
- Optimizer: Postgres query optimizer
-(38 rows)
+                                 ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
+                                       Hash Key: lineitem.l_partkey
+                                       ->  Vec Hash Join
+                                             Hash Cond: (lineitem.l_suppkey = supplier.s_suppkey)
+                                             ->  Vec Redistribute Motion 3:3  (slice4; segments: 3)
+                                                   Hash Key: lineitem.l_suppkey
+                                                   ->  Vec Hash Join
+                                                         Hash Cond: (orders.o_orderkey = lineitem.l_orderkey)
+                                                         ->  Vec Seq Scan on orders
+                                                         ->  Vec Hash
+                                                               ->  Vec Hash Join
+                                                                     Hash Cond: (lineitem.l_partkey = part.p_partkey)
+                                                                     ->  Vec Seq Scan on lineitem
+                                                                     ->  Vec Hash
+                                                                           ->  Vec Broadcast Motion 3:3  (slice5; segments: 3)
+                                                                                 ->  Vec Seq Scan on part
+                                                                                       Filter: ((p_name)::text ~~ '%seashell%'::text)
+                                             ->  Vec Hash
+                                                   ->  Vec Redistribute Motion 3:3  (slice6; segments: 3)
+                                                         Hash Key: supplier.s_suppkey
+                                                         ->  Vec Hash Join
+                                                               Hash Cond: (supplier.s_nationkey = nation.n_nationkey)
+                                                               ->  Vec Redistribute Motion 3:3  (slice7; segments: 3)
+                                                                     Hash Key: supplier.s_nationkey
+                                                                     ->  Vec Seq Scan on supplier
+                                                               ->  Vec Hash
+                                                                     ->  Vec Seq Scan on nation
+ Optimizer: GPORCA
+(40 rows)
 
 select
 	nation,

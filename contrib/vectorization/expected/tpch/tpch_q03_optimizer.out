@@ -32,7 +32,7 @@ LIMIT 10;
                ->  Vec Sort
                      Sort Key: (sum((lineitem.l_extendedprice * ('1'::numeric(15,2) - lineitem.l_discount)))) DESC, orders.o_orderdate
                      ->  Vec HashAggregate
-                           Group Key: lineitem.l_orderkey, orders.o_orderdate, orders.o_shippriority
+                           Group Key: orders.o_orderdate, lineitem.l_orderkey, orders.o_shippriority
                            ->  Vec Hash Join
                                  Hash Cond: (lineitem.l_orderkey = orders.o_orderkey)
                                  ->  Vec Seq Scan on lineitem
@@ -46,7 +46,7 @@ LIMIT 10;
                                                    ->  Vec Broadcast Motion 3:3  (slice2; segments: 3)
                                                          ->  Vec Seq Scan on customer
                                                                Filter: (c_mktsegment = 'AUTOMOBILE'::text)
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (22 rows)
 
 select

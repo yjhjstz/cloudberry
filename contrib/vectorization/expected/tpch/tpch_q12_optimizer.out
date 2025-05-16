@@ -32,13 +32,13 @@ order by
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Vec Gather Motion 3:1  (slice1; segments: 3)
    Merge Key: lineitem.l_shipmode
-   ->  Vec Sort
-         Sort Key: lineitem.l_shipmode
-         ->  Vec Finalize Vec HashAggregate
-               Group Key: lineitem.l_shipmode
+   ->  Vec Finalize Vec GroupAggregate
+         Group Key: lineitem.l_shipmode
+         ->  Vec Sort
+               Sort Key: lineitem.l_shipmode
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: lineitem.l_shipmode
-                     ->  Vec Partial Vec HashAggregate
+                     ->  Vec Streaming Vec Partial Vec HashAggregate
                            Group Key: lineitem.l_shipmode
                            ->  Vec Hash Join
                                  Hash Cond: (orders.o_orderkey = lineitem.l_orderkey)
@@ -46,7 +46,7 @@ order by
                                  ->  Vec Hash
                                        ->  Vec Seq Scan on lineitem
                                              Filter: ((l_shipmode = ANY ('{AIR,MAIL}'::text[])) AND (l_commitdate < l_receiptdate) AND (l_shipdate < l_commitdate) AND (l_receiptdate >= '01-01-1997'::date) AND (l_receiptdate < 'Thu Jan 01 00:00:00 1998'::timestamp without time zone))
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (17 rows)
 
 select

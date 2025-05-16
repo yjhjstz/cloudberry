@@ -43,10 +43,15 @@ LIMIT 20;
                      ->  Vec HashAggregate
                            Group Key: customer.c_custkey, customer.c_name, customer.c_acctbal, customer.c_phone, nation.n_name, customer.c_address, customer.c_comment
                            ->  Vec Hash Join
-                                 Hash Cond: (customer.c_nationkey = nation.n_nationkey)
+                                 Hash Cond: (customer.c_custkey = orders.o_custkey)
                                  ->  Vec Hash Join
-                                       Hash Cond: (orders.o_custkey = customer.c_custkey)
-                                       ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
+                                       Hash Cond: (customer.c_nationkey = nation.n_nationkey)
+                                       ->  Vec Seq Scan on customer
+                                       ->  Vec Hash
+                                             ->  Vec Broadcast Motion 3:3  (slice2; segments: 3)
+                                                   ->  Vec Seq Scan on nation
+                                 ->  Vec Hash
+                                       ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
                                              Hash Key: orders.o_custkey
                                              ->  Vec Hash Join
                                                    Hash Cond: (lineitem.l_orderkey = orders.o_orderkey)
@@ -55,12 +60,7 @@ LIMIT 20;
                                                    ->  Vec Hash
                                                          ->  Vec Seq Scan on orders
                                                                Filter: ((o_orderdate >= '06-01-1993'::date) AND (o_orderdate < 'Wed Sep 01 00:00:00 1993'::timestamp without time zone))
-                                       ->  Vec Hash
-                                             ->  Vec Seq Scan on customer
-                                 ->  Vec Hash
-                                       ->  Vec Broadcast Motion 3:3  (slice3; segments: 3)
-                                             ->  Vec Seq Scan on nation
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (27 rows)
 
 select

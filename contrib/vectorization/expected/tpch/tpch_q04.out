@@ -21,29 +21,31 @@ group by
         o_orderpriority
 order by
         o_orderpriority;
-                                                                              QUERY PLAN                                                                               
------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Vec Gather Motion 3:1  (slice1; segments: 3)
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
    Merge Key: orders.o_orderpriority
-   ->  Vec Finalize Vec GroupAggregate
-         Group Key: orders.o_orderpriority
-         ->  Vec Sort
-               Sort Key: orders.o_orderpriority
-               ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
+   ->  Sort
+         Sort Key: orders.o_orderpriority
+         ->  Finalize HashAggregate
+               Group Key: orders.o_orderpriority
+               ->  Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: orders.o_orderpriority
-                     ->  Vec Streaming Vec Partial Vec HashAggregate
+                     ->  Partial HashAggregate
                            Group Key: orders.o_orderpriority
-                           ->  Vec Hash Join
-                                 Hash Cond: (lineitem.l_orderkey = orders.o_orderkey)
-                                 ->  Vec HashAggregate
-                                       Group Key: lineitem.l_orderkey
-                                       ->  Vec Seq Scan on lineitem
-                                             Filter: (l_commitdate < l_receiptdate)
-                                 ->  Vec Hash
-                                       ->  Vec Seq Scan on orders
-                                             Filter: ((o_orderdate >= '07-01-1996'::date) AND (o_orderdate < 'Tue Oct 01 00:00:00 1996'::timestamp without time zone))
- Optimizer: GPORCA
-(20 rows)
+                           ->  HashAggregate
+                                 Group Key: (RowIdExpr)
+                                 ->  Redistribute Motion 3:3  (slice3; segments: 3)
+                                       Hash Key: (RowIdExpr)
+                                       ->  Hash Join
+                                             Hash Cond: (lineitem.l_orderkey = orders.o_orderkey)
+                                             ->  Seq Scan on lineitem
+                                                   Filter: (l_commitdate < l_receiptdate)
+                                             ->  Hash
+                                                   ->  Seq Scan on orders
+                                                         Filter: ((o_orderdate >= '07-01-1996'::date) AND (o_orderdate < 'Tue Oct 01 00:00:00 1996'::timestamp without time zone))
+ Optimizer: Postgres query optimizer
+(22 rows)
 
 select
         o_orderpriority,

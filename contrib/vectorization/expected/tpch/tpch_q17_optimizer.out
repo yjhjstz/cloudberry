@@ -28,19 +28,19 @@ where
                      ->  Vec Seq Scan on lineitem
                      ->  Vec Hash
                            ->  Vec Broadcast Motion 3:3  (slice2; segments: 3)
-                                 ->  Vec Hash Join
+                                 ->  Vec Hash Right Join
                                        Hash Cond: (lineitem_1.l_partkey = part.p_partkey)
                                        ->  Vec Finalize Vec HashAggregate
                                              Group Key: lineitem_1.l_partkey
                                              ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
                                                    Hash Key: lineitem_1.l_partkey
-                                                   ->  Vec Partial Vec HashAggregate
+                                                   ->  Vec Streaming Vec Partial Vec HashAggregate
                                                          Group Key: lineitem_1.l_partkey
                                                          ->  Vec Seq Scan on lineitem lineitem_1
                                        ->  Vec Hash
                                              ->  Vec Seq Scan on part
                                                    Filter: ((p_brand = 'Brand#54'::text) AND (p_container = 'SM CAN'::text))
- Optimizer: Postgres query optimizer
+ Optimizer: GPORCA
 (22 rows)
 
 select
