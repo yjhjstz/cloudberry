@@ -458,9 +458,6 @@ static std::unique_ptr<PaxColumn> BuildEncodingColumn(
     pax_column->Set(data_stream_buffer);
     return pax_column;
   }
-
-  Assert(false);
-  return nullptr;
 }
 
 static std::unique_ptr<PaxColumn> BuildEncodingBitPackedColumn(
@@ -514,9 +511,6 @@ static std::unique_ptr<PaxColumn> BuildEncodingBitPackedColumn(
     pax_column->Set(column_data_buffer);
     return pax_column;
   }
-
-  Assert(false);
-  return nullptr;
 }
 
 static std::unique_ptr<PaxColumn> BuildEncodingDecimalColumn(
