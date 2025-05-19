@@ -395,3 +395,13 @@ SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/ext_text/empty_path/', enableCache 'false', format 'text');
 SELECT * FROM read_empty_file_path ORDER BY a;
 DROP FOREIGN TABLE IF EXISTS read_empty_file_path;
+
+DROP FOREIGN TABLE IF EXISTS read_split_file;
+CREATE FOREIGN TABLE read_split_file (
+  a text,
+  b text
+)
+SERVER oss_server
+OPTIONS (filePath '/ossext-ci-test/split_file_write/', enableCache 'false', format 'text');
+SELECT count(*) FROM read_split_file ORDER BY a;
+DROP FOREIGN TABLE IF EXISTS read_split_file;

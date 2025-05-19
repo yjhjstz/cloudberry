@@ -16,13 +16,17 @@ public:
     void destroyHandler();
 
 private:
-    void setOption(CompressType compressType);
+    void setOption(dataLakeOptions *options);
 
 private:
-    std::string generateParquetFileName(std::string filePath);
+    std::string generateParquetFileName(std::string filePath, uint32 fileSliceIndex);
     parquetFileWriter file_writer;
     ossFileStream fileStream;
     writeOption option;
+    int sliceIdx;
+    std::string prefix;
+	std::string fileName;
+    dataLakeFdwScanState *ss;
 };
 
 #endif

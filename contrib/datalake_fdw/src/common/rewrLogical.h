@@ -75,6 +75,7 @@ public:
     }
 
     CompressType compression;
+	int64_t writeFileSize;
 };
 
 typedef struct datalakeMemoryBuffer {
@@ -165,6 +166,24 @@ protected:
 	int nConstraint;
 	int nDefaults;
 	bool *includes_columns;
+};
+
+class writeLogical : public RewrLogicalBase
+{
+public:
+	writeLogical()
+	{
+		sliceIndex = 0;
+		currentWriteSize = 0;
+	}
+	std::string generateFileName(std::string writePrefix, std::string suffix, int fileSliceIndex);
+
+protected:
+	/* for file slice */
+	uint32 sliceIndex;
+	int64_t currentWriteSize;
+	std::string prefix;
+	std::string suffix;
 };
 
 int setStreamFlag(readOption opt);

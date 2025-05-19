@@ -59,3 +59,15 @@ insert into more_file2 values(17, 'aaaaabbbb');
 insert into more_file2 values(NULL, 'aaaaabbbb');
 insert into more_file2 values(19, 'aaaaabbbb');
 insert into more_file2 values(20, 'aaaaabbbb');
+
+DROP EXTERNAL TABLE IF EXISTS split_file;
+CREATE WRITABLE EXTERNAL TABLE split_file(a text, b text) LOCATION('gphdfs://ci-test-data/text/split_file hdfs_cluster_name=paa_cluster filesizelimit=2') FORMAT 'text';
+insert into split_file select md5(random()::text), md5(random()::text) from generate_series(1, 500000);
+
+DROP EXTERNAL TABLE IF EXISTS split_file_gz;
+CREATE WRITABLE EXTERNAL TABLE split_file_gz(a text, b text) LOCATION('gphdfs://ci-test-data/text/split_file_gz hdfs_cluster_name=paa_cluster filesizelimit=2 compression=gzip') FORMAT 'text';
+insert into split_file_gz select md5(random()::text), md5(random()::text) from generate_series(1, 500000);
+
+DROP EXTERNAL TABLE IF EXISTS split_file_zip;
+CREATE WRITABLE EXTERNAL TABLE split_file_zip(a text, b text) LOCATION('gphdfs://ci-test-data/text/split_file_zip hdfs_cluster_name=paa_cluster filesizelimit=2 compression=zip') FORMAT 'text';
+insert into split_file_zip select md5(random()::text), md5(random()::text) from generate_series(1, 500000);

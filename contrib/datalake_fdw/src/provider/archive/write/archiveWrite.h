@@ -18,9 +18,17 @@ public:
 	void destroyHandler();
 
 private:
-	void setOption(CompressType compressType);
+	void setOption(dataLakeOptions *options);
 
-	std::string generateArchiveWriteFileName(std::string filePath, std::string suffix);
+	std::string generateArchiveWriteFileName(std::string filePath, std::string suffix, uint32 sliceIndex);
+
+	uint32 sliceIndex;
+
+	int64_t currentWriteSize;
+
+	std::string prefix;
+
+	std::string suffix;
 
 	ossFileStream fileStream;
 

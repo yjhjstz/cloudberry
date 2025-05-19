@@ -77,9 +77,9 @@ public:
 class parquetFileWriter : public ParquetLogicalType
 {
 public:
-    parquetFileWriter() {}
+    parquetFileWriter();
 
-    bool createParquetWriter(ossFileStream ossFile, std::string fileName, void *sstate, writeOption option);
+    bool createParquetWriter(ossFileStream ossFile, std::string fileName);
 
     std::shared_ptr<parquet::schema::GroupNode> setupSchema();
 
@@ -90,6 +90,14 @@ public:
     void closeParquetWriter();
 
     int64_t write(const void* buf, size_t length);
+
+    void init(void *sstate, writeOption option);
+
+    void destroy();
+
+    bool isOpen();
+
+    int64_t getWrittenBytes();
 private:
 
     void createColumnBatch();
@@ -126,6 +134,9 @@ private:
     int64_t decimalOutBufOffset;
     parquet::Int96* int96Array;
     int16_t* definition_level;
+
+    bool openState;
+    int64_t currentWriteBytes;
 };
 
 #endif

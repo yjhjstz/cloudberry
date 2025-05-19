@@ -113,6 +113,16 @@ select * from read_empty_file_path order by a;
 (0 rows)
 
 DROP EXTERNAL TABLE IF EXISTS read_empty_file_path;
+DROP EXTERNAL TABLE IF EXISTS read_split;
+NOTICE:  foreign table "read_split" does not exist, skipping
+CREATE READABLE EXTERNAL TABLE read_split(a int, b text) LOCATION('gphdfs://ci-test-data/text/split_file hdfs_cluster_name=paa_cluster') FORMAT 'text';
+select count(*) from read_split;
+  count  
+---------
+ 1500000
+(1 row)
+
+DROP EXTERNAL TABLE IF EXISTS read_split;
 -- sync table
 -- hive partition tinyint
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;

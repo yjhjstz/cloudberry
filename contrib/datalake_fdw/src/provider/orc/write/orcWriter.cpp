@@ -16,6 +16,7 @@ using namespace orc;
 
 #define GP_VCHAR_MAX_SIZE (10485760)
 #define GP_NUMERIC_MAX_SIZE (1000)
+#define ORC_STRIPE_SIZE (64 * 1024 * 1024) // 64M
 
 /* =======================================================================
  *                            orcWriter
@@ -46,8 +47,11 @@ void orcWrite::createHandler(void* sstate)
 	stringBuffOffset = 0;
 	intervalBuffOffset = 0;
 	timeBuffOffset = 0;
+  currentSliceId = 0;
+  openState = false;
 
 	fdwState = (dataLakeFdwScanState*)sstate;
+	prefix = (char*)lfirst(list_head(fdwState->fragments)); 
 	Relation relation = fdwState->rel;
 	if (relation == NULL)
 	{
@@ -62,7 +66,10 @@ void orcWrite::createHandler(void* sstate)
 	fileStream = createFileSystem(conf);
 	freeGopherConfig(conf);
 
-	initORC();
+	generateOrcSchema();
+	stripeSize = std::min(fdwState->options->fileSizeLimit, (int64_t)ORC_STRIPE_SIZE);
+	batchSize = ORC_WRITER_BATCH_SIZE;
+  fileSizeLimit = fdwState->options->fileSizeLimit > 0 ? fdwState->options->fileSizeLimit + 1024 * 1024 : fdwState->options->fileSizeLimit;
 }
 
 columType orcWrite::columnBelongType(int attColumn)
@@ -99,28 +106,55 @@ columType orcWrite::columnBelongType(int attColumn)
 
 void orcWrite::initORC()
 {
-	std::string orcName = generateWriteFileName(fdwState->options->prefix, ORC_WRITE_SUFFIX, segid);
-
-	generateOrcSchema();
-	batchSize = ORC_WRITER_BATCH_SIZE;
-	uint64_t stripeSize = (64 * 1024 * 1024); // 64M
+	fileName = generateWriteFileName(prefix, ORC_WRITE_SUFFIX, segid, currentSliceId);
 	uint64_t blockSize = 64 * 1024;     // 64K
 	orc::CompressionKind compression = orc::CompressionKind_NONE;
 	writeOptions.setStripeSize(stripeSize);
 	writeOptions.setCompressionBlockSize(blockSize);
 	writeOptions.setCompression(compression);
 
-	outStream = std::unique_ptr<OutputStream>(new OssOutputStream(fdwState->options, orcName, false));
+	outStream = std::unique_ptr<OutputStream>(new OssOutputStream(fileStream, fileName, false));
 	orcWriter = createWriter(*orcSchema, outStream.get(), writeOptions);
 	batch = orcWriter->createRowBatch(batchSize);
 	root = dynamic_cast<StructVectorBatch *>(batch.get());
 	rows = 0;
+  openState = true;
+}
+
+void orcWrite::closeORC()
+{
+  if (rows != 0) {
+    writeToBatch(rows);
+    rows = 0;
+  }
+  totalStripes = 0;
+  // Close ORC
+  orcWriter->close();
+  outStream->close();
+  outStream.reset();
+  orcWriter.reset();
+  stripes.clear();
+  batch.reset();
+  root = NULL;
+  stringBuffOffset = 0;
+  intervalBuffOffset = 0;
+  timeBuffOffset = 0;
+  openState = false;
 }
 
 int64_t orcWrite::write(const void* buf, int64_t length)
 {
-	//MemoryContext oldcontext = MemoryContextSwitchTo(pstate->rowcontext);
-	writeToField(rows, buf);
+  if (openState && fileSizeLimit > 0 && outStream->getLength() + stripeSize > fileSizeLimit)
+  {
+    closeORC();
+    currentSliceId += 1;
+  }
+  if (!openState)
+  {
+    initORC();
+  }
+
+  writeToField(rows, buf);
 	rows++;
 	totalStripes++;
 	if (rows == batchSize) {
@@ -615,25 +649,8 @@ void orcWrite::writeToBatch(int num) {
 }
 
 void orcWrite::destroyHandler() {
-  if (rows != 0) {
-    writeToBatch(rows);
-    rows = 0;
-  }
-  totalStripes = 0;
-  // Close ORC
-  orcWriter->close();
-  orcWriter.reset();
-  stripes.clear();
-  batch.reset();
+  closeORC();
   orcSchema.reset();
-  root = NULL;
-  stringBuffOffset = 0;
-  intervalBuffOffset = 0;
-  timeBuffOffset = 0;
-  segnum = 0;
-  segid = 0;
-  rows = 0;
-
   pfree(batchHasNULL);
 }
 
@@ -754,16 +771,12 @@ std::string orcWrite::generateOrcSchema()
  * =======================================================================
  */
 
-OssOutputStream::OssOutputStream(void* options, std::string filename, bool enableCache)
+OssOutputStream::OssOutputStream(ossFileStream fileStream, std::string filename, bool enableCache)
 {
 	bytesWritten = 0;
 	closed = false;
 	this->filename = filename;
-	dataLakeOptions* opt = (dataLakeOptions*)options;
-	gopherConfig *gopherConf = createGopherConfig((void*)(opt->gopher));
-    stream = createFileSystem(gopherConf);
-	freeGopherConfig(gopherConf);
-
+  stream = fileStream;
 	openFile(stream, filename.c_str(), O_WRONLY);
 }
 

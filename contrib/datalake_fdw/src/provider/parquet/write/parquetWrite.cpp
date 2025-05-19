@@ -9,39 +9,50 @@
 void parquetWrite::createHandler(void *sstate)
 {
     /* parquet init */ 
-	dataLakeFdwScanState *ss = (dataLakeFdwScanState*)sstate;
+	ss = (dataLakeFdwScanState*)sstate;
 	gopherConfig* conf = createGopherConfig((void*)(ss->options->gopher));
 	fileStream = createFileSystem(conf);
 	freeGopherConfig(conf);
-	std::string prefix = ss->options->prefix;
-    setOption(getCompressType(ss->options->compress));
-    file_writer.createParquetWriter(fileStream, generateParquetFileName(prefix), sstate, option);
+	prefix = (char*)lfirst(list_head(ss->fragments)); 
+    setOption(ss->options);
+    sliceIdx= 0;
+    file_writer.init(sstate, option);
 }
 
-void parquetWrite::setOption(CompressType compressType)
+void parquetWrite::setOption(dataLakeOptions *options)
 {
-    option.compression = compressType;
+    option.compression = getCompressType(options->compress);
+    option.writeFileSize = options->fileSizeLimit > 0 ? options->fileSizeLimit : options->fileSizeLimit;
 }
 
-std::string parquetWrite::generateParquetFileName(std::string filePath)
+std::string parquetWrite::generateParquetFileName(std::string filePath, uint32 fileSliceIndex)
 {
-	int segid = GpIdentity.segindex;
-	std::string exportName = generateWriteFileName(filePath, PARQUET_WRITE_SUFFIX, segid);
-    return exportName;
+    return generateWriteFileName(filePath, PARQUET_WRITE_SUFFIX, GpIdentity.segindex, fileSliceIndex);
 }
 
 int64_t parquetWrite::write(const void *buf, int64_t length)
 {
-    // CopyState pstate = (CopyState)EXTPROTOCOL_GET_PSTATE(fcinfo);
-    // MemoryContext oldcontext = MemoryContextSwitchTo(pstate->rowcontext);
-    int64_t rownum = file_writer.write(buf, length);
-    //MemoryContextSwitchTo(oldcontext);
-    return rownum;
+    if (file_writer.isOpen() && option.writeFileSize > 0 && file_writer.getWrittenBytes() + length > option.writeFileSize)
+	{
+		file_writer.closeParquetWriter();
+		sliceIdx += 1;
+	}
+
+	if (!file_writer.isOpen())
+	{
+		fileName = generateParquetFileName(prefix, sliceIdx);
+        file_writer.createParquetWriter(fileStream, fileName);
+	}
+	int64_t len = file_writer.write(buf, length);
+	return len;
 }
 
 void parquetWrite::destroyHandler()
 {
-    file_writer.closeParquetWriter();
+    if (file_writer.isOpen())
+    {
+        file_writer.closeParquetWriter();
+    }
     destroyFileSystem(fileStream);
     fileStream = NULL;
 }

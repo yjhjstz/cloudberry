@@ -196,17 +196,8 @@ CompressType Provider::getCompressType(char* type)
 	return compresstype;
 }
 
-std::string Provider::generateWriteFileName(std::string writePrefix, std::string suffix, int segid)
+std::string Provider::generateWriteFileName(std::string writePrefix, std::string suffix, int segid, int fileSliceIndex)
 {
-	uuid_t uuid;
-    uuid_generate_time(uuid);
-    char str[36] = {0};
-    uuid_unparse(uuid, str);
-    std::string uuid_str = str;
-
-	time_t second = time(NULL);
-	int64_t timestamp = static_cast<int64_t>(second);
-
 	std::stringstream fileName;
 	if (!writePrefix.empty())
 	{
@@ -217,8 +208,7 @@ std::string Provider::generateWriteFileName(std::string writePrefix, std::string
 		}
 	}
 
-	fileName << timestamp << "/";
-	fileName << uuid_str << "-" << segid;
+	fileName << "seg" << segid << "-" << fileSliceIndex;
 	if (!suffix.empty())
 	{
 		fileName << "." << suffix;

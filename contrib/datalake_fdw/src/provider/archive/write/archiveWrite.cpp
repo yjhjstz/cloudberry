@@ -11,10 +11,11 @@ void archiveWrite::createHandler(void *sstate)
 	gopherConfig* conf = createGopherConfig((void*)(ss->options->gopher));
 	fileStream = createFileSystem(conf);
 	freeGopherConfig(conf);
-	std::string prefix = ss->options->prefix;
-    setOption(getCompressType(ss->options->compress));
+    setOption(ss->options);
+	sliceIndex = 0;
+	currentWriteSize = 0;
+	prefix = (char*)lfirst(list_head(ss->fragments));
 
-	std::string suffix;
 	if (option.compression == GZIP)
 	{
 		suffix = "gz";
@@ -33,15 +34,25 @@ void archiveWrite::createHandler(void *sstate)
 			suffix = CSV_WRITE_SUFFIX;
 		}
 	}
-
-	fileName = generateArchiveWriteFileName(prefix, suffix);
-
-	fileWrite.open(fileStream, fileName, sstate, option);
 }
 
 int64_t archiveWrite::write(const void *buf, int64_t length)
 {
-	return fileWrite.write(buf, length);
+	if (option.writeFileSize > 0 && currentWriteSize + length > option.writeFileSize && currentWriteSize > 0)
+	{
+		fileWrite.close();
+		currentWriteSize = 0;
+		sliceIndex += 1;
+	}
+
+	if (!fileWrite.isOpen())
+	{
+		fileName = generateArchiveWriteFileName(prefix, suffix, sliceIndex);
+		fileWrite.open(fileStream, fileName, option);
+	}
+	int64_t len = fileWrite.write(buf, length);
+	currentWriteSize += len;
+	return len;
 }
 
 void archiveWrite::destroyHandler()
@@ -50,16 +61,17 @@ void archiveWrite::destroyHandler()
 }
 
 
-std::string archiveWrite::generateArchiveWriteFileName(std::string filePath, std::string suffix)
+std::string archiveWrite::generateArchiveWriteFileName(std::string filePath, std::string suffix, uint32 fileSliceIdx)
 {
 	int segid = GpIdentity.segindex;
-	std::string exportName = generateWriteFileName(filePath, suffix, segid);
+	std::string exportName = generateWriteFileName(filePath, suffix, segid, fileSliceIdx);
     return exportName;
 }
 
-void archiveWrite::setOption(CompressType compressType)
+void archiveWrite::setOption(dataLakeOptions *options)
 {
-	option.compression = compressType;
+	option.compression = getCompressType(options->compress);
+	option.writeFileSize = options->fileSizeLimit; 
 }
 
 }

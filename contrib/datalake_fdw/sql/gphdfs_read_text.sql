@@ -34,6 +34,11 @@ CREATE READABLE EXTERNAL TABLE read_empty_file_path(a int, b text) LOCATION('gph
 select * from read_empty_file_path order by a;
 DROP EXTERNAL TABLE IF EXISTS read_empty_file_path;
 
+DROP EXTERNAL TABLE IF EXISTS read_split;
+CREATE READABLE EXTERNAL TABLE read_split(a int, b text) LOCATION('gphdfs://ci-test-data/text/split_file hdfs_cluster_name=paa_cluster') FORMAT 'text';
+select count(*) from read_split;
+DROP EXTERNAL TABLE IF EXISTS read_split;
+
 -- sync table
 -- hive partition tinyint
 DROP EXTERNAL TABLE IF EXISTS hive_type_test_1;

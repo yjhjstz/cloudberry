@@ -7,7 +7,7 @@ namespace Datalake {
 namespace Internal {
 
 
-void archiveFileWrite::open(ossFileStream ossFile, std::string fileName, void *sstate, writeOption option)
+void archiveFileWrite::open(ossFileStream ossFile, std::string fileName, writeOption option)
 {
 	this->name = fileName;
 	this->option = option;
@@ -20,6 +20,7 @@ void archiveFileWrite::open(ossFileStream ossFile, std::string fileName, void *s
 
 	if (option.compression == UNCOMPRESS)
 	{
+		openState = true;
 		return;
 	}
 
@@ -65,6 +66,7 @@ void archiveFileWrite::open(ossFileStream ossFile, std::string fileName, void *s
 			archive_error_string(archive));
 	}
 
+	openState = true;
 }
 
 int64_t archiveFileWrite::write(const void* buf, size_t length)
@@ -91,6 +93,11 @@ ssize_t archiveFileWrite::write_call_back(struct archive * arch, void *client_da
 
 void archiveFileWrite::close()
 {
+	if (!openState)
+	{
+		return;
+	}
+
 	if (option.compression != UNCOMPRESS)
 	{
 		archive_entry_free(archive_entry);
@@ -110,7 +117,12 @@ void archiveFileWrite::close()
 	}
 
 	closeFile(ossFile);
+	openState = false;
 }
 
+bool archiveFileWrite::isOpen()
+{
+	return openState;
+}
 }
 }

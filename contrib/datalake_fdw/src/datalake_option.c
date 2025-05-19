@@ -401,7 +401,14 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FILE_SIZE_LIMIT) == 0)
 		{
-			opt->fileSizeLimit = atoi(defGetString(def));
+			int64_t filesize = atoi(defGetString(def));
+			if (filesize == 0 || filesize < -1)
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("datalake_fdw: file size limit must be greater than 0 or be -1.")));
+			}
+			opt->fileSizeLimit = filesize > 0 ? filesize + 1024 * 1024 : -1;
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_HIVE_DATASOURCE) == 0)
@@ -532,6 +539,8 @@ dataLakeOptions *getOptions(Oid foreigntableid)
 	char connect_worker_path[1024] = {0};
 	DatalakeGetGopherMetaPath(connect_worker_path);
 	opt->gopher->worker_path = pstrdup(connect_worker_path);
+
+	opt->fileSizeLimit = 128 * 1024 * 1024;
 
 	foreach(lc, server->options)
 	{

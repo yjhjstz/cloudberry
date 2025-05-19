@@ -19,23 +19,14 @@ extern "C"
 #define GP_NUMERIC_MAX_SIZE (1000)
 #define PARQUET_ROW_GROUP_MAX_SIZE (64*1024*1024)
 
-bool parquetFileWriter::createParquetWriter(ossFileStream ossFile, std::string fileName, void *sstate, writeOption option)
+parquetFileWriter::parquetFileWriter()
 {
-	dataLakeFdwScanState *ss = (dataLakeFdwScanState*)sstate;
+    openState = false;
+}
 
-    Relation relation = ss->rel;
-    if (relation == NULL) {
-        elog(ERROR, "Parquet get Relation failed\n");
-    }
-    estimated_bytes = 0;
-    ncolumns = relation->rd_att->natts;
-    tupdesc = relation->rd_att;
-    this->option = option;
+bool parquetFileWriter::createParquetWriter(ossFileStream ossFile, std::string fileName)
+{
     name = fileName;
-    createColumnBatch();
-    schema = setupSchema();
-    writeProperties();
-
     out_file = std::make_shared<gopherWriteFileSystem>(ossFile);
     out_file->OpenFile(name.c_str());
     file_writer = parquet::ParquetFileWriter::Open(out_file, schema, props);
@@ -43,6 +34,8 @@ bool parquetFileWriter::createParquetWriter(ossFileStream ossFile, std::string f
     dataBufferOffset = 0;
     dataBuffer.resize(1024*1024);
     rg_writer = file_writer->AppendBufferedRowGroup();
+    openState = true;
+    currentWriteBytes = 0;
     return true;
 }
 
@@ -317,36 +310,10 @@ void parquetFileWriter::resetParquetWriter()
     rg_writer->Close();
     file_writer->Close();
     out_file->Close();
-    schema.reset();
-    props.reset();
     file_writer.reset();
     out_file.reset();
     dataBufferOffset = 0;
-    if (byteArray != NULL)
-    {
-        pfree(byteArray);
-        byteArray = NULL;
-    }
-    if (fixByteArray != NULL)
-    {
-        pfree(fixByteArray);
-        fixByteArray = NULL;
-    }
-    if (definition_level != NULL)
-    {
-        pfree(definition_level);
-        definition_level = NULL;
-    }
-    if (int96Array != NULL)
-    {
-        pfree(int96Array);
-        int96Array = NULL;
-    }
-    if (decimalOutBuf != NULL)
-    {
-        pfree(decimalOutBuf);
-        decimalOutBuf = NULL;
-    }
+    openState = false;
 }
 
 void parquetFileWriter::closeParquetWriter()
@@ -425,6 +392,64 @@ int64_t parquetFileWriter::write(const void* buf, size_t length)
         estimated_bytes = 0;
     }
     return length;
+}
+
+void parquetFileWriter::init(void *sstate, writeOption option)
+{
+    dataLakeFdwScanState *ss = (dataLakeFdwScanState*)sstate;
+
+    Relation relation = ss->rel;
+    if (relation == NULL) {
+        elog(ERROR, "Parquet get Relation failed\n");
+    }
+    estimated_bytes = 0;
+    ncolumns = relation->rd_att->natts;
+    tupdesc = relation->rd_att;
+    this->option = option;
+    createColumnBatch();
+    schema = setupSchema();
+    writeProperties();
+}
+
+void parquetFileWriter::destroy()
+{
+    schema.reset();
+    props.reset();
+    if (byteArray != NULL)
+    {
+        pfree(byteArray);
+        byteArray = NULL;
+    }
+    if (fixByteArray != NULL)
+    {
+        pfree(fixByteArray);
+        fixByteArray = NULL;
+    }
+    if (definition_level != NULL)
+    {
+        pfree(definition_level);
+        definition_level = NULL;
+    }
+    if (int96Array != NULL)
+    {
+        pfree(int96Array);
+        int96Array = NULL;
+    }
+    if (decimalOutBuf != NULL)
+    {
+        pfree(decimalOutBuf);
+        decimalOutBuf = NULL;
+    }
+}
+
+bool parquetFileWriter::isOpen()
+{
+	return openState;
+}
+
+int64_t parquetFileWriter::getWrittenBytes()
+{
+    return currentWriteBytes;
 }
 
 void parquetFileWriter::writeToField(int index, const void* data)
@@ -668,8 +693,9 @@ void parquetFileWriter::writeToField(int index, const void* data)
 
 void parquetFileWriter::writeToBatch(int rows)
 {
-    if (rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes() + estimated_bytes >= PARQUET_ROW_GROUP_MAX_SIZE)
+    if (rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes() + estimated_bytes >= std::min((int64_t)PARQUET_ROW_GROUP_MAX_SIZE, option.writeFileSize))
     {
+        currentWriteBytes += rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes();
         rg_writer->Close();
         rg_writer = file_writer->AppendBufferedRowGroup();
     }

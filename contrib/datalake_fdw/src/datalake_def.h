@@ -174,6 +174,11 @@ enum FdwScanPrivateIndex
 	FdwScanPrivateFragmentList,
 };
 
+enum FdwModifyPrivateIndex
+{
+	FdwModifyFileDir,
+};
+
 /*
  * Structure to store the datalake options */
 typedef struct pg_HdfsHAConfig

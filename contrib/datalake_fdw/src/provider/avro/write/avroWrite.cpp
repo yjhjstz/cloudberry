@@ -8,7 +8,7 @@ void avroWrite::createHandler(void* sstate)
     gopherConfig *conf = createGopherConfig((void*)(ss->options->gopher));
     fileStream = createFileSystem(conf);
     freeGopherConfig(conf);
-    std::string prefix = ss->options->prefix;
+	std::string prefix = (char*)lfirst(list_head(ss->fragments)); 
     setOption(getCompressType(ss->options->compress));
     generateAvroFileName(prefix);
     file_writer=std::make_unique<avroWriter>(fileStream, file_name, sstate, option);
@@ -23,7 +23,7 @@ int64_t avroWrite::write(const void* buf, int64_t length)
 std::string& avroWrite::generateAvroFileName(const std::string &filePath)
 {
     int segid = GpIdentity.segindex;
-    file_name = generateWriteFileName(filePath, AVRO_WRITE_SUFFIX, segid);
+    file_name = generateWriteFileName(filePath, AVRO_WRITE_SUFFIX, segid, 0);
     return file_name;
 }
 

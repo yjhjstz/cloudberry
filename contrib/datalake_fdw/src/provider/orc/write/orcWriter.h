@@ -26,7 +26,7 @@ extern "C" {
 class OssOutputStream : public orc::OutputStream
 {
 public:
-	OssOutputStream(void* options, std::string filename, bool enableCache);
+	OssOutputStream(ossFileStream fileStream, std::string filename, bool enableCache);
 
 	~OssOutputStream() override;
 
@@ -82,6 +82,8 @@ private:
 	std::string generateOrcSchema();
 
 	void initORC();
+
+	void closeORC();
 
 	void writeToField(int num, const void* data);
 
@@ -191,6 +193,13 @@ private:
 	/* orc data buffer for time */
 	orc::DataBuffer<char> timeDataBuff;
 	int64_t timeBuffOffset;
+
+    int sliceIdx;
+    std::string prefix;
+	std::string fileName;
+	bool openState;
+	int64_t stripeSize;
+	int64_t fileSizeLimit;
 };
 
 

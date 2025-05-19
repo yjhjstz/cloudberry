@@ -57,6 +57,7 @@
 #include "utils/typcache.h"
 #include "utils/acl.h"
 #include "tcop/utility.h"
+#include <uuid/uuid.h>
 
 
 PG_MODULE_MAGIC;
@@ -115,6 +116,11 @@ static void dataLakeReScanForeignScan(ForeignScanState *node);
 static void dataLakeEndForeignScan(ForeignScanState *node);
 
 /* Foreign updates */
+static List *dataLakePlanForeignModify(PlannerInfo *root,
+									ModifyTable *plan,
+									Index resultRelation,
+									int subplan_index);
+
 static void dataLakeBeginForeignModify(ModifyTableState *mtstate, ResultRelInfo *resultRelInfo, List *fdw_private, int subplan_index, int eflags);
 
 static TupleTableSlot *dataLakeExecForeignInsert(EState *estate, ResultRelInfo *resultRelInfo, TupleTableSlot *slot, TupleTableSlot *planSlot);
@@ -174,6 +180,8 @@ void CsvTextErrorCallback(dataLakeFdwScanState *dataLakesstate);
 void DatalakeErrorCallback(void *arg);
 
 List* buildAttnameList(dataLakeFdwScanState *sstate);
+
+static char* generateWriteFileDir();
 
 #if (PG_VERSION_NUM < 140000)
 static CopyState
@@ -432,7 +440,7 @@ datalake_fdw_handler(PG_FUNCTION_ARGS)
 	 * PlanForeignModify set to NULL, no additional plan-time actions are
 	 * taken
 	 */
-	fdw_routine->PlanForeignModify = NULL;
+	fdw_routine->PlanForeignModify = dataLakePlanForeignModify;
 	fdw_routine->BeginForeignModify = dataLakeBeginForeignModify;
 	fdw_routine->ExecForeignInsert = dataLakeExecForeignInsert;
 
@@ -451,6 +459,25 @@ datalake_fdw_handler(PG_FUNCTION_ARGS)
 	fdw_routine->AnalyzeForeignTable = dataLakeAnalyzeForeignTable;
 
 	PG_RETURN_POINTER(fdw_routine);
+}
+
+static char* generateWriteFileDir()
+{
+	StringInfoData prefix;
+    char uuid_str[36] = {0};
+	char timestamp_str[32] = {0};
+	initStringInfo(&prefix);
+
+	time_t second = time(NULL);
+	int64_t timestamp = second;
+	snprintf(timestamp_str, sizeof(timestamp_str), "%ld", timestamp);
+
+	uuid_t uuid;
+    uuid_generate_time(uuid);
+    uuid_unparse(uuid, uuid_str);
+	
+	appendStringInfo(&prefix, "%s-%s", timestamp_str, uuid_str);
+    return prefix.data;
 }
 
 static void
@@ -999,6 +1026,19 @@ dataLakeEndForeignScan(ForeignScanState *node)
 	elog(DEBUG5, "datalake_fdw: dataLakeEndForeignScan ends on segment: %d", DATALAKE_SEGMENT_ID);
 }
 
+/*
+ * dataLakePlanForeignModify
+ * 		Generate file prefix
+*/
+static List *dataLakePlanForeignModify(PlannerInfo *root,
+									   ModifyTable *plan,
+									   Index resultRelation,
+									   int subplan_index)
+{
+	char *fileDir = generateWriteFileDir();
+	return list_make1(makeString(fileDir));
+}
+
 
 /*
  * dataLakeBeginForeignModify
@@ -1028,6 +1068,20 @@ dataLakeBeginForeignModify(ModifyTableState *mtstate,
 		// master
 		return;
 	}
+
+	Value *val = lfirst(list_nth_cell(fdw_private, FdwModifyFileDir));
+	char *fileDir = val->val.str;
+	int prefixLen = strlen(dataLakesstate->options->prefix);
+	StringInfoData filePrefix;
+	initStringInfo(&filePrefix);
+	appendStringInfo(&filePrefix, "%s", dataLakesstate->options->prefix);
+	if (dataLakesstate->options->prefix[prefixLen - 1] != '/')
+	{
+		appendStringInfo(&filePrefix, "/");
+	}
+	appendStringInfo(&filePrefix, "%s", fileDir);
+	dataLakesstate->fragments = lappend(dataLakesstate->fragments, filePrefix.data);
+
 	initModify(resultRelInfo);
 
 	elog(DEBUG5, "datalake_fdw: dataLakeBeginForeignModify ends on segment: %d", DATALAKE_SEGMENT_ID);
