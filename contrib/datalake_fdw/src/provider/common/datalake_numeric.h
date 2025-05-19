@@ -1,6 +1,6 @@
 #pragma once
 
-#include <parquet/arrow/util/endian.h>
+#include <parquet/internal/arrow/util/endian.h>
 
 extern "C"
 {

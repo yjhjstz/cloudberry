@@ -1,4 +1,4 @@
-#include "arrow/adapters/orc/util.h"
+#include "arrow/adapters/orc/adapter_util.h"
 #include "orcFileReader.h"
 #include <list>
 #include <cassert>
