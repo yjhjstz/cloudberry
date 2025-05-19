@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include "src/datalake_type.h"
 
 extern bool external_table_debug;
 extern bool external_table_new_text;
@@ -16,7 +17,7 @@ struct ProviderInternalWrapper;
 
 typedef struct ProviderInternalWrapper *providerWrapper;
 
-providerWrapper initProvider(const char *type, bool readFdw, bool vectorization);
+providerWrapper initProvider(DLTblFmt type, bool readFdw, bool vectorization);
 
 void createHandler(providerWrapper provider, void* sstate);
 

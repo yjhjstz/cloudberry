@@ -26,10 +26,10 @@ void archiveWrite::createHandler(void *sstate)
 	}
 	else
 	{
-		if (strcmp(ss->options->format, DATALAKE_OPTION_FORMAT_TEXT) == 0)
+		if (FORMAT_IS_TEXT(ss->options->format))
 		{
 			suffix = TEXT_WRITE_SUFFIX;
-		} else if (strcmp(ss->options->format, DATALAKE_OPTION_FORMAT_CSV) == 0)
+		} else if (FORMAT_IS_CSV(ss->options->format))
 		{
 			suffix = CSV_WRITE_SUFFIX;
 		}
@@ -70,8 +70,15 @@ std::string archiveWrite::generateArchiveWriteFileName(std::string filePath, std
 
 void archiveWrite::setOption(dataLakeOptions *options)
 {
-	option.compression = getCompressType(options->compress);
-	option.writeFileSize = options->fileSizeLimit; 
+	option.compression = options->compress;
+	if (options->fileSizeLimit < 0)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_ATTRIBUTE_VALUE),
+				errmsg("datalake option 'filesilelimit' should be positive.")));
+	}
+	option.writeFileSize = options->fileSizeLimit == 0 ? 128 : options->fileSizeLimit;
+	option.writeFileSize = option.writeFileSize <= 0 ? -1 : option.writeFileSize * 1024 * 1024;
 }
 
 }

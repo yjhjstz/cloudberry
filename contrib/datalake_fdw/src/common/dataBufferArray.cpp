@@ -3,6 +3,7 @@
 
 extern "C" {
 #include "src/datalake_def.h"
+#include "postgres.h"
 }
 namespace Datalake {
 namespace Internal {
@@ -40,10 +41,13 @@ dataBuffer *dataBufferArray::getDataBuffer(int column)
 void dataBufferArray::resizeDataBuffer(int column, int length)
 {
     dataBuffer *ptr = mDataBuffer[column];
+    MemoryContext *mcxt = (MemoryContext*) (ptr->buffer - sizeof(void*));
+    MemoryContext old = MemoryContextSwitchTo(*mcxt);
     pfree(ptr->buffer);
     int resizeLength = length;
     ptr->buffer = (char *)palloc0(resizeLength);
     ptr->length = resizeLength;
+    MemoryContextSwitchTo(old);
 }
 
 void dataBufferArray::freeDataBuffer()

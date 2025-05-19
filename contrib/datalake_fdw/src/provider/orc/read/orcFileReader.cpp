@@ -3,6 +3,7 @@
 #include <list>
 #include <cassert>
 #include <sstream>
+#include "src/provider/common/datalake_numeric.h"
 extern "C"
 {
 #include "utils/date.h"
@@ -109,18 +110,6 @@ arrow::Status orcFileReader::readRecordBatch(arrow::MemoryPool* pool,
 Datum orcFileReader::readField(TupleDesc tupDesc, Oid typeOid, int rowIndex, const char *columnName, int columnIndex, orc::ColumnVectorBatch *batch)
 {
     auto colType = readInterface.type->getSubtype(columnIndex);
-    auto orcColType = colType->getKind();
-
-    if (!checkDataTypeCompatible(typeOid, orcColType))
-    {
-        std::string column_type = colType->toString().data();
-        readInterface.deleteORCReader();
-        elog(ERROR,
-            "Type Mismatch: data in '%s' is defined as '%s' in ORC file, but in datalake foreign table "
-            "as '%s'. %s",
-            columnName, column_type.c_str(), getColTypeName(typeOid).data(), getTypeMappingSupported().data());
-        return 0;
-    }
 
     switch (typeOid)
     {
@@ -206,16 +195,14 @@ Datum orcFileReader::readField(TupleDesc tupDesc, Oid typeOid, int rowIndex, con
 		case NUMERICOID:
 		{
 			int scale = 0;
-			bool sign = true;
-			std::string asString;
+			dataBuffer *ptr = options.buffer.getDataBuffer(columnIndex);
 			if (colType->getPrecision() <= 18)
 			{
 				orc::Decimal64VectorBatch *d64vec = dynamic_cast<orc::Decimal64VectorBatch *>(batch);
 				int64_t *values = d64vec->values.data();
 				scale = d64vec->scale;
 				int64_t value = values[rowIndex];
-				sign = value < 0 ? false : true;
-				asString = std::to_string(value);
+				int_to_numeric_with_scale(value, scale, (Numeric)ptr->buffer);
 			}
 			else if (colType->getPrecision() <= 38)
 			{
@@ -223,52 +210,14 @@ Datum orcFileReader::readField(TupleDesc tupDesc, Oid typeOid, int rowIndex, con
 				scale = d128vec->scale;
 				orc::Int128 *values = d128vec->values.data();
 				orc::Int128 value = values[rowIndex];
-				sign = value < 0 ? false : true;
-				asString = value.toString();
+				__int128 i128 = ((__int128)value.getHighBits() << 64) + value.getLowBits();
+				int_to_numeric_with_scale(i128, scale, (Numeric) ptr->buffer);
 			}
 			else
 			{
 				elog(ERROR, "ORC Decimal precision more than 38 is not support");
 			}
-
-			// Read the interval string
-			Assert(scale >= 0);
-			if (scale == 0)
-			{
-				Datum res = DirectFunctionCall3(numeric_in, CStringGetDatum(asString.data()), ObjectIdGetDatum(0), Int32GetDatum(-1));
-				int32 typmod = tupDesc->attrs[columnIndex].atttypmod;
-				return DirectFunctionCall2(numeric, res, Int32GetDatum(typmod));
-			}
-
-			char numStr[64] = {0};
-			char *start = numStr;
-			const char *origin = asString.c_str();
-			int precision = static_cast<int>(asString.length());
-
-			if (sign == false)
-			{
-				*start = '-';
-				start = numStr + 1;
-				++origin;
-				--precision;
-			}
-
-			if (scale >= precision)
-			{
-				memset(start, '0', scale + 2);
-				start[1] = '.';
-				memcpy(start + 2 + scale - precision, origin, precision);
-			}
-			else
-			{
-				int intlen = precision - scale;
-				memcpy(start, origin, intlen);
-				start[intlen] = '.';
-				memcpy(start + intlen + 1, origin + intlen, scale);
-			}
-			Datum res = DirectFunctionCall3(numeric_in, CStringGetDatum(numStr), ObjectIdGetDatum(0), Int32GetDatum(-1));
-			int32_t typmod = tupDesc->attrs[columnIndex].atttypmod;
-			return DirectFunctionCall2(numeric, res, Int32GetDatum(typmod));
+			return NumericGetDatum(ptr->buffer);
 		}
 		case CHAROID:
 		{
@@ -339,5 +288,24 @@ bool orcFileReader::compareToDeleteMap(orcReadDeltaFile &compact, int index)
     return false;
 }
 
+void orcFileReader::checkFileSchemaCompatibility(TupleDesc tupdesc, int columns)
+{
+    for (int i = 0; i < columns; ++i)
+    {
+        auto colType = readInterface.type->getSubtype(i);
+        auto orcColType = colType->getKind();
+        auto columnName = tupdesc->attrs[i].attname.data;
+        auto typeOid = tupdesc->attrs[i].atttypid;
+        if (!checkDataTypeCompatible(typeOid, orcColType))
+        {
+            std::string column_type = colType->toString().data();
+            readInterface.deleteORCReader();
+             elog(ERROR,
+                "Type Mismatch: data in '%s' is defined as '%s' in ORC file, but in datalake foreign table "
+                "as '%s'. %s",
+                columnName, column_type.c_str(), getColTypeName(typeOid).data(), getTypeMappingSupported().data());
+        }
+    }
+}
 }
 }

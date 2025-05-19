@@ -223,16 +223,12 @@ GetExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options
 									  locations, options->format, false);
 	}
 
-	if (SUPPORT_PARTITION_TABLE(options->gopher->gopherType,
-								options->format,
-								options->hiveOption->hivePartitionKey,
-								options->hiveOption->datasource))
+	if (options->hiveOption->partitiontable)
 	{
 		return GetPartitionList(relation, quals, options);
 	}
 	else
 	{
-		options->hiveOption->partitiontable = false;
 		return NIL;
 	}
 }
@@ -273,10 +269,7 @@ deserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions 
 		return fragmentData;
 	}
 
-	if (SUPPORT_PARTITION_TABLE(options->gopher->gopherType,
-								options->format,
-								options->hiveOption->hivePartitionKey,
-								options->hiveOption->datasource))
+	if (options->hiveOption->partitiontable)
 	{
 		List *partitionValues = list_nth(fragmentInfo, PrivatePartitionData);
 

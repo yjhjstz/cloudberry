@@ -2,6 +2,7 @@
 #include <parquet/internal/arrow/result.h>
 #include "parquetFileReader.h"
 #include "parquetInputStream.h"
+#include "src/provider/common/datalake_numeric.h"
 
 
 extern "C"
@@ -156,13 +157,8 @@ void parquetFileReader::resetScanners() {
 Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &state)
 {
     const parquet::ColumnDescriptor* des = file_metadata->schema()->Column(column_index);
-    if (!checkDataTypeCompatible(typeOid, des->physical_type()))
-    {
-        elog(ERROR, "Type Mismatch: columnIndex %d. MPP type %s. Parquet type %s. External Type Mapping %s",
-            column_index, getColTypeName(typeOid).c_str(), des->name().c_str(), getTypeMappingSupported().c_str());
-    }
 
-    auto scanner = scanners[column_index];
+    auto &scanner = scanners[column_index];
     switch(typeOid)
     {
         case BOOLOID:
@@ -363,19 +359,9 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     {
                         return 0;
                     }
-                    std::string num_str = std::to_string(values);
-                    if (scale >= num_str.size())
-                    {
-                        std::string prefix = "0.";
-                        prefix.append(scale-num_str.size(), '0');
-                        num_str.insert(0, prefix);
-                    }
-                    else
-                    {
-                        num_str.insert(num_str.size() - scale, ".");
-                    }
-                    return DirectFunctionCall3(numeric_in, CStringGetDatum(num_str.c_str()), ObjectIdGetDatum(0), Int32GetDatum(-1));
-
+                    dataBuff *res = options.buffer.getDataBuffer(column_index);
+                    int_to_numeric_with_scale(values, scale, (Numeric) res->buffer);
+			        return NumericGetDatum(res->buffer);
                 }
                 case ::parquet::Type::INT64: {
                     parquet::TypedScanner<parquet::Int64Type>* scanner_ = reinterpret_cast<parquet::TypedScanner<parquet::Int64Type>*>(scanner.get());
@@ -392,18 +378,9 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     {
                         return 0;
                     }
-                    std::string num_str = std::to_string(values);
-                    if (scale >= num_str.size())
-                    {
-                        std::string prefix = "0.";
-                        prefix.append(scale-num_str.size(), '0');
-                        num_str.insert(0, prefix);
-                    }
-                    else
-                    {
-                        num_str.insert(num_str.size() - scale, ".");
-                    }
-                    return DirectFunctionCall3(numeric_in, CStringGetDatum(num_str.c_str()), ObjectIdGetDatum(0), Int32GetDatum(-1));
+                    dataBuff *res = options.buffer.getDataBuffer(column_index);
+                    int_to_numeric_with_scale(values, scale, (Numeric) res->buffer);
+			        return NumericGetDatum(res->buffer);
                 }
                 case ::parquet::Type::BYTE_ARRAY: {
                     int precision = des->type_precision();
@@ -429,17 +406,9 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     {
                         return 0;
                     }
-                    uint8_t out_buf[256] = {0};
-                    parquet_arrow::Result<parquet_arrow::Decimal256> t = parquet_arrow::Decimal256::FromBigEndian(values.ptr, values.len);
-                    auto v = t.MoveValueUnsafe();
-                    v.ToBytes(out_buf);
-                    const parquet_arrow::Decimal256 value(out_buf);
-                    std::string decimal = value.ToString(scale);
-                    if (decimal == "<scale out of range, cannot format Decimal128 value>")
-                    {
-                        elog(ERROR, "Datalake foreign table Error, parquet error <scale out of range, cannot format Decimal128 value>");
-                    }
-                    return DirectFunctionCall3(numeric_in, CStringGetDatum(decimal.c_str()), ObjectIdGetDatum(0), Int32GetDatum(-1));
+                    dataBuff *res = options.buffer.getDataBuffer(column_index);
+                    int_to_numeric_with_scale(FLBA_to_int128(values.ptr, values.len), scale, (Numeric) res->buffer);
+			        return NumericGetDatum(res->buffer);
                 }
                 case ::parquet::Type::FIXED_LEN_BYTE_ARRAY: {
                     int precision = des->type_precision();
@@ -452,7 +421,7 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     {
                         //TODO
                     }
-                    int type_len = des->type_length();
+                    auto type_len = des->type_length();
                     parquet::TypedScanner<parquet::FLBAType>* scanner_ = reinterpret_cast<parquet::TypedScanner<parquet::FLBAType>*>(scanner.get());
                     parquet::FixedLenByteArray values;
                     bool hasRow = scanner_->NextValue(&values, &isNull);
@@ -466,17 +435,9 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     {
                         return 0;
                     }
-                    uint8_t out_buf[128] = {0};
-                    parquet_arrow::Result<parquet_arrow::Decimal128> t = parquet_arrow::Decimal128::FromBigEndian(values.ptr, type_len);
-                    auto v = t.MoveValueUnsafe();
-                    v.ToBytes(out_buf);
-                    const parquet_arrow::Decimal128 value(out_buf);
-                    std::string decimal = value.ToString(scale);
-                    if (decimal == "<scale out of range, cannot format Decimal128 value>")
-                    {
-                        elog(ERROR, "Datalake foreign table Error, parquet error <scale out of range, cannot format Decimal128 value>");
-                    }
-                    return DirectFunctionCall3(numeric_in, CStringGetDatum(decimal.c_str()), ObjectIdGetDatum(0), Int32GetDatum(-1));
+                    dataBuff *res = options.buffer.getDataBuffer(column_index);
+                    int_to_numeric_with_scale(FLBA_to_int128(values.ptr, type_len), scale, (Numeric) res->buffer);
+			        return NumericGetDatum(res->buffer);
                 }
                 default:
                     elog(ERROR, "Datalake foreign table Error, Column index %d Parquet format "

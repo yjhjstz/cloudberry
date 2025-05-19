@@ -157,7 +157,7 @@ void iterateRecordBatch(dataLakeFdwScanState *dataLakesstate, VirtualTupleTableS
 
 void endScanStatus(dataLakeFdwScanState *dataLakesstate);
 
-void freeFdwPrivateList(char *format, List *fdw_private);
+void freeFdwPrivateList(List *fdw_private);
 
 void freeFdwPrivatePartitionList(List *fdw_private);
 
@@ -895,7 +895,8 @@ dataLakeIterateForeignScan(ForeignScanState *node)
 	elog(DEBUG5, "datalake_fdw: dataLakeIterateForeignScan Executing on segment: %d", DATALAKE_SEGMENT_ID);
 	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)node->fdw_state;
 
-	if (hasZeorSelectedPartition(dataLakesstate))
+	if (dataLakesstate->options->hiveOption->partitiontable
+	    && !dataLakesstate->options->hiveOption->hivePartitionConstraints)
 	{
 		TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 		ExecClearTuple(slot);
@@ -955,10 +956,7 @@ dataLakeIterateForeignScan(ForeignScanState *node)
  */
 bool hasZeorSelectedPartition(dataLakeFdwScanState *dataLakesstate)
 {
-	if (SUPPORT_PARTITION_TABLE(dataLakesstate->options->gopher->gopherType,
-			dataLakesstate->options->format,
-			dataLakesstate->options->hiveOption->hivePartitionKey,
-			dataLakesstate->options->hiveOption->datasource) &&
+	if (dataLakesstate->options->hiveOption->partitiontable &&
 		!dataLakesstate->options->hiveOption->hivePartitionConstraints)
 	{
 		return true;
@@ -1395,7 +1393,7 @@ endScanStatus(dataLakeFdwScanState *dataLakesstate)
 }
 
 void
-freeFdwPrivateList(char *format, List *fdw_private)
+freeFdwPrivateList(List *fdw_private)
 {
 	pfree(fdw_private);
 	return;
@@ -1416,16 +1414,13 @@ freeFdwPrivate(dataLakeFdwScanState *sstate, ForeignScan *foreignScan)
 	{
 		if (sstate != NULL)
 		{
-			if (SUPPORT_PARTITION_TABLE(sstate->options->gopher->gopherType,
-			sstate->options->format,
-			sstate->options->hiveOption->hivePartitionKey,
-			sstate->options->hiveOption->datasource))
+			if (sstate->options->hiveOption->partitiontable)
 			{
 				freeFdwPrivatePartitionList(foreignScan->fdw_private);
 			}
 			else
 			{
-				freeFdwPrivateList(sstate->options->format, foreignScan->fdw_private);
+				freeFdwPrivateList(foreignScan->fdw_private);
 				foreignScan->fdw_private = NULL;
 			}
 		}
@@ -1438,7 +1433,7 @@ freeFdwPrivate(dataLakeFdwScanState *sstate, ForeignScan *foreignScan)
 			}
 			else
 			{
-				freeFdwPrivateList(sstate->options->format, foreignScan->fdw_private);
+				freeFdwPrivateList(foreignScan->fdw_private);
 				foreignScan->fdw_private = NULL;
 			}
 		}

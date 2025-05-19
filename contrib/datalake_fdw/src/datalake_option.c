@@ -17,6 +17,7 @@
 #include "foreign/foreign.h"
 #include "access/table.h"
 #include "postmaster/postmaster.h"
+#include "datalake_def.h"
 
 
 #define DATALAKE_GOPHERMETA_FOLDER "gophermeta"
@@ -111,6 +112,109 @@ static const struct datalakeFdwOption valid_usermaping_options[] = {
 	{NULL, InvalidOid}
 };
 
+struct FdwTableFormatOption
+{
+	const char *table_name;
+	DLTblFmt table;
+};
+
+static const struct FdwTableFormatOption table_format_mapping[] = {
+	{DATALAKE_OPTION_FORMAT_TEXT, DL_TEXT_TABLE},
+	{DATALAKE_OPTION_FORMAT_CSV, DL_CSV_TABLE},
+	{DATALAKE_OPTION_FORMAT_CUSTOM, DL_CUSTOM_TABLE},
+	{DATALAKE_OPTION_FORMAT_ORC, DL_ORC_TABLE},
+	{DATALAKE_OPTION_FORMAT_PARQUET, DL_PARQUET_TABLE},
+	{DATALAKE_OPTION_FORMAT_AVRO, DL_AVRO_TABLE},
+	{DATALAKE_OPTION_FORMAT_HUDI, DL_HUDI_TABLE},
+	{DATALAKE_OPTION_FORMAT_ICEBERG, DL_ICEBERG_TABLE},
+};
+
+static DLTblFmt datalakeGetTableFormat(const char* table)
+{
+	for (int i = 0; i < sizeof(table_format_mapping) / sizeof(table_format_mapping[0]); i++)
+	{
+		if (pg_strcasecmp(table, table_format_mapping[i].table_name) == 0)
+		{
+			return table_format_mapping[i].table;
+		}
+	}
+	return DL_INVALID_TABLE_FORMAT;
+}
+
+struct FdwProtocolOption
+{
+	const char *protocol_name;
+	DLProt protocol;
+};
+
+static const struct FdwProtocolOption protocol_mapping[] = {
+	{DATALAKE_HDFS_PROTOCOL, DL_HDFS_PROTOCOL},
+	{DATALAKE_FTP_PROTOCOL, DL_FTP_PROTOCOL},
+	{DATALAKE_OSS_PROTOCOL_S3, DL_OSS_PROTOCOL_S3},
+	{DATALAKE_OSS_PROTOCOL_S3B, DL_OSS_PROTOCOL_S3B},
+	{DATALAKE_OSS_PROTOCOL_ALI, DL_OSS_PROTOCOL_ALI},
+	{DATALAKE_OSS_PROTOCOL_COS, DL_OSS_PROTOCOL_COS},
+	{DATALAKE_OSS_PROTOCOL_QINGSTORE, DL_OSS_PROTOCOL_QINGSTORE},
+	{DATALAKE_OSS_PROTOCOL_HUAWEI, DL_OSS_PROTOCOL_HUAWEI},
+	{DATALAKE_OSS_PROTOCOL_KS3, DL_OSS_PROTOCOL_KS3},
+};
+
+static DLProt datalakeGetProtocol(const char* protocol)
+{
+	for (int i = 0; i < sizeof(protocol_mapping) / sizeof(protocol_mapping[0]); i++)
+	{
+		if (pg_strcasecmp(protocol, protocol_mapping[i].protocol_name) == 0)
+		{
+			return protocol_mapping[i].protocol;
+		}
+	}
+	return DL_INVALID_PROTOCOL;
+}
+
+struct FdwCompressionOption
+{
+	const char *compression_name;
+	CompressType compress;
+};
+
+static const struct FdwCompressionOption compression_mapping[] = {
+	{DATALAKE_COMPRESS_UNCOMPRESS, UNCOMPRESS},
+	{DATALAKE_COMPRESS_NONE, UNCOMPRESS},
+	{DATALAKE_COMPRESS_BROTLI, BROTLI},
+	{DATALAKE_COMPRESS_ZLIB, ZLIB},
+	{DATALAKE_COMPRESS_GZIP, GZIP},
+	{DATALAKE_COMPRESS_ZIP, ZIP},
+	{DATALAKE_COMPRESS_SNAPPY, SNAPPY},
+	{DATALAKE_COMPRESS_LZ4, LZ4},
+	{DATALAKE_COMPRESS_ZSTD, ZSTD},
+};
+
+static CompressType datalakeGetCompression(const char* compress)
+{
+	for (int i = 0; i < sizeof(compression_mapping) / sizeof(compression_mapping[0]); i++)
+	{
+		if (pg_strcasecmp(compress, compression_mapping[i].compression_name) == 0)
+		{
+			return compression_mapping[i].compress;
+		}
+	}
+	return UNSUPPORTCOMPRESS;
+}
+
+static char* getOptionFromList(List *options, const char *option)
+{
+	ListCell   *lc;
+	foreach(lc, options)
+	{
+		DefElem *def = (DefElem *) lfirst(lc);
+		if (pg_strcasecmp(def->defname, option) == 0)
+		{
+			return defGetString(def);
+		}
+	}
+	return NULL;
+}
+
 extern Datum datalake_fdw_validator(PG_FUNCTION_ARGS);
 
 /*
@@ -133,8 +237,6 @@ bool IsValidOSSServerOption(const char *option, Oid context);
 bool IsValidUserMappingOption(const char *option, Oid context);
 
 void check_foreign_option(List *options_list, Oid catalog);
-
-bool check_protocol_values(const char* values);
 
 void check_server_option(List *options_list, Oid catalog);
 
@@ -379,12 +481,12 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FORMAT) == 0)
 		{
-			opt->format = pstrdup(defGetString(def));
+			opt->format = datalakeGetTableFormat(defGetString(def));
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_COMPRESS) == 0)
 		{
-			opt->compress = pstrdup(defGetString(def));
+			opt->compress = datalakeGetCompression(defGetString(def));
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_ENABLE_CACHE) == 0)
@@ -483,6 +585,7 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 			opt->metadata_table_enable = pstrdup(defGetString(def));
 		}
 	}
+	opt->hiveOption->partitiontable = IS_PARTITION_TABLE(opt->hiveOption->hivePartitionKey, opt->hiveOption->datasource)? true : false;
 }
 
 void checkForeignDataWrapper(ForeignDataWrapper *wrapper)
@@ -502,8 +605,7 @@ dataLakeOptions *getOptions(Oid foreigntableid)
 	ForeignDataWrapper *wrapper;
 	List	   *options;
 	UserMapping *user;
-	ListCell   *lc;
-	char*	protocol = NULL;
+	DLProt protocol;
 
 	/*
 	 * Extract options from FDW objects.  We ignore user mappings because
@@ -542,24 +644,17 @@ dataLakeOptions *getOptions(Oid foreigntableid)
 
 	opt->fileSizeLimit = 128 * 1024 * 1024;
 
-	foreach(lc, server->options)
-	{
-		DefElem *def = (DefElem *) lfirst(lc);
-		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_PROTOCOL) == 0)
-		{
-			protocol = defGetString(def);
-			break;
-		}
-	}
+	protocol = datalakeGetProtocol(getOptionFromList(server->options, DATALAKE_OPTION_PROTOCOL));
+	opt->protocol = protocol;
 
-	if (pg_strcasecmp(protocol, DATALAKE_HDFS_PROTOCOL) == 0)
+	if (protocol == DL_HDFS_PROTOCOL)
 	{
 		parserHdfsServerOption(opt, server->options);
 		parseHdfsUserMappingOption(opt, user->options);
 		parseForeignTableOptions(opt, table->options);
 		opt->prefix = pstrdup(opt->filePath);
 	}
-	else if (pg_strcasecmp(protocol, DATALAKE_FTP_PROTOCOL) == 0)
+	else if (protocol == DL_FTP_PROTOCOL)
 	{
 		parserFtpServerOption(opt, server->options);
 		parserFtpUserMappingOption(opt, user->options);
@@ -1060,18 +1155,6 @@ void freeDataLakeOptions(dataLakeOptions *options)
 			options->filePath = NULL;
 		}
 
-		if (options->format)
-		{
-			pfree(options->format);
-			options->format = NULL;
-		}
-
-		if (options->compress)
-		{
-			pfree(options->compress);
-			options->compress = NULL;
-		}
-
 		if (options->prefix)
 		{
 			pfree(options->prefix);
@@ -1096,108 +1179,94 @@ void freeDataLakeOptions(dataLakeOptions *options)
 
 void check_server_option(List *options_list, Oid catalog)
 {
-	char *protocol = NULL;
+	char *protocolStr = NULL;
+	DLProt protocol;
 	ListCell *cell;
 
 	if (catalog != ForeignServerRelationId)
 		return;
 
-	foreach(cell, options_list)
+	protocolStr = getOptionFromList(options_list, DATALAKE_OPTION_PROTOCOL);
+	protocol = datalakeGetProtocol(protocolStr);
+	switch (protocol)
 	{
-		DefElem    *def = (DefElem *) lfirst(cell);
-		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_PROTOCOL) == 0)
-		{
-			protocol = defGetString(def);
-		}
-	}
-
-	if (pg_strcasecmp(protocol, DATALAKE_HDFS_PROTOCOL) == 0)
-	{
-		foreach(cell, options_list)
-		{
-			DefElem *def = (DefElem *) lfirst(cell);
-			if (!IsValidHdfsServerOption(def->defname, catalog))
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-						 errmsg("invalid hdfs option \"%s\".",
-								def->defname)));
-			}
-		}
-		checkHdfsCombin(options_list, catalog);
-	}
-	else if (pg_strcasecmp(protocol, DATALAKE_FTP_PROTOCOL) == 0)
-	{
-		foreach(cell, options_list)
-		{
-			DefElem *def = (DefElem *) lfirst(cell);
-			if (!IsValidFtpServerOption(def->defname, catalog))
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-						 errmsg("invalid ftp option \"%s\".",
-								def->defname)));
-			}
-		}
-	}
-	else
-	{
-		if (!check_protocol_values(protocol))
+		case DL_INVALID_PROTOCOL:
 		{
 			ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-						 errmsg("invalid protocol \"%s\". datalake support oss protocol"
-						 " ali, cos, qs, s3, s3b, huawei, ks3.",
-								protocol)));
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+					 errmsg("invalid protocol \"%s\". datalake support hdfs, ftp, and oss protocol"
+					 " ali, cos, qs, s3, s3b, huawei, ks3", protocolStr)));
+			break;
 		}
-
-		foreach(cell, options_list)
+		case DL_HDFS_PROTOCOL:
 		{
-			DefElem *def = (DefElem *) lfirst(cell);
-			if (!IsValidOSSServerOption(def->defname, catalog))
+			foreach(cell, options_list)
 			{
-				ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-						 errmsg("invalid oss option \"%s\".",
-								def->defname)));
+				DefElem *def = (DefElem *) lfirst(cell);
+				if (!IsValidHdfsServerOption(def->defname, catalog))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+							errmsg("invalid hdfs option \"%s\".",
+									def->defname)));
+				}
+			}
+			checkHdfsCombin(options_list, catalog);
+			break;
+		}
+		case DL_FTP_PROTOCOL:
+		{
+			foreach(cell, options_list)
+			{
+				DefElem *def = (DefElem *) lfirst(cell);
+				if (!IsValidFtpServerOption(def->defname, catalog))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+							errmsg("invalid ftp option \"%s\".",
+									def->defname)));
+				}
+			}
+			break;
+		}
+		default:
+		{
+			foreach(cell, options_list)
+			{
+				DefElem *def = (DefElem *) lfirst(cell);
+				if (!IsValidOSSServerOption(def->defname, catalog))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+							errmsg("invalid oss option \"%s\".",
+									def->defname)));
+				}
 			}
 		}
-
 	}
 	return;
-}
-
-bool check_protocol_values(const char* values)
-{
-	if (pg_strcasecmp(DATALAKE_OSS_PROTOCOL_ALI, values) == 0 ||
-		pg_strcasecmp(DATALAKE_OSS_PROTOCOL_COS, values) == 0 ||
-		pg_strcasecmp(DATALAKE_OSS_PROTOCOL_QINGSTORE, values) == 0 ||
-		pg_strcasecmp(DATALAKE_OSS_PROTOCOL_S3, values) == 0 ||
-		pg_strcasecmp(DATALAKE_OSS_PROTOCOL_S3B, values) == 0 ||
-		pg_strcasecmp(DATALAKE_OSS_PROTOCOL_HUAWEI, values) == 0 ||
-		pg_strcasecmp(DATALAKE_OSS_PROTOCOL_KS3, values) == 0)
-	{
-		return true;
-	}
-	return false;
 }
 
 void check_foreign_option(List *options_list, Oid catalog)
 {
 	ListCell *cell;
-	char* format = NULL;
-	char* compression = NULL;
+	char *tableFmtStr;
+	DLTblFmt format;
+	char* compressionStr = NULL;
+	CompressType compress = UNCOMPRESS;
+
 	if (catalog != ForeignTableRelationId)
 		return;
 
-	foreach(cell, options_list)
+	tableFmtStr = getOptionFromList(options_list, DATALAKE_OPTION_FORMAT);
+	format = datalakeGetTableFormat(tableFmtStr);
+	if (format == DL_INVALID_TABLE_FORMAT)
 	{
-		DefElem *def = (DefElem *) lfirst(cell);
-		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FORMAT) == 0)
-		{
-			format = defGetString(def);
-			break;
-		}
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				 errmsg("invalid foreign format option \"%s\". "
+					 "datalake support csv, text, custom, parquet, orc, avro, iceberg, hudi.",
+					 tableFmtStr)));
 	}
 
 	foreach(cell, options_list)
@@ -1216,7 +1285,8 @@ void check_foreign_option(List *options_list, Oid catalog)
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_COMPRESS) == 0)
 		{
-			compression = defGetString(def);
+			compressionStr = defGetString(def);
+			compress = datalakeGetCompression(compressionStr);
 		}
 
 		//check logerror
@@ -1246,68 +1316,46 @@ void check_foreign_option(List *options_list, Oid catalog)
 		}
 	}
 
-	if (!(pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_TEXT) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CSV) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ORC) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_PARQUET) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ICEBERG) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_HUDI) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_AVRO) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CUSTOM) == 0))
+	if (FORMAT_IS_TEXT(format) || FORMAT_IS_CSV(format))
 	{
-		ereport(ERROR,
+		if (!TEXT_SUPPORT_COMPRESS(compress))
+		{
+			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-						errmsg("invalid foreign format option \"%s\". "
-							"datalake support csv, text, custom, parquet, orc, avro, iceberg, hudi.",
-							format)));
+						errmsg("invalid foreign compression options \"%s\". "
+							"datalake text/csv support gzip, zip.",
+							compressionStr)));
+		}
 	}
 
-	if (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_TEXT) == 0 ||
-		pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CSV) == 0)
-	{
-
-	}
-
-	if (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ORC) == 0)
+	if (FORMAT_IS_ORC(format))
 	{
 		/* just not support orc compress */
 	}
 
-	if (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_PARQUET) == 0)
+	if (FORMAT_IS_PARQUET(format))
 	{
-		if (compression != NULL)
+		if (!PARQUET_SUPPORT_COMPRESS(compress))
 		{
-			if (!(pg_strcasecmp(compression, DATALAKE_COMPRESS_SNAPPY) == 0 ||
-				pg_strcasecmp(compression, DATALAKE_COMPRESS_GZIP) == 0 ||
-				pg_strcasecmp(compression, DATALAKE_COMPRESS_ZSTD) == 0 ||
-				pg_strcasecmp(compression, DATALAKE_COMPRESS_LZ4) == 0 ||
-				pg_strcasecmp(compression, DATALAKE_COMPRESS_UNCOMPRESS) == 0))
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-							errmsg("invalid foreign compression options \"%s\". "
-								"datalake parquet support snappy, gzip, zstd, lz4.",
-								compression)));
-			}
+			ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("invalid foreign compression options \"%s\". "
+							"datalake parquet support snappy, gzip, zstd, lz4.",
+							compressionStr)));
 		}
 	}
 
-	if (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_AVRO) == 0)
+	if (FORMAT_IS_AVRO(format))
 	{
-		if (compression != NULL)
+		if (!AVRO_SUPPORT_COMPRESS(compress))
 		{
-			if (!(pg_strcasecmp(compression, DATALAKE_COMPRESS_SNAPPY) == 0 ||
-				pg_strcasecmp(compression, DATALAKE_COMPRESS_UNCOMPRESS) ==0))
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-							errmsg("invalid foreign compression options \"%s\". "
-								"datalake avro support snappy.",
-								compression)));
-			}
+			ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("invalid foreign compression options \"%s\". "
+							"datalake avro support snappy.",
+							compressionStr)));
 		}
 	}
-
 }
 
 void check_user_mapping_option(List *options_list, Oid catalog)

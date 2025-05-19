@@ -12,7 +12,13 @@ extern "C" {
 
 #include "postgres.h"
 
-void *create_parquet_reader(MemoryContext mcxt, void *filePath, void *gopherFilesystem);
+typedef struct
+{
+	gopherFS gopherFilesystem;
+	void *buffer;  // dataBufferArray 
+} ParquetReadContext;
+
+void *create_parquet_reader(MemoryContext mcxt, void *filePath, void *readContext);
 void parquet_open(void *reader,
 				  List *columnDesc,
 				  bool *attrUsed,

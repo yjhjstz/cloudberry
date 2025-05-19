@@ -32,6 +32,7 @@ createFileReader(MemoryContext mcxt,
 				 FileFragment *dataFile,
 				 void *extraArg,
 				 int64_t beginOffset,
-				 int64_t endOffset);
+				 int64_t endOffset,
+				 void *buffer);
 
 #endif // FILE_READER_H

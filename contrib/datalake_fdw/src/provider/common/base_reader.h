@@ -1,6 +1,5 @@
 #ifndef BASE_READER_H
 #define BASE_READER_H
-
 extern "C"
 {
 #include "postgres.h"

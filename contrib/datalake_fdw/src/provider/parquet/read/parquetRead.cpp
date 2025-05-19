@@ -59,6 +59,23 @@ void parquetRead::restart()
 	readNextGroup();
 }
 
+bool parquetRead::checkSchemaCompatibility()
+{
+    auto file_schema = fileReader.getFileMetadata()->schema();
+    ParquetLogicalType parquet_type;
+    for (int i = 0; i < ncolumns; i++)
+    {
+        Oid typeOid = tupdesc->attrs[i].atttypid;\
+        const auto &des = file_schema->Column(i);
+        if (!parquet_type.checkDataTypeCompatible(typeOid, des->physical_type()))
+        {
+            elog(ERROR, "Type Mismatch: columnIndex %d. MPP type %s. Parquet type %s. External Type Mapping %s",
+                i, parquet_type.getColTypeName(typeOid).c_str(), des->name().c_str(), parquet_type.getTypeMappingSupported().c_str());
+        }
+    }
+	return false;
+}
+
 bool parquetRead::getNextGroup()
 {
 	int size = tempRowGroupNums.size();
@@ -116,6 +133,8 @@ bool parquetRead::getRowGropFromSmallFile(metaInfo info)
         return true;
     }
 
+    checkSchemaCompatibility();
+
     for (int i = 0; i < fileReader.getRowGroupNums(); i++)
     {
         tempRowGroupNums.push_back(i);
@@ -136,6 +155,8 @@ bool parquetRead::getRowGropFromBigFile(metaInfo info)
             elog(LOG, "Datalake foreign table LOG, file %s format is not parquet skip it.", info.fileName.c_str());
             return true;
         }
+
+        checkSchemaCompatibility();
         curFileName = info.fileName;
         for (int i = 0; i < fileReader.getRowGroupNums(); i++)
         {

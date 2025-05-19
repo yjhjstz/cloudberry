@@ -9,7 +9,7 @@ void avroWrite::createHandler(void* sstate)
     fileStream = createFileSystem(conf);
     freeGopherConfig(conf);
 	std::string prefix = (char*)lfirst(list_head(ss->fragments)); 
-    setOption(getCompressType(ss->options->compress));
+    setOption(ss->options->compress);
     generateAvroFileName(prefix);
     file_writer=std::make_unique<avroWriter>(fileStream, file_name, sstate, option);
 }

@@ -1,0 +1,49 @@
+#ifndef DATALAKE_TYPE_H
+#define DATALAKE_TYPE_H
+
+typedef enum DLTableFormatEnum
+{
+	DL_INVALID_TABLE_FORMAT = -1,
+	DL_TEXT_TABLE,
+	DL_CSV_TABLE,
+	DL_CUSTOM_TABLE,
+	DL_ORC_TABLE,
+	DL_PARQUET_TABLE,
+	DL_AVRO_TABLE,
+	DL_HUDI_TABLE,
+	DL_ICEBERG_TABLE
+} DLTblFmt;
+
+typedef enum DLProtocolEnum
+{
+	DL_INVALID_PROTOCOL = -1,
+	DL_HDFS_PROTOCOL,
+	DL_FTP_PROTOCOL,
+	DL_OSS_PROTOCOL,        // Seperate OSS protocols with others.
+	DL_OSS_PROTOCOL_ALI,
+	DL_OSS_PROTOCOL_COS,
+	DL_OSS_PROTOCOL_QINGSTORE,
+	DL_OSS_PROTOCOL_S3,
+	DL_OSS_PROTOCOL_S3B,
+	DL_OSS_PROTOCOL_HUAWEI,
+	DL_OSS_PROTOCOL_KS3
+} DLProt;
+
+typedef enum CompressType
+{
+	UNCOMPRESS = 0,
+	LZJB,
+	ZLIB,
+	GZIP,
+	SNAPPY,
+	ZSTD,
+	LZ4,
+	BROTLI,
+	ZIP,
+	DEFLATE,
+	UNSUPPORTCOMPRESS,
+	/* archive support more compress type. */
+    ARCHIVE_SUPPORT_COMPRESS_FORMAT
+} CompressType;
+
+#endif

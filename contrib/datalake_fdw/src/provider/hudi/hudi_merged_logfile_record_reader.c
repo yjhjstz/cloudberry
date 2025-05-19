@@ -223,7 +223,8 @@ processDataBlock(HudiMergedLogfileRecordReader *reader, HudiLogFileBlock *block)
 
 	schema = (char *) logBlockGetSchema(block);
 	blockReader = (Reader *) createFileReader(reader->readerMcxt, reader->columnDesc, reader->attrUsed,
-											  false, stream, schema, dataBlock->length, strlen(schema));
+											  false, stream, schema, dataBlock->length, strlen(schema),
+											  NULL);
 
 	initRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
 	while (true)

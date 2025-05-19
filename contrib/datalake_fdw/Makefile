@@ -6,6 +6,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/datalake_fragment.o \
 		src/datalake_option.o \
 		src/common/dataBufferArray.o \
+		src/common/dataBufferArray_c.o \
 		src/common/datalakeBuffer.o \
 		src/common/fileSystemWrapper.o \
 		src/common/fileSystem.o \
@@ -72,6 +73,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/provider/common/row_reader.o \
 		src/provider/common/mdb.o \
 		src/provider/common/midl.o \
+		src/provider/common/datalake_numeric.o \
 		src/provider/iceberg/iceberg_equality_filter.o \
 		src/provider/iceberg/iceberg_task_reader.o \
 		src/provider/iceberg/iceberg_position_filter.o \

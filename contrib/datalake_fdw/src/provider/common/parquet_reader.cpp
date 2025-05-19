@@ -3,6 +3,7 @@
 #include "parquet_reader.h"
 #include "common.h"
 #include "gopher_random_file.h"
+#include "datalake_numeric.h"
 
 extern "C"
 {
@@ -14,8 +15,8 @@ extern "C"
 #include "utils.h"
 }
 
-ParquetReader::ParquetReader(MemoryContext rowContext, char *filePath, gopherFS gopherFilesystem)
-	: BaseFileReader(rowContext), numColumns_(0), filePath_(filePath), gopherFilesystem_(gopherFilesystem)
+ParquetReader::ParquetReader(MemoryContext rowContext, char *filePath, gopherFS gopherFilesystem, dataBufferArray *buffer)
+	: BaseFileReader(rowContext), numColumns_(0), filePath_(filePath), gopherFilesystem_(gopherFilesystem), buffer_(buffer)
 {}
 
 ParquetReader::~ParquetReader()
@@ -48,10 +49,9 @@ ParquetReader::createMapping(List *columnDesc, bool *attrUsed)
 	int       i;
 	int       j;
 	ListCell *lc;
-	auto      schema = reader_->metadata()->schema();
+	auto      schema = metadata->schema();
 
 	numColumns_ = schema->num_columns();
-
 	foreach_with_count(lc, columnDesc, i)
 	{
 		FieldDescription *entry = (FieldDescription *) lfirst(lc);
@@ -91,13 +91,14 @@ ParquetReader::readNextRowGroup()
 
 	scanners_.clear();
 	scanners_.resize(numColumns_);
-
 	for (size_t i = 0; i < typeSize; ++i)
 	{
 		TypeInfo &typInfo = typeMap_[i];
 
 		if (typInfo.columnIndex_ >= 0)
-			scanners_[typInfo.columnIndex_] = parquet::Scanner::Make(rowGroupReader->Column(typInfo.columnIndex_), 1000);
+		{
+			scanners_[typInfo.columnIndex_] = parquet::Scanner::Make(rowGroupReader->Column(typInfo.columnIndex_));
+		}
 	}
 
 	curRow_ = 0;
@@ -111,6 +112,7 @@ ParquetReader::open(List *columnDesc, bool *attrUsed, int64 startOffset, int64 e
 {
 	std::string filename = convertToGopherPath(filePath_);
 	reader_ = parquet::ParquetFileReader::Open(std::make_shared<GopherRandomAccessFile> (gopherFilesystem_, filename));
+	metadata = reader_->metadata();
 	createMapping(columnDesc, attrUsed);
 	filterRowGroupByOffset(startOffset, endOffset);
 }
@@ -148,7 +150,6 @@ ParquetReader::filterRowGroupByOffset(int64_t startOffset, int64_t endOffset)
 	int64_t preStartIndex = 0;
 	int64_t preCompressedSize = 0;
 	int64_t curRowCount = 0;
-	auto metadata = reader_->metadata();
 
 	for (int i = 0; i < metadata->num_row_groups(); i++)
 	{
@@ -197,7 +198,7 @@ Datum
 ParquetReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 {
 	ReaderValue d;
-	auto scanner = scanners_[typInfo.columnIndex_];
+	auto &scanner = scanners_[typInfo.columnIndex_];
 
 	switch (typInfo.pgTypeId_)
 	{
@@ -235,10 +236,21 @@ ParquetReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 			if (isNull)
 				PG_RETURN_DATUM(0);
 
-			bytea *result = (bytea *) gpdbPalloc(value.len + VARHDRSZ);
-			SET_VARSIZE(result, value.len + VARHDRSZ);
-			memcpy(VARDATA(result), value.ptr, value.len);
-			return PointerGetDatum(result);
+			if (!buffer_)
+			{
+				bytea *result = (bytea *) gpdbPalloc(value.len + VARHDRSZ);
+				SET_VARSIZE(result, value.len + VARHDRSZ);
+				memcpy(VARDATA(result), value.ptr, value.len);
+				return PointerGetDatum(result);
+			}
+			if (value.len + VARHDRSZ > buffer_->getDataBuffer(typInfo.columnIndex_)->length)
+			{
+				buffer_->resizeDataBuffer(typInfo.columnIndex_, value.len + VARHDRSZ);
+			}
+			dataBuff *colBuffer = buffer_->getDataBuffer(typInfo.columnIndex_);
+			SET_VARSIZE(colBuffer->buffer, value.len + VARHDRSZ);
+			memcpy(VARDATA(colBuffer->buffer), value.ptr, value.len);
+			return PointerGetDatum(colBuffer->buffer);
 		}
 		case UUIDOID:
 		{
@@ -247,9 +259,15 @@ ParquetReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 			if (isNull)
 				PG_RETURN_DATUM(0);
 
-			unsigned char *result = (unsigned char *) gpdbPalloc(value.len);
-			memcpy(result, value.ptr, 16);
-			return PointerGetDatum(result);
+			if (!buffer_)
+			{
+				bytea *result = (bytea *) gpdbPalloc(value.len);
+				memcpy(VARDATA(result), value.ptr, 16);
+				return PointerGetDatum(result);
+			}	
+			dataBuff *colBuffer = buffer_->getDataBuffer(typInfo.columnIndex_);
+			memcpy(colBuffer->buffer, value.ptr, 16);
+			return PointerGetDatum(colBuffer->buffer);
 		}
 		case TIMESTAMPOID:
 		case TIMESTAMPTZOID:
@@ -272,89 +290,14 @@ ParquetReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 	PG_RETURN_DATUM(0);
 }
 
-void
-ParquetReader::adjustIntegerStringWithScale(int32_t scale, std::string *strDecimal)
-{
-	const bool isNegative = strDecimal->front() == '-';
-	const auto isNegativeOffset = static_cast<int32_t>(isNegative);
-	const auto len = static_cast<int32_t>(strDecimal->size());
-	const int32_t numDigits = len - isNegativeOffset;
-	const int32_t adjustedExponent = numDigits - 1 - scale;
-
-	if (scale == 0)
-		return;
-
-	// Note that the -6 is taken from the Java BigDecimal documentation.
-	if (scale < 0 || adjustedExponent < -6)
-	{
-		char buff[32];
-		// Example 1:
-		// Precondition: *strDecimal = "123", isNegativeOffset = 0, numDigits = 3, scale = -2,
-		//               adjustedExponent = 4
-		// Example 2:
-		// Precondition: *strDecimal = "-123", isNegativeOffset = 1, numDigits = 3, scale = 9,
-		//               adjustedExponent = -7
-		// After inserting decimal point: *strDecimal = "-1.23"
-		// After appending exponent: *strDecimal = "-1.23E-7"
-		strDecimal->insert(strDecimal->begin() + 1 + isNegativeOffset, '.');
-		strDecimal->push_back('E');
-		if (adjustedExponent >= 0)
-			strDecimal->push_back('+');
-
-		snprintf(buff, sizeof(buff), "%d", adjustedExponent);
-
-		strDecimal->append(buff);
-		return;
-	}
-
-	if (numDigits > scale)
-	{
-		const auto n = static_cast<size_t>(len - scale);
-		// Example 1:
-		// Precondition: *strDecimal = "123", len = numDigits = 3, scale = 1, n = 2
-		// After inserting decimal point: *strDecimal = "12.3"
-		// Example 2:
-		// Precondition: *strDecimal = "-123", len = 4, numDigits = 3, scale = 1, n = 3
-		// After inserting decimal point: *strDecimal = "-12.3"
-		strDecimal->insert(strDecimal->begin() + n, '.');
-		return;
-	}
-
-	// Example 1:
-	// Precondition: *strDecimal = "123", isNegativeOffset = 0, numDigits = 3, scale = 4
-	// After insert: *strDecimal = "000123"
-	// After setting decimal point: *strDecimal = "0.0123"
-	// Example 2:
-	// Precondition: *strDecimal = "-123", isNegativeOffset = 1, numDigits = 3, scale = 4
-	// After insert: *strDecimal = "-000123"
-	// After setting decimal point: *strdecimal = "-0.0123"
-	strDecimal->insert(isNegativeOffset, scale - numDigits + 2, '0');
-	strDecimal->at(isNegativeOffset + 1) = '.';
-}
-
-Datum
-ParquetReader::formatDecimal(int64_t value, bool isNull, int scale, int typeMod)
-{
-	std::string strInteger = std::to_string(value);
-	std::string strDecimal(strInteger);
-
-	if (isNull)
-		PG_RETURN_DATUM(0);
-
-	adjustIntegerStringWithScale(scale, &strDecimal);
-	return gpdbDirectFunctionCall3(numeric_in,
-								   CStringGetDatum(strDecimal.c_str()),
-								   ObjectIdGetDatum(InvalidOid),
-								   Int32GetDatum(typeMod));
-}
-
 Datum
 ParquetReader::readDecimal(std::shared_ptr<parquet::Scanner> &scanner, const TypeInfo &typInfo, bool &isNull)
 {
 	ReaderValue d;
 	parquet::FixedLenByteArray value;
-	const parquet::ColumnDescriptor *columnDesc = reader_->metadata()->schema()->Column(typInfo.columnIndex_);
+	const parquet::ColumnDescriptor *columnDesc = metadata->schema()->Column(typInfo.columnIndex_);
 	int scale = columnDesc->type_scale();
+	dataBuff *res = buffer_->getDataBuffer(typInfo.columnIndex_);
 
 	// iceberg only support int4, int8, fixed-len
 	switch (typInfo.fileTypeId_)
@@ -362,12 +305,18 @@ ParquetReader::readDecimal(std::shared_ptr<parquet::Scanner> &scanner, const Typ
 		case INT4OID:
 		{
 			((parquet::TypedScanner<parquet::Int32Type> *)scanner.get())->NextValue(&d.int32Value, &isNull);
-			return formatDecimal(d.int32Value, isNull, scale, typInfo.typeMod_);
+			if (isNull)
+				PG_RETURN_DATUM(0);
+			int_to_numeric_with_scale(d.int32Value, scale, (Numeric) res->buffer);
+			return NumericGetDatum(res->buffer);
 		}
 		case INT8OID:
 		{
 			((parquet::TypedScanner<parquet::Int64Type> *)scanner.get())->NextValue(&d.int64Value, &isNull);
-			return formatDecimal(d.int64Value, isNull, scale, typInfo.typeMod_);
+			if (isNull)
+				PG_RETURN_DATUM(0);
+			int_to_numeric_with_scale(d.int64Value, scale, (Numeric) res->buffer);
+			return NumericGetDatum(res->buffer);
 		}
 		default:
 		{
@@ -375,17 +324,8 @@ ParquetReader::readDecimal(std::shared_ptr<parquet::Scanner> &scanner, const Typ
 			((parquet::TypedScanner<parquet::FLBAType> *)scanner.get())->NextValue(&value, &isNull);
 			if (isNull)
 				PG_RETURN_DATUM(0);
-
-			parquet_arrow::Result<parquet_arrow::Decimal128> result = parquet_arrow::Decimal128::
-																		FromBigEndian(value.ptr, typeLen);
-			if (!result.ok())
-				throw Error("parquet decimal128: out of range");
-
-			parquet_arrow::Decimal128 decimal = result.ValueOrDie();
-			return gpdbDirectFunctionCall3(numeric_in,
-										   CStringGetDatum(decimal.ToString(scale).c_str()),
-										   ObjectIdGetDatum(InvalidOid),
-										   Int32GetDatum(typInfo.typeMod_));
+			int_to_numeric_with_scale(FLBA_to_int128(value.ptr, typeLen), scale, (Numeric) res->buffer);
+			return NumericGetDatum(res->buffer);
 		}
 	}
 

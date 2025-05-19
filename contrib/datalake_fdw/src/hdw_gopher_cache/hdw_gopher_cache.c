@@ -248,7 +248,7 @@ GopherRemoveFileMetaUnderGphdfs(dataLakeOptions *options)
 	}
 	gopherDestroyHandle(stream);
 	int result = 0;
-	if (PROTOCOL_IS_HDFS(options->gopher->gopherType))
+	if (PROTOCOL_IS_HDFS(options->protocol))
 	{
 		result = GopherRemoveFileMetaUnderGphdfsUfsPath(ufsId, options->filePath, mRecursive, mForce);
 	}

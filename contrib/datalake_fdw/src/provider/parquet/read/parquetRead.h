@@ -4,6 +4,7 @@
 #include "parquetFileReader.h"
 #include "src/common/readPolicy.h"
 #include "src/provider/provider.h"
+#include "src/common/dataBufferArray.h"
 
 
 namespace Datalake {
@@ -36,6 +37,8 @@ private:
 	bool convertToDatum(Datum *values, bool *nulls);
 
 	void restart();
+
+	bool checkSchemaCompatibility();
 
 	readBlockPolicy blockPolicy;
 	std::vector<int> rowGroupNums;

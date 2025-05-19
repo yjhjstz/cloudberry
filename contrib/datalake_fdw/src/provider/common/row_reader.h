@@ -10,7 +10,7 @@ RowReader *createRowReader(MemoryContext mcxt,
 						   bool *attrUsed,
 						   gopherFS gopherFilesystem,
 						   List *combinedScanTasks,
-						   char *format,
+						   DLTblFmt format,
 						   ExternalTableMetadata *tableOptions);
 bool rowReaderNext(RowReader *reader, InternalRecord *record);
 void rowReaderClose(RowReader *reader);

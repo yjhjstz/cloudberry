@@ -1,15 +1,17 @@
-#include "parquet_reader_c.h"
 #include "parquet_reader.h"
+#include "parquet_reader_c.h"
+
 
 void *
-create_parquet_reader(MemoryContext mcxt, void *filePath, void *gopherFilesystem)
+create_parquet_reader(MemoryContext mcxt, void *filePath, void *readContext)
 {
 	std::string errorMessage;
 	BaseFileReader *reader = NULL;
+	ParquetReadContext *context = (ParquetReadContext *) readContext;
 
 	try
 	{
-		reader = new ParquetReader(mcxt, (char *) filePath, (gopherFS) gopherFilesystem);
+		reader = new ParquetReader(mcxt, (char *) filePath, context->gopherFilesystem, (dataBufferArray*) context->buffer);
 	}
 	catch (std::exception &e)
 	{

@@ -32,7 +32,8 @@ createLogFilter(MemoryContext mcxt,
 				FileFragment *dataFile,
 				List *deltaLogs,
 				const char *instantTime,
-				ExternalTableMetadata *tableOptions)
+				ExternalTableMetadata *tableOptions,
+				void *buffer)
 {
 	Reader *filter = NULL;
 
@@ -54,7 +55,7 @@ createLogFilter(MemoryContext mcxt,
 	/* data files only */
 	filter = (Reader *) createFileReader(mcxt, datafileDesc, attrUsed, true,
 										 dataFile, gopherFilesystem, datafileStart,
-										 datafileStart + dataFileLength);
+										 datafileStart + dataFileLength, buffer);
 
 	if (list_length(deltaLogs) == 0 || list_length(tableOptions->recordKeyFields) == 0)
 	{
@@ -269,7 +270,7 @@ createHudiTaskReader(void *args)
 	filter = createLogFilter(info->mcxt, info->datafileDesc, info->tupDesc, info->attrUsed, info->gopherFilesystem,
 						  info->fileScanTask->start, info->fileScanTask->length,
 						  info->fileScanTask->dataFile, info->fileScanTask->deletes,
-						  info->fileScanTask->instantTime, reader->tableOptions);
+						  info->fileScanTask->instantTime, reader->tableOptions, info->buffer);
 	reader->dataReader = filter;
 	reader->attrUsed = info->attrUsed;
 

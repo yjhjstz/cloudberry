@@ -58,8 +58,7 @@ typedef List * (*parse_callback) (char *buffer, size_t buffer_size);
 
 extern List *
 hive_get_external_partitions(Oid relid,
-							 List *locations,
-							 char *formatType);
+							 List *locations);
 
 extern List *
 iceberg_get_external_fragments(Oid relid,

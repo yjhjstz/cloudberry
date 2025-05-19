@@ -14,7 +14,7 @@ bool enable_set_hdfs_user = true;
 
 struct ProviderInternalWrapper {
 public:
-	ProviderInternalWrapper(const char *type, bool readFdw, bool vectorization) {
+	ProviderInternalWrapper(DLTblFmt type, bool readFdw, bool vectorization) {
 		context = getProvider(type, readFdw, vectorization);
 	}
 
@@ -34,7 +34,7 @@ private:
 extern "C" {
 #endif
 
-providerWrapper initProvider(const char *type, bool readFdw, bool vectorization) {
+providerWrapper initProvider(DLTblFmt type, bool readFdw, bool vectorization) {
 	ProviderInternalWrapper *prov;
 	try
 	{

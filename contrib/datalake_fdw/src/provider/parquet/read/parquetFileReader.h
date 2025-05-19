@@ -14,7 +14,7 @@
 namespace Datalake {
 namespace Internal {
 
-class parquetFileReader : public ParquetLogicalType
+class parquetFileReader
 {
 public:
     parquetFileReader();
@@ -53,6 +53,11 @@ public:
     int getFileColumns()
     {
         return num_columns;
+    }
+
+    const std::shared_ptr<::parquet::FileMetaData> &getFileMetadata()
+    {
+        return file_metadata;
     }
 
 private:

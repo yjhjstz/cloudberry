@@ -56,18 +56,24 @@ createFileReader(MemoryContext mcxt,
 				 FileFragment *dataFile,
 				 void *extraArg,
 				 int64_t beginOffset,
-				 int64_t endOffset)
+				 int64_t endOffset,
+				 void *buffer)
 {
 	FileReader *reader = palloc0(sizeof(FileReader));
+	ParquetReadContext parquetContext;
 
 	reader->base = methods;
 	reader->dataFile = dataFile;
 	reader->isFileStream = isFileStream;
+	elog(LOG, "file path: %s", dataFile->filePath);
 
 	switch (dataFile->format)
 	{
 		case PARQUET:
 			reader->formatReader = &parquetReader;
+			parquetContext.gopherFilesystem = (gopherFS) extraArg;
+			parquetContext.buffer = buffer;
+			extraArg = (void *) &parquetContext;
 			break;
 		case ORC:
 			reader->formatReader = &orcReader;

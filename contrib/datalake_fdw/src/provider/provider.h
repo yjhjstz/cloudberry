@@ -6,6 +6,7 @@
 #include <memory>
 #include <iostream>
 #include "src/common/fileSystemWrapper.h"
+#include "src/datalake_type.h"
 
 #define DATALAKE_EXPORT_NAME ("datalake")
 #define PARQUET_WRITE_SUFFIX ("parquet")
@@ -13,23 +14,6 @@
 #define ORC_WRITE_SUFFIX ("orc")
 #define CSV_WRITE_SUFFIX ("csv")
 #define TEXT_WRITE_SUFFIX ("txt")
-
-typedef enum CompressType
-{
-	UNCOMPRESS = 0,
-	LZJB,
-	ZLIB,
-	GZIP,
-	SNAPPY,
-	ZSTD,
-	LZ4,
-	BROTLI,
-	ZIP,
-	DEFLATE,
-	UNSUPPORTCOMPRESS,
-	/* archive support more compress type. */
-    ARCHIVE_SUPPORT_COMPRESS_FORMAT
-} CompressType;
 
 class Provider {
 
@@ -57,6 +41,6 @@ public:
 
 };
 
-std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vectorization);
+std::shared_ptr<Provider> getProvider(DLTblFmt type, bool readFdw, bool vectorization);
 
 #endif //PROVIDER_H

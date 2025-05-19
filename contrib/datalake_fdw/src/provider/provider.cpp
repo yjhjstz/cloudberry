@@ -27,20 +27,18 @@ using Datalake::Internal::hudiRead;
 using Datalake::Internal::textFileRead;
 
 
-std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vectorization)
+std::shared_ptr<Provider> getProvider(DLTblFmt type, bool readFdw, bool vectorization)
 {
 	if (readFdw)
 	{
-		if (strcasecmp(DATALAKE_OPTION_FORMAT_TEXT, type) == 0 ||
-			strcasecmp(DATALAKE_OPTION_FORMAT_CSV, type) == 0 ||
-			strcasecmp(DATALAKE_OPTION_FORMAT_CUSTOM, type) == 0)
+		if (FORMAT_IS_TEXT(type) || FORMAT_IS_CSV(type) || FORMAT_IS_CUSTOM(type))
 		{
 			if (external_table_new_text)
 				return std::make_shared<textFileRead>();
 			else
 				return std::make_shared<archiveRead>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_ORC, type) == 0)
+		else if (FORMAT_IS_ORC(type))
 		{
 			if (vectorization)
 			{
@@ -51,19 +49,19 @@ std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vecto
 				return std::make_shared<orcRead>();
 			}
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_PARQUET, type) == 0)
+		else if (FORMAT_IS_PARQUET(type))
 		{
 			return std::make_shared<parquetRead>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_AVRO, type) == 0)
+		else if (FORMAT_IS_AVRO(type))
 		{
 			return std::make_shared<avroRead>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_ICEBERG, type) == 0)
+		else if (FORMAT_IS_HUDI(type))
 		{
 			return std::make_shared<icebergRead>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_HUDI, type) == 0)
+		else if (FORMAT_IS_ICEBERG(type))
 		{
 			return std::make_shared<hudiRead>();
 		}
@@ -71,28 +69,25 @@ std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vecto
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-					errmsg("unknow format \"%s\". "
-					"datalake_fdw support read format text|csv|custom|orc|parquet|avro.",
-					type)));
+					errmsg("unknow format. "
+					"datalake_fdw support read format text|csv|custom|orc|parquet|avro.")));
 		}
 	}
 	else
 	{
-		if (strcasecmp(DATALAKE_OPTION_FORMAT_CUSTOM, type) == 0 ||
-			strcasecmp(DATALAKE_OPTION_FORMAT_CSV, type) == 0 ||
-			strcasecmp(DATALAKE_OPTION_FORMAT_TEXT, type) == 0)
+		if (FORMAT_IS_TEXT(type) || FORMAT_IS_CSV(type) || FORMAT_IS_CUSTOM(type))
 		{
 			return std::make_shared<archiveWrite>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_ORC, type) == 0)
+		else if (FORMAT_IS_ORC(type))
 		{
 			return std::make_shared<orcWrite>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_PARQUET, type) == 0)
+		else if (FORMAT_IS_PARQUET(type))
 		{
 			return std::make_shared<parquetWrite>();
 		}
-		else if (strcasecmp(DATALAKE_OPTION_FORMAT_AVRO, type) == 0)
+		else if (FORMAT_IS_AVRO(type))
 		{
 			return std::make_shared<avroWrite>();
 		}
@@ -100,9 +95,8 @@ std::shared_ptr<Provider> getProvider(const char *type, bool readFdw, bool vecto
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-					errmsg("unknow format \"%s\". "
-					"datalake_fdw support write format text|csv|custom|orc|parquet|avro.",
-					type)));
+					errmsg("unknow format. "
+					"datalake_fdw support write format text|csv|custom|orc|parquet|avro.")));
 		}
 	}
 	return NULL;

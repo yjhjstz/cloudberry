@@ -21,7 +21,7 @@ void parquetWrite::createHandler(void *sstate)
 
 void parquetWrite::setOption(dataLakeOptions *options)
 {
-    option.compression = getCompressType(options->compress);
+    option.compression = options->compress;
     option.writeFileSize = options->fileSizeLimit > 0 ? options->fileSizeLimit : options->fileSizeLimit;
 }
 

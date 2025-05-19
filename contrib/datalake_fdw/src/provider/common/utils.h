@@ -24,6 +24,7 @@ typedef struct ReaderInitInfo
 	gopherFS		gopherFilesystem;
 	FileScanTask   *fileScanTask;
 	ExternalTableMetadata *tableOptions;
+	void		   *buffer;
 } ReaderInitInfo;
 
 typedef struct InternalRecord
@@ -101,6 +102,7 @@ typedef struct RowReader
 	ExternalTableMetadata	*tableOptions;
 	MemoryContext			taskMcxt;
 	MemoryContext			curMcxt;
+	void 					*buffer;
 } RowReader;
 
 typedef struct RemoteFileHandle

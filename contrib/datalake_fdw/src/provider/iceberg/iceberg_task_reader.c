@@ -48,7 +48,8 @@ createIcebergTaskReader(void *args)
 	filter = (Reader *) createFileReader(info->mcxt, info->datafileDesc, info->attrUsed, true,
 										 info->fileScanTask->dataFile, info->gopherFilesystem,
 										 info->fileScanTask->start,
-										 info->fileScanTask->start + info->fileScanTask->length);
+										 info->fileScanTask->start + info->fileScanTask->length,
+										 NULL);
 
 	list_free(info->fileScanTask->deletes);
 

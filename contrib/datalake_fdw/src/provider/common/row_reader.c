@@ -8,6 +8,7 @@
 #include "src/provider/iceberg/iceberg_task_reader.h"
 #include "src/provider/hudi/hudi_task_reader.h"
 #include "row_reader.h"
+#include "src/common/dataBufferArray_c.h"
 
 extern bool disableCacheFile;
 
@@ -127,7 +128,7 @@ createRowReader(MemoryContext mcxt,
 				bool *attrUsed,
 				gopherFS gopherFilesystem,
 				List *combinedScanTasks,
-				char *format,
+				DLTblFmt format,
 				ExternalTableMetadata *tableOptions)
 {
 	RowReader *reader = palloc0(sizeof(RowReader));
@@ -140,6 +141,7 @@ createRowReader(MemoryContext mcxt,
 	reader->gopherFilesystem = gopherFilesystem;
 	reader->mcxt = mcxt;
 	reader->tableOptions = tableOptions;
+	reader->buffer = datalake_buffer_arr_create(tupleDesc->natts + 8);
 
 	if (FORMAT_IS_ICEBERG(format))
 		reader->handler = &icebergHandler;
@@ -181,6 +183,7 @@ rowReaderNext(RowReader *reader, InternalRecord *record)
 			initInfo.gopherFilesystem = reader->gopherFilesystem;
 			initInfo.fileScanTask = list_nth(reader->fileScanTasks, 0);
 			initInfo.tableOptions = reader->tableOptions;
+			initInfo.buffer = reader->buffer;
 
 			MemoryContextReset(reader->taskMcxt);
 			MemoryContextSwitchTo(reader->taskMcxt);
@@ -208,6 +211,8 @@ rowReaderClose(RowReader *reader)
 
 	list_free_deep(reader->datafileDesc);
 	MemoryContextDelete(reader->taskMcxt);
+	if (reader->buffer)
+		datalake_buffer_arr_destroy(reader->buffer);
 	pfree(reader);
 }
 
@@ -319,13 +324,14 @@ protocolImportStart(dataLakeFdwScanState *scanstate, ProtocolContext *context, b
 	List     *combinedScanTasks = NIL;
 
     ExternalTableMetadata *tableOptions = (ExternalTableMetadata *)linitial(scanstate->fragments);
-	scanstate->fragments = list_delete_first(scanstate->fragments);
 
 	foreach_with_count(lc, scanstate->fragments, i)
 	{
+		if (i == 0) continue;
+		int idx = i - 1;
 		List *combinedScanTask = (List *) lfirst(lc);
 
-		if (GpIdentity.segindex == (i % numSegments))
+		if (GpIdentity.segindex == (idx % numSegments))
 			combinedScanTasks = lappend(combinedScanTasks, combinedScanTask);
 	}
 

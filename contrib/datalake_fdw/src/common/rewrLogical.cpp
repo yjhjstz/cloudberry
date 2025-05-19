@@ -36,7 +36,7 @@ void readLogical::initParameter(void *sstate)
 	last = false;
 	options.buffer.allocDataBufferArray(ncolumns);
 	options.enableCache = scanstate->options->gopher->enableCache;
-	if (PROTOCOL_IS_HDFS(scanstate->options->gopher->gopherType))
+	if (PROTOCOL_IS_HDFS(scanstate->options->protocol))
 	{
 		options.ptype = PROTOTCOL_HDFS;
 	}

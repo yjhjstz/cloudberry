@@ -36,6 +36,8 @@ public:
 
 	bool compareToDeleteMap(orcReadDeltaFile &compact, int index);
 
+	void checkFileSchemaCompatibility(TupleDesc tupdesc, int columns);
+
 	fileState getState()
     {
         return state;

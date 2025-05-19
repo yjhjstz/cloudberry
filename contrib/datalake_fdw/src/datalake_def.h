@@ -15,6 +15,7 @@
 
 
 #include "src/provider/providerWrapper.h"
+#include "datalake_type.h"
 
 /* server protocl type */
 #define DATALAKE_OPTION_PROTOCOL "protocol"
@@ -85,11 +86,15 @@
 #define DATALAKE_OPTION_FORMAT_FORMATTER "formatter"
 
 /* foreign table options compression */
-#define DATALAKE_COMPRESS_UNCOMPRESS "none"
+#define DATALAKE_COMPRESS_UNCOMPRESS "uncompress"
+#define DATALAKE_COMPRESS_NONE "none"
 #define DATALAKE_COMPRESS_SNAPPY "snappy"
 #define DATALAKE_COMPRESS_GZIP "gzip"
 #define DATALAKE_COMPRESS_ZSTD "zstd"
 #define DATALAKE_COMPRESS_LZ4 "lz4"
+#define DATALAKE_COMPRESS_ZIP "zip"
+#define DATALAKE_COMPRESS_BROTLI "brotli"
+#define DATALAKE_COMPRESS_ZLIB "zlib"
 
 /* copy options */
 #define DATALAKE_COPY_OPTION_FORMAT "format"
@@ -124,30 +129,37 @@
 #define DATALAKE_OPTION_QUERY_TYPE "query_type"
 #define DATALAKE_OPTION_METADATA_TABLE_ENABLE "metadata_table_enable"
 
-#define FORMAT_IS_CSV(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CSV) == 0)
+#define FORMAT_IS_CSV(format) (format == DL_CSV_TABLE)
 
-#define FORMAT_IS_TEXT(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_TEXT) == 0)
+#define FORMAT_IS_TEXT(format) (format == DL_TEXT_TABLE)
 
-#define FORMAT_IS_ORC(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ORC) == 0)
+#define FORMAT_IS_ORC(format) (format == DL_ORC_TABLE)
 
-#define FORMAT_IS_PARQUET(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_PARQUET) == 0)
+#define FORMAT_IS_PARQUET(format) (format == DL_PARQUET_TABLE)
 
-#define FORMAT_IS_AVRO(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_AVRO) == 0)
+#define FORMAT_IS_AVRO(format) (format == DL_AVRO_TABLE)
 
-#define FORMAT_IS_HUDI(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_HUDI) == 0)
+#define FORMAT_IS_HUDI(format) (format == DL_HUDI_TABLE)
 
-#define FORMAT_IS_ICEBERG(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_ICEBERG) == 0)
+#define FORMAT_IS_ICEBERG(format) (format == DL_ICEBERG_TABLE)
 
-#define FORMAT_IS_CUSTOM(format) (pg_strcasecmp(format, DATALAKE_OPTION_FORMAT_CUSTOM) == 0)
+#define FORMAT_IS_CUSTOM(format) (format == DL_CUSTOM_TABLE)
 
-#define PROTOCOL_IS_HDFS(protocol) (pg_strcasecmp(protocol, DATALAKE_HDFS_PROTOCOL) == 0)
+#define PROTOCOL_IS_HDFS(protocol) (protocol == DL_HDFS_PROTOCOL)
 
-#define PROTOCOL_IS_S3(protocol) (pg_strcasecmp(protocol, DATALAKE_OSS_PROTOCOL_S3) == 0)
+#define PROTOCOL_IS_S3(protocol) (protocol == DL_OSS_PROTOCOL_S3)
 
-#define SUPPORT_PARTITION_TABLE(protocol, format, partitionkey, datasource) \
-	(PROTOCOL_IS_HDFS(protocol) || PROTOCOL_IS_S3(protocol)) && \
-	(FORMAT_IS_ORC(format) || FORMAT_IS_PARQUET(format) || FORMAT_IS_AVRO(format) || \
-	FORMAT_IS_TEXT(format) || FORMAT_IS_CSV(format)) && \
+#define PARQUET_SUPPORT_COMPRESS(compress) (compress == UNCOMPRESS || \
+	compress == SNAPPY || compress == GZIP || \
+	compress == ZSTD || compress == LZ4)
+
+#define TEXT_SUPPORT_COMPRESS(compress) (compress == UNCOMPRESS || \
+	compress == ZIP || compress == GZIP)\
+
+#define AVRO_SUPPORT_COMPRESS(compress) (compress == UNCOMPRESS || \
+	compress == SNAPPY)
+
+#define IS_PARTITION_TABLE(partitionkey, datasource) \
 	(partitionkey != NULL) && (datasource != NULL) \
 
 
@@ -258,6 +270,7 @@ typedef struct hiveOptions
 
 typedef struct dataLakeOptions
 {
+	DLProt		protocol;
 	gopherOptions* gopher;
 	/* sync hive options */
 	hiveOptions* hiveOption;
@@ -265,8 +278,8 @@ typedef struct dataLakeOptions
 	char		*hdfs_cluster_name;
 	/* get FOREIGN TABLE option filePath */
 	char		*filePath;
-	char		*format;
-	char		*compress;
+	DLTblFmt	format;
+	CompressType compress;
 	/* parser filePath get prefix */
 	char		*prefix;
 	bool		readFdw;

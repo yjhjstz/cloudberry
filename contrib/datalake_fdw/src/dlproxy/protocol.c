@@ -450,7 +450,7 @@ get_external_fragments(Oid relid,
 					   List *restrictInfo,
 					   List *targetList,
 					   List *locations,
-					   char* formatType,
+					   DLTblFmt formatType,
 					   bool isWritable)
 {
 	if (isWritable)
@@ -461,7 +461,7 @@ get_external_fragments(Oid relid,
 	else if (FORMAT_IS_HUDI(formatType))
 		return hudi_get_external_fragments(relid, relno, restrictInfo, targetList, locations);
 	else
-		return hive_get_external_partitions(relid, locations, formatType);
+		return hive_get_external_partitions(relid, locations);
 }
 
 List *

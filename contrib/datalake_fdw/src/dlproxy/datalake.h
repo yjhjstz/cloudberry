@@ -4,6 +4,7 @@
 #include "nodes/pg_list.h"
 #include "utils/relcache.h"
 #include "src/datalake_def.h"
+#include "src/datalake_type.h"
 
 #define CATALOG_TYPE       "catalog_type"
 #define SERVER_NAME	       "server_name"
@@ -35,7 +36,7 @@ get_external_fragments(Oid relid,
 					   List *restrictInfo,
 					   List *targetList,
 					   List *locations,
-					   char* formatType,
+					   DLTblFmt formatType,
 					   bool iswritable);
 
 extern List *

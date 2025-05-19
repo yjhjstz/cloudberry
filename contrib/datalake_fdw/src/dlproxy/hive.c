@@ -107,7 +107,7 @@ freePartitionList(List *partitions)
 }
 
 List *
-hive_get_external_partitions(Oid relid, List *locations, char* formatType)
+hive_get_external_partitions(Oid relid, List *locations)
 {
 	List *result = NIL;
 	volatile gphadoop_context *context = NULL;
