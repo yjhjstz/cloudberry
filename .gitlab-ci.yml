@@ -321,4 +321,5 @@ cleanup-cache:
   script: |
     echo "cleanup cache"
     rm -rfv ${CI_PROJECT_DIR}/*
-  when: always
+  rules:
+    - when: always
