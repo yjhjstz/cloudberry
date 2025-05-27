@@ -21,6 +21,15 @@ use PostgresNode;
 use Test::More;
 use Time::HiRes qw(usleep);
 
+sub find_cmd {
+    my ($cmd, $default) = @_;
+    foreach my $dir (split(/:/, $ENV{PATH})) {
+        my $path = "$dir/$cmd";
+        return $path if -x $path;
+    }
+    return $default;
+}
+
 if ($ENV{with_gssapi} eq 'yes')
 {
 	plan tests => 45;
@@ -60,9 +69,9 @@ if ($krb5_bin_dir && -d $krb5_bin_dir)
 }
 if ($krb5_sbin_dir && -d $krb5_sbin_dir)
 {
-	$kdb5_util    = $krb5_sbin_dir . '/' . $kdb5_util;
-	$kadmin_local = $krb5_sbin_dir . '/' . $kadmin_local;
-	$krb5kdc      = $krb5_sbin_dir . '/' . $krb5kdc;
+	$kdb5_util    = find_cmd($kdb5_util, $krb5_sbin_dir . '/' . $kdb5_util);
+	$kadmin_local = find_cmd($kadmin_local, $krb5_sbin_dir . '/' . $kadmin_local);
+	$krb5kdc      = find_cmd($krb5kdc, $krb5_sbin_dir . '/' . $krb5kdc);
 }
 
 my $host     = 'auth-test-localhost.postgresql.example.com';
