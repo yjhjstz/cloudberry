@@ -68,7 +68,13 @@ $(arrow_build_dir)/arrow/Makefile: $(arrow_cpp_dir)/CMakeLists.txt
 		-DSNAPPY_HOME=/usr/local \
 		-DZSTD_HOME=/usr/local \
 		-DZLIB_HOME=/usr/local \
-		-DLZ4_HOME=/usr/local/
+		-DLZ4_HOME=/usr/local/ \
+		-DARROW_WITH_ZLIB=ON \
+		-DARROW_WITH_LZ4=ON \
+		-DARROW_WITH_SNAPPY=ON \
+		-DARROW_WITH_ZSTD=ON \
+		-DARROW_WITH_BROTLI=ON \
+		-DARROW_WITH_BZ2=ON
 
 config-arrow: $(arrow_build_dir)/arrow/Makefile
 
