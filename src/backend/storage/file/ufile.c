@@ -61,7 +61,7 @@ static int localFileWrite(UFile *file, char *buffer, int amount);
 static int localFilePwrite(UFile *file, char *buffer, int amount, off_t offset);
 static off_t localFileSize(UFile *file);
 static int localFileUnlink(Oid spcId, const char *fileName);
-static char *localFormatPathName(RelFileNode *relFileNode);
+static char *localFormatPathName(Oid relid, RelFileNode *relFileNode);
 static bool localEnsurePath(Oid spcId, const char *PathName);
 static bool localFileExists(Oid spcId, const char *fileName);
 static const char *localFileName(UFile *file);
@@ -328,15 +328,15 @@ localFileRmdir(Oid spcId, const char *dirName)
 }
 
 static char *
-localFormatPathName(RelFileNode *relFileNode)
+localFormatPathName(Oid relid, RelFileNode *relFileNode)
 {
 	if (relFileNode->spcNode == DEFAULTTABLESPACE_OID)
 		return psprintf("base/%u/%u_dirtable",
-				  		relFileNode->dbNode, relFileNode->relNode);
+				  		relFileNode->dbNode, relid);
 	else
 		return psprintf("pg_tblspc/%u/%s/%u/%u_dirtable",
 						relFileNode->spcNode, GP_TABLESPACE_VERSION_DIRECTORY,
-						relFileNode->dbNode, relFileNode->relNode);
+						relFileNode->dbNode, relid);
 }
 
 bool
@@ -482,13 +482,13 @@ int UFileRmdir(Oid spcId, const char *dirName)
 }
 
 char *
-UFileFormatPathName(RelFileNode *relFileNode)
+UFileFormatPathName(Oid relid, RelFileNode *relFileNode)
 {
 	FileAm *fileAm;
 
 	fileAm = GetTablespaceFileHandler(relFileNode->spcNode);
 
-	return fileAm->formatPathName(relFileNode);
+	return fileAm->formatPathName(relid, relFileNode);
 }
 
 bool
