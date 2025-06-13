@@ -25,7 +25,7 @@ private:
     writeOption option;
     int sliceIdx;
     std::string prefix;
-	std::string fileName;
+    std::string fileName;
     dataLakeFdwScanState *ss;
 };
 

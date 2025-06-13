@@ -24,7 +24,7 @@ GopherRandomAccessFile::GopherRandomAccessFile(gopherFS gopherFilesystem, std::s
 
 GopherRandomAccessFile::~GopherRandomAccessFile() 
 {
-	Close();
+	auto s = Close();
 }
 
 parquet_arrow::Status

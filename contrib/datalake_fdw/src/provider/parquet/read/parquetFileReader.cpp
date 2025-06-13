@@ -85,7 +85,7 @@ void parquetFileReader::resetParquetReader()
     if (state != FILE_UNDEF)
     {
         parquet_reader->Close();
-		fileStream->Close();
+		auto status = fileStream->Close();
 		fileStream.reset();
     }
     resetScanners();
@@ -98,7 +98,7 @@ void parquetFileReader::resetParquetReader()
 bool parquetFileReader::createInternalReader(ossFileStream ossFile, std::string fileName)
 {
 	fileStream = std::make_shared<gopherReadFileSystem>(ossFile, fileName, setStreamWhetherCache(options));
-    fileStream->Open();
+    auto s = fileStream->Open();
     if (!fileStream->checkFileIsParquet())
     {
         return false;
@@ -444,6 +444,7 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                     "Physical type for decimal128 must be int32, int64, byte array, "
                     "or fixed length binary. physical_type %d.", typeOid, des->physical_type());
             }
+            break;
         }
         case CHAROID:
         {
@@ -536,6 +537,7 @@ Datum parquetFileReader::read(Oid typeOid, int column_index, bool &isNull, int &
                      "parquet BYTE_ARRAY/FIXED_LEN_BYTE_ARRAY. but column %d.", 
                      typeOid, des->physical_type());
             }
+            break;
         }
         default:
             return 0;

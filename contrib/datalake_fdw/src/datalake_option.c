@@ -131,6 +131,10 @@ static const struct FdwTableFormatOption table_format_mapping[] = {
 
 static DLTblFmt datalakeGetTableFormat(const char* table)
 {
+	if (!table)
+	{
+		return DL_INVALID_TABLE_FORMAT;
+	}
 	for (int i = 0; i < sizeof(table_format_mapping) / sizeof(table_format_mapping[0]); i++)
 	{
 		if (pg_strcasecmp(table, table_format_mapping[i].table_name) == 0)
@@ -161,6 +165,11 @@ static const struct FdwProtocolOption protocol_mapping[] = {
 
 static DLProt datalakeGetProtocol(const char* protocol)
 {
+	if (!protocol)
+	{
+		return DL_INVALID_PROTOCOL;
+	}
+
 	for (int i = 0; i < sizeof(protocol_mapping) / sizeof(protocol_mapping[0]); i++)
 	{
 		if (pg_strcasecmp(protocol, protocol_mapping[i].protocol_name) == 0)
@@ -191,6 +200,10 @@ static const struct FdwCompressionOption compression_mapping[] = {
 
 static CompressType datalakeGetCompression(const char* compress)
 {
+	if (!compress)
+	{
+		return UNSUPPORTCOMPRESS;
+	}
 	for (int i = 0; i < sizeof(compression_mapping) / sizeof(compression_mapping[0]); i++)
 	{
 		if (pg_strcasecmp(compress, compression_mapping[i].compression_name) == 0)
@@ -503,14 +516,14 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FILE_SIZE_LIMIT) == 0)
 		{
-			int64_t filesize = atoi(defGetString(def));
+			size_t filesize = atoll(defGetString(def));
 			if (filesize == 0 || filesize < -1)
 			{
 				ereport(ERROR,
 						(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 						errmsg("datalake_fdw: file size limit must be greater than 0 or be -1.")));
 			}
-			opt->fileSizeLimit = filesize > 0 ? filesize + 1024 * 1024 : -1;
+			opt->fileSizeLimit = filesize > 0 ? filesize * 1024 * 1024 : -1;
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_HIVE_DATASOURCE) == 0)

@@ -11,7 +11,7 @@ void archiveWrite::createHandler(void *sstate)
 	gopherConfig* conf = createGopherConfig((void*)(ss->options->gopher));
 	fileStream = createFileSystem(conf);
 	freeGopherConfig(conf);
-    setOption(ss->options);
+	setOption(ss->options);
 	sliceIndex = 0;
 	currentWriteSize = 0;
 	prefix = (char*)lfirst(list_head(ss->fragments));
@@ -65,20 +65,13 @@ std::string archiveWrite::generateArchiveWriteFileName(std::string filePath, std
 {
 	int segid = GpIdentity.segindex;
 	std::string exportName = generateWriteFileName(filePath, suffix, segid, fileSliceIdx);
-    return exportName;
+	return exportName;
 }
 
 void archiveWrite::setOption(dataLakeOptions *options)
 {
 	option.compression = options->compress;
-	if (options->fileSizeLimit < 0)
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_FDW_INVALID_ATTRIBUTE_VALUE),
-				errmsg("datalake option 'filesilelimit' should be positive.")));
-	}
-	option.writeFileSize = options->fileSizeLimit == 0 ? 128 : options->fileSizeLimit;
-	option.writeFileSize = option.writeFileSize <= 0 ? -1 : option.writeFileSize * 1024 * 1024;
+	option.writeFileSize = options->fileSizeLimit;
 }
 
 }

@@ -25,9 +25,9 @@ namespace Internal {
 
 typedef enum fileState
 {
-    FILE_OPEN = 0,
-    FILE_CLOSE,
-    FILE_UNDEF
+	FILE_OPEN = 0,
+	FILE_CLOSE,
+	FILE_UNDEF
 }fileState;
 
 typedef enum protocolType
@@ -40,57 +40,57 @@ typedef enum protocolType
 class readOption
 {
 public:
-    readOption()
+	readOption()
 	{
-        batch_size = READ_BATCH_SIZE;
-        includes_columns.clear();
+		batch_size = READ_BATCH_SIZE;
+		includes_columns.clear();
 		enableCache = false;
 		allocBuffer = NULL;
 		transactionTable = false;
 		blockPolicySize = BLOCK_POLICY_SIZE;
 		nPartitionKey = 0;
 		ptype = PROTOTCOL_UNKNOW;
-    }
+	}
 
-    std::vector<uint8_t> includes_columns;
-    int batch_size;
+	std::vector<uint8_t> includes_columns;
+	int batch_size;
 	int blockPolicySize;
 	bool enableCache;
 	char* allocBuffer;
 	bool transactionTable;
-    dataBufferArray buffer;
+	dataBufferArray buffer;
 	int nPartitionKey;
 	protocolType ptype;
 };
 
 class writeOption {
 public:
-    writeOption() {
-        compression = UNSUPPORTCOMPRESS;
-    }
+	writeOption() {
+		compression = UNSUPPORTCOMPRESS;
+	}
 
-    writeOption(CompressType compress)
-    {
-        compression = compress;
-    }
+	writeOption(CompressType compress)
+	{
+		compression = compress;
+	}
 
-    CompressType compression;
+	CompressType compression;
 	int64_t writeFileSize;
 };
 
 typedef struct datalakeMemoryBuffer {
-    char* buffer;
-    int buffer_length;
-    int pos;
-    int used_size;
-    int begin_size;
-    datalakeMemoryBuffer() {
-        buffer = NULL;
-        buffer_length = 0;
-        pos = 0;
-        used_size = 0;
-        begin_size = 0;
-    }
+	char* buffer;
+	int buffer_length;
+	int pos;
+	int used_size;
+	int begin_size;
+	datalakeMemoryBuffer() {
+		buffer = NULL;
+		buffer_length = 0;
+		pos = 0;
+		used_size = 0;
+		begin_size = 0;
+	}
 }datalakeMemoryBuffer;
 
 class RewrLogicalBase
@@ -150,7 +150,7 @@ protected:
 	int tupleIndex;
 	dataLakeFdwScanState* scanstate;
 	TupleDesc tupdesc;
-    AttrNumber ncolumns;
+	AttrNumber ncolumns;
 	std::set<int> attrs_used;
 	std::string curFileName;
 	int blockSerial;
@@ -161,29 +161,11 @@ protected:
 
 	/* for partition table */
 	int *defMap;
-    ExprState **defExprs;
+	ExprState **defExprs;
 	int nPartitionKey;
 	int nConstraint;
 	int nDefaults;
 	bool *includes_columns;
-};
-
-class writeLogical : public RewrLogicalBase
-{
-public:
-	writeLogical()
-	{
-		sliceIndex = 0;
-		currentWriteSize = 0;
-	}
-	std::string generateFileName(std::string writePrefix, std::string suffix, int fileSliceIndex);
-
-protected:
-	/* for file slice */
-	uint32 sliceIndex;
-	int64_t currentWriteSize;
-	std::string prefix;
-	std::string suffix;
 };
 
 int setStreamFlag(readOption opt);

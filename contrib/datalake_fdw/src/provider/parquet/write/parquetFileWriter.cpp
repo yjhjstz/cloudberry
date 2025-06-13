@@ -309,7 +309,7 @@ void parquetFileWriter::resetParquetWriter()
     }
     rg_writer->Close();
     file_writer->Close();
-    out_file->Close();
+    auto s = out_file->Close();
     file_writer.reset();
     out_file.reset();
     dataBufferOffset = 0;

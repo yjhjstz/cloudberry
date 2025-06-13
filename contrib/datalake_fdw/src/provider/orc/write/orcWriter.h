@@ -198,8 +198,8 @@ private:
     std::string prefix;
 	std::string fileName;
 	bool openState;
-	int64_t stripeSize;
-	int64_t fileSizeLimit;
+	size_t stripeSize;
+	size_t fileSizeLimit;
 };
 
 

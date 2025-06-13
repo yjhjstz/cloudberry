@@ -1,6 +1,9 @@
 #ifndef DATALAKE_DATABUFFERARRAY_H
 #define DATALAKE_DATABUFFERARRAY_H
 
+extern "C" {
+#include "postgres.h"
+}
 #include <stdio.h>
 #include <vector>
 

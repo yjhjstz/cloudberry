@@ -24,9 +24,9 @@ using namespace orc;
  */
 
 orcWrite::orcWrite() :
-  stringDataBuff(*orc::getDefaultPool(), (uint64_t)ORC_DEFAULT_POOL_SIZE),
-  intervalDataBuff(*orc::getDefaultPool(), (uint64_t)ORC_DEFAULT_POOL_SIZE),
-  timeDataBuff(*orc::getDefaultPool(), (uint64_t)ORC_DEFAULT_POOL_SIZE)
+	stringDataBuff(*orc::getDefaultPool(), (uint64_t)ORC_DEFAULT_POOL_SIZE),
+	intervalDataBuff(*orc::getDefaultPool(), (uint64_t)ORC_DEFAULT_POOL_SIZE),
+	timeDataBuff(*orc::getDefaultPool(), (uint64_t)ORC_DEFAULT_POOL_SIZE)
 {
 
 }
@@ -47,8 +47,8 @@ void orcWrite::createHandler(void* sstate)
 	stringBuffOffset = 0;
 	intervalBuffOffset = 0;
 	timeBuffOffset = 0;
-  currentSliceId = 0;
-  openState = false;
+	currentSliceId = 0;
+	openState = false;
 
 	fdwState = (dataLakeFdwScanState*)sstate;
 	prefix = (char*)lfirst(list_head(fdwState->fragments)); 
@@ -67,9 +67,9 @@ void orcWrite::createHandler(void* sstate)
 	freeGopherConfig(conf);
 
 	generateOrcSchema();
-	stripeSize = std::min(fdwState->options->fileSizeLimit, (int64_t)ORC_STRIPE_SIZE);
+	stripeSize = std::min(fdwState->options->fileSizeLimit, (size_t)ORC_STRIPE_SIZE);
 	batchSize = ORC_WRITER_BATCH_SIZE;
-  fileSizeLimit = fdwState->options->fileSizeLimit > 0 ? fdwState->options->fileSizeLimit + 1024 * 1024 : fdwState->options->fileSizeLimit;
+	fileSizeLimit = fdwState->options->fileSizeLimit;
 }
 
 columType orcWrite::columnBelongType(int attColumn)
@@ -123,38 +123,38 @@ void orcWrite::initORC()
 
 void orcWrite::closeORC()
 {
-  if (rows != 0) {
-    writeToBatch(rows);
-    rows = 0;
-  }
-  totalStripes = 0;
-  // Close ORC
-  orcWriter->close();
-  outStream->close();
-  outStream.reset();
-  orcWriter.reset();
-  stripes.clear();
-  batch.reset();
-  root = NULL;
-  stringBuffOffset = 0;
-  intervalBuffOffset = 0;
-  timeBuffOffset = 0;
-  openState = false;
+	if (rows != 0) {
+		writeToBatch(rows);
+		rows = 0;
+	}
+	totalStripes = 0;
+	// Close ORC
+	orcWriter->close();
+	outStream->close();
+	outStream.reset();
+	orcWriter.reset();
+	stripes.clear();
+	batch.reset();
+	root = NULL;
+	stringBuffOffset = 0;
+	intervalBuffOffset = 0;
+	timeBuffOffset = 0;
+	openState = false;
 }
 
 int64_t orcWrite::write(const void* buf, int64_t length)
 {
-  if (openState && fileSizeLimit > 0 && outStream->getLength() + stripeSize > fileSizeLimit)
-  {
-    closeORC();
-    currentSliceId += 1;
-  }
-  if (!openState)
-  {
-    initORC();
-  }
+	if (openState && fileSizeLimit > 0 && outStream->getLength() + stripeSize > fileSizeLimit)
+	{
+		closeORC();
+		currentSliceId += 1;
+	}
+	if (!openState)
+	{
+		initORC();
+	}
 
-  writeToField(rows, buf);
+	writeToField(rows, buf);
 	rows++;
 	totalStripes++;
 	if (rows == batchSize) {
@@ -344,92 +344,92 @@ void orcWrite::reDistributedDataBuffer(int numValues, char* oldBufferAddress, ch
 }
 
 void orcWrite::fillStringValues(const char* data,
-                                orc::ColumnVectorBatch* fields,
-                                int column,
-                                bool isNULL,
-                                int numValues,
-                                orc::DataBuffer<char>& buffer,
-                                int64_t& offset,
-                                int type) {
-  orc::StringVectorBatch* stringBatch =
-    dynamic_cast<orc::StringVectorBatch*>(fields);
-  bool hasNull = false;
-  if (isNULL) {
-    fields->notNull[numValues] = 0;
-    hasNull = true;
-  } else {
-    if (data == NULL) {
-      elog(ERROR, "orc write string buffer is null");
-    }
-    fields->notNull[numValues] = 1;
-    int64_t datalen = static_cast<int64_t> (strlen(data));
-    resizeDataBuff(numValues, buffer, datalen, offset, type);
+								orc::ColumnVectorBatch* fields,
+								int column,
+								bool isNULL,
+								int numValues,
+								orc::DataBuffer<char>& buffer,
+								int64_t& offset,
+								int type) {
+	orc::StringVectorBatch* stringBatch =
+	dynamic_cast<orc::StringVectorBatch*>(fields);
+	bool hasNull = false;
+	if (isNULL) {
+	fields->notNull[numValues] = 0;
+	hasNull = true;
+	} else {
+	if (data == NULL) {
+		elog(ERROR, "orc write string buffer is null");
+	}
+	fields->notNull[numValues] = 1;
+	int64_t datalen = static_cast<int64_t> (strlen(data));
+	resizeDataBuff(numValues, buffer, datalen, offset, type);
 
-    memcpy(buffer.data() + offset,
-           data,
-           datalen);
-    stringBatch->data[numValues] = buffer.data() + offset;
-    stringBatch->length[numValues] = static_cast<int64_t>(datalen);
-    offset += datalen;
-  }
-  SetColumnVectorBatchHasNULL(column, hasNull);
+	memcpy(buffer.data() + offset,
+			data,
+			datalen);
+	stringBatch->data[numValues] = buffer.data() + offset;
+	stringBatch->length[numValues] = static_cast<int64_t>(datalen);
+	offset += datalen;
+	}
+	SetColumnVectorBatchHasNULL(column, hasNull);
 }
 
 // parse date string from format YYYY-mm-dd
 void orcWrite::fillDateValues(int32_t date,
-                              orc::ColumnVectorBatch* fields,
-                              int column,
-                              bool isNULL,
-                              int numValues) {
-  orc::LongVectorBatch* longBatch =
-    dynamic_cast<orc::LongVectorBatch*>(fields);
-  bool hasNull = false;
-  if (isNULL) {
-    fields->notNull[numValues] = 0;
-    hasNull = true;
-  } else {
-    fields->notNull[numValues] = 1;
-    int32_t days = date + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE);
-    longBatch->data[numValues] = days;
-  }
-  SetColumnVectorBatchHasNULL(column, hasNull);
+								orc::ColumnVectorBatch* fields,
+								int column,
+								bool isNULL,
+								int numValues) {
+	orc::LongVectorBatch* longBatch =
+	dynamic_cast<orc::LongVectorBatch*>(fields);
+	bool hasNull = false;
+	if (isNULL) {
+		fields->notNull[numValues] = 0;
+		hasNull = true;
+	} else {
+		fields->notNull[numValues] = 1;
+		int32_t days = date + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE);
+		longBatch->data[numValues] = days;
+	}
+	SetColumnVectorBatchHasNULL(column, hasNull);
 }
 
 // parse timestamp values in seconds
 void orcWrite::fillTimestampValues(int64_t timestamp,
-                                   orc::ColumnVectorBatch* fields,
-                                   int column,
-                                   bool isNULL,
-                                   int numValues) {
+									orc::ColumnVectorBatch* fields,
+									int column,
+									bool isNULL,
+									int numValues) {
 
-  orc::TimestampVectorBatch* tsBatch =
-    dynamic_cast<orc::TimestampVectorBatch*>(fields);
-  bool hasNull = false;
-  if (isNULL) {
-    fields->notNull[numValues] = 0;
-    hasNull = true;
-  } else {
-    if (timestamp < 0) {
-      int64_t second = 0;
-      int64_t nanosec = (timestamp%1000000) * 1000;
-      if (nanosec != 0)
-      {
-        second = timestamp/1000000 + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) *60*60*24 - 1;
-        nanosec += 1000000000;
-      }
-      else
-      {
-        second = timestamp/1000000 + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) *60*60*24;
-      }
-      tsBatch->data[numValues] = second;
-      tsBatch->nanoseconds[numValues] = nanosec;
-    } else {
-      int64_t second = timestamp/1000000 + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) *60*60*24;
-      tsBatch->data[numValues] = second;
-      tsBatch->nanoseconds[numValues] = (timestamp%1000000) * 1000;
-    }
-  }
-  SetColumnVectorBatchHasNULL(column, hasNull);
+	orc::TimestampVectorBatch* tsBatch =
+	dynamic_cast<orc::TimestampVectorBatch*>(fields);
+	bool hasNull = false;
+	if (isNULL) {
+		fields->notNull[numValues] = 0;
+		hasNull = true;
+	} else {
+		if (timestamp < 0) {
+			int64_t second = 0;
+			int64_t nanosec = (timestamp%1000000) * 1000;
+			if (nanosec != 0)
+			{
+			second = timestamp/1000000 + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) *60*60*24 - 1;
+			nanosec += 1000000000;
+			}
+			else
+			{
+			second = timestamp/1000000 + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) *60*60*24;
+			}
+			tsBatch->data[numValues] = second;
+			tsBatch->nanoseconds[numValues] = nanosec;
+		} else {
+			int64_t second = timestamp/1000000 + (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) *60*60*24;
+			tsBatch->data[numValues] = second;
+			tsBatch->nanoseconds[numValues] = (timestamp%1000000) * 1000;
+		}
+	}
+	SetColumnVectorBatchHasNULL(column, hasNull);
 }
 
 std::string orcWrite::getColTypeName(Oid typeOid){
@@ -776,33 +776,33 @@ OssOutputStream::OssOutputStream(ossFileStream fileStream, std::string filename,
 	bytesWritten = 0;
 	closed = false;
 	this->filename = filename;
-  stream = fileStream;
+	stream = fileStream;
 	openFile(stream, filename.c_str(), O_WRONLY);
 }
 
 OssOutputStream::~OssOutputStream() {
-  if (!closed)
-  {
-    closeFile(stream);
-    closed = true;
-  }
+	if (!closed)
+	{
+		closeFile(stream);
+		closed = true;
+	}
 }
 
 void OssOutputStream::write(const void* buf, size_t length) {
-  if (closed) {
-    elog(ERROR, "ORC Cannot write to closed stream.");
-  }
-  if (length <= 0) {
-    return;
-  }
-  int64_t bytesWrite = writeFile(stream, (void*)buf, length);
-  if (bytesWrite == -1) {
-    elog(ERROR, "ORC Bad write of %s", filename.c_str());
-  }
-  if (bytesWrite != static_cast<int64_t>(length)) {
-    elog(ERROR, "ORC Short write of %s", filename.c_str());
-  }
-  bytesWritten += static_cast<uint64_t>(bytesWrite);
+	if (closed) {
+		elog(ERROR, "ORC Cannot write to closed stream.");
+	}
+	if (length <= 0) {
+		return;
+	}
+	int64_t bytesWrite = writeFile(stream, (void*)buf, length);
+	if (bytesWrite == -1) {
+		elog(ERROR, "ORC Bad write of %s", filename.c_str());
+	}
+	if (bytesWrite != static_cast<int64_t>(length)) {
+		elog(ERROR, "ORC Short write of %s", filename.c_str());
+	}
+	bytesWritten += static_cast<uint64_t>(bytesWrite);
 }
 
 void OssOutputStream::close() {

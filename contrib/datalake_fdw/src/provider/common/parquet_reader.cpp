@@ -243,7 +243,7 @@ ParquetReader::readPrimitive(const TypeInfo &typInfo, bool &isNull)
 				memcpy(VARDATA(result), value.ptr, value.len);
 				return PointerGetDatum(result);
 			}
-			if (value.len + VARHDRSZ > buffer_->getDataBuffer(typInfo.columnIndex_)->length)
+			if (value.len + VARHDRSZ > static_cast<uint32>(buffer_->getDataBuffer(typInfo.columnIndex_)->length))
 			{
 				buffer_->resizeDataBuffer(typInfo.columnIndex_, value.len + VARHDRSZ);
 			}

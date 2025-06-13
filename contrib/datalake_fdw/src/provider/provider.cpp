@@ -57,11 +57,11 @@ std::shared_ptr<Provider> getProvider(DLTblFmt type, bool readFdw, bool vectoriz
 		{
 			return std::make_shared<avroRead>();
 		}
-		else if (FORMAT_IS_HUDI(type))
+		else if (FORMAT_IS_ICEBERG(type))
 		{
 			return std::make_shared<icebergRead>();
 		}
-		else if (FORMAT_IS_ICEBERG(type))
+		else if (FORMAT_IS_HUDI(type))
 		{
 			return std::make_shared<hudiRead>();
 		}
@@ -70,7 +70,7 @@ std::shared_ptr<Provider> getProvider(DLTblFmt type, bool readFdw, bool vectoriz
 			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 					errmsg("unknow format. "
-					"datalake_fdw support read format text|csv|custom|orc|parquet|avro.")));
+					"datalake_fdw support read format text|csv|custom|orc|parquet|avro|hudi|iceberg.")));
 		}
 	}
 	else

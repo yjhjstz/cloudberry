@@ -3,7 +3,6 @@
 
 extern "C" {
 #include "src/datalake_def.h"
-#include "postgres.h"
 }
 namespace Datalake {
 namespace Internal {
