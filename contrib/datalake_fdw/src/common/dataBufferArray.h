@@ -34,6 +34,7 @@ public:
 
 private:
     std::vector<dataBuffer*> mDataBuffer;
+    MemoryContext alloc_ctx;
     int mColumns;
 };
 

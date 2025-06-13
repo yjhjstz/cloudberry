@@ -10,6 +10,7 @@ namespace Internal {
 
 void dataBufferArray::allocDataBufferArray(int columns)
 {
+    alloc_ctx = CurrentMemoryContext;
     mColumns = columns;
     for (int i = 0; i < mColumns; i++)
     {
@@ -40,9 +41,8 @@ dataBuffer *dataBufferArray::getDataBuffer(int column)
 
 void dataBufferArray::resizeDataBuffer(int column, int length)
 {
+    MemoryContext old = MemoryContextSwitchTo(alloc_ctx);
     dataBuffer *ptr = mDataBuffer[column];
-    MemoryContext *mcxt = (MemoryContext*) (ptr->buffer - sizeof(void*));
-    MemoryContext old = MemoryContextSwitchTo(*mcxt);
     pfree(ptr->buffer);
     int resizeLength = length;
     ptr->buffer = (char *)palloc0(resizeLength);
