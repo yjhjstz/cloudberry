@@ -1,0 +1,369 @@
+default:
+  interruptible: true
+  image: cloudberry:rocky9-latest
+
+stages:
+  - build
+
+workflow:
+  name: Hashdata Cloud Merge Request Check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+    - when: never
+  auto_cancel:
+    on_new_commit: interruptible
+
+variables:
+#  CBDB_SRC_BRANCH:
+#    value: "cloud_service"
+#    description: "cloudberry/hashdata-cloud 的分支名称"
+  CBDB_SRC_DEPTH:
+    value: "100"
+    description: "克隆 cloudberry/hashdata-cloud repo 的深度"
+  CBDB_BUILD_TYPE:
+    value: "debug"
+    options:
+      - "debug"
+      - "release"
+    description: "编译模式"
+  CBDB_RELEASE_VERSION:
+    value: ""
+    description: "本次发布的版本号:x.y.z"
+
+  # 内置组件编译启用开关
+  CBDB_BUILD_HIVE_CONNECTOR:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 hive connector 扩展组件"
+  CBDB_BUILD_POSTGIS:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 postgis 扩展组件"
+  CBDB_BUILD_PLR:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 plr 扩展组件"
+  CBDB_BUILD_PLJAVA:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 pljava 扩展组件"
+  CBDB_BUILD_GPBACKUP:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 gpbackup 组件"
+  CBDB_BUILD_ANON:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 pg_anonymizer 扩展组件"
+  CBDB_BUILD_KAFKA_FDW:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 kafka_fdw 扩展组件"
+  CBDB_BUILD_PGVECTOR:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 pgvector 扩展组件"
+  CBDB_BUILD_UNIONSTORE_EXT:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 unionstore_ext 扩展组件"
+  CBDB_BUILD_VECTORIZATION:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 vectorization 向量化扩展组件(1X_STABLE支持)"
+  CBDB_BUILD_PG_POOL:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 pg_pool 扩展组件"
+  CBDB_BUILD_GP_EXTTABLE_DELIMITER:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含gp exttable delimiter扩展组件"
+  CBDB_BUILD_CBDB_UI:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 cbdb ui 工具"
+  CBDB_BUILD_HASHCOPY:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 hashcopy 工具"
+  CBDB_BUILD_TABLESPACE:
+    value: "on"
+    options:
+      - "on"
+      - "off"
+    description: "是否包含 tablespace 扩展"
+  # 内置组件的代码分支
+  CBDB_POSTGIS_BRANCH:
+    value: "master"
+    description: "cloudberry/postgis-2.5.4.git 的分支名称"
+  CBDB_PLR_BRANCH:
+    value: "master"
+    description: "cloudberry/plr.git 的分支名称"
+  CBDB_PLJAVA_BRANCH:
+    value: "cbdb_1X"
+    description: "cloudberry/pljava.git 的分支名称"
+  CBDB_GPBACKUP_BRANCH:
+    value: "main"
+    description: "cloudberry/gpbackup.git 的分支名称"
+  CBDB_GP_COMMON_GO_LIBS_BRANCH:
+    value: "main"
+    description: "cloudberry/gp-common-go-libs.git 的分支名称 (一般不用变化)"
+  CBDB_ANON_BRANCH:
+    value: "master"
+    description: "cloudberry/postgresql-anonymizer.git 的分支名称"
+  CBDB_KAFKA_FDW_BRANCH:
+    value: "master"
+    description: "cloudberry/kafka_fdw.git 的分支名称"
+  CBDB_PGVECTOR_BRANCH:
+    value: "master"
+    description: "cloudberry/pgvector.git 的分支名称"
+  CBDB_GP_EXTTABLE_DELIMITER_BRANCH:
+    value: "main"
+    description: "cloudberry/gp_exttable_delimiter.git 的分支名称"
+  CBDB_UI_BRANCH:
+    value: "rc/1.0"
+    description: "cloudberry/cloudberryui.git 的分支名称"
+
+  # component 代码分支
+  CBDB_MADLIB_BRANCH:
+    value: "master"
+    description: "cloudberry/madlib.git 的分支名称"
+  CBDB_PXF_BRANCH:
+    value: "cbdb_1X"
+    description: "cloudberry/pxf.git 的分支名称"
+  CBDB_PGX_BRANCH:
+    value: "master"
+    description: "cloudberry/pgx.git 的分支名称"
+  CBDB_ZOMBODB_BRANCH:
+    value: "master"
+    description: "cloudberry/zombodb.git 的分支名称"
+  CBDB_ALREADY_HAS_CODE:
+    value: "true"
+    description: "这里必须填true才能正常的进行构建"
+
+.global_variables: &global_variables
+  TF_VAR_instance_name: "hashdata-cloud-pipeline-${CI_PIPELINE_ID}-job-${CI_JOB_ID}"
+  TF_VAR_qingcloud_access_key: "key"
+  TF_VAR_qingcloud_secret_key: "secret"
+  TF_VAR_huawei_access_key_2: "key"
+  TF_VAR_huawei_secret_key_2: "secret"
+  ARTIFACTORY_USERNAME: "admin"
+  ARTIFACTORY_PASSWORD: "token"
+  
+  AWS_ACCESS_KEY_ID: "${TF_VAR_huawei_access_key_2}"
+  AWS_SECRET_ACCESS_KEY: "${TF_VAR_huawei_secret_key_2}"
+
+  GIT_CLONE_PATH: "/builds/code/cbdb_src"
+  ROOT_PATH: "/builds/code"
+  GIT_SUBMODULE_STRATEGY: "normal"
+  CBDB_INSTALL_DIRECTORY: "/home/gpadmin/cloudberry-db-devel"
+  GIT_DEPTH: 200
+  CI_USER: root
+  OS_TYPE: "centos7"
+  TABLE_AM: "hashdata"
+  ADDITIONAL_CONFIGURE_FLAGS: "--with-includes=/usr/local/xerces-c/include:/usr/local/include --with-libraries=/usr/local/xerces-c/lib/:/usr/local/lib"
+  BUILD_TOOL: "gcc"
+  DR_TEST_ENABLE: "false"
+
+.local_build_regress_artifacts: &local_build_regress_artifacts
+  artifacts:
+    name: "regression"
+    when: always
+    paths:
+      - ${GIT_CLONE_PATH}/src/test/regress/regression.out
+      - ${GIT_CLONE_PATH}/src/test/regress/regression.diffs
+      - ${GIT_CLONE_PATH}/src/test/regress/results/
+      - ${GIT_CLONE_PATH}/src/test/regress/expected/
+      - ${GIT_CLONE_PATH}/src/test/isolation2/regression.out
+      - ${GIT_CLONE_PATH}/src/test/isolation2/regression.diffs
+      - ${GIT_CLONE_PATH}/src/test/isolation2/results/
+      - ${GIT_CLONE_PATH}/src/test/isolation2/expected/
+      - ${GIT_CLONE_PATH}/contrib/perfmon/regression.diffs
+      - ${GIT_CLONE_PATH}/contrib/perfmon/results/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/standby/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast3/demoDataDir2/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast_mirror1/demoDataDir0/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast_mirror2/demoDataDir1/log/
+      - ${GIT_CLONE_PATH}/gpAux/gpdemo/datadirs/dbfast_mirror3/demoDataDir2/log/
+  timeout: 5 hours
+
+.regress_artifacts: &regress_artifacts
+  artifacts:
+    name: "regression"
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/src/test/regress_cloud/regression.out
+      - ${CI_PROJECT_DIR}/src/test/regress_cloud/regression.diffs
+      - ${CI_PROJECT_DIR}/src/test/isolation2/regression.out
+      - ${CI_PROJECT_DIR}/src/test/isolation2/regression.diffs
+      - ${GIT_CLONE_PATH}/ci_status/${CI_JOB_NAME}.txt
+  timeout: 5 hours
+
+.test_notice: &test_notice
+  after_script: 
+    - |
+      mkdir -p ${GIT_CLONE_PATH}/ci_status
+      if [ "$RUN_NIGHTLY_BUILD" == "true" ]; then
+        message=""
+        if [ -f ${GIT_CLONE_PATH}/CI_STATUS ]; then
+          message="✅"$CI_JOB_NAME"Success:"$CI_JOB_URL""
+          echo "$message" > ${GIT_CLONE_PATH}/ci_status/${CI_JOB_NAME}.txt
+          rm -rf ${GIT_CLONE_PATH}/CI_STATUS
+        else
+          message="❌"$CI_JOB_NAME" Failed :"$CI_JOB_URL""
+          echo "$message" > ${GIT_CLONE_PATH}/ci_status/${CI_JOB_NAME}.txt
+          rm -rf ${GIT_CLONE_PATH}/CI_STATUS
+        fi
+      else
+        echo "$RUN_NIGHTLY_BUILD"
+      fi
+
+.retry_rule:  &retry_rule
+  retry:
+    max: 2
+    when: always
+
+.icw_scripts: &icw_scripts
+  script: |
+    mkdir -p ${ROOT_PATH}
+    unset GIT_CLONE_PATH
+    export GIT_CLONE_PATH="/builds/code/cbdb_src"
+
+    shutdown -P +480
+    function on_complete() {
+      sync
+      poweroff
+    }
+    trap on_complete EXIT
+
+    ${GIT_CLONE_PATH}/hd-ci/action-icw-test.bash
+
+    touch ${GIT_CLONE_PATH}/CI_STATUS
+
+
+.icw_scripts_local_storage_local_build: &icw_scripts_local_storage_local_build
+  script: |
+    mkdir -p ${ROOT_PATH}
+    unset GIT_CLONE_PATH
+    export GIT_CLONE_PATH="/builds/code/cbdb_src"
+
+    shutdown -P +480
+    function on_complete() {
+      sync
+      poweroff
+    }
+    trap on_complete EXIT
+
+    ${GIT_CLONE_PATH}/hd-ci/action-local-build-icw-test.bash
+
+    touch ${GIT_CLONE_PATH}/CI_STATUS
+
+
+centos7:x86_64:local_storage:local_build:
+  stage: build
+  variables:
+    <<: *global_variables
+    STORAGE_TYPE: "local"
+    CLOUD_TYPE: "private"
+    MAKE_TEST_COMMAND: "-k PGOPTIONS='-c optimizer=off' installcheck-good"
+  script: |
+    mkdir -p ${ROOT_PATH}
+    unset GIT_CLONE_PATH
+    export GIT_CLONE_PATH="/builds/code/cbdb_src"
+    ${GIT_CLONE_PATH}/hd-ci/action-local-build.bash
+  timeout: 8 hours
+  retry:
+    max: 2
+    when:
+      - always
+  artifacts:
+    name: "cbdb-artifacts"
+    paths:
+      - ${GIT_CLONE_PATH}/cbdb-artifacts.txt
+    reports:
+      dotenv: ${GIT_CLONE_PATH}/cbdb-artifacts.txt
+    expire_in: 1 week
+
+centos7:x86_64:local_storage:local_build_orca:
+  stage: build
+  variables:
+    <<: *global_variables
+    STORAGE_TYPE: "local"
+    CLOUD_TYPE: "private"
+    MAKE_TEST_COMMAND: "-k PGOPTIONS='-c optimizer=on' installcheck-good"
+  script: |
+    mkdir -p ${ROOT_PATH}
+    unset GIT_CLONE_PATH
+    export GIT_CLONE_PATH="/builds/code/cbdb_src"
+    ${GIT_CLONE_PATH}/hd-ci/action-local-build.bash
+  timeout: 8 hours
+  retry:
+    max: 2
+    when:
+      - always
+  artifacts:
+    name: "cbdb-artifacts"
+    paths:
+      - ${GIT_CLONE_PATH}/cbdb-artifacts.txt
+    reports:
+      dotenv: ${GIT_CLONE_PATH}/cbdb-artifacts.txt
+    expire_in: 1 week
+
+x86_64:notify:
+  stage: .post
+  script: |
+    if [ "$RUN_NIGHTLY_BUILD" == "true" ]; then
+      cat ci_status/*.txt
+      cat ci_status/*.txt > result.txt
+      date=`date +%Y%m%d`
+      CBDB_RESULT_MESSAGE=""$date"Teststarted,Pipeline:"$CI_PIPELINE_URL""
+      while IFS= read -r line; do
+        echo "Text read from file: $line"
+        CBDB_RESULT_MESSAGE="$CBDB_RESULT_MESSAGE\r\n$line"
+      done < result.txt
+      echo $CBDB_RESULT_MESSAGE
+    fi
+  needs:
+    - job: centos7:x86_64:local_storage:local_build
+      artifacts: true
+    - job: centos7:x86_64:local_storage:local_build_orca
+      artifacts: true
+  variables:
+    <<: *global_variables
+    OS_TYPE: "centos7"
+    #CI_TF_LOCATION: ".ci/tf-huawei-centos7-x86_64"
+    TF_VAR_flavor_id: "c7.4xlarge.2"
+  timeout: 1 hours

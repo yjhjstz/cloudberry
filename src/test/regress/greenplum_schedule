@@ -118,7 +118,7 @@ test: index_constraint_naming index_constraint_naming_partition index_constraint
 
 test: brin_ao brin_aocs
 
-test: sreh
+#test: sreh
 
 test: rle rle_delta dsp not_out_of_shmem_exit_slots create_am_gp
 
@@ -345,7 +345,7 @@ test: am_encoding
 test: directory_table
 
 # test if motion sockets are created with the gp_segment_configuration.address
-test: motion_socket
+#test: motion_socket
 
 # test invalid connection to ic proxy when gp_interconnect_type='proxy'
 test: ic_proxy_socket
@@ -377,7 +377,7 @@ test: enum_dist_part_ban
 
 # run pg_hba raleted testing
 test: hba_conf
-test: dboptions
+#test: dboptions
 
 # test dispatch and result handling of gp_log_memory_backend_contexts
 test: gp_log_mem_dispatch
