@@ -42,6 +42,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Arrays;
 
 /**
  * Utilities class exposes helper method for dlagent classes
@@ -464,6 +465,26 @@ public class Utilities {
             }
         } catch (NumberFormatException nfe) {
             throw new IllegalStateException(String.format("failed to parse number data %s for type %s", value, dataType));
+        }
+    }
+
+    public static void parserBucketAndPrefix(String location, String[] bucketName, String[] prefix) {
+        try {
+            String cleanPath = location.replaceAll("^/+|/+$", "");
+            String[] pathParts = cleanPath.split("/");
+            if (pathParts.length < 1 || pathParts[0].isEmpty()) {
+                throw new IllegalArgumentException("Invalid path format: " + location);
+            }
+            bucketName[0] = pathParts[0];
+            if (pathParts.length > 1) {
+                prefix[0] = String.join("/", Arrays.copyOfRange(pathParts, 1, pathParts.length));
+            } else {
+                prefix[0] = "";
+            }
+            
+        } catch (Exception e) {
+            LOG.error("Failed to parse bucket and prefix from location : {}", location, e);
+            throw new IllegalArgumentException("Invalid parse bucket and prefix from location format: " + location);
         }
     }
 }

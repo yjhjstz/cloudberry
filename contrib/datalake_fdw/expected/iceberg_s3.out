@@ -1,0 +1,48 @@
+DROP FOREIGN TABLE IF EXISTS iceberg_simple;
+NOTICE:  foreign table "iceberg_simple" does not exist, skipping
+CREATE FOREIGN TABLE iceberg_simple (
+id int,
+name text
+)
+server oss_server
+OPTIONS (filePath '/ossext-ci-test/warehouse/iceberg/warehouse/', catalog_type 's3', server_name 's3_cluster', table_identifier 'default.simple_table', format 'iceberg');
+select count(*) from iceberg_simple;
+ count 
+-------
+     2
+(1 row)
+
+DROP FOREIGN TABLE IF EXISTS iceberg_partitioned_table;
+NOTICE:  foreign table "iceberg_partitioned_table" does not exist, skipping
+CREATE FOREIGN TABLE iceberg_partitioned_table (
+id int,
+name text,
+age int,
+department text,
+create_date date
+)
+server oss_server
+OPTIONS (filePath '/ossext-ci-test/warehouse/iceberg/warehouse/', catalog_type 's3', server_name 's3_cluster', table_identifier 'default.partitioned_table', format 'iceberg');
+select count(*) from iceberg_partitioned_table;
+ count 
+-------
+     5
+(1 row)
+
+DROP FOREIGN TABLE IF EXISTS iceberg_partitioned_table2;
+NOTICE:  foreign table "iceberg_partitioned_table2" does not exist, skipping
+CREATE FOREIGN TABLE iceberg_partitioned_table2 (
+id int,
+name text,
+age int,
+department text,
+create_date date
+)
+server oss_server
+OPTIONS (filePath '/ossext-ci-test/warehouse/iceberg/warehouse/', catalog_type 's3', server_name 's3_cluster', table_identifier 'testdb.partitioned_table', format 'iceberg');
+select count(*) from iceberg_partitioned_table2;
+ count 
+-------
+     5
+(1 row)
+

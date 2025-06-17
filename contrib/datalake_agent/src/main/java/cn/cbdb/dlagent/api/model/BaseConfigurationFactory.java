@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import cn.cbdb.dlagent.plugins.hudi.utilities.FilePathUtils;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -46,19 +47,32 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
     public Configuration initConfiguration(String catalogType,
                                            String configFies,
                                            String serverName,
-                                           String userName) {
+                                           String userName,
+                                           String location) {
         // start with built-in Hadoop configuration that loads core-site.xml
         LOG.debug("Initializing configuration for server {}", serverName);
+
         Configuration configuration = new Configuration(false);
-        // while implementing multiple kerberized support we noticed that non-kerberized hadoop
-        // access was trying to use SASL-client authentication. Setting the fallback to simple auth
-        // allows us to still access non-kerberized hadoop clusters when there exists at least one
-        // kerberized hadoop cluster. The root cause is that UGI has static fields and many hadoop
-        // libraries depend on the state of the UGI
-        // allow using SIMPLE auth for non-Kerberized HCFS access by SASL-enabled IPC client
-        // that is created due to the fact that it uses UGI.isSecurityEnabled
-        // and will try to use SASL if there is at least one Kerberized Hadoop cluster
-        configuration.set(CommonConfigurationKeys.IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_KEY, "true");
+
+        if (catalogType != "s3") {
+            // while implementing multiple kerberized support we noticed that non-kerberized hadoop
+            // access was trying to use SASL-client authentication. Setting the fallback to simple auth
+            // allows us to still access non-kerberized hadoop clusters when there exists at least one
+            // kerberized hadoop cluster. The root cause is that UGI has static fields and many hadoop
+            // libraries depend on the state of the UGI
+            // allow using SIMPLE auth for non-Kerberized HCFS access by SASL-enabled IPC client
+            // that is created due to the fact that it uses UGI.isSecurityEnabled
+            // and will try to use SASL if there is at least one Kerberized Hadoop cluster
+            configuration.set(CommonConfigurationKeys.IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_KEY, "true");
+
+            // Starting with Hadoop 2.10.0, the "DEFAULT" rule will throw an
+            // exception when no rules are applied while getting the principal
+            // name translation into operating system user name. See
+            // org.apache.hadoop.security.authentication.util.KerberosName#getShortName
+            // We add a default rule that will return the service name as the
+            // short name, i.e. gpadmin/_HOST@REALM will map to gpadmin
+            configuration.set(HADOOP_SECURITY_AUTH_TO_LOCAL, "RULE:[1:$1] RULE:[2:$1] DEFAULT");
+        }
 
         // set synthetic property dlagent.session.user so that is can be used in config files for interpolation in other properties
         // for example in JDBC when setting session authorization from a proxy user to the end-user
@@ -71,7 +85,7 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
         LOG.debug("Using config file {} for server {} configuration", configFies, serverName);
         String[] files = configFies.split("0");
         for (String file : files) {
-            processServerResource(catalogType, file, serverName, configuration);
+            processServerResource(catalogType, file, serverName, configuration, location);
         }
 
         try {
@@ -82,14 +96,6 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
         } catch (NoSuchMethodError e) {
             // Expected exception for MapR
         }
-
-        // Starting with Hadoop 2.10.0, the "DEFAULT" rule will throw an
-        // exception when no rules are applied while getting the principal
-        // name translation into operating system user name. See
-        // org.apache.hadoop.security.authentication.util.KerberosName#getShortName
-        // We add a default rule that will return the service name as the
-        // short name, i.e. gpadmin/_HOST@REALM will map to gpadmin
-        configuration.set(HADOOP_SECURITY_AUTH_TO_LOCAL, "RULE:[1:$1] RULE:[2:$1] DEFAULT");
 
         return configuration;
     }
@@ -115,7 +121,8 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
     private void processServerResource(String catalogType,
                                        String configFile,
                                        String serverName,
-                                       Configuration configuration) {
+                                       Configuration configuration,
+                                       String location) {
         try (InputStream stream = new FileInputStream(configFile)) {
             Yaml yaml = new Yaml();
             Map<String, Map<String, Object>> configMap = yaml.load(stream);
@@ -126,13 +133,30 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
 
             if (configFile.equals("gphive.conf")) {
                 transformHiveConfig(serverConfig, configuration);
-            } else {
+            } else if (configFile.equals("gphdfs.conf")) {
                 transformHdfsConfig(serverConfig, configuration);
+            } else if (configFile.equals("s3.conf")) {
+                transformS3Config(serverConfig, configuration, location);
             }
         } catch (Exception e) {
             throw new RuntimeException(String.format("Unable to read configuration for server \"%s\" from \"%s\": %s",
                     serverName, configFile, e.toString()));
         }
+    }
+
+    private void transformS3Config(Map<String, Object> serverMap, Configuration configuration, String location) {
+        String[] bucketName = new String[1];
+        String[] prefix = new String[1];
+        Utilities.parserBucketAndPrefix(FilePathUtils.unescapePathName(location), bucketName, prefix);
+
+        serverMap.forEach((key, value) -> {
+            if (key.equals("fs.defaultFS")) {
+                String defaultFs = String.format("%s%s", value.toString(), bucketName[0]);
+                configuration.set(key, defaultFs);
+            } else {
+                configuration.set(key, value.toString());
+            }
+        });
     }
 
     private void transformHiveConfig(Map<String, Object> serverMap, Configuration configuration) {

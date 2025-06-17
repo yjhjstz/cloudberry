@@ -30,5 +30,6 @@ public interface ConfigurationFactory {
     Configuration initConfiguration(String catalogType,
                                     String configFiles,
                                     String serverName,
-                                    String userName);
+                                    String userName,
+                                    String location);
 }

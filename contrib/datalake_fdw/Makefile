@@ -115,7 +115,7 @@ REGRESS = setup \
         orc_read parquet_read avro_read iresearch_orc_test iresearch_orc_vec_test \
         oss_read_new_text oss_read_text grammar_convert gphdfs_ignore_file gphdfs_custom \
         oss_read_new_text_limit_segment oss_read_orc_limit_segment oss_read_parquet_limit_segment oss_read_text_limit_segment \
-		gphdfs_read_specify_partition_table
+		gphdfs_read_specify_partition_table iceberg_s3
 endif
 REGRESS_OPTS += --init-file=test/init_file
 

@@ -29,8 +29,19 @@ hive_s3_cluster:
     auth_method: simple
 EOF
 
+cat > /opt/s3.conf <<-EOF
+s3_cluster:
+    fs.s3a.endpoint: https://obs.cn-north-4.myhuaweicloud.com
+    fs.s3a.access.key: J04WCCF5VQP6BAIQUFHP
+    fs.s3a.secret.key: jGDwttCct2b9b4rEf0hsLD7CeP9WubZuqqz90iQU
+    fs.s3a.path.style.access: true
+    fs.defaultFS: s3a://
+    fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+EOF
+
 cp /opt/gphdfs.conf /code/gpdb_src/gpAux/gpdemo/datadirs/qddir/demoDataDir-1/
 cp /opt/gphive.conf /code/gpdb_src/gpAux/gpdemo/datadirs/qddir/demoDataDir-1/
+cp /opt/s3.conf /code/gpdb_src/gpAux/gpdemo/datadirs/qddir/demoDataDir-1/
 }
 
 function install_lib() {

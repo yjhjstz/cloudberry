@@ -81,6 +81,15 @@ public class HudiCatalogWrapper {
     public HudiCatalog getHudiCatalog(Metadata.Item tableName, RequestContext context) throws Exception {
         String catalogType = context.getCatalogType();
         switch (catalogType) {
+            case "s3":
+                String path = FilePathUtils.unescapePathName(context.getPath());
+                if (path.startsWith("/")) {
+                    path = path.substring(1);
+                }
+                context.setPath(String.format("%s%s",
+                        context.getConfiguration().get("fs.defaultFS"),
+                        path));
+                return new HudiS3Catalog(getMetaClient(context), secureLogin);
             case "hadoop":
                 context.setPath(String.format("%s/%s",
                         context.getConfiguration().get("fs.defaultFS"),

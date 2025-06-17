@@ -71,6 +71,9 @@ public class IcebergCatalogWrapper {
     public IcebergCatalog getIcebergCatalog(RequestContext context) throws Exception {
         String catalogType = context.getCatalogType();
         switch (catalogType) {
+            case "s3":
+                return new IcebergS3Catalog(FilePathUtils.unescapePathName(context.getPath()),
+                    icebergUtilities, context.getConfiguration());
             case "hadoop":
                 return new IcebergHadoopCatalog(FilePathUtils.unescapePathName(context.getPath()),
                         icebergUtilities, context.getConfiguration());

@@ -408,9 +408,17 @@ internal_get_external_fragments(char *profile,
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
-			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
+		{
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
+		}
+		else if (pg_strcasecmp(catalogType, "s3") == 0)
+		{
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "s3.conf");
+		}
 		else
+		{
 			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
+		}
 
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", catalogType);
 		pfree(catalogType);
@@ -470,10 +478,17 @@ get_external_schema(char *profile, char *relName, char *schemaName, List *locati
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
-			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
+		{
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf0gphdfs.conf");
+		}
+		else if (pg_strcasecmp(catalogType, "s3") == 0)
+		{
+			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "s3.conf");
+		}
 		else
+		{
 			datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphdfs.conf");
-
+		}
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", catalogType);
 		pfree(catalogType);
 
