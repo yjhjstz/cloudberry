@@ -101,6 +101,11 @@ github:
           - ic-isolation2-crash
           - ic-parallel-retrieve-cursor
           - Generate Apache Cloudberry Build Report
+          - prepare-test-matrix
+          - build
+          - rpm-install-test
+          - test
+          - report
 
       # Pull request review requirements
       required_pull_request_reviews:
