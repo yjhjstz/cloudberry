@@ -1,7 +1,8 @@
 NAME = perfmon
 EXTVERSION = 1.1.0
 
-REGRESS = pre_run_check guc_config extension_test pg_qs post_run
+REGRESS_OPTS += --init-file=$(top_srcdir)/src/test/regress/init_file
+REGRESS = pre_run_check guc_config query extension_test pg_qs post_run
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

@@ -1,15 +1,14 @@
--- start_ignore
 -- wait a while as sometimes the gpmmon is not ready
 \c gpperfmon
-CREATE OR REPLACE FUNCTION wait_for_gpmmon_work() RETURNS void AS $$
+CREATE OR REPLACE FUNCTION wait_for_gpmmon_work() RETURNS boolean AS $$
 DECLARE
 DECLARE
 start_time timestamptz := clock_timestamp();
 updated bool;
 BEGIN
-	-- we don't want to wait forever; loop will exit after 60 seconds
+	-- we don't want to wait forever
 	FOR i IN 1 .. 1000 LOOP
-		SELECT(SELECT count(*) > 0 from queries_history ) INTO updated;
+		SELECT(SELECT count(*) > 0 from system_history ) INTO updated;
 		EXIT WHEN updated;
 
 		-- wait a little
@@ -18,9 +17,13 @@ BEGIN
 	-- report time waited in postmaster log (where it won't change test output)
 	RAISE log 'wait_for_gpmmon_work delayed % seconds',
 	EXTRACT(epoch FROM clock_timestamp() - start_time);
+     -- Return the final status
+    RETURN updated;
 END
 $$ LANGUAGE plpgsql;
 select wait_for_gpmmon_work();
+
+-- start_ignore
 \c contrib_regression
 select sess_id from pg_stat_activity where pg_backend_pid()=pid;
 \gset
