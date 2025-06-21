@@ -130,9 +130,10 @@ build_develop:
     echo "build database kernel"
     make build-database
     make package-prepare
-
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
       when: always
     - when: manual
 
@@ -151,6 +152,8 @@ test_database:
     make test-database
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
       when: always
     - when: manual
   artifacts:
@@ -172,6 +175,8 @@ test_database-src:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
       when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
+      when: always
     - when: manual
   artifacts:
     <<: *artifacts
@@ -191,6 +196,8 @@ test_pax:
     make test-pax
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
       when: always
     - when: manual
   artifacts:
@@ -212,6 +219,8 @@ test_vectorization:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
       when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
+      when: always
     - when: manual
   artifacts:
     <<: *artifacts
@@ -231,6 +240,8 @@ test_database_orca:
     make test-database
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
       when: always
     - when: manual
   artifacts:
@@ -252,6 +263,8 @@ test_database-src_orca:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
       when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
+      when: always
     - when: manual
   artifacts:
     <<: *artifacts
@@ -271,6 +284,8 @@ test_pax_orca:
     make test-pax
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
       when: always
     - when: manual
   artifacts:
@@ -292,6 +307,8 @@ test_vectorization_orca:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
       when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
+      when: always
     - when: manual
   artifacts:
     <<: *artifacts
@@ -310,6 +327,8 @@ test_parallel:
     make test-parallel
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: always
+    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
       when: always
     - when: manual
   artifacts:
