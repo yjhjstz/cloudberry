@@ -25,7 +25,7 @@ void parquetWrite::setOption(dataLakeOptions *options)
 	option.writeFileSize = options->fileSizeLimit;
 }
 
-std::string parquetWrite::generateParquetFileName(std::string filePath, uint32 fileSliceIndex)
+std::string parquetWrite::generateParquetFileName(const std::string &filePath, uint32 fileSliceIndex)
 {
 	return generateWriteFileName(filePath, PARQUET_WRITE_SUFFIX, GpIdentity.segindex, fileSliceIndex);
 }

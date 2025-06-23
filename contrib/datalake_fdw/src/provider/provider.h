@@ -37,7 +37,7 @@ public:
 
 	virtual const char* getReadFileName();
 
-	virtual std::string generateWriteFileName(std::string writePrefix, std::string suffix, int segid, int fileSliceIndex);
+	virtual std::string generateWriteFileName(const std::string &writePrefix, const std::string &suffix, int segid, int fileSliceIndex);
 
 };
 

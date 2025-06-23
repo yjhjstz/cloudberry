@@ -79,7 +79,7 @@ class parquetFileWriter : public ParquetLogicalType
 public:
     parquetFileWriter();
 
-    bool createParquetWriter(ossFileStream ossFile, std::string fileName);
+    bool createParquetWriter(ossFileStream ossFile, const std::string &fileName);
 
     std::shared_ptr<parquet::schema::GroupNode> setupSchema();
 

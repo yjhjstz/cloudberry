@@ -19,7 +19,7 @@ private:
     void setOption(dataLakeOptions *options);
 
 private:
-    std::string generateParquetFileName(std::string filePath, uint32 fileSliceIndex);
+    std::string generateParquetFileName(const std::string &filePath, uint32 fileSliceIndex);
     parquetFileWriter file_writer;
     ossFileStream fileStream;
     writeOption option;

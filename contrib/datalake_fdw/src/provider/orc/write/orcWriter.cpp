@@ -771,13 +771,13 @@ std::string orcWrite::generateOrcSchema()
  * =======================================================================
  */
 
-OssOutputStream::OssOutputStream(ossFileStream fileStream, std::string filename, bool enableCache)
+OssOutputStream::OssOutputStream(ossFileStream fileStream, const std::string &filename, bool enableCache)
 {
 	bytesWritten = 0;
 	closed = false;
 	this->filename = filename;
 	stream = fileStream;
-	openFile(stream, filename.c_str(), O_WRONLY);
+	openFile(stream, this->filename.c_str(), O_WRONLY);
 }
 
 OssOutputStream::~OssOutputStream() {

@@ -16,7 +16,7 @@ public:
 		archive_entry = NULL;
 	}
 
-	void open(ossFileStream ossFile, std::string fileName, writeOption option);
+	void open(ossFileStream ossFile, const std::string &fileName, writeOption option);
 
 	int64_t write(const void* buf, size_t length);
 

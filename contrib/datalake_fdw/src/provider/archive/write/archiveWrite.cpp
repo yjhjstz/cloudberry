@@ -61,7 +61,7 @@ void archiveWrite::destroyHandler()
 }
 
 
-std::string archiveWrite::generateArchiveWriteFileName(std::string filePath, std::string suffix, uint32 fileSliceIdx)
+std::string archiveWrite::generateArchiveWriteFileName(const std::string &filePath, const std::string &suffix, uint32 fileSliceIdx)
 {
 	int segid = GpIdentity.segindex;
 	std::string exportName = generateWriteFileName(filePath, suffix, segid, fileSliceIdx);

@@ -8,6 +8,7 @@
 #include "orc/Vector.hh"
 #include "src/provider/provider.h"
 #include <vector>
+#include <string_view>
 
 extern "C" {
 #include "src/datalake_def.h"
@@ -26,7 +27,7 @@ extern "C" {
 class OssOutputStream : public orc::OutputStream
 {
 public:
-	OssOutputStream(ossFileStream fileStream, std::string filename, bool enableCache);
+	OssOutputStream(ossFileStream fileStream, const std::string &filename, bool enableCache);
 
 	~OssOutputStream() override;
 

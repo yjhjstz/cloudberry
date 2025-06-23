@@ -7,7 +7,7 @@ namespace Datalake {
 namespace Internal {
 
 
-void archiveFileWrite::open(ossFileStream ossFile, std::string fileName, writeOption option)
+void archiveFileWrite::open(ossFileStream ossFile, const std::string &fileName, writeOption option)
 {
 	this->name = fileName;
 	this->option = option;

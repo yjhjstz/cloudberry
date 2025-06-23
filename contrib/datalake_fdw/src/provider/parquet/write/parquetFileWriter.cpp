@@ -24,7 +24,7 @@ parquetFileWriter::parquetFileWriter()
     openState = false;
 }
 
-bool parquetFileWriter::createParquetWriter(ossFileStream ossFile, std::string fileName)
+bool parquetFileWriter::createParquetWriter(ossFileStream ossFile, const std::string &fileName)
 {
     name = fileName;
     out_file = std::make_shared<gopherWriteFileSystem>(ossFile);

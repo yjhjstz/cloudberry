@@ -20,7 +20,7 @@ public:
 private:
 	void setOption(dataLakeOptions *options);
 
-	std::string generateArchiveWriteFileName(std::string filePath, std::string suffix, uint32 sliceIndex);
+	std::string generateArchiveWriteFileName(const std::string &filePath, const std::string &suffix, uint32 sliceIndex);
 
 	uint32 sliceIndex;
 
