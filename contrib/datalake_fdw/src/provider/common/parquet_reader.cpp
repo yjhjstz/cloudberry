@@ -54,7 +54,7 @@ ParquetReader::createMapping(List *columnDesc, bool *attrUsed)
 	numColumns_ = schema->num_columns();
 	foreach_with_count(lc, columnDesc, i)
 	{
-		FieldDescription *entry = (FieldDescription *) lfirst(lc);
+		DatalakeFieldDescription *entry = (DatalakeFieldDescription *) lfirst(lc);
 		TypeInfo typInfo = {entry->typeOid, entry->typeMod, InvalidOid, -1, TIMEUNIT_UNKNOWN};
 
 		typeMap_.push_back(typInfo);

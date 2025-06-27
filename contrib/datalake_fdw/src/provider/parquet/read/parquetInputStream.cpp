@@ -12,10 +12,10 @@ namespace Internal {
 	{
 		flag = O_RDONLY;
 	}
-    openFile(stream_, filePath_.c_str(), flag);
-    gopherFileInfo* info = getFileInfo(stream_, filePath_.c_str());
+    datalakeOpenFile(stream_, filePath_.c_str(), flag);
+    gopherFileInfo* info = datalakeGetFileInfo(stream_, filePath_.c_str());
     fileSize_ = info->mLength;
-    freeListDir(stream_, info, 1);
+    datalakeFreeListDir(stream_, info, 1);
     if (fileSize_ == 0)
     {
         checkMagic = false;
@@ -23,12 +23,12 @@ namespace Internal {
     }
     const char* magic = "PAR1";
     char fileMagic[5] = {0};
-    readFile(stream_, fileMagic, 4);
+    datalakeReadFile(stream_, fileMagic, 4);
     if (strncmp(fileMagic, magic, 4) != 0)
     {
         checkMagic = false;
     }
-    seekFile(stream_, 0);
+    datalakeSeekFile(stream_, 0);
     return ::parquet_arrow::Status::OK();
 }
 
@@ -39,9 +39,9 @@ namespace Internal {
 
 ::parquet_arrow::Result<int64_t> gopherReadFileSystem::ReadAt(int64_t position, int64_t nbytes, void* out)
 {
-    seekFile(stream_, position);
+    datalakeSeekFile(stream_, position);
     pos_ = position;
-    int64_t bytes = readFile(stream_, out, nbytes);
+    int64_t bytes = datalakeReadFile(stream_, out, nbytes);
     pos_ += bytes;
     return bytes;
 }
@@ -49,28 +49,28 @@ namespace Internal {
 ::parquet_arrow::Result<std::shared_ptr<::parquet_arrow::Buffer>> gopherReadFileSystem::ReadAt(int64_t position, int64_t nbytes)
 {
     std::shared_ptr<parquet_arrow::ResizableBuffer> buffer = parquet::AllocateBuffer(NULL, nbytes);
-    seekFile(stream_, position);
+    datalakeSeekFile(stream_, position);
     pos_ = position;
-    int64_t bytes = readFile(stream_, (void*)(buffer->data()), nbytes);
+    int64_t bytes = datalakeReadFile(stream_, (void*)(buffer->data()), nbytes);
     pos_ += bytes;
     return std::move(buffer);
 }
 
 ::parquet_arrow::Result<std::shared_ptr<::parquet_arrow::Buffer>> gopherReadFileSystem::Read(int64_t nbytes) {
     std::shared_ptr<parquet::ResizableBuffer> buffer = parquet::AllocateBuffer(NULL, nbytes);
-    int64_t bytes = readFile(stream_, (void*)(buffer->data()), nbytes);
+    int64_t bytes = datalakeReadFile(stream_, (void*)(buffer->data()), nbytes);
     pos_ += bytes;
     return std::move(buffer);
 }
 
 ::parquet_arrow::Result<int64_t> gopherReadFileSystem::Read(int64_t nbytes, void* out) {
-    int64_t bytes = readFile(stream_, out, nbytes);
+    int64_t bytes = datalakeReadFile(stream_, out, nbytes);
     pos_ += bytes;
     return bytes;
 }
 
 ::parquet_arrow::Status gopherReadFileSystem::Seek(int64_t position) {
-    seekFile(stream_, position);
+    datalakeSeekFile(stream_, position);
     pos_ = position;
     return ::parquet_arrow::Status::OK();
 }
@@ -82,7 +82,7 @@ namespace Internal {
         return ::parquet_arrow::Status::OK();
     }
     closed_ = true;
-    closeFile(stream_);
+    datalakeCloseFile(stream_);
     return ::parquet_arrow::Status::OK();
 }
 

@@ -53,7 +53,7 @@ createLogFilter(MemoryContext mcxt,
 	}
 
 	/* data files only */
-	filter = (Reader *) createFileReader(mcxt, datafileDesc, attrUsed, true,
+	filter = (Reader *) datalakeCreateFileReader(mcxt, datafileDesc, attrUsed, true,
 										 dataFile, gopherFilesystem, datafileStart,
 										 datafileStart + dataFileLength, buffer);
 
@@ -140,7 +140,7 @@ extractPartitionKeyValues(char *filePath, List *partitionKeys, bool isHiveStyle)
 	char *pair;
 	int curDepth = 0;
 	List *result = NIL;
-	KeyValue *keyvalue;
+	DatalakeKeyValue *DatalakeKeyValue;
 	Value *partitionKey;
 	char **elements = splitString(filePath, '/', &size);
 
@@ -150,7 +150,7 @@ extractPartitionKeyValues(char *filePath, List *partitionKeys, bool isHiveStyle)
 		if (curDepth++ == 0)
 			continue;
 
-		keyvalue = palloc0(sizeof(KeyValue));
+		DatalakeKeyValue = palloc0(sizeof(DatalakeKeyValue));
 		if (isHiveStyle)
 		{
 			int   keyLen;
@@ -168,17 +168,17 @@ extractPartitionKeyValues(char *filePath, List *partitionKeys, bool isHiveStyle)
 			if (valueLen == 2)
 				elog(ERROR, "invalid partition path %s: '%s' missing value after '='", filePath, pair);
 
-			keyvalue->key = unescapePathName(pair, keyLen);
-			keyvalue->value = unescapePathName(sep + 1, valueLen);
+			DatalakeKeyValue->key = unescapePathName(pair, keyLen);
+			DatalakeKeyValue->value = unescapePathName(sep + 1, valueLen);
 		}
 		else
 		{
 			partitionKey = list_nth(partitionKeys, list_length(partitionKeys)  - curDepth + 1);
-			keyvalue->key = pstrdup(strVal(partitionKey));
-			keyvalue->value = unescapePathName(pair, strlen(pair));
+			DatalakeKeyValue->key = pstrdup(strVal(partitionKey));
+			DatalakeKeyValue->value = unescapePathName(pair, strlen(pair));
 		}
 
-		result = lappend(result, keyvalue);
+		result = lappend(result, DatalakeKeyValue);
 
 		if ((curDepth - 1) == list_length(partitionKeys))
 			break;
@@ -226,24 +226,24 @@ createPartitionValueDatum(ExternalTableMetadata *tableOptions,
 
 	foreach(lco, partitionSpecs)
 	{
-		KeyValue *keyValue = (KeyValue *) lfirst(lco);
+		DatalakeKeyValue *keyValue = (DatalakeKeyValue *) lfirst(lco);
 		foreach_with_count(lci, columnDesc, i)
 		{
-			FieldDescription *field = (FieldDescription *) lfirst(lci);
+			DatalakeFieldDescription *field = (DatalakeFieldDescription *) lfirst(lci);
 
 			if (pg_strcasecmp(keyValue->key, field->name) == 0 && attrUsed[i])
 			{
 				PartitionValueDatum *valueDatum = palloc(sizeof(PartitionValueDatum));
 
 				valueDatum->index = i;
-				valueDatum->value = createDatumByText(field->typeOid, keyValue->value);
+				valueDatum->value = datalakeCreateDatumByText(field->typeOid, keyValue->value);
 
 				result = lappend(result, valueDatum);
 			}
 		}
 	}
 
-	freeKeyValueList(partitionSpecs);
+	datalakeFreeKeyValueList(partitionSpecs);
 
 	return result;
 }
@@ -252,7 +252,7 @@ Reader *
 createHudiTaskReader(void *args)
 {
 	Reader *filter;
-	ReaderInitInfo *info = (ReaderInitInfo *) args;
+	DatalakeReaderInitInfo *info = (DatalakeReaderInitInfo *) args;
 
 	HudiTaskReader *reader = palloc0(sizeof(HudiTaskReader));
 	reader->fileScanTask = info->fileScanTask;
@@ -284,7 +284,7 @@ createHudiTaskReader(void *args)
 }
 
 static void
-projectPartitionColumnValue(HudiTaskReader *reader, InternalRecord *record)
+projectPartitionColumnValue(HudiTaskReader *reader, DatalakeInternalRecord *record)
 {
 	ListCell *lc;
 
@@ -301,7 +301,7 @@ projectPartitionColumnValue(HudiTaskReader *reader, InternalRecord *record)
 }
 
 bool
-hudiTaskReaderNext(Reader *reader, InternalRecord *record)
+hudiTaskReaderNext(Reader *reader, DatalakeInternalRecord *record)
 {
 	bool hasNext;
 	HudiTaskReader *hudiReader = (HudiTaskReader *) reader;
@@ -341,7 +341,7 @@ projectRequiredColumn(List *datafileTupleDesc, bool *attrUsed, const char *colNa
 
 	foreach_with_count(lc, datafileTupleDesc, i)
 	{
-		FieldDescription *fieldDesc = (FieldDescription *) lfirst(lc);
+		DatalakeFieldDescription *fieldDesc = (DatalakeFieldDescription *) lfirst(lc);
 
 		if (attrUsed[i] == true)
 			continue;

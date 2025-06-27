@@ -4,16 +4,16 @@
 #include "postgres.h"
 
 /* convert input string to upper case and prepend "X-GP-OPTIONS-" prefix */
-char	   *normalize_key_name(const char *key);
+char	   *datalake_normalize_key_name(const char *key);
 
 /* Concatenate multiple literal strings using stringinfo */
-char	   *concat(int num_args,...);
+char	   *datalake_concat(int num_args,...);
 
 /* Get authority (host:port) for the dlproxy server URL */
 char	   *datalake_get_authority(void);
 
 /* get the name of the type, given the OID */
-char	   *TypeOidGetTypename(Oid typid);
+char	   *DatalakeTypeOidGetTypename(Oid typid);
 
 /* Returns the dlproxy Host defined in the DLPROXY_HOST
  * environment variable or the default when undefined
@@ -26,7 +26,7 @@ const char *get_dlproxy_host(void);
 const int  get_dlproxy_port(void);
 
 /* Returns the namespace (schema) name for a given namespace oid */
-char	   *GetNamespaceName(Oid nsp_oid);
+char	   *DatalakeGetNamespaceName(Oid nsp_oid);
 
 #define DLPROXY_PROFILE       "PROFILE"
 #define ACCESSOR              "ACCESSOR"

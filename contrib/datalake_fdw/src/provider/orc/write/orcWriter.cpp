@@ -62,9 +62,9 @@ void orcWrite::createHandler(void* sstate)
 	batchHasNULL = (bool*)palloc0(sizeof(bool) * ORC_COLUMNS);
 	ResetColumnVectorBatchHasNULL();
 
-	gopherConfig* conf = createGopherConfig((void*)(fdwState->options->gopher));
-	fileStream = createFileSystem(conf);
-	freeGopherConfig(conf);
+	gopherConfig* conf = datalakeCreateGopherConfig((void*)(fdwState->options->gopher));
+	fileStream = datalakeCreateFileSystem(conf);
+	datalakeFreeGopherConfig(conf);
 
 	generateOrcSchema();
 	stripeSize = std::min(fdwState->options->fileSizeLimit, (size_t)ORC_STRIPE_SIZE);
@@ -777,13 +777,13 @@ OssOutputStream::OssOutputStream(ossFileStream fileStream, const std::string &fi
 	closed = false;
 	this->filename = filename;
 	stream = fileStream;
-	openFile(stream, this->filename.c_str(), O_WRONLY);
+	datalakeOpenFile(stream, this->filename.c_str(), O_WRONLY);
 }
 
 OssOutputStream::~OssOutputStream() {
 	if (!closed)
 	{
-		closeFile(stream);
+		datalakeCloseFile(stream);
 		closed = true;
 	}
 }
@@ -795,7 +795,7 @@ void OssOutputStream::write(const void* buf, size_t length) {
 	if (length <= 0) {
 		return;
 	}
-	int64_t bytesWrite = writeFile(stream, (void*)buf, length);
+	int64_t bytesWrite = datalakeWriteFile(stream, (void*)buf, length);
 	if (bytesWrite == -1) {
 		elog(ERROR, "ORC Bad write of %s", filename.c_str());
 	}
@@ -808,7 +808,7 @@ void OssOutputStream::write(const void* buf, size_t length) {
 void OssOutputStream::close() {
 	if (!closed)
 	{
-		closeFile(stream);
+		datalakeCloseFile(stream);
 		closed = true;
 	}
 }

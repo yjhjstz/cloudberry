@@ -7,16 +7,16 @@
 #include "src/provider/common/utils.h"
 #include <gopher/gopher.h>
 
-typedef struct EqualityFilter
+typedef struct DatalakeEqualityFilter
 {
 	Reader         base;
 	List          *deletesSets;
 	Reader        *dataReader;
 	MemoryContext  mcxt;
-} EqualityFilter;
+} DatalakeEqualityFilter;
 
-EqualityFilter *
-createEqualityFilter(MemoryContext readerMcxt,
+DatalakeEqualityFilter *
+datalakeCreateEqualityFilter(MemoryContext readerMcxt,
 					 List *datafileTupleDesc,
 					 Reader *dataReader,
 					 gopherFS gopherFilesystem,

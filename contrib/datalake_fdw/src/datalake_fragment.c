@@ -8,7 +8,7 @@
 static List* SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize);
 static List *get_partition_values(Relation relation, dataLakeOptions *options);
 static List *convert_iceberg_hudi_options(dataLakeOptions *options);
-bool ignore_hidden_file(char* name);
+static bool ignore_hidden_file(char* name);
 
 static List*
 SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize)
@@ -40,17 +40,17 @@ SerializeFragmentList(gopherFileInfo* lists, int count, int64_t *totalSize)
 }
 
 List *
-GetFragmentList(dataLakeOptions *options, int64_t *totalSize)
+datalakeGetFragmentList(dataLakeOptions *options, int64_t *totalSize)
 {
 	List *fragment = NIL;
-	gopherConfig* conf = createGopherConfig((void*) options->gopher);
-	ossFileStream stream = createFileSystem(conf);
+	gopherConfig* conf = datalakeCreateGopherConfig((void*) options->gopher);
+	ossFileStream stream = datalakeCreateFileSystem(conf);
 	int count = 0;
-	gopherFileInfo* lists = listDir(stream, options->prefix, &count, true);
+	gopherFileInfo* lists = datalakeListDir(stream, options->prefix, &count, true);
 	fragment = SerializeFragmentList(lists, count, totalSize);
-	freeListDir(stream, lists, count);
-	gopherDestroyHandle(stream);
-	freeGopherConfig(conf);
+	datalakeFreeListDir(stream, lists, count);
+	datalakeGopherDestroyHandle(stream);
+	datalakeFreeGopherConfig(conf);
 
 	return fragment;
 }
@@ -124,21 +124,21 @@ get_partition_values(Relation relation, dataLakeOptions *options)
 	}
 	locations = lappend(locations, makeString(pstrdup(buf.data)));
 
-	return get_external_fragments(RelationGetRelid(relation), 0, NIL, NIL,
+	return datalake_get_external_fragments(RelationGetRelid(relation), 0, NIL, NIL,
 								  locations, options->format, false);
 }
 
 List *
-GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
+datalakeGetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
 {
 	ListCell *lckey;
 	ListCell *lcvalue;
 	List *serializedFragment = NIL;
 	List *partitionKeys;
 	List *partitionValues;
-	PartitionConstraint *pc;
+	datalakePartitionConstraint *pc;
 
-	pc = (PartitionConstraint*) list_nth(options->hiveOption->hivePartitionConstraints,
+	pc = (datalakePartitionConstraint*) list_nth(options->hiveOption->hivePartitionConstraints,
 		options->hiveOption->curPartition);
 	partitionValues = pc->partitionValues;
 	partitionKeys = options->hiveOption->hivePartitionKey;
@@ -165,10 +165,10 @@ GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
 	}
 
 	int count = 0;
-	gopherConfig* conf = createGopherConfig((void*) options->gopher);
-	ossFileStream stream = createFileSystem(conf);
+	gopherConfig* conf = datalakeCreateGopherConfig((void*) options->gopher);
+	ossFileStream stream = datalakeCreateFileSystem(conf);
 
-	gopherFileInfo* lists = listDir(stream, prefix.data, &count, true);
+	gopherFileInfo* lists = datalakeListDir(stream, prefix.data, &count, true);
 	for (int i = 0; i < count; i++)
 	{
 		if (ignore_hidden_file(lists[i].mPath))
@@ -192,9 +192,9 @@ GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize)
 				totalSize += lists[i].mLength;
 		}
 	}
-	freeListDir(stream, lists, count);
-	gopherDestroyHandle(stream);
-	freeGopherConfig(conf);
+	datalakeFreeListDir(stream, lists, count);
+	datalakeGopherDestroyHandle(stream);
+	datalakeFreeGopherConfig(conf);
 
 	return serializedFragment;
 }
@@ -214,12 +214,12 @@ GetPartitionList(Relation relation, List *quals, dataLakeOptions *options)
 }
 
 List *
-GetExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, int64_t *totalSize)
+datalakeGetExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, int64_t *totalSize)
 {
 	if (FORMAT_IS_ICEBERG(options->format) || FORMAT_IS_HUDI(options->format))
 	{
 		List *locations = convert_iceberg_hudi_options(options);
-		return get_external_fragments(RelationGetRelid(relation), 0, NIL, NIL,
+		return datalake_get_external_fragments(RelationGetRelid(relation), 0, NIL, NIL,
 									  locations, options->format, false);
 	}
 
@@ -259,7 +259,7 @@ convert_iceberg_hudi_options(dataLakeOptions *options)
 }
 
 List *
-deserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, List *fragmentInfo)
+datalakeDeserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, List *fragmentInfo)
 {
 	List *fragmentData = NIL;
 
@@ -274,15 +274,15 @@ deserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions 
 		List *partitionValues = list_nth(fragmentInfo, PrivatePartitionData);
 
 		/* transfrom partition values */
-		options->hiveOption->hivePartitionValues = transfromHMSPartitions(partitionValues, options->hiveOption->specifyMaxPartitonValue);
-		initializeConstraints(options, quals, relation->rd_att);
+		options->hiveOption->hivePartitionValues = datalakeTransfromHMSPartitions(partitionValues, options->hiveOption->specifyMaxPartitonValue);
+		datalakeInitializeConstraints(options, quals, relation->rd_att);
 	}
 
 	return fragmentData;
 }
 
 void
-freeFragmentLists(List *fragments)
+datalakeFreeFragmentLists(List *fragments)
 {
 	ListCell *cell;
 	foreach(cell, fragments)

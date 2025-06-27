@@ -5,7 +5,7 @@
 #include <gopher/gopher.h>
 
 struct List;
-struct InternalRecord;
+struct DatalakeInternalRecord;
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,7 +18,7 @@ void avro_block_open(void *reader,
 					 int64_t contentBufferLength,
 					 int64_t schemaBufferLength);
 void avro_block_close(void *reader);
-bool avro_block_next(void *reader, InternalRecord *record);
+bool avro_block_next(void *reader, DatalakeInternalRecord *record);
 
 #ifdef __cplusplus
 }

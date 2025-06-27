@@ -7,25 +7,25 @@
 
 
 
-typedef struct PartitionConstraint
+typedef struct datalakePartitionConstraint
 {
 	List *partitionValues;
 	List *constraints;
-} PartitionConstraint;
+} datalakePartitionConstraint;
 
 
-extern int getAttnumber(TupleDesc tupleDesc, const char *attName);
+extern int datalakeGetAttnumber(TupleDesc tupleDesc, const char *attName);
 
-extern List *splitString2(const char *value, char deli, char escape);
+extern List *datalakeSplitString2(const char *value, char deli, char escape);
 
-extern List *selectPartitions(List *quals, TupleDesc tupleDesc, List *keys, List *partitions, bool allParts);
+extern List *datalakeSelectPartitions(List *quals, TupleDesc tupleDesc, List *keys, List *partitions, bool allParts);
 
 
-void initializeConstraints(dataLakeOptions *options, List *quals, TupleDesc tupleDesc);
+void datalakeInitializeConstraints(dataLakeOptions *options, List *quals, TupleDesc tupleDesc);
 
-bool isLastPartition(void* scanstate);
+bool datalakeIsLastPartition(void* scanstate);
 
-int initializeDefaultMap(List *attNums,
+int datalakeInitializeDefaultMap(List *attNums,
 					 List *constraints,
 					 bool *proj,
 					 int *defMap,
@@ -34,13 +34,13 @@ int initializeDefaultMap(List *attNums,
 bool
 equalHMSSpecifyMaxPartitonValue(List *partitionValue, char* specifyMaxPartitonValue);
 
-List *transfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue);
+List *datalakeTransfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue);
 
 Datum
-ExecEvalConst(ExprState *exprstate, ExprContext *econtext,
+datalakeExecEvalConst(ExprState *exprstate, ExprContext *econtext,
 			  bool *isNull, ExprDoneCond *isDone);
 
 Datum
-ExecEvalConst2(ExprState *exprstate, ExprContext *econtext,
+datalakeExecEvalConst2(ExprState *exprstate, ExprContext *econtext,
 			  ExprDoneCond *isDone);
 #endif

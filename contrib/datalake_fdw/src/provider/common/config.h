@@ -5,13 +5,13 @@
 #include "gopher/gopher.h"
 #include "nodes/pg_list.h"
 
-typedef struct HdfsHAConfEntry
+typedef struct DatalakeHdfsHAConfEntry
 {
 	char *key;
 	char *value;
-} HdfsHAConfEntry;
+} DatalakeHdfsHAConfEntry;
 
-typedef struct HdfsConfigInfo
+typedef struct DatalakeHdfsConfigInfo
 {
 	char *gopherPath;
 	char *namenodeHost;
@@ -24,12 +24,12 @@ typedef struct HdfsConfigInfo
 	char *krb5CCName;
 	char *enableHa;
 	List *haEntries;
-} HdfsConfigInfo;
+} DatalakeHdfsConfigInfo;
 
-// HdfsConfigInfo *parseConf(const char *configFile, const char *serverName);
-HdfsConfigInfo *parseHdfsConfig(const char *configFile, const char *serverName);
-void formKrbCCName(HdfsConfigInfo *config);
-gopherConfig *gopherCreateConfig(HdfsConfigInfo *hdfsConf);
-void gopherConfigDestroy(gopherConfig *conf);
+// DatalakeHdfsConfigInfo *parseConf(const char *configFile, const char *serverName);
+DatalakeHdfsConfigInfo *datalakeParseHdfsConfig(const char *configFile, const char *serverName);
+void datalakeFormKrbCCName(DatalakeHdfsConfigInfo *config);
+gopherConfig *datalakeGopherCreateConfig(DatalakeHdfsConfigInfo *hdfsConf);
+void datalakeGopherConfigDestroy(gopherConfig *conf);
 
 #endif // GOPHER_CONFIG_H

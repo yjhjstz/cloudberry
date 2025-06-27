@@ -64,7 +64,7 @@ void avro_block_close(void *reader)
 		elog(ERROR, "failed to close avro block file: %s", errorMessage.c_str());
 }
 
-bool avro_block_next(void *reader, InternalRecord *record)
+bool avro_block_next(void *reader, DatalakeInternalRecord *record)
 {
 	bool result;
 	std::string errorMessage;

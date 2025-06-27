@@ -239,52 +239,50 @@ PG_FUNCTION_INFO_V1(datalake_fdw_validator);
 /*
  * Helper functions
  */
-bool IsValidForeignOption(const char *option, Oid context);
+static bool IsValidForeignOption(const char *option, Oid context);
 
-bool IsValidHdfsServerOption(const char *option, Oid context);
+static bool IsValidHdfsServerOption(const char *option, Oid context);
 
-bool IsValidFtpServerOption(const char *option, Oid context);
+static bool IsValidFtpServerOption(const char *option, Oid context);
 
-bool IsValidOSSServerOption(const char *option, Oid context);
+static bool IsValidOSSServerOption(const char *option, Oid context);
 
-bool IsValidUserMappingOption(const char *option, Oid context);
+static bool IsValidUserMappingOption(const char *option, Oid context);
 
-void check_foreign_option(List *options_list, Oid catalog);
+static void check_foreign_option(List *options_list, Oid catalog);
 
-void check_server_option(List *options_list, Oid catalog);
+static void check_server_option(List *options_list, Oid catalog);
 
-void checkHdfsCombin(List *options_list, Oid catalog);
+static void checkHdfsCombin(List *options_list, Oid catalog);
 
-void check_user_mapping_option(List *options_list, Oid catalog);
+static void check_user_mapping_option(List *options_list, Oid catalog);
 
-void DatalakeGetGopherSocketPath(char *dest);
+static void DatalakeGetGopherSocketPath(char *dest);
 
-void DatalakeGetGopherPlasmaSocketPath(char *dest);
+static void DatalakeGetGopherPlasmaSocketPath(char *dest);
 
-void DatalakeGetGopherMetaPath(char *dest);
+static void DatalakeGetGopherMetaPath(char *dest);
 
-void checkValidRecordBatchOpt(dataLakeOptions *options);
-
-void checkForeignDataWrapper(ForeignDataWrapper *wrapper);
+static void checkForeignDataWrapper(ForeignDataWrapper *wrapper);
 
 /*
  * Parser functions
  */
-void parserUri(dataLakeOptions *opt);
+static void parserUri(dataLakeOptions *opt);
 
-void parserHdfsServerOption(dataLakeOptions *datalakeopt, List *options);
+static void parserHdfsServerOption(dataLakeOptions *datalakeopt, List *options);
 
-void parserFtpServerOption(dataLakeOptions *opt, List *options);
+static void parserFtpServerOption(dataLakeOptions *opt, List *options);
 
-void parserFtpUserMappingOption(dataLakeOptions *opt, List *options);
+static void parserFtpUserMappingOption(dataLakeOptions *opt, List *options);
 
-void parseForeignTableOptions(dataLakeOptions* opt, List *options);
+static void parseForeignTableOptions(dataLakeOptions* opt, List *options);
 
-void parseHdfsUserMappingOption(dataLakeOptions* opt, List *options);
+static void parseHdfsUserMappingOption(dataLakeOptions* opt, List *options);
 
-void parseOssUserMappingOptions(dataLakeOptions* opt, List *options);
+static void parseOssUserMappingOptions(dataLakeOptions* opt, List *options);
 
-void parseOssServerOption(dataLakeOptions* opt, List *options);
+static void parseOssServerOption(dataLakeOptions* opt, List *options);
 
 /*
  * Validate the generic options given to a FOREIGN DATA WRAPPER, SERVER,
@@ -533,7 +531,7 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_HIVE_PARTITIONKEY) == 0)
 		{
-			opt->hiveOption->hivePartitionKey = splitString2(defGetString(def), ',', '/');
+			opt->hiveOption->hivePartitionKey = datalakeSplitString2(defGetString(def), ',', '/');
 		}
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_HIVE_TRANSACTIONAL) == 0)
@@ -611,7 +609,7 @@ void checkForeignDataWrapper(ForeignDataWrapper *wrapper)
 	}
 }
 
-dataLakeOptions *getOptions(Oid foreigntableid)
+dataLakeOptions *datalakeGetOptions(Oid foreigntableid)
 {
 	ForeignTable *table;
 	ForeignServer *server;
@@ -685,7 +683,7 @@ dataLakeOptions *getOptions(Oid foreigntableid)
 	return opt;
 }
 
-List* getCopyOptions(Oid foreigntableid)
+List* datalakeGetCopyOptions(Oid foreigntableid)
 {
 	List *copyOptions = NIL;
 	ForeignTable *table;
@@ -717,7 +715,7 @@ List* getCopyOptions(Oid foreigntableid)
 	return copyOptions;
 }
 
-List* getCustomOption(Oid foreigntableid)
+List* datalakeGetCustomOptions(Oid foreigntableid)
 {
 	ForeignTable *table;
 	table = GetForeignTable(foreigntableid);
@@ -729,7 +727,7 @@ List* getCustomOption(Oid foreigntableid)
 	return options;
 }
 
-void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
+void datalakeGetCopyLogerrorOptions(Oid foreigntableid, int *rejectlimit,
 			   bool *islimitinrows, char *logerrors)
 {
 	ForeignTable *table;
@@ -765,7 +763,7 @@ void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
 	}
 }
 
-void getURIFromOptions(Oid foreigntableid, char** uri)
+void datalakeGetUriFromOptions(Oid foreigntableid, char** uri)
 {
 	ForeignTable *table;
 	table = GetForeignTable(foreigntableid);
@@ -959,7 +957,7 @@ void parserFtpUserMappingOption(dataLakeOptions *opt, List *options)
 	}
 }
 
-void freeDataLakeOptions(dataLakeOptions *options)
+void datalakeFreeDatalakeOptions(dataLakeOptions *options)
 {
 	if (options->gopher)
 	{
@@ -1613,7 +1611,7 @@ void DatalakeGetGopherMetaPath(char *dest)
 	sprintf(dest, "%s/%s", DataDir, DATALAKE_GOPHERMETA_FOLDER);
 }
 
-void checkValidRecordBatchOpt(dataLakeOptions *options)
+void datalakeCheckValidRecordBatchOpt(dataLakeOptions *options)
 {
 	if (FORMAT_IS_ORC(options->format))
 	{

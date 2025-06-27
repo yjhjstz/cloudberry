@@ -9,9 +9,9 @@ extern "C" {
 
 struct List;
 
-void *createSortedMerge(char *filename, List *readers);
-bool sortedMergeNext(void *sortedMerge, int64 *value);
-void sortedMergeClose(void *sortedMerge);
+void *datalakeCreateSortedMerge(char *filename, List *readers);
+bool datalakeSortedMergeNext(void *sortedMerge, int64 *value);
+void datalakeSortedMergeClose(void *sortedMerge);
 
 #ifdef __cplusplus
 }

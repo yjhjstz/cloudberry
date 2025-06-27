@@ -10,33 +10,33 @@ typedef struct ossInternalFileStream *ossFileStream;
 extern "C" {
 #endif
 
-gopherConfig* createGopherConfig(void *opt);
+gopherConfig* datalakeCreateGopherConfig(void *opt);
 
-void freeGopherConfig(gopherConfig* conf);
+void datalakeFreeGopherConfig(gopherConfig* conf);
 
-ossFileStream createFileSystem(gopherConfig *conf);
+ossFileStream datalakeCreateFileSystem(gopherConfig *conf);
 
-int openFile(ossFileStream file, const char *path, int flag);
+int datalakeOpenFile(ossFileStream file, const char *path, int flag);
 
-int writeFile(ossFileStream file, void *buff, int64_t size);
+int datalakeWriteFile(ossFileStream file, void *buff, int64_t size);
 
-int readFile(ossFileStream file, void *buff, int64_t size);
+int datalakeReadFile(ossFileStream file, void *buff, int64_t size);
 
-int seekFile(ossFileStream file, int64_t postion);
+int datalakeSeekFile(ossFileStream file, int64_t postion);
 
-int getUfsId(ossFileStream file);
+int datalakeGetUfsId(ossFileStream file);
 
-int closeFile(ossFileStream file);
+int datalakeCloseFile(ossFileStream file);
 
-gopherFileInfo* listDir(ossFileStream file, const char *path, int *count, int recursive);
+gopherFileInfo* datalakeListDir(ossFileStream file, const char *path, int *count, int recursive);
 
-gopherFileInfo* getFileInfo(ossFileStream file, const char* path);
+gopherFileInfo* datalakeGetFileInfo(ossFileStream file, const char* path);
 
-void freeListDir(ossFileStream file, gopherFileInfo *list, int count);
+void datalakeFreeListDir(ossFileStream file, gopherFileInfo *list, int count);
 
-int gopherDestroyHandle(ossFileStream file);
+int datalakeGopherDestroyHandle(ossFileStream file);
 
-void destroyFileSystem(ossFileStream file);
+void datalakeDestroyFileSystem(ossFileStream file);
 #ifdef __cplusplus
 }
 #endif

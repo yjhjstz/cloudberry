@@ -23,7 +23,7 @@ namespace Internal{
 void avroRead::createHandler(void *sstate)
 {
     initParameter(sstate);
-    exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+    datalakeExecSegment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
     if (!exec)
     {
         return;
@@ -204,16 +204,16 @@ bool avroRead::createPolicy()
     int64_t totalsize = 0;
     if (scanstate->options->hiveOption->hivePartitionKey != NULL)
     {
-        List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
+        List *fragment = datalakeGetNextPartitionFragmentList(scanstate->options, &totalsize);
         extraFragmentLists(lists, fragment);
-        freeFragmentLists(fragment);
+        datalakeFreeFragmentLists(fragment);
         scanstate->options->hiveOption->curPartition += 1;
     }
     else
     {
-        List *fragment = GetFragmentList(scanstate->options, &totalsize);
+        List *fragment = datalakeGetFragmentList(scanstate->options, &totalsize);
         extraFragmentLists(lists, fragment);
-        freeFragmentLists(fragment);
+        datalakeFreeFragmentLists(fragment);
     }
 
     blockPolicy.build(dummy_segid, dummy_segnums, BLOCK_POLICY_SIZE, lists);
@@ -363,7 +363,7 @@ nextPartition:
                 /* only eval const expr, so we don't need pg_try catch block here */
                 Datum* value = (Datum*)values;
                 bool* null = (bool*)nulls;
-                value[defaultMap[i]] = ExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
+                value[defaultMap[i]] = datalakeExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
             }
         }
         return 1;
@@ -374,7 +374,7 @@ nextPartition:
         return 0;
     }
 
-    if (!isLastPartition(scanstate))
+    if (!datalakeIsLastPartition(scanstate))
     {
         restart();
         goto nextPartition;
@@ -570,7 +570,7 @@ bool avroRead::getNextColumn(Datum &values, avro::GenericRecord &record, int idx
 void avroRead::destroyHandler()
 {
     fileReader.reset();
-    destroyFileSystem(fileStream);
+    datalakeDestroyFileSystem(fileStream);
     fileStream = nullptr;
 	releaseResources();
 }

@@ -44,9 +44,9 @@ typedef struct
 } TypeInfoElt;
 
 /* helper function declarations */
-static void build_uri_for_read(gphadoop_context *context);
-static void add_querydata_to_http_headers(gphadoop_context *context, transform_callback transform);
-static size_t fill_buffer(gphadoop_context *context, char *start, size_t size);
+static void build_uri_for_read(datalake_gphadoop_context *context);
+static void add_querydata_to_http_headers(datalake_gphadoop_context *context, transform_callback transform);
+static size_t fill_buffer(datalake_gphadoop_context *context, char *start, size_t size);
 
 static const TypeInfoElt typeInfoElts[] = {
 	{"int4", INT4OID},
@@ -83,7 +83,7 @@ getFieldTypeOidByName(const char *typeName)
 static char *
 get_catalog_type(char *profile, List *locations)
 {
-	GPHDUri *uri;
+	DatalakeGPHDUri *uri;
 	char    *catalogType;
 
 	uri = datalake_parseGPHDUri(strVal(linitial(locations)));
@@ -106,7 +106,7 @@ static const char *
 transform_datalake_options(const char *key)
 {
 	int i;
-	static option_mapping configElts[] = {
+	static datalake_option_mapping configElts[] = {
 		{"server_name", "server"},
 		{"table_identifier", "data-source"},
 		{"split_size", "split-size"},
@@ -142,7 +142,7 @@ parseSchemaResponse(char *buffer, size_t buffer_size)
 	{
 		json_t *jmods;
 		json_t *jfield = json_array_get(jfields, i);
-		TableFieldDefination *columnDef = palloc0(sizeof(TableFieldDefination));
+		datalakeTableFieldDefination *columnDef = palloc0(sizeof(datalakeTableFieldDefination));
 
 		columnDef->fieldName = pstrdup(json_string_value(json_object_get(jfield, "name")));
 		columnDef->fieldTypeName = pstrdup(json_string_value(json_object_get(jfield, "type")));
@@ -167,7 +167,7 @@ parseSchemaResponse(char *buffer, size_t buffer_size)
  * De-allocates context and dependent structures.
  */
 void
-destroy_context(gphadoop_context *context, bool afterError)
+datalake_destroy_context(datalake_gphadoop_context *context, bool afterError)
 {
 	if (context == NULL)
 		return;
@@ -202,7 +202,7 @@ destroy_context(gphadoop_context *context, bool afterError)
  * Allocates context and sets values for the segment
  */
 
-static gphadoop_context *
+static datalake_gphadoop_context *
 create_context_(Oid relid,
 				Index relno,
 				char *relName,
@@ -216,10 +216,10 @@ create_context_(Oid relid,
 	List *localConds;
 	Bitmapset  *attrsUsed = NULL;
 	/* parse and set uri */
-	GPHDUri        *uri = datalake_parseGPHDUri(uriStr);
+	DatalakeGPHDUri        *uri = datalake_parseGPHDUri(uriStr);
 
 	/* set context */
-	gphadoop_context *context = palloc0(sizeof(gphadoop_context));
+	datalake_gphadoop_context *context = palloc0(sizeof(datalake_gphadoop_context));
 
 	context->gphd_uri = uri;
 	initStringInfo(&context->uri);
@@ -231,7 +231,7 @@ create_context_(Oid relid,
 	 * Identify which baserestrictinfo clauses can be sent to the remote
 	 * server and which can't.
 	 */
-	classifyConditions(restrictInfo, &remoteConds, &localConds);
+	datalakeClassifyConditions(restrictInfo, &remoteConds, &localConds);
 	context->filterstr = serializeDlProxyFilterQuals(remoteConds);
 	context->quals = localConds;
 
@@ -255,7 +255,7 @@ create_context_(Oid relid,
 			pull_varattnos((Node *) rinfo, relno, &attrsUsed);
 		}
 
-		deparseTargetList(context->relation, attrsUsed, &retrieved_attrs);
+		datalakeDeparseTargetList(context->relation, attrsUsed, &retrieved_attrs);
 		context->retrieved_attrs = retrieved_attrs;
 	}
 
@@ -269,21 +269,21 @@ create_context_(Oid relid,
 	return context;
 }
 
-gphadoop_context *
-create_context(Oid relid, const char *uriStr, transform_callback transform)
+datalake_gphadoop_context *
+datalake_create_context(Oid relid, const char *uriStr, transform_callback transform)
 {
 	return create_context_(relid, 0, NULL, NULL, NULL, NULL, uriStr, transform);
 }
 
-gphadoop_context *
-create_context2(char *relName, char *schemaName, const char *uriStr, transform_callback transform)
+datalake_gphadoop_context *
+datalake_create_context2(char *relName, char *schemaName, const char *uriStr, transform_callback transform)
 {
 	return create_context_(InvalidOid, 0, relName, schemaName, NULL, NULL, uriStr, transform);
 }
 
 
-gphadoop_context *
-create_fragment_context(Oid relid,
+datalake_gphadoop_context *
+datalake_create_fragment_context(Oid relid,
 						Index relno,
 						List *restrictInfo,
 						List *targetList,
@@ -294,7 +294,7 @@ create_fragment_context(Oid relid,
 }
 
 void
-doRPC(gphadoop_context *context)
+datalakeDoRPC(datalake_gphadoop_context *context)
 {
 	size_t n;
 
@@ -326,7 +326,7 @@ doRPC(gphadoop_context *context)
  * Format the URI for reading by adding dlproxy service endpoint details
  */
 static void
-build_uri_for_read(gphadoop_context *context)
+build_uri_for_read(datalake_gphadoop_context *context)
 {
 	resetStringInfo(&context->uri);
 	appendStringInfo(&context->uri, "http://%s/%s/read",
@@ -345,7 +345,7 @@ build_uri_for_read(gphadoop_context *context)
  * by the remote component.
  */
 static void
-add_querydata_to_http_headers(gphadoop_context *context, transform_callback transform)
+add_querydata_to_http_headers(datalake_gphadoop_context *context, transform_callback transform)
 {
 	DlProxyInputData inputData = {0};
 
@@ -364,7 +364,7 @@ add_querydata_to_http_headers(gphadoop_context *context, transform_callback tran
  * Read data from churl until the buffer is full or there is no more data to be read
  */
 static size_t
-fill_buffer(gphadoop_context *context, char *start, size_t size)
+fill_buffer(datalake_gphadoop_context *context, char *start, size_t size)
 {
 
 	size_t		n;
@@ -393,13 +393,13 @@ internal_get_external_fragments(char *profile,
 								parse_callback parseFn)
 {
 	List *result = NIL;
-	volatile gphadoop_context *context = NULL;
+	volatile datalake_gphadoop_context *context = NULL;
 
 	PG_TRY();
 	{
 		char *catalogType = get_catalog_type(profile, locations);
 
-		context = create_fragment_context(relid,
+		context = datalake_create_fragment_context(relid,
 										  relno,
 										  restrictInfo,
 										  targetList,
@@ -426,16 +426,16 @@ internal_get_external_fragments(char *profile,
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-SCAN-TYPE", "snapshot");
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getFragments");
 
-		doRPC((gphadoop_context *) context);
+		datalakeDoRPC((datalake_gphadoop_context *) context);
 		result = parseFn(context->buffer, context->buffer_pos);
 
-		destroy_context((gphadoop_context *) context, false);
+		datalake_destroy_context((datalake_gphadoop_context *) context, false);
 		context = NULL;
 	}
 	PG_CATCH();
 	{
 		if (context)
-			destroy_context((gphadoop_context *) context, true);
+			datalake_destroy_context((datalake_gphadoop_context *) context, true);
 
 		PG_RE_THROW();
 	}
@@ -445,7 +445,7 @@ internal_get_external_fragments(char *profile,
 }
 
 List *
-get_external_fragments(Oid relid,
+datalake_get_external_fragments(Oid relid,
 					   Index relno,
 					   List *restrictInfo,
 					   List *targetList,
@@ -465,16 +465,16 @@ get_external_fragments(Oid relid,
 }
 
 List *
-get_external_schema(char *profile, char *relName, char *schemaName, List *locations)
+datalake_get_external_schema(char *profile, char *relName, char *schemaName, List *locations)
 {
 	List *result = NIL;
-	volatile gphadoop_context *context = NULL;
+	volatile datalake_gphadoop_context *context = NULL;
 
 	PG_TRY();
 	{
 		char *catalogType = get_catalog_type(profile, locations);
 
-		context = create_context2(relName, schemaName, strVal(linitial(locations)), transform_datalake_options);
+		context = datalake_create_context2(relName, schemaName, strVal(linitial(locations)), transform_datalake_options);
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", profile);
 
 		if (pg_strcasecmp(catalogType, "hive") == 0)
@@ -494,16 +494,16 @@ get_external_schema(char *profile, char *relName, char *schemaName, List *locati
 
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getSchema");
 
-		doRPC((gphadoop_context *) context);
+		datalakeDoRPC((datalake_gphadoop_context *) context);
 		result = parseSchemaResponse(context->buffer, context->buffer_pos);
 
-		destroy_context((gphadoop_context *) context, false);
+		datalake_destroy_context((datalake_gphadoop_context *) context, false);
 		context = NULL;
 	}
 	PG_CATCH();
 	{
 		if (context)
-			destroy_context((gphadoop_context *) context, true);
+			datalake_destroy_context((datalake_gphadoop_context *) context, true);
 
 		PG_RE_THROW();
 	}

@@ -2,7 +2,7 @@
 #include "delete_bitmap.h"
 
 void *
-createBitmap(void)
+datalakeCreateBitmap(void)
 {
 	std::string errorMessage;
 	roaring::Roaring64Map *bitmap = NULL;
@@ -23,7 +23,7 @@ createBitmap(void)
 }
 
 void
-destroyBitmap(void *bitmap)
+datalakeDestroyBitmap(void *bitmap)
 {
 	std::string errorMessage;
 	roaring::Roaring64Map *roaring = (roaring::Roaring64Map *) bitmap;
@@ -42,7 +42,7 @@ destroyBitmap(void *bitmap)
 }
 
 void
-bitmapAdd(void *bitmap, uint64_t value)
+datalakeBitmapAdd(void *bitmap, uint64_t value)
 {
 	std::string errorMessage;
 	roaring::Roaring64Map *roaring = (roaring::Roaring64Map *) bitmap;
@@ -61,7 +61,7 @@ bitmapAdd(void *bitmap, uint64_t value)
 }
 
 bool
-bitmapContains(void *bitmap, uint64_t value)
+datalakeBitmapContains(void *bitmap, uint64_t value)
 {
 	bool result = false;
 	std::string errorMessage;

@@ -10,28 +10,28 @@
 #define SERVER_NAME	       "server_name"
 #define TABLE_IDENTIFIER   "table_identifier"
 
-typedef struct TableFieldDefination
+typedef struct datalakeTableFieldDefination
 {
 	char *fieldName;
 	char *fieldTypeName;
 	Oid   fieldTypeOid;
 	int32 fieldTypeMod1;
 	int32 fieldTypeMod2;
-} TableFieldDefination;
+} datalakeTableFieldDefination;
 
-typedef struct CombinedScanTask
+typedef struct datalakeCombinedScanTask
 {
 	List *fileTasks;
-} CombinedScanTask;
+} datalakeCombinedScanTask;
 
 extern List *
-get_external_schema(char *profile,
+datalake_get_external_schema(char *profile,
 					char *relName,
 					char *schemaName,
 					List *locations);
 
 extern List *
-get_external_fragments(Oid relid,
+datalake_get_external_fragments(Oid relid,
 					   Index relno,
 					   List *restrictInfo,
 					   List *targetList,
@@ -40,9 +40,9 @@ get_external_fragments(Oid relid,
 					   bool iswritable);
 
 extern List *
-parsePartitionResponse(char *buffer, size_t buffer_size);
+datalakeParsePartitionResponse(char *buffer, size_t buffer_size);
 extern void
-freePartitionList(List *partitions);
+datalakeFreePartitionList(List *partitions);
 
 #endif   /* DATALAKE_H */
 

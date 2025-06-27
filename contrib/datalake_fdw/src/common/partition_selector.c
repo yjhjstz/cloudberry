@@ -207,7 +207,7 @@ createCheckConstraint(TupleDesc tupleDesc, Index varno, int partKeyAttNum, const
 }
 
 int
-getAttnumber(TupleDesc tupleDesc, const char *attName)
+datalakeGetAttnumber(TupleDesc tupleDesc, const char *attName)
 {
 	int i;
 
@@ -233,7 +233,7 @@ createCheckConstraints(TupleDesc tupleDesc, Index varno, List *partitionKeys, Li
 	{
 		char *partKey = (char *) lfirst(lcKey);
 		char *partValue = (char *) lfirst(lcValue);
-		int   attNum = getAttnumber(tupleDesc, partKey);
+		int   attNum = datalakeGetAttnumber(tupleDesc, partKey);
 
 		if (attNum == -1)
 			elog(ERROR, "table doesn't have \"%s\" column, please make "
@@ -266,7 +266,7 @@ createDefaultConstraints(TupleDesc tupleDesc, List *partitionKeys, List *partiti
 	{
 		char *partKey = (char *) lfirst(lcKey);
 		char *partValue = (char *) lfirst(lcValue);
-		int   attNum = getAttnumber(tupleDesc, partKey);
+		int   attNum = datalakeGetAttnumber(tupleDesc, partKey);
 
 		if (attNum == -1)
 			elog(ERROR, "table doesn't have \"%s\" column, please make "
@@ -327,7 +327,7 @@ unEscapeString(const char *value, int len, char deli, char escape)
 }
 
 List *
-splitString2(const char *value, char deli, char escape)
+datalakeSplitString2(const char *value, char deli, char escape)
 {
 	int    i;
 	int    pos = 0;
@@ -428,13 +428,13 @@ getVarno(TupleDesc tupleDesc, List *quals)
 }
 
 List *
-selectPartitions(List *quals, TupleDesc tupleDesc, List *keys, List *partitions, bool allParts)
+datalakeSelectPartitions(List *quals, TupleDesc tupleDesc, List *keys, List *partitions, bool allParts)
 {
 	ListCell *lc;
 	List *conExpr;
 	int i = 0;
 	List *result = NIL;
-	PartitionConstraint *partConst;
+	datalakePartitionConstraint *partConst;
 	Index varno = getVarno(tupleDesc, quals);
 
 	foreach_with_count(lc, partitions, i)
@@ -451,7 +451,7 @@ selectPartitions(List *quals, TupleDesc tupleDesc, List *keys, List *partitions,
 
 		printPartition(keys, partitionValues);
 
-		partConst = palloc0(sizeof(PartitionConstraint));
+		partConst = palloc0(sizeof(datalakePartitionConstraint));
 
 		partConst->partitionValues = partitionValues;
 		partConst->constraints = createDefaultConstraints(tupleDesc, keys, partitionValues);
@@ -475,7 +475,7 @@ initializePartitionConstraint(List *partitionKeys,
 
 	if (quals == NULL)
 	{
-		result = selectPartitions(quals,
+		result = datalakeSelectPartitions(quals,
 							tupleDesc,
 							partitionKeys,
 							partitionValues,
@@ -484,7 +484,7 @@ initializePartitionConstraint(List *partitionKeys,
 	else
 	{
 		elog(DEBUG1, "datalake_fdw: filter quals is provided");
-		result = selectPartitions(quals,
+		result = datalakeSelectPartitions(quals,
 							tupleDesc,
 							partitionKeys,
 							partitionValues,
@@ -493,7 +493,7 @@ initializePartitionConstraint(List *partitionKeys,
 	return result;
 }
 
-void initializeConstraints(dataLakeOptions *options, List *quals, TupleDesc tupleDesc)
+void datalakeInitializeConstraints(dataLakeOptions *options, List *quals, TupleDesc tupleDesc)
 {
 	if (options->hiveOption->hivePartitionKey)
 	{
@@ -506,7 +506,7 @@ void initializeConstraints(dataLakeOptions *options, List *quals, TupleDesc tupl
 		foreach(lc, options->hiveOption->hivePartitionKey)
 		{
 			char* partitionkey = (char*) lfirst(lc);
-			int attNum = getAttnumber(tupleDesc, partitionkey);
+			int attNum = datalakeGetAttnumber(tupleDesc, partitionkey);
 			if (attNum == -1)
 			{
 				elog(ERROR,  "table doesn't have \"%s\" column, please make "
@@ -523,7 +523,7 @@ void initializeConstraints(dataLakeOptions *options, List *quals, TupleDesc tupl
 }
 
 bool
-isLastPartition(void* sstate)
+datalakeIsLastPartition(void* sstate)
 {
 	dataLakeFdwScanState* scanstate = (dataLakeFdwScanState*) sstate;
 	int nPartitions;
@@ -542,7 +542,7 @@ isLastPartition(void* sstate)
 }
 
 int
-initializeDefaultMap(List *attNums,
+datalakeInitializeDefaultMap(List *attNums,
 					 List *constraints,
 					 bool *proj,
 					 int *defMap,
@@ -581,7 +581,7 @@ equalHMSSpecifyMaxPartitonValue(List *partitionValue, char* specifyMaxPartitonVa
 }
 
 List *
-transfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue)
+datalakeTransfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue)
 {
 	ListCell *li;
 	ListCell *lc;
@@ -620,7 +620,7 @@ transfromHMSPartitions(List *partitions, char* specifyMaxPartitonValue)
 }
 
 Datum
-ExecEvalConst(ExprState *exprstate, ExprContext *econtext,
+datalakeExecEvalConst(ExprState *exprstate, ExprContext *econtext,
 			  bool *isNull, ExprDoneCond *isDone)
 {
 	Const	   *con = (Const *) exprstate->expr;
@@ -633,7 +633,7 @@ ExecEvalConst(ExprState *exprstate, ExprContext *econtext,
 }
 
 Datum
-ExecEvalConst2(ExprState *exprstate, ExprContext *econtext,
+datalakeExecEvalConst2(ExprState *exprstate, ExprContext *econtext,
 			  ExprDoneCond *isDone)
 {
 	Const	   *con = (Const *) exprstate->expr;

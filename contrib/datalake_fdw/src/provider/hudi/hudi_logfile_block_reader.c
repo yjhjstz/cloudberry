@@ -92,7 +92,7 @@ logFileReadBigInteger(HudiLogFileReader *reader, bool *isReachedEOF)
 	}
 
 #ifndef WORDS_BIGENDIAN
-	result = reverse64(result);
+	result = datalakeReverse64(result);
 #endif
 
 	return result;
@@ -117,7 +117,7 @@ logFileReadInteger(HudiLogFileReader *reader, bool *isReachedEOF)
 	}
 
 #ifndef WORDS_BIGENDIAN
-	result = reverse32(result);
+	result = datalakeReverse32(result);
 #endif
 
 	return result;

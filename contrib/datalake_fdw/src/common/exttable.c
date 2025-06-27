@@ -1024,7 +1024,7 @@ datalake_to_exttable_BeginForeignScan(ForeignScanState *node, int eflags,
 {
 	DatalakeFileScanDesc currentScanDesc;
 	ExternalSelectDesc externalSelectDesc;
-	exttable_fdw_state *fdw_state;
+	datalake_exttable_fdw_state *fdw_state;
 	dataLakeFdwScanState *sstate = (dataLakeFdwScanState*)datalakeState;
 	if (!sstate->rel)
 		elog(ERROR, "external table scan without a current relation");
@@ -1034,7 +1034,7 @@ datalake_to_exttable_BeginForeignScan(ForeignScanState *node, int eflags,
 	if (gp_external_enable_filter_pushdown)
 		externalSelectDesc->filter_quals = node->ss.ps.plan->qual;
 
-	fdw_state = palloc(sizeof(exttable_fdw_state));
+	fdw_state = palloc(sizeof(datalake_exttable_fdw_state));
 	fdw_state->ess_ScanDesc = currentScanDesc;
 	fdw_state->externalSelectDesc = externalSelectDesc;
 
@@ -1145,7 +1145,7 @@ datalake_to_exttable_IterateForeignScan(ForeignScanState *node)
 	HeapTuple	tuple;
 	MemoryContext oldcxt;
 	dataLakeFdwScanState *sstate = (dataLakeFdwScanState*)node->fdw_state;
-	exttable_fdw_state *fdw_state = sstate->customState.fdw_state;
+	datalake_exttable_fdw_state *fdw_state = sstate->customState.fdw_state;
 	/*
 	 * XXX: ForeignNext() calls us in a short-lived memory context, which
 	 * seems like a good idea. However external_getnext() allocates some stuff
@@ -1207,7 +1207,7 @@ extern void
 datalake_to_exttable_EndForeignScan(ForeignScanState *node)
 {
 	dataLakeFdwScanState *dataLakesstate = (dataLakeFdwScanState*)node->fdw_state;
-	exttable_fdw_state *fdw_state = dataLakesstate->customState.fdw_state;
+	datalake_exttable_fdw_state *fdw_state = dataLakesstate->customState.fdw_state;
 
 	if (node->ss.ps.squelched)
 		external_stopscan(fdw_state->ess_ScanDesc);

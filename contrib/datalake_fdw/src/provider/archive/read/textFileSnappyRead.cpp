@@ -34,7 +34,7 @@ textFileSnappyRead::~textFileSnappyRead() {
 void textFileSnappyRead::open(ossFileStream ossFile, std::string fileName, readOption options) {
     stream = ossFile;
     readFinish = false;
-    openFile(stream, fileName.c_str(), setStreamFlag(options));
+    datalakeOpenFile(stream, fileName.c_str(), setStreamFlag(options));
     path = fileName;
     state = FILE_OPEN;
     originalBlockSize = 0;
@@ -79,7 +79,7 @@ int64_t textFileSnappyRead::fillInputBuffer(int length) {
         int resize = length * 2;
         resizeInputBuffer(resize);
     }
-    int nread = readFile(stream, inputBuffer.buffer, length);
+    int nread = datalakeReadFile(stream, inputBuffer.buffer, length);
     if (nread <= 0) {
         elog(ERROR, "Datalake Error, snappy text file %s read block header 4 bytes failed! %s.",
             path.c_str(), gopherGetLastError());
@@ -123,7 +123,7 @@ void textFileSnappyRead::resizeOutputBuffer(int size) {
 }
 
 void textFileSnappyRead::seekIntextfile(int64_t posn) {
-    int ret = seekFile(stream, posn);
+    int ret = datalakeSeekFile(stream, posn);
     if (ret == -1) {
         elog(ERROR, "Datalake Error, snappy text file %s seek failed! detail %s.",
             path.c_str(), gopherGetLastError());
@@ -236,7 +236,7 @@ int64_t textFileSnappyRead::getNext() {
 
 void textFileSnappyRead::close() {
     if (state == FILE_OPEN) {
-        closeFile(stream);
+        datalakeCloseFile(stream);
         if (external_table_debug) {
             elog(LOG, "Datalake Log, close snappy text file %s successful.", path.c_str());
         }

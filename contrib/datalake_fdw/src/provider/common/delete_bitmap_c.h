@@ -7,10 +7,10 @@ extern "C" {
 
 #include "postgres.h"
 
-void *createBitmap(void);
-void bitmapAdd(void *bitmap, uint64 value);
-void destroyBitmap(void *bitmap);
-bool bitmapContains(void *bitmap, uint64 value);
+void *datalakeCreateBitmap(void);
+void datalakeBitmapAdd(void *bitmap, uint64 value);
+void datalakeDestroyBitmap(void *bitmap);
+bool datalakeBitmapContains(void *bitmap, uint64 value);
 
 #ifdef __cplusplus
 }

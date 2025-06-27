@@ -4,14 +4,14 @@
 
 #include "datalake_def.h"
 
-List *GetExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, int64_t *totalSize);
+List *datalakeGetExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, int64_t *totalSize);
 
-List *deserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, List *fragmentInfo);
+List *datalakeDeserializeExternalFragmentList(Relation relation, List *quals, dataLakeOptions *options, List *fragmentInfo);
 
-List *GetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize);
+List *datalakeGetNextPartitionFragmentList(dataLakeOptions *options, int64_t *totalSize);
 
-List *GetFragmentList(dataLakeOptions *options, int64_t *totalSize);
+List *datalakeGetFragmentList(dataLakeOptions *options, int64_t *totalSize);
 
-void freeFragmentLists(List *fragments);
+void datalakeFreeFragmentLists(List *fragments);
 
 #endif

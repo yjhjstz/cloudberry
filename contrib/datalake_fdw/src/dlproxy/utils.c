@@ -12,13 +12,13 @@
  * This will be used for all user defined parameters to be isolate from internal parameters
  */
 char *
-normalize_key_name(const char *key)
+datalake_normalize_key_name(const char *key)
 {
 	if (!key || strlen(key) == 0)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("internal error in utils.c:normalize_key_name. Parameter key is null or empty.")));
+				 errmsg("internal error in utils.c:datalake_normalize_key_name. Parameter key is null or empty.")));
 	}
 
 	return psprintf("X-GP-OPTIONS-%s", asc_toupper(pstrdup(key), strlen(key)));
@@ -26,7 +26,7 @@ normalize_key_name(const char *key)
 
 /* Concatenate multiple literal strings using stringinfo */
 char *
-concat(int num_args,...)
+datalake_concat(int num_args,...)
 {
 	va_list		ap;
 	StringInfoData str;
@@ -93,7 +93,7 @@ get_dlproxy_port(void)
 
 /* Returns the namespace (schema) name for a given namespace oid */
 char *
-GetNamespaceName(Oid nsp_oid)
+DatalakeGetNamespaceName(Oid nsp_oid)
 {
 	HeapTuple	tuple;
 	Datum		nspnameDatum;
@@ -114,11 +114,11 @@ GetNamespaceName(Oid nsp_oid)
 }
 
 /*
- * TypeOidGetTypename
+ * DatalakeTypeOidGetTypename
  * Get the name of the type, given the OID
  */
 char *
-TypeOidGetTypename(Oid typid)
+DatalakeTypeOidGetTypename(Oid typid)
 {
 
 	Assert(OidIsValid(typid));

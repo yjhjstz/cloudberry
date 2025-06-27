@@ -33,13 +33,13 @@ typedef struct RegistrationHashEntry
 	char        type[NAMEDATALEN];
 } RegistrationHashEntry;
 
-typedef struct FieldDescription
+typedef struct DatalakeFieldDescription
 {
 	KryoType type;
 	const char *name;
 	bool usePersistentType;
 	bool canBeNull;
-} FieldDescription;
+} DatalakeFieldDescription;
 
 static Registration registrations[] = {
 	{"[Lorg.apache.hudi.common.model.DeleteRecord;", -1, arrayRead},
@@ -54,12 +54,12 @@ static Registration registrations[] = {
 	{"Double", 8, doubleRead},
 };
 
-static FieldDescription hoodieKeyFields[] = {
+static DatalakeFieldDescription hoodieKeyFields[] = {
 	{KRYO_STRING, "recordKey", false, true},
 	{KRYO_STRING, "partitionPath", false, true}
 };
 
-static FieldDescription deleteRecordFields[] = {
+static DatalakeFieldDescription deleteRecordFields[] = {
 	{KRYO_ARRAY, "hoodieKey", true, false},
 	{KRYO_ANY, "orderingVal", true, false}
 };
@@ -212,7 +212,7 @@ arrayRead(Kryo *kryo, char *type, KryoInput *input)
 	return datum;
 }
 
-static FieldDescription *
+static DatalakeFieldDescription *
 getObjectFields(char *type, int *size)
 {
 	if (pg_strcasecmp("org.apache.hudi.common.model.DeleteRecord", type) == 0)
@@ -274,7 +274,7 @@ fieldsRead(Kryo *kryo, char *type, KryoInput *input)
 	int i;
 	int length;
 	KryoDatum datum;
-	FieldDescription *descFields;
+	DatalakeFieldDescription *descFields;
 
 	descFields = getObjectFields(type, &length);
 

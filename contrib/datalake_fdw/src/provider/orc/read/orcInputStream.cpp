@@ -19,12 +19,12 @@ OssInputStream::OssInputStream(ossFileStream fileStream, std::string filename, u
 	{
 		flag = O_RDONLY;
 	}
-	openFile(stream, filename.c_str(), flag);
+	datalakeOpenFile(stream, filename.c_str(), flag);
 }
 
 OssInputStream::~OssInputStream()
 {
-	closeFile(stream);
+	datalakeCloseFile(stream);
 }
 
 void OssInputStream::range(uint64_t offset, uint64_t length)
@@ -35,8 +35,8 @@ void OssInputStream::range(uint64_t offset, uint64_t length)
 
 void OssInputStream::read(void *buf, uint64_t length, uint64_t offset)
 {
-	seekFile(stream, offset);
-	readFile(stream, buf, length);
+	datalakeSeekFile(stream, offset);
+	datalakeReadFile(stream, buf, length);
 }
 
 bool OssInputStream::checkORCFile()
@@ -49,15 +49,15 @@ bool OssInputStream::checkORCFile()
     }
 
     // Check ORC Magic
-	seekFile(stream, 0);
+	datalakeSeekFile(stream, 0);
 	char magic[4] = {0};
-	readFile(stream, magic, 3);
+	datalakeReadFile(stream, magic, 3);
     if (strcmp(magic, "ORC") != 0)
     {
-        elog(WARNING, "%s is not orc file.", filename.c_str());
+        elog(LOG, "%s is not orc file.", filename.c_str());
 		return false;
     }
-	seekFile(stream, 0);
+	datalakeSeekFile(stream, 0);
     return true;
 }
 

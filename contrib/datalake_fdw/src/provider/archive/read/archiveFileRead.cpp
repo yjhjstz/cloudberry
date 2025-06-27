@@ -9,7 +9,7 @@ static char archiveReadBuff[ARCHIEVE_READ_BUFFER_SIZE];
 
 void archiveFileRead::open(ossFileStream ossFile, std::string fileName, readOption options)
 {
-	openFile(ossFile, fileName.c_str(), setStreamFlag(options));
+	datalakeOpenFile(ossFile, fileName.c_str(), setStreamFlag(options));
 
 	archive = archive_read_new();
 	archive_read_support_filter_all(archive);
@@ -60,7 +60,7 @@ ssize_t archiveFileRead::read_call_back(struct archive *a, void *client_data, co
 	CHECK_FOR_INTERRUPTS();
 
 	ossFileStream ossFile = (ossFileStream)client_data;
-	int size = readFile(ossFile, archiveReadBuff, ARCHIEVE_READ_BUFFER_SIZE);
+	int size = datalakeReadFile(ossFile, archiveReadBuff, ARCHIEVE_READ_BUFFER_SIZE);
 	*buffer = archiveReadBuff;
 	return size;
 }

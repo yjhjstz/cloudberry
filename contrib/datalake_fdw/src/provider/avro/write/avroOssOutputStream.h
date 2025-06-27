@@ -44,7 +44,7 @@ class avroOssOutputStream : public avro::OutputStream
 
     void flush() final
     {
-        writeFile(out_, buffer_, bufferSize_ - available_);
+        datalakeWriteFile(out_, buffer_, bufferSize_ - available_);
         next_ = buffer_;
         available_ = bufferSize_;
     }
@@ -61,12 +61,12 @@ public:
                         available_(bufferSize_),
                         byteCount_(0)
     {
-        openFile(out_, filePath_.c_str(), O_WRONLY);
+        datalakeOpenFile(out_, filePath_.c_str(), O_WRONLY);
     }
 
     ~avroOssOutputStream() override
     {
-        closeFile(out_);
+        datalakeCloseFile(out_);
         delete[] buffer_;
     }
 };

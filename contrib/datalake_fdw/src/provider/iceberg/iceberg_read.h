@@ -25,7 +25,7 @@ public:
 	virtual void destroyHandler();
 
 private:
-	ProtocolContext *protocolContext;
+	DatalakeProtocolContext *protocolContext;
 };
 
 }

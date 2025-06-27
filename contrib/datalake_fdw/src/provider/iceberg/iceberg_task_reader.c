@@ -24,7 +24,7 @@ createIcebergTaskReader(void *args)
 	Reader *filter;
 	List *posDeletes = NIL;
 	List *eqDeletes = NIL;
-	ReaderInitInfo *info = (ReaderInitInfo *) args;
+	DatalakeReaderInitInfo *info = (DatalakeReaderInitInfo *) args;
 
 	elog(DEBUG1, "create iceberg reader task [%d]", info->taskId);
 
@@ -45,7 +45,7 @@ createIcebergTaskReader(void *args)
 	if (list_length(eqDeletes) > 0)
 		projectRequiredColumns(info->datafileDesc, info->attrUsed, eqDeletes);
 
-	filter = (Reader *) createFileReader(info->mcxt, info->datafileDesc, info->attrUsed, true,
+	filter = (Reader *) datalakeCreateFileReader(info->mcxt, info->datafileDesc, info->attrUsed, true,
 										 info->fileScanTask->dataFile, info->gopherFilesystem,
 										 info->fileScanTask->start,
 										 info->fileScanTask->start + info->fileScanTask->length,
@@ -54,11 +54,11 @@ createIcebergTaskReader(void *args)
 	list_free(info->fileScanTask->deletes);
 
 	if (list_length(posDeletes) > 0)
-		filter = (Reader *) createPositionFilter(info->mcxt, filter, info->gopherFilesystem,
+		filter = (Reader *) datalakeCreatePositionFilter(info->mcxt, filter, info->gopherFilesystem,
 												 info->fileScanTask->dataFile->filePath, posDeletes);
 
 	if (list_length(eqDeletes) > 0)
-		filter = (Reader *) createEqualityFilter(info->mcxt, info->datafileDesc,
+		filter = (Reader *) datalakeCreateEqualityFilter(info->mcxt, info->datafileDesc,
 												 filter, info->gopherFilesystem, eqDeletes);
 
 	reader->dataReader = filter;
@@ -66,7 +66,7 @@ createIcebergTaskReader(void *args)
 }
 
 bool
-icebergTaskReaderNext(Reader *reader, InternalRecord *record)
+icebergTaskReaderNext(Reader *reader, DatalakeInternalRecord *record)
 {
 	IcebergTaskReader *icebergReader = (IcebergTaskReader *) reader;
 
@@ -134,7 +134,7 @@ projectRequiredColumns(List *datafileTupleDesc, bool *attrUsed, List *deletes)
 
 		foreach_with_count(lci, datafileTupleDesc, i)
 		{
-			FieldDescription *fieldDesc = (FieldDescription *) lfirst(lci);
+			DatalakeFieldDescription *fieldDesc = (DatalakeFieldDescription *) lfirst(lci);
 
 			if (attrUsed[i] == true)
 				break;

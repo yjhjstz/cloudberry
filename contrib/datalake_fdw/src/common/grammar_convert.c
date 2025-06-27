@@ -661,7 +661,7 @@ ConvertExternalTableStmt(CreateExternalStmt *createExtStmt)
 				char *hdfs_cluster_name = get_opt_oss(url, "hdfs_cluster_name");
 				if (hdfs_cluster_name)
 				{
-					HdfsConfigInfo *hdfs = parseHdfsConfig("gphdfs.conf", hdfs_cluster_name);
+					DatalakeHdfsConfigInfo *hdfs = datalakeParseHdfsConfig("gphdfs.conf", hdfs_cluster_name);
 					if (hdfs && hdfs->namenodeHost)
 					{
 						foreignServerName = find_foreign_server(hdfs->namenodeHost);

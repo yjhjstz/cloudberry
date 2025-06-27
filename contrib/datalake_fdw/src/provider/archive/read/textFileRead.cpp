@@ -114,13 +114,13 @@ void textFileRead::initializeDataStructures(dataLakeFdwScanState *ss) {
 }
 
 void textFileRead::createFileStream(dataLakeFdwScanState *ss) {
-	gopherConfig* conf = createGopherConfig((void*)(ss->options->gopher));
+	gopherConfig* conf = datalakeCreateGopherConfig((void*)(ss->options->gopher));
 	if (conf->cache_strategy == GOPHER_CACHE) {
 		options.enableCache = true;
 	}
 
-	fileStream = createFileSystem(conf);
-	freeGopherConfig(conf);
+	fileStream = datalakeCreateFileSystem(conf);
+	datalakeFreeGopherConfig(conf);
 }
 
 bool textFileRead::createPolicy() {
@@ -128,7 +128,7 @@ bool textFileRead::createPolicy() {
 	bool exec = false;
 	int dummy_segid = 0;
 	int dummy_segnums = 0;
-	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	datalakeExecSegment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
 	if (!exec) {
         if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 		{
@@ -141,16 +141,16 @@ bool textFileRead::createPolicy() {
 	int64_t totalsize = 0;
     if (scanstate->options->hiveOption->hivePartitionKey != NULL)
     {
-		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
+		List *fragment = datalakeGetNextPartitionFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
-		freeFragmentLists(fragment);
+		datalakeFreeFragmentLists(fragment);
 		scanstate->options->hiveOption->curPartition += 1;
     }
     else
     {
-        List *fragments = GetFragmentList(scanstate->options, &totalsize);
+        List *fragments = datalakeGetFragmentList(scanstate->options, &totalsize);
 	    extraFragmentLists(lists, fragments);
-        freeFragmentLists(fragments);
+        datalakeFreeFragmentLists(fragments);
     }
 
 	segid = dummy_segid;
@@ -189,7 +189,7 @@ nextPartition:
 		return 0;
 	}
 
-	if (!isLastPartition(scanstate))
+	if (!datalakeIsLastPartition(scanstate))
 	{
 		restart();
 		goto nextPartition;
@@ -455,7 +455,7 @@ void textFileRead::setPartitionValue(void* values, void* nulls) {
 			/* only eval const expr, so we don't need pg_try catch block here */
 			Datum* value = (Datum*)values;
 			bool* null = (bool*)nulls;
-			value[defaultMap[i]] = ExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
+			value[defaultMap[i]] = datalakeExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
 		}
 	}
 }

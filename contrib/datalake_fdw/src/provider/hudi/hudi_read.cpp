@@ -6,23 +6,23 @@ namespace Internal {
 void hudiRead::createHandler(void *sstate)
 {
     initParameter(sstate);
-    protocolContext = createContext(scanstate->options);
-    protocolImportStart(scanstate, protocolContext, includes_columns);
+    protocolContext = datalakeCreateContext(scanstate->options);
+    datalakeProtocolImportStart(scanstate, protocolContext, includes_columns);
 }
 
 int64_t hudiRead::read(void *values, void *nulls)
 {
-    protocolContext->record = (InternalRecord *) palloc0(sizeof(InternalRecord));
+    protocolContext->record = (DatalakeInternalRecord *) palloc0(sizeof(DatalakeInternalRecord));
     protocolContext->record->nulls = (bool *)nulls;
     protocolContext->record->values = (Datum *)values;
 
-    return rowReaderNext(protocolContext->file->reader, protocolContext->record);
+    return datalakeRowReaderNext(protocolContext->file->reader, protocolContext->record);
 }
 
 void hudiRead::destroyHandler()
 {
     releaseResources();
-    cleanupContext(protocolContext);
+    datalakeCleanupContext(protocolContext);
 }
 
 }

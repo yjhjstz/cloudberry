@@ -18,14 +18,14 @@ typedef struct
 } config_elt;
 
 static const config_elt configElts[] = {
-	{"hdfs_namenode_host", offsetof(HdfsConfigInfo, namenodeHost)},
-	{"hdfs_namenode_port", offsetof(HdfsConfigInfo, namenodePort)},
-	{"hdfs_auth_method", offsetof(HdfsConfigInfo, authMethod)},
-	{"krb_principal", offsetof(HdfsConfigInfo, krbPrincipal)},
-	{"krb_principal_keytab", offsetof(HdfsConfigInfo, krbPrincipalKeytab)},
-	{"hadoop_rpc_protection", offsetof(HdfsConfigInfo, hadoopRpcProtection)},
-	{"data_transfer_protocol", offsetof(HdfsConfigInfo, dataTransferProtocol)},
-	{"is_ha_supported", offsetof(HdfsConfigInfo, enableHa)}
+	{"hdfs_namenode_host", offsetof(DatalakeHdfsConfigInfo, namenodeHost)},
+	{"hdfs_namenode_port", offsetof(DatalakeHdfsConfigInfo, namenodePort)},
+	{"hdfs_auth_method", offsetof(DatalakeHdfsConfigInfo, authMethod)},
+	{"krb_principal", offsetof(DatalakeHdfsConfigInfo, krbPrincipal)},
+	{"krb_principal_keytab", offsetof(DatalakeHdfsConfigInfo, krbPrincipalKeytab)},
+	{"hadoop_rpc_protection", offsetof(DatalakeHdfsConfigInfo, hadoopRpcProtection)},
+	{"data_transfer_protocol", offsetof(DatalakeHdfsConfigInfo, dataTransferProtocol)},
+	{"is_ha_supported", offsetof(DatalakeHdfsConfigInfo, enableHa)}
 };
 
 static int
@@ -49,7 +49,7 @@ GetGopherMetaPath(char *dest)
 }
 
 void
-formKrbCCName(HdfsConfigInfo *config)
+datalakeFormKrbCCName(DatalakeHdfsConfigInfo *config)
 {
 	int i;
 	int len;
@@ -72,8 +72,8 @@ formKrbCCName(HdfsConfigInfo *config)
 	config->gopherPath = pstrdup(gopherPath);
 }
 
-HdfsConfigInfo *
-parseHdfsConfig(const char *configFile, const char *serverName)
+DatalakeHdfsConfigInfo *
+datalakeParseHdfsConfig(const char *configFile, const char *serverName)
 {
 	int               i;
 	FILE             *fp;
@@ -84,7 +84,7 @@ parseHdfsConfig(const char *configFile, const char *serverName)
 	yaml_node_t      *node;
 	yaml_node_pair_t *tnp;
 	yaml_node_pair_t *nnp;
-	HdfsConfigInfo   *result = NULL;
+	DatalakeHdfsConfigInfo   *result = NULL;
 	char             *eltPos;
 
 	if (!yaml_parser_initialize(&parser))
@@ -115,13 +115,13 @@ parseHdfsConfig(const char *configFile, const char *serverName)
 
 	for (tnp = root->data.mapping.pairs.start; tnp < root->data.mapping.pairs.top; tnp++)
 	{
-		HdfsConfigInfo *hci;
+		DatalakeHdfsConfigInfo *hci;
 
 		node = yaml_document_get_node(&document, tnp->key);
 		if (pg_strcasecmp((const char *) node->data.scalar.value, serverName) != 0)
 			continue;
 
-		hci = palloc0(sizeof(HdfsConfigInfo));
+		hci = palloc0(sizeof(DatalakeHdfsConfigInfo));
 		server = yaml_document_get_node(&document, tnp->value);
 		if (server->type != YAML_MAPPING_NODE)
 			elog(ERROR, "failed to parse \"%s\": server node of \"%s\" must be mapping node",
@@ -146,7 +146,7 @@ parseHdfsConfig(const char *configFile, const char *serverName)
 			}
 			else
 			{
-				HdfsHAConfEntry *ent = palloc0(sizeof(HdfsHAConfEntry));
+				DatalakeHdfsHAConfEntry *ent = palloc0(sizeof(DatalakeHdfsHAConfEntry));
 
 				ent->key = pnstrdup((const char *) nodeKey->data.scalar.value, nodeKey->data.scalar.length);
 				ent->value = pnstrdup((const char *) nodeValue->data.scalar.value, nodeValue->data.scalar.length);
@@ -165,7 +165,7 @@ parseHdfsConfig(const char *configFile, const char *serverName)
 }
 
 gopherConfig *
-gopherCreateConfig(HdfsConfigInfo *hdfsConf)
+datalakeGopherCreateConfig(DatalakeHdfsConfigInfo *hdfsConf)
 {
 	gopherConfig *config = (gopherConfig *) palloc0(sizeof(gopherConfig));
 
@@ -200,7 +200,7 @@ gopherCreateConfig(HdfsConfigInfo *hdfsConf)
 
 		foreach_with_count(lc, hdfsConf->haEntries, i)
 		{
-			HdfsHAConfEntry *entry = (HdfsHAConfEntry *) lfirst(lc);
+			DatalakeHdfsHAConfEntry *entry = (DatalakeHdfsHAConfEntry *) lfirst(lc);
 
 			config->hdfs_ha_configs[i].key = entry->key;
 			config->hdfs_ha_configs[i].value = entry->value;
@@ -211,7 +211,7 @@ gopherCreateConfig(HdfsConfigInfo *hdfsConf)
 }
 
 void
-gopherConfigDestroy(gopherConfig *conf)
+datalakeGopherConfigDestroy(gopherConfig *conf)
 {
 	int i;
 

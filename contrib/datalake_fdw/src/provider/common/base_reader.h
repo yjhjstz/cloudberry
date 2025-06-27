@@ -8,7 +8,7 @@ extern "C"
 
 #include <vector>
 
-struct InternalRecord;
+struct DatalakeInternalRecord;
 struct List;
 
 typedef enum
@@ -52,13 +52,13 @@ protected:
 	virtual void createMapping(List *columnDesc, bool *attrUsed) = 0;
 	virtual void decodeRecord() = 0;
 
-	void populateRecord(InternalRecord *record);
+	void populateRecord(DatalakeInternalRecord *record);
 	int64 transformTimestamp(int64 timestamp, TIMEUNIT timeUnit);
 
 public:
 	BaseFileReader(MemoryContext rowContext);
 	virtual ~BaseFileReader() = 0;
-	bool next(InternalRecord *record);
+	bool next(DatalakeInternalRecord *record);
 	virtual void open(List *columnDesc, bool *attrUsed, int64_t startOffset, int64_t endOffset) = 0;
 	virtual void close() = 0;
 };

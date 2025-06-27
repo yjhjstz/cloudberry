@@ -8,9 +8,9 @@ namespace Internal {
 void archiveWrite::createHandler(void *sstate)
 {
 	dataLakeFdwScanState *ss = (dataLakeFdwScanState*)sstate;
-	gopherConfig* conf = createGopherConfig((void*)(ss->options->gopher));
-	fileStream = createFileSystem(conf);
-	freeGopherConfig(conf);
+	gopherConfig* conf = datalakeCreateGopherConfig((void*)(ss->options->gopher));
+	fileStream = datalakeCreateFileSystem(conf);
+	datalakeFreeGopherConfig(conf);
 	setOption(ss->options);
 	sliceIndex = 0;
 	currentWriteSize = 0;

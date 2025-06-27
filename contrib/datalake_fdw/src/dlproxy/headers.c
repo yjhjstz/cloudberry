@@ -27,7 +27,7 @@
 
 /* helper function declarations */
 static void add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel);
-static void add_location_options_httpheader(CHURL_HEADERS headers, GPHDUri *gphduri, transform_callback transform);
+static void add_location_options_httpheader(CHURL_HEADERS headers, DatalakeGPHDUri *gphduri, transform_callback transform);
 static void
 add_projection_index_header(CHURL_HEADERS headers,
 							int attno,
@@ -45,7 +45,7 @@ datalake_build_http_headers(DlProxyInputData *input, transform_callback transfor
 {
 	extvar_t       ev;
 	CHURL_HEADERS  headers    = input->headers;
-	GPHDUri        *gphduri   = input->gphduri;
+	DatalakeGPHDUri        *gphduri   = input->gphduri;
 	Relation       rel        = input->rel;
 	char           long_number[sizeof(int32) * 8];
 	const char	   *relname;
@@ -57,7 +57,7 @@ datalake_build_http_headers(DlProxyInputData *input, transform_callback transfor
 		add_tuple_desc_httpheader(headers, rel);
 
 		relname = RelationGetRelationName(rel);
-		relnamespace = GetNamespaceName(RelationGetNamespace(rel));
+		relnamespace = DatalakeGetNamespaceName(RelationGetNamespace(rel));
 	}
 	else
 	{
@@ -134,15 +134,15 @@ datalake_build_http_headers(DlProxyInputData *input, transform_callback transfor
  */
 static void
 add_location_options_httpheader(CHURL_HEADERS headers,
-								GPHDUri *gphduri,
+								DatalakeGPHDUri *gphduri,
 								transform_callback transform)
 {
 	ListCell   *option = NULL;
 
 	foreach(option, gphduri->options)
 	{
-		OptionData *data = (OptionData *) lfirst(option);
-		char	   *x_gp_key = normalize_key_name(transform(data->key));
+		datalakeOptionData *data = (datalakeOptionData *) lfirst(option);
+		char	   *x_gp_key = datalake_normalize_key_name(transform(data->key));
 
 		datalake_churl_headers_append(headers, x_gp_key, data->value);
 		pfree(x_gp_key);
@@ -207,7 +207,7 @@ add_tuple_desc_httpheader(CHURL_HEADERS headers, Relation rel)
 		/* Add a key/value pair for attribute type name */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-TYPENAME%u", attrIx);
-		datalake_churl_headers_append(headers, formatter.data, TypeOidGetTypename(attribute.atttypid));
+		datalake_churl_headers_append(headers, formatter.data, DatalakeTypeOidGetTypename(attribute.atttypid));
 
 		/* Add attribute type modifiers if any */
 		if (attribute.atttypmod > -1)

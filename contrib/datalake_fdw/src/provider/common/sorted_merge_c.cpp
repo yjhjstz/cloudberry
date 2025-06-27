@@ -3,7 +3,7 @@
 #include "sorted_merge.h"
 
 void *
-createSortedMerge(char *filename, List *readers)
+datalakeCreateSortedMerge(char *filename, List *readers)
 {
 	std::string errorMessage;
 	SortedMerge *sortedMerge = NULL;
@@ -24,7 +24,7 @@ createSortedMerge(char *filename, List *readers)
 }
 
 bool
-sortedMergeNext(void *sortedMerge, int64 *value)
+datalakeSortedMergeNext(void *sortedMerge, int64 *value)
 {
 	bool result;
 	std::string errorMessage;
@@ -40,13 +40,13 @@ sortedMergeNext(void *sortedMerge, int64 *value)
 	}
 
 	if (!errorMessage.empty())
-        elog(ERROR, "failed to call sortedMergeNext(): %s", errorMessage.c_str());
+        elog(ERROR, "failed to call datalakeSortedMergeNext(): %s", errorMessage.c_str());
 
 	return result;
 }
 
 void
-sortedMergeClose(void *sortedMerge)
+datalakeSortedMergeClose(void *sortedMerge)
 {
 	std::string errorMessage;
 	SortedMerge *merge = (SortedMerge *) sortedMerge;

@@ -35,7 +35,7 @@ typedef struct DatalakeExternalInsertDescData
 typedef DatalakeExternalInsertDescData *DatalakeExternalInsertDesc;
 
 /*
- * ExternalSelectDescData is used for storing state related
+ * datalakeExternalSelectDescData is used for storing state related
  * to selecting data from an external table.
  */
 typedef struct DatalakeExternalSelectDescData
@@ -99,10 +99,10 @@ typedef struct
 
 	ExternalSelectDesc externalSelectDesc;
 
-} exttable_fdw_state;
+} datalake_exttable_fdw_state;
 
 /*
- * ExternalSelectDescData is used for storing state related
+ * datalakeExternalSelectDescData is used for storing state related
  * to selecting data from an external table.
  */
 typedef struct ExternalSelectDescData

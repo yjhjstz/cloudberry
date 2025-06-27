@@ -14,7 +14,7 @@ static char archiveReadBuff[ARCHIEVE_READ_BUFFER_SIZE];
 
 void textFileArchiveRead::open(ossFileStream ossFile, std::string fileName, readOption options)
 {
-	openFile(ossFile, fileName.c_str(), setStreamFlag(options));
+	datalakeOpenFile(ossFile, fileName.c_str(), setStreamFlag(options));
 
 	archive = archive_read_new();
 	archive_read_support_filter_all(archive);
@@ -66,7 +66,7 @@ void textFileArchiveRead::setArchiveReadSupport(const char* fileName)
 ssize_t textFileArchiveRead::read_call_back(struct archive *a, void *client_data, const void **buffer)
 {
 	ossFileStream ossFile = (ossFileStream)client_data;
-	int size = readFile(ossFile, archiveReadBuff, ARCHIEVE_READ_BUFFER_SIZE);
+	int size = datalakeReadFile(ossFile, archiveReadBuff, ARCHIEVE_READ_BUFFER_SIZE);
 	*buffer = archiveReadBuff;
 	return size;
 }
@@ -94,7 +94,7 @@ bool textFileArchiveRead::isCompress() {
 ssize_t textFileArchiveRead::archive_seek_callback(struct archive *,
     void *_client_data, ssize_t offset, int whence) {
     ossFileStream ossFile = (ossFileStream)_client_data;
-    int64_t size = seekFile(ossFile, offset);
+    int64_t size = datalakeSeekFile(ossFile, offset);
     return size;
 }
 

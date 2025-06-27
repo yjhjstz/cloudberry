@@ -71,7 +71,7 @@ SortedMerge::filterNext(Reader *reader, int64_t *position)
 	bool shouldKeep;
 	bool nulls[2] = {false, false};
 	Datum values[2] = {0, 0};
-	InternalRecord record = {values, nulls, 0};
+	DatalakeInternalRecord record = {values, nulls, 0};
 
 	while (true)
 	{
@@ -82,7 +82,7 @@ SortedMerge::filterNext(Reader *reader, int64_t *position)
 		datafileSize = VARSIZE_ANY_EXHDR(values[0]);
 		datafileName = VARDATA_ANY(values[0]);
 
-		shouldKeep = charSeqEquals(datafileName, datafileSize, filename_, filenameSize_);
+		shouldKeep = datalakeCharSeqEquals(datafileName, datafileSize, filename_, filenameSize_);
 		pfree(DatumGetPointer(values[0]));
 
 		if (shouldKeep)

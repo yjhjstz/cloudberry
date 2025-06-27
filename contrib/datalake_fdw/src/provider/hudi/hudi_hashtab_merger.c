@@ -17,9 +17,9 @@ combineAndUpdateValue(MergeProvider *provider, InternalRecordWrapper *recordWrap
 static void
 updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper);
 static bool
-next(MergeProvider *provider, InternalRecord *record);
+next(MergeProvider *provider, DatalakeInternalRecord *record);
 static bool
-contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRecord, bool *isDeleted);
+contains(MergeProvider *provider, DatalakeInternalRecord *record, DatalakeInternalRecord **newRecord, bool *isDeleted);
 
 HudiHashTableMerger *
 createHudiHashTableMerger(MemoryContext mcxt,
@@ -74,25 +74,25 @@ combineAndUpdateValue(MergeProvider *provider, InternalRecordWrapper *recordWrap
 {
 	bool found;
 	MemoryContext oldMcxt;
-	LogRecordHashEntry *entry;
+	DatalakeLogRecordHashEntry *entry;
 	InternalRecordWrapper *newRecord;
 	HudiHashTableMerger *merger = (HudiHashTableMerger *) provider;
 
-	entry = (LogRecordHashEntry *) hash_search(merger->base.recordDesc->hashTab, &recordWrapper, HASH_FIND, NULL);
+	entry = (DatalakeLogRecordHashEntry *) hash_search(merger->base.recordDesc->hashTab, &recordWrapper, HASH_FIND, NULL);
 	if (entry)
 	{
 		InternalRecordWrapper *oldRecord = entry->recordValue;
 		hash_search(merger->base.recordDesc->hashTab, &recordWrapper, HASH_REMOVE, &found);
 
-		destroyInternalRecordWrapper(oldRecord);
+		datalakeDestroyInternalRecordWrapper(oldRecord);
 		Assert(found);
 	}
 
 	oldMcxt = MemoryContextSwitchTo(merger->mcxt);
-	newRecord = deepCopyRecord(recordWrapper);
+	newRecord = datalakeDeepCopyRecord(recordWrapper);
 	MemoryContextSwitchTo(oldMcxt);
 
-	entry = (LogRecordHashEntry *) hash_search(merger->base.recordDesc->hashTab, &newRecord, HASH_ENTER, &found);
+	entry = (DatalakeLogRecordHashEntry *) hash_search(merger->base.recordDesc->hashTab, &newRecord, HASH_ENTER, &found);
 	Assert(!found);
 
 	entry->recordValue = newRecord;
@@ -105,7 +105,7 @@ updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper)
 	Datum deleteOrderingVal;
 	Datum curOrderingVal;
 	MemoryContext oldMcxt;
-	LogRecordHashEntry *entry;
+	DatalakeLogRecordHashEntry *entry;
 	InternalRecordWrapper *newRecord;
 	HudiHashTableMerger *merger = (HudiHashTableMerger *) provider;
 
@@ -132,12 +132,12 @@ updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper)
 		}
 
 		hash_search(merger->base.recordDesc->hashTab, &recordWrapper, HASH_REMOVE, &found);
-		destroyInternalRecordWrapper(oldRecord);
+		datalakeDestroyInternalRecordWrapper(oldRecord);
 		Assert(found);
 	}
 
 	oldMcxt = MemoryContextSwitchTo(merger->mcxt);
-	newRecord = deepCopyRecord(recordWrapper);
+	newRecord = datalakeDeepCopyRecord(recordWrapper);
 	SET_RECORD_DELETED(newRecord);
 	MemoryContextSwitchTo(oldMcxt);
 
@@ -148,11 +148,11 @@ updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper)
 }
 
 static bool
-next(MergeProvider *provider, InternalRecord *record)
+next(MergeProvider *provider, DatalakeInternalRecord *record)
 {
-	LogRecordHashEntry *entry;
+	DatalakeLogRecordHashEntry *entry;
 	HudiHashTableMerger *merger = (HudiHashTableMerger *) provider;
-	InternalRecordDesc *recordDesc = merger->base.recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = merger->base.recordDesc;
 
 	if (!merger->isRegistered)
 	{
@@ -161,7 +161,7 @@ next(MergeProvider *provider, InternalRecord *record)
 	}
 
 again:
-	entry = (LogRecordHashEntry *) hash_seq_search(&merger->hashTabSeqStatus);
+	entry = (DatalakeLogRecordHashEntry *) hash_seq_search(&merger->hashTabSeqStatus);
 	if (entry)
 	{
 		int i;
@@ -188,9 +188,9 @@ again:
 }
 
 static bool
-contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRecord, bool *isDeleted)
+contains(MergeProvider *provider, DatalakeInternalRecord *record, DatalakeInternalRecord **newRecord, bool *isDeleted)
 {
-	LogRecordHashEntry *entry;
+	DatalakeLogRecordHashEntry *entry;
 	HudiHashTableMerger *merger = (HudiHashTableMerger *) provider;
 	InternalRecordWrapper  recordWrapper;
 	InternalRecordWrapper *pRecordWrapper = &recordWrapper;
@@ -198,7 +198,7 @@ contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRe
 	*isDeleted = false;
 	recordWrapper.record = *record;
 	recordWrapper.recordDesc = merger->base.recordDesc;
-	entry = (LogRecordHashEntry *) hash_search(merger->base.recordDesc->hashTab, &pRecordWrapper, HASH_FIND, NULL);
+	entry = (DatalakeLogRecordHashEntry *) hash_search(merger->base.recordDesc->hashTab, &pRecordWrapper, HASH_FIND, NULL);
 	if (entry == NULL)
 		return false;
 

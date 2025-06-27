@@ -55,7 +55,7 @@ AvroBlockReader::createMapping(List *columnDesc, bool *attrUsed)
 
 	foreach_with_count(lc, columnDesc, i)
 	{
-		FieldDescription *entry = (FieldDescription *) lfirst(lc);
+		DatalakeFieldDescription *entry = (DatalakeFieldDescription *) lfirst(lc);
 		TypeInfo typInfo = {entry->typeOid, entry->typeMod, InvalidOid, -1, TIMEUNIT_UNKNOWN};
 
 		typeMap_.push_back(typInfo);
@@ -82,7 +82,7 @@ AvroBlockReader::readNextRowGroup()
 	contentBufferPos_ += 4;
 	totalRecords = *((int *) (contentBuffer_ + contentBufferPos_));
 #ifndef WORDS_BIGENDIAN
-	totalRecords = reverse32(totalRecords);
+	totalRecords = datalakeReverse32(totalRecords);
 #endif
 	numRows_ = totalRecords;
 
@@ -194,7 +194,7 @@ AvroBlockReader::decodeRecord()
 	recordLength = *((int *) (contentBuffer_ + contentBufferPos_));
 
 #ifndef WORDS_BIGENDIAN
-	recordLength = reverse32(recordLength);
+	recordLength = datalakeReverse32(recordLength);
 #endif
 
 	contentBufferPos_ += 4;

@@ -16,7 +16,7 @@ void archiveFileWrite::open(ossFileStream ossFile, const std::string &fileName, 
 	archive = archive_write_new();
 	archive_entry =  archive_entry_new();
 
-	openFile(ossFile, fileName.c_str(), O_CREAT);
+	datalakeOpenFile(ossFile, fileName.c_str(), O_CREAT);
 
 	if (option.compression == UNCOMPRESS)
 	{
@@ -74,7 +74,7 @@ int64_t archiveFileWrite::write(const void* buf, size_t length)
 	int64_t n = 0;
 	if (option.compression == UNCOMPRESS)
 	{
-		n = writeFile(ossFile, (void*)buf, length);
+		n = datalakeWriteFile(ossFile, (void*)buf, length);
 	}
 	else
 	{
@@ -87,7 +87,7 @@ int64_t archiveFileWrite::write(const void* buf, size_t length)
 ssize_t archiveFileWrite::write_call_back(struct archive * arch, void *client_data, const void *buffer, size_t length)
 {
 	ossFileStream stream = (ossFileStream)client_data;
-	int size = writeFile(stream, (void*)buffer, length);
+	int size = datalakeWriteFile(stream, (void*)buffer, length);
 	return size;
 }
 
@@ -116,7 +116,7 @@ void archiveFileWrite::close()
 		}
 	}
 
-	closeFile(ossFile);
+	datalakeCloseFile(ossFile);
 	openState = false;
 }
 

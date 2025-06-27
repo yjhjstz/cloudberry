@@ -5,7 +5,7 @@
 #include "src/dlproxy/datalake.h"
 #include "src/provider/common/utils.h"
 
-typedef struct PositionFilter
+typedef struct DatalakePositionFilter
 {
 	Reader            base;
 	void             *deletesSet;
@@ -15,10 +15,10 @@ typedef struct PositionFilter
 	int64             nextPosition;
 	bool              isEmptyStream;
 	MemoryContext	  mcxt;
-} PositionFilter;
+} DatalakePositionFilter;
 
-PositionFilter *
-createPositionFilter(MemoryContext readerMcxt,
+DatalakePositionFilter *
+datalakeCreatePositionFilter(MemoryContext readerMcxt,
 					 Reader *dataReader,
 					 gopherFS gopherFilesystem,
 					 char *dataFilePath,

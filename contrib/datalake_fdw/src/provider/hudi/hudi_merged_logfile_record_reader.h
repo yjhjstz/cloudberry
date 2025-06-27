@@ -38,11 +38,11 @@ void performScan(HudiMergedLogfileRecordReader *reader);
 
 void mergedLogfileRecordReaderClose(HudiMergedLogfileRecordReader *reader);
 
-bool mergedLogfileRecordReaderNext(HudiMergedLogfileRecordReader *reader, InternalRecord *record);
+bool mergedLogfileRecordReaderNext(HudiMergedLogfileRecordReader *reader, DatalakeInternalRecord *record);
 
 bool mergedLogfileContains(HudiMergedLogfileRecordReader *reader,
-						   InternalRecord *record,
-						   InternalRecord **newRecord,
+						   DatalakeInternalRecord *record,
+						   DatalakeInternalRecord **newRecord,
 						   bool *isDeleted);
 
 #endif // HUDI_MERGED_LOGFILE_RECORD_READER_H

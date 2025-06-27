@@ -34,7 +34,7 @@ typedef const char * (*transform_callback) (const char *key);
 typedef struct sDlProxyInputData
 {
 	CHURL_HEADERS  headers;
-	GPHDUri        *gphduri;
+	DatalakeGPHDUri        *gphduri;
 	Relation       rel;
 	char           *filterstr;
 	List           *retrieved_attrs;

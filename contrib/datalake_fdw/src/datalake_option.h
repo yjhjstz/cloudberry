@@ -3,18 +3,18 @@
 
 #include "datalake_def.h"
 
-dataLakeOptions *getOptions(Oid foreigntableid);
+dataLakeOptions *datalakeGetOptions(Oid foreigntableid);
 
-List* getCopyOptions(Oid foreigntableid);
+List* datalakeGetCopyOptions(Oid foreigntableid);
 
-List* getCustomOption(Oid foreigntableid);
+List* datalakeGetCustomOptions(Oid foreigntableid);
 
-void getCopyLogErrorOptions(Oid foreigntableid, int *rejectlimit,
+void datalakeGetCopyLogerrorOptions(Oid foreigntableid, int *rejectlimit,
 			   bool *islimitinrows, char *logerrors);
 
-void getURIFromOptions(Oid foreigntableid, char** uri);
+void datalakeGetUriFromOptions(Oid foreigntableid, char** uri);
 
-void freeDataLakeOptions(dataLakeOptions *options);
+void datalakeFreeDatalakeOptions(dataLakeOptions *options);
 
-void checkValidRecordBatchOpt(dataLakeOptions *options);
+void datalakeCheckValidRecordBatchOpt(dataLakeOptions *options);
 #endif							/* DATALAKE_OPTION_H */

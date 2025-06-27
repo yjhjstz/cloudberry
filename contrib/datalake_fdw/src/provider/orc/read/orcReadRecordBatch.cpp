@@ -20,7 +20,7 @@ namespace Internal {
 void orcReadRecordBatch::createHandler(void *sstate)
 {
 	initParameter(sstate);
-	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	datalakeExecSegment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
 	if (!exec)
 	{
 		return;
@@ -40,7 +40,7 @@ void orcReadRecordBatch::destroyHandler()
 {
 	tupleIndex = 0;
 	fileReader.closeORCReader();
-	destroyFileSystem(fileStream);
+	datalakeDestroyFileSystem(fileStream);
 	fileStream = NULL;
 	releaseResources();
 }
@@ -267,7 +267,7 @@ nextPartition:
 					continue;
 				}
 				std::string columnName = tupdesc->attrs[defaultMap[i]].attname.data;
-				Datum partitionvalue = ExecEvalConst2(defaultExprs[i], NULL, NULL);
+				Datum partitionvalue = datalakeExecEvalConst2(defaultExprs[i], NULL, NULL);
 				recordBatchAddColumn(defaultMap[i], out->num_columns(), columnName, partitionvalue, tupleIndex);
 			}
 		}
@@ -276,7 +276,7 @@ nextPartition:
 		return 1;
 	}
 
-	if (!isLastPartition(scanstate))
+	if (!datalakeIsLastPartition(scanstate))
 	{
 		restart();
 		goto nextPartition;

@@ -164,20 +164,20 @@
 
 
 
-enum PrivatePartitionDataIndex
+enum datalakePrivatePartitionDataIndex
 {
 	PrivatePartionString = 0,
 	PrivatePartionStringLength,
 };
 
-enum PrivatePartitionIndex
+enum datalakePrivatePartitionIndex
 {
 	PrivatePartitionData = 2,
 	/* hive partition fragment lists */
 	PrivatePartitionFragmentLists
 };
 
-enum FdwScanPrivateIndex
+enum datalakeFdwScanPrivateIndex
 {
 	FdwScanHdfsConfig,
 	/* Integer list of attribute numbers retrieved by the SELECT */
@@ -314,7 +314,7 @@ typedef struct dataLakeCopyState
 
 typedef struct dataLakeCustomState
 {
-	exttable_fdw_state *fdw_state;
+	datalake_exttable_fdw_state *fdw_state;
 	DatalakeExternalInsertDesc insert_state;
 } dataLakeCustomState;
 
@@ -338,11 +338,11 @@ typedef struct dataLakeFdwScanState
 } dataLakeFdwScanState;
 
 
-typedef struct fragmentData
+typedef struct datalakeFragmentData
 {
 	char* filePath;
 	int64_t length;
 	bool directory;
-}fragmentData;
+}datalakeFragmentData;
 
 #endif							/* DATALAKE_DEF_H */

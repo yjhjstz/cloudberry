@@ -7,10 +7,10 @@
 #include "hudi_merged_logfile_record_reader.h"
 #include "hudi_deltalog_filter.h"
 
-static bool deltaLogFilterNext(Reader *filter, InternalRecord *record);
+static bool deltaLogFilterNext(Reader *filter, DatalakeInternalRecord *record);
 static void deltaLogFilterClose(Reader *filter);
-static bool logFilterNext(DeltaLogFilter *filter, InternalRecord *record);
-static bool mergeFilterNext(DeltaLogFilter *filter, InternalRecord *record);
+static bool logFilterNext(DeltaLogFilter *filter, DatalakeInternalRecord *record);
+static bool mergeFilterNext(DeltaLogFilter *filter, DatalakeInternalRecord *record);
 
 static Reader methods = {
 	NULL,
@@ -53,7 +53,7 @@ createDeltaLogFilter(MemoryContext mcxt,
 }
 
 static bool
-deltaLogFilterNext(Reader *filter, InternalRecord *record)
+deltaLogFilterNext(Reader *filter, DatalakeInternalRecord *record)
 {
 	DeltaLogFilter *deltaLogFilter = (DeltaLogFilter *) filter;
 
@@ -80,18 +80,18 @@ deltaLogFilterClose(Reader *filter)
 }
 
 static bool
-logFilterNext(DeltaLogFilter *filter, InternalRecord *record)
+logFilterNext(DeltaLogFilter *filter, DatalakeInternalRecord *record)
 {
 	return mergedLogfileRecordReaderNext(filter->deltaSet, record);
 }
 
 static bool
-mergeFilterNext(DeltaLogFilter *filter, InternalRecord *record)
+mergeFilterNext(DeltaLogFilter *filter, DatalakeInternalRecord *record)
 {
 	int  i;
 	bool exist;
 	bool isDeleted;
-	InternalRecord *newRecord;
+	DatalakeInternalRecord *newRecord;
 
 	while(!filter->readLogs && filter->dataReader->Next(filter->dataReader, record))
 	{

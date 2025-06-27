@@ -7,7 +7,7 @@
 #include "parquet_reader_c.h"
 #include "avro_block_reader_c.h"
 
-static bool fileReaderNext(Reader *reader, InternalRecord *record);
+static bool fileReaderNext(Reader *reader, DatalakeInternalRecord *record);
 static void fileReaderClose(Reader *reader);
 
 static Reader methods = {
@@ -16,7 +16,7 @@ static Reader methods = {
 	fileReaderClose,
 };
 
-static FormatReader parquetReader = {
+static DatalakeFormatReader parquetReader = {
 	"parquet",
 	create_parquet_reader,
 	parquet_open,
@@ -24,7 +24,7 @@ static FormatReader parquetReader = {
 	parquet_close
 };
 
-static FormatReader orcReader = {
+static DatalakeFormatReader orcReader = {
 	"orc",
 	NULL,
 	NULL,
@@ -32,7 +32,7 @@ static FormatReader orcReader = {
 	NULL
 };
 
-static FormatReader avroReader = {
+static DatalakeFormatReader avroReader = {
 	"avro",
 	NULL,
 	NULL,
@@ -40,7 +40,7 @@ static FormatReader avroReader = {
 	NULL
 };
 
-static FormatReader avroBlockReader = {
+static DatalakeFormatReader avroBlockReader = {
 	"avro block",
 	create_avro_block_reader,
 	avro_block_open,
@@ -49,7 +49,7 @@ static FormatReader avroBlockReader = {
 };
 
 FileReader *
-createFileReader(MemoryContext mcxt,
+datalakeCreateFileReader(MemoryContext mcxt,
 				 List *columnDesc,
 				 bool *attrUsed,
 				 bool isFileStream,
@@ -100,7 +100,7 @@ createFileReader(MemoryContext mcxt,
 }
 
 static bool
-fileReaderNext(Reader *reader, InternalRecord *record)
+fileReaderNext(Reader *reader, DatalakeInternalRecord *record)
 {
 	FileReader *fileReader = (FileReader *) reader;
 	return fileReader->formatReader->Next(fileReader->dataReader, record);

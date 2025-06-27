@@ -214,7 +214,7 @@ freeForeignTableCache(Relation relation)
 
 	foreigntableid = RelationGetRelid(relation);
 
-	dataLakeOptions *options = getOptions(foreigntableid);
+	dataLakeOptions *options = datalakeGetOptions(foreigntableid);
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 		return 0;
@@ -238,15 +238,15 @@ GopherRemoveFileMetaUnderGphdfs(dataLakeOptions *options)
 	int mRecursive = 1;
 	int mForce = 1;
 
-	gopherConfig* conf = createGopherConfig((void*)options->gopher);
-	ossFileStream stream = createFileSystem(conf);
-	freeGopherConfig(conf);
-	int ufsId = getUfsId(stream);
+	gopherConfig* conf = datalakeCreateGopherConfig((void*)options->gopher);
+	ossFileStream stream = datalakeCreateFileSystem(conf);
+	datalakeFreeGopherConfig(conf);
+	int ufsId = datalakeGetUfsId(stream);
 	if (ufsId < 0)
 	{
 		return -1;
 	}
-	gopherDestroyHandle(stream);
+	datalakeGopherDestroyHandle(stream);
 	int result = 0;
 	if (PROTOCOL_IS_HDFS(options->protocol))
 	{

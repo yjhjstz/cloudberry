@@ -34,7 +34,7 @@ typedef struct
 {
 	CHURL_HEADERS  churl_headers;
 	CHURL_HANDLE   churl_handle;
-	GPHDUri        *gphd_uri;
+	DatalakeGPHDUri        *gphd_uri;
 	StringInfoData uri;
 	Relation       relation;
 	char           *filterstr;
@@ -46,13 +46,13 @@ typedef struct
 	size_t          buffer_size;
 	char           *relName;
 	char           *schemaName;
-} gphadoop_context;
+} datalake_gphadoop_context;
 
 typedef struct
 {
 	char *option_name;
 	char *property_name;
-} option_mapping;
+} datalake_option_mapping;
 
 typedef List * (*parse_callback) (char *buffer, size_t buffer_size);
 
@@ -84,16 +84,16 @@ internal_get_external_fragments(char *profile,
 								parse_callback parseFn);
 
 extern void
-destroy_context(gphadoop_context *context, bool afterError);
+datalake_destroy_context(datalake_gphadoop_context *context, bool afterError);
 
-extern gphadoop_context *
-create_context(Oid relid, const char *uriStr, transform_callback transformFn);
+extern datalake_gphadoop_context *
+datalake_create_context(Oid relid, const char *uriStr, transform_callback transformFn);
 
-extern gphadoop_context *
-create_context2(char *relName, char *schemaName, const char *uriStr, transform_callback transformFn);
+extern datalake_gphadoop_context *
+datalake_create_context2(char *relName, char *schemaName, const char *uriStr, transform_callback transformFn);
 
-extern gphadoop_context *
-create_fragment_context(Oid relid,
+extern datalake_gphadoop_context *
+datalake_create_fragment_context(Oid relid,
 						Index relno,
 						List *restrictInfo,
 						List *retrievedAttrs,
@@ -101,7 +101,7 @@ create_fragment_context(Oid relid,
 						transform_callback transformFn);
 
 extern void
-doRPC(gphadoop_context *context);
+datalakeDoRPC(datalake_gphadoop_context *context);
 
 
 

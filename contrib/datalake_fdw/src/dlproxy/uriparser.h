@@ -33,16 +33,16 @@
 /*
  * Structure to store options data, such as types of fragmenters, accessors and resolvers
  */
-typedef struct OptionData
+typedef struct datalakeOptionData
 {
 	char	   *key;
 	char	   *value;
-} OptionData;
+} datalakeOptionData;
 
 /*
- * GPHDUri - Describes the contents of a hadoop uri.
+ * DatalakeGPHDUri - Describes the contents of a hadoop uri.
  */
-typedef struct GPHDUri
+typedef struct DatalakeGPHDUri
 {
 	char	   *uri;			/* the unparsed user uri    */
 	char	   *protocol;		/* the protocol name        */
@@ -50,26 +50,26 @@ typedef struct GPHDUri
 	char	   *port;			/* port number as string    */
 	char	   *data;			/* data location (path)     */
 	char	   *profile;		/* profile option           */
-	List	   *options;		/* list of OptionData       */
-} GPHDUri;
+	List	   *options;		/* list of datalakeOptionData       */
+} DatalakeGPHDUri;
 
 /*
  * Parses a string URI into a data structure
  */
-GPHDUri *datalake_parseGPHDUri(const char *uri_str);
-GPHDUri *datalake_parseGPHDUriHostPort(const char *uri_str, const char *host, const int port);
+DatalakeGPHDUri *datalake_parseGPHDUri(const char *uri_str);
+DatalakeGPHDUri *datalake_parseGPHDUriHostPort(const char *uri_str, const char *host, const int port);
 
 /*
  * Validation functions
  */
-bool datalake_GPHDUri_opt_exists(GPHDUri *uri, char *key);
-void datalake_GPHDUri_verify_no_duplicate_options(GPHDUri *uri);
-void datalake_GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions);
-const char *datalake_getOptionValue(GPHDUri *uri, const char *key);
+bool datalake_GPHDUri_opt_exists(DatalakeGPHDUri *uri, char *key);
+void datalake_GPHDUri_verify_no_duplicate_options(DatalakeGPHDUri *uri);
+void datalake_GPHDUri_verify_core_options_exist(DatalakeGPHDUri *uri, List *coreOptions);
+const char *datalake_getOptionValue(DatalakeGPHDUri *uri, const char *key);
 
 /*
  * Frees the elements of the data structure
  */
-void datalake_freeGPHDUri(GPHDUri *uri);
+void datalake_freeGPHDUri(DatalakeGPHDUri *uri);
 
 #endif /* _URIPARSER_H_ */

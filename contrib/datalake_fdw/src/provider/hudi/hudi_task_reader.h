@@ -18,7 +18,7 @@ typedef struct HudiTaskReader
 } HudiTaskReader;
 
 Reader *createHudiTaskReader(void *args);
-bool hudiTaskReaderNext(Reader *reader, InternalRecord *record);
+bool hudiTaskReaderNext(Reader *reader, DatalakeInternalRecord *record);
 void hudiTaskReaderClose(Reader *reader);
 
 #endif // HUDI_TASK_READER_H

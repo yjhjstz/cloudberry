@@ -34,7 +34,7 @@ static const char *
 transform_hive_options(const char *key)
 {
 	int i;
-	static option_mapping configElts[] = {
+	static datalake_option_mapping configElts[] = {
 		{"hive_cluster_name", "server"},
 		{"datasource", "data-source"}
 	};
@@ -49,7 +49,7 @@ transform_hive_options(const char *key)
 }
 
 List *
-parsePartitionResponse(char *buffer, size_t buffer_size)
+datalakeParsePartitionResponse(char *buffer, size_t buffer_size)
 {
 	List         *result = NIL;
 	json_t       *jroot;
@@ -85,7 +85,7 @@ parsePartitionResponse(char *buffer, size_t buffer_size)
 }
 
 void
-freePartitionList(List *partitions)
+datalakeFreePartitionList(List *partitions)
 {
 	ListCell *lci;
 	ListCell *lco;
@@ -110,25 +110,25 @@ List *
 hive_get_external_partitions(Oid relid, List *locations)
 {
 	List *result = NIL;
-	volatile gphadoop_context *context = NULL;
+	volatile datalake_gphadoop_context *context = NULL;
 
 	PG_TRY();
 	{
-		context = create_context(relid, strVal(linitial(locations)), transform_hive_options);
+		context = datalake_create_context(relid, strVal(linitial(locations)), transform_hive_options);
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-PROFILE", "hive");
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CONFIG", "gphive.conf");
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-METHOD", "getPartitions");
 		datalake_churl_headers_append(context->churl_headers, "X-GP-OPTIONS-CATALOG-TYPE", "hive");
 
-		doRPC((gphadoop_context *) context);
-		result = parsePartitionResponse(context->buffer, context->buffer_pos);
-		destroy_context((gphadoop_context *) context, false);
+		datalakeDoRPC((datalake_gphadoop_context *) context);
+		result = datalakeParsePartitionResponse(context->buffer, context->buffer_pos);
+		datalake_destroy_context((datalake_gphadoop_context *) context, false);
 		context = NULL;
 	}
 	PG_CATCH();
 	{
 		if (context)
-			destroy_context((gphadoop_context *) context, true);
+			datalake_destroy_context((datalake_gphadoop_context *) context, true);
 
 		PG_RE_THROW();
 	}

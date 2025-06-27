@@ -97,7 +97,7 @@ static List* need_random(int num_nodes, int random_num)
 }
 
 List*
-select_random_segments(int num_nodes, int random_num)
+datalakeSelectRandomSegments(int num_nodes, int random_num)
 {
 	if (!check_is_valid_random_num(num_nodes, random_num))
 	{
@@ -114,7 +114,7 @@ select_random_segments(int num_nodes, int random_num)
 	return NIL;
 }
 
-void exec_segment(List* selectSegments, int cursegid, int cursegnum,
+void datalakeExecSegment(List* selectSegments, int cursegid, int cursegnum,
 				  bool *exec, int *segindex, int *segnum) {
   int cursegindex = cursegid;
   int size = list_length(selectSegments);

@@ -28,11 +28,11 @@ static const char *OPTION_SEP = " ";
 static const int EMPTY_VALUE_LEN = 2;
 
 /* helper function declarations */
-static void GPHDUri_parse_protocol(GPHDUri *uri, char **cursor);
-static void GPHDUri_parse_data(GPHDUri *uri, char **cursor);
-static void GPHDUri_parse_options(GPHDUri *uri, char **cursor);
-static List *GPHDUri_parse_option(char *pair, GPHDUri *uri);
-static void GPHDUri_free_options(GPHDUri *uri);
+static void GPHDUri_parse_protocol(DatalakeGPHDUri *uri, char **cursor);
+static void GPHDUri_parse_data(DatalakeGPHDUri *uri, char **cursor);
+static void GPHDUri_parse_options(DatalakeGPHDUri *uri, char **cursor);
+static List *GPHDUri_parse_option(char *pair, DatalakeGPHDUri *uri);
+static void GPHDUri_free_options(DatalakeGPHDUri *uri);
 
 /* parseGPHDUri
  *
@@ -52,18 +52,18 @@ static void GPHDUri_free_options(GPHDUri *uri);
  *         'uri_str'    - the raw uri str
  *
  * returns:
- *         a parsed uri as a GPHDUri structure, or reports a format error.
+ *         a parsed uri as a DatalakeGPHDUri structure, or reports a format error.
  */
-GPHDUri *
+DatalakeGPHDUri *
 datalake_parseGPHDUri(const char *uri_str)
 {
 	return datalake_parseGPHDUriHostPort(uri_str, get_dlproxy_host(), get_dlproxy_port());
 }
 
-GPHDUri *
+DatalakeGPHDUri *
 datalake_parseGPHDUriHostPort(const char *uri_str, const char *host, const int port)
 {
-	GPHDUri    *uri = (GPHDUri *) palloc0(sizeof(GPHDUri));
+	DatalakeGPHDUri    *uri = (DatalakeGPHDUri *) palloc0(sizeof(DatalakeGPHDUri));
 	uri->host = pstrdup(host);
 	uri->port = psprintf("%d", port);
 	uri->uri = pstrdup(uri_str);
@@ -80,7 +80,7 @@ datalake_parseGPHDUriHostPort(const char *uri_str, const char *host, const int p
  * Frees the elements of the data structure
  */
 void
-datalake_freeGPHDUri(GPHDUri *uri)
+datalake_freeGPHDUri(DatalakeGPHDUri *uri)
 {
 	if (uri->protocol)
 		pfree(uri->protocol);
@@ -107,7 +107,7 @@ datalake_freeGPHDUri(GPHDUri *uri)
  * See parseGPHDUri header for URI structure description.
  */
 static void
-GPHDUri_parse_protocol(GPHDUri *uri, char **cursor)
+GPHDUri_parse_protocol(DatalakeGPHDUri *uri, char **cursor)
 {
 	char	   *start = *cursor;
 	char	   *post_ptc = strstr(start, PTC_SEP);
@@ -133,7 +133,7 @@ GPHDUri_parse_protocol(GPHDUri *uri, char **cursor)
  * See parseGPHDUri header for URI structure description.
  */
 static void
-GPHDUri_parse_data(GPHDUri *uri, char **cursor)
+GPHDUri_parse_data(DatalakeGPHDUri *uri, char **cursor)
 {
 	char	   *start = *cursor;
 	size_t		data_len = strlen(start);
@@ -162,7 +162,7 @@ GPHDUri_parse_data(GPHDUri *uri, char **cursor)
  * See parseGPHDUri header for URI structure description.
  */
 static void
-GPHDUri_parse_options(GPHDUri *uri, char **cursor)
+GPHDUri_parse_options(DatalakeGPHDUri *uri, char **cursor)
 {
 	char	   *dup = pstrdup(*cursor);
 	char	   *start = dup;
@@ -194,12 +194,12 @@ GPHDUri_parse_options(GPHDUri *uri, char **cursor)
 /*
  * Parse an option in the form:
  * <key>=<value>
- * to OptionData object (key and value).
+ * to datalakeOptionData object (key and value).
  */
 static List *
-GPHDUri_parse_option(char *pair, GPHDUri *uri)
+GPHDUri_parse_option(char *pair, DatalakeGPHDUri *uri)
 {
-	OptionData *option_data = palloc0(sizeof(OptionData));
+	datalakeOptionData *option_data = palloc0(sizeof(datalakeOptionData));
 	char	   *sep = strchr(pair, '=');
 
 	if (sep == NULL)
@@ -224,7 +224,7 @@ GPHDUri_parse_option(char *pair, GPHDUri *uri)
 	option_data->key = pnstrdup(pair, key_len);
 	option_data->value = pnstrdup(sep + 1, value_len);
 
-	char	   *x_gp_key = normalize_key_name(option_data->key);
+	char	   *x_gp_key = datalake_normalize_key_name(option_data->key);
 
 	if (strcmp(x_gp_key, "X-GP-OPTIONS-PROFILE") == 0)
 		uri->profile = pstrdup(option_data->value);
@@ -237,13 +237,13 @@ GPHDUri_parse_option(char *pair, GPHDUri *uri)
  * Free options list
  */
 static void
-GPHDUri_free_options(GPHDUri *uri)
+GPHDUri_free_options(DatalakeGPHDUri *uri)
 {
 	ListCell   *option = NULL;
 
 	foreach(option, uri->options)
 	{
-		OptionData *data = (OptionData *) lfirst(option);
+		datalakeOptionData *data = (datalakeOptionData *) lfirst(option);
 
 		pfree(data->key);
 		pfree(data->value);
@@ -259,13 +259,13 @@ GPHDUri_free_options(GPHDUri *uri)
  * Returns 0 if the key was found with a non empty value, -1 otherwise.
  */
 bool
-datalake_GPHDUri_opt_exists(GPHDUri *uri, char *key)
+datalake_GPHDUri_opt_exists(DatalakeGPHDUri *uri, char *key)
 {
 	ListCell   *item;
 
 	foreach(item, uri->options)
 	{
-		OptionData *data = (OptionData *) lfirst(item);
+		datalakeOptionData *data = (datalakeOptionData *) lfirst(item);
 
 		if (data != NULL && pg_strcasecmp(data->key, key) == 0 && strlen(data->value) > 0)
 			return true;
@@ -278,7 +278,7 @@ datalake_GPHDUri_opt_exists(GPHDUri *uri, char *key)
  * verify each option appears only once (case insensitive)
  */
 void
-datalake_GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
+datalake_GPHDUri_verify_no_duplicate_options(DatalakeGPHDUri *uri)
 {
 	ListCell   *option = NULL;
 	List	   *duplicateKeys = NIL;
@@ -286,7 +286,7 @@ datalake_GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
 
 	foreach(option, uri->options)
 	{
-		OptionData *data = (OptionData *) lfirst(option);
+		datalakeOptionData *data = (datalakeOptionData *) lfirst(option);
 		Value	   *key = makeString(asc_toupper(data->key, strlen(data->key)));
 
 		if (!list_member(previousKeys, key))
@@ -326,7 +326,7 @@ datalake_GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
  * This function is given a list of core options to verify their existence.
  */
 void
-datalake_GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions)
+datalake_GPHDUri_verify_core_options_exist(DatalakeGPHDUri *uri, List *coreOptions)
 {
 	ListCell   *coreOption = NULL;
 	StringInfoData missing;
@@ -342,7 +342,7 @@ datalake_GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions)
 
 		foreach(option, uri->options)
 		{
-			char	   *key = ((OptionData *) lfirst(option))->key;
+			char	   *key = ((datalakeOptionData *) lfirst(option))->key;
 
 			if (pg_strcasecmp(key, coreOptionStr) == 0)
 			{
@@ -367,13 +367,13 @@ datalake_GPHDUri_verify_core_options_exist(GPHDUri *uri, List *coreOptions)
 }
 
 const char *
-datalake_getOptionValue(GPHDUri *uri, const char *key)
+datalake_getOptionValue(DatalakeGPHDUri *uri, const char *key)
 {
 	ListCell   *item;
 
 	foreach(item, uri->options)
 	{
-		OptionData *data = (OptionData *) lfirst(item);
+		datalakeOptionData *data = (datalakeOptionData *) lfirst(item);
 
 		if (data != NULL && pg_strcasecmp(data->key, key) == 0 && strlen(data->value) > 0)
 			return data->value;

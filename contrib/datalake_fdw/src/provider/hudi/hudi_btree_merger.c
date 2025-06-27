@@ -27,9 +27,9 @@ combineAndUpdateValue(MergeProvider *provider, InternalRecordWrapper *recordWrap
 static void
 updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper);
 static bool
-next(MergeProvider *provider, InternalRecord *record);
+next(MergeProvider *provider, DatalakeInternalRecord *record);
 static bool
-contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRecord, bool *isDeleted);
+contains(MergeProvider *provider, DatalakeInternalRecord *record, DatalakeInternalRecord **newRecord, bool *isDeleted);
 
 #define RESERVE_MAPFILE_SIZE 1024 * 1024 * 64
 
@@ -166,7 +166,7 @@ encodeRecordKey(MergeProvider *provider, InternalRecordWrapper *recordWrapper, S
 	Oid   typOutput;
 	bool  typIsVarlena;
 	HudiBtreeMerger *merger = (HudiBtreeMerger *) provider;
-	InternalRecordDesc *recordDesc = merger->base.recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = merger->base.recordDesc;
 
 	for (i = 0; i < recordDesc->nKeys; i++)
 	{
@@ -273,7 +273,7 @@ updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper)
 	MemoryContext oldMcxt;
 	StringInfoData strKey;
 	HudiBtreeMerger *merger = (HudiBtreeMerger *) provider;
-	InternalRecordDesc *recordDesc = merger->base.recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = merger->base.recordDesc;
 
 	MemoryContextReset(merger->mcxt);
 	oldMcxt = MemoryContextSwitchTo(merger->mcxt);
@@ -337,7 +337,7 @@ updateOnDelete(MergeProvider *provider, InternalRecordWrapper *recordWrapper)
 }
 
 static bool
-next(MergeProvider *provider, InternalRecord *record)
+next(MergeProvider *provider, DatalakeInternalRecord *record)
 {
 	int result;
 	MDB_val key;
@@ -346,7 +346,7 @@ next(MergeProvider *provider, InternalRecord *record)
 	bool   *isnull;
 	MemoryContext oldMcxt;
 	HudiBtreeMerger *merger = (HudiBtreeMerger *) provider;
-	InternalRecordDesc *recordDesc = merger->base.recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = merger->base.recordDesc;
 
 	if (!merger->isRegistered)
 	{
@@ -400,7 +400,7 @@ again:
 }
 
 static bool
-contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRecord, bool *isDeleted)
+contains(MergeProvider *provider, DatalakeInternalRecord *record, DatalakeInternalRecord **newRecord, bool *isDeleted)
 {
 	int  result;
 	MDB_val key;
@@ -409,7 +409,7 @@ contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRe
 	StringInfoData strKey;
 	InternalRecordWrapper recordWrapper;
 	HudiBtreeMerger *merger = (HudiBtreeMerger *) provider;
-	InternalRecordDesc *recordDesc = merger->base.recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = merger->base.recordDesc;
 
 	*isDeleted = false;
 
@@ -443,7 +443,7 @@ contains(MergeProvider *provider, InternalRecord *record, InternalRecord **newRe
 	}
 
 	{
-		InternalRecord *deformRecord = palloc0(sizeof(InternalRecord));
+		DatalakeInternalRecord *deformRecord = palloc0(sizeof(DatalakeInternalRecord));
 
 		deformRecord->values = (Datum *) palloc(recordDesc->nColumns * sizeof(Datum));
 		deformRecord->nulls = (bool *) palloc(recordDesc->nColumns * sizeof(bool));

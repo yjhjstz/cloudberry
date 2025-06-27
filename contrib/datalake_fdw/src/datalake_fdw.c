@@ -507,7 +507,7 @@ extract_used_attributes(RelOptInfo *baserel)
 }
 
 static void
-deparseTargetList(Relation rel, Bitmapset *attrs_used, List **retrieved_attrs)
+datalakeDeparseTargetList(Relation rel, Bitmapset *attrs_used, List **retrieved_attrs)
 {
 	TupleDesc	tupdesc = RelationGetDescr(rel);
 	bool		have_wholerow;
@@ -570,7 +570,7 @@ dataLakeGetForeignPaths(PlannerInfo *root,
 	/* Collect used attributes to reduce number of read columns during scan */
     extract_used_attributes(baserel);
 
-	deparseTargetList(rel, fdw_private->attrs_used, &fdw_private->retrieved_attrs);
+	datalakeDeparseTargetList(rel, fdw_private->attrs_used, &fdw_private->retrieved_attrs);
 
 	path = create_foreignscan_path(root, baserel,
 #if PG_VERSION_NUM >= 90600
@@ -723,7 +723,7 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 
 	dataLakeFdwScanState *dataLakesstate  	= (dataLakeFdwScanState *) palloc0(sizeof(dataLakeFdwScanState));
 	Oid			foreigntableid 				= RelationGetRelid(node->ss.ss_currentRelation);
-	dataLakesstate->options 				= getOptions(foreigntableid);
+	dataLakesstate->options 				= datalakeGetOptions(foreigntableid);
 	dataLakesstate->rel						= node->ss.ss_currentRelation;
 	List* fragmentData						= NIL;
 	ForeignScan *foreignScan      			= (ForeignScan *) node->ss.ps.plan;
@@ -736,7 +736,7 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 	if (eflags & EXEC_FLAG_VECTOR)
 	{
 		dataLakesstate->options->vectorization = true;
-		checkValidRecordBatchOpt(dataLakesstate->options);
+		datalakeCheckValidRecordBatchOpt(dataLakesstate->options);
 	}
 
 	List *retrieved_attrs = (List *) list_nth(foreignScan->fdw_private, FdwScanPrivateRetrievedAttrs);
@@ -747,13 +747,13 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 	 */
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
-		fragmentData = GetExternalFragmentList(dataLakesstate->rel, dataLakesstate->quals, dataLakesstate->options, NULL);
+		fragmentData = datalakeGetExternalFragmentList(dataLakesstate->rel, dataLakesstate->quals, dataLakesstate->options, NULL);
 		if (fragmentData != NIL)
 		{
 			foreignScan->fdw_private = list_concat(foreignScan->fdw_private, fragmentData);
 		}
 		/* master does not process any fragments */
-		List *random_segments = select_random_segments(segmentcount, external_table_limit_segment_num);
+		List *random_segments = datalakeSelectRandomSegments(segmentcount, external_table_limit_segment_num);
 		/* put the random segments into the list */
 		foreignScan->fdw_private = list_concat(foreignScan->fdw_private, random_segments);
 		return;
@@ -769,7 +769,7 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 
 	/* remove the last segmentcount elements */
 	foreignScan->fdw_private = list_truncate(foreignScan->fdw_private, len - segmentcount);
-	fragmentData = deserializeExternalFragmentList(dataLakesstate->rel, dataLakesstate->quals, dataLakesstate->options, foreignScan->fdw_private);
+	fragmentData = datalakeDeserializeExternalFragmentList(dataLakesstate->rel, dataLakesstate->quals, dataLakesstate->options, foreignScan->fdw_private);
 
 	dataLakesstate->selected_segments = selected_segments;
 	dataLakesstate->options->readFdw = true;
@@ -1056,7 +1056,7 @@ dataLakeBeginForeignModify(ModifyTableState *mtstate,
 
 	dataLakeFdwScanState *dataLakesstate  = (dataLakeFdwScanState *) palloc0(sizeof(dataLakeFdwScanState));
 	Relation	relation 			= resultRelInfo->ri_RelationDesc;
-	dataLakesstate->options 		= getOptions(RelationGetRelid(relation));
+	dataLakesstate->options 		= datalakeGetOptions(RelationGetRelid(relation));
 	dataLakesstate->rel				= relation;
 	dataLakesstate->options->readFdw = false;
 	resultRelInfo->ri_FdwState = dataLakesstate;
@@ -1241,14 +1241,14 @@ InitCopyState(ForeignScanState *node, dataLakeFdwScanState *sstate)
 #endif
 	/* datalake not support masteronly */
 	bool isMasterOnly = false;
-	List* copy_options = getCopyOptions(RelationGetRelid(sstate->rel));
+	List* copy_options = datalakeGetCopyOptions(RelationGetRelid(sstate->rel));
 	int rejectlimit = -1;
 	bool islimitinrows = false;
 	char logerrors = LOG_ERRORS_DISABLE;
 	char* uri = NULL;
 	int eflags = 0;
-	getCopyLogErrorOptions(RelationGetRelid(sstate->rel), &rejectlimit, &islimitinrows, &logerrors);
-	getURIFromOptions(RelationGetRelid(sstate->rel), &uri);
+	datalakeGetCopyLogerrorOptions(RelationGetRelid(sstate->rel), &rejectlimit, &islimitinrows, &logerrors);
+	datalakeGetUriFromOptions(RelationGetRelid(sstate->rel), &uri);
 	List* attnamelist = buildAttnameList(sstate);
 
 	/*
@@ -1275,7 +1275,7 @@ InitCopyState(ForeignScanState *node, dataLakeFdwScanState *sstate)
 	{
 		List *uriList = NIL;
 		uriList = lappend(uriList, makeString(uri));
-		List* customOption = getCustomOption(RelationGetRelid(sstate->rel));
+		List* customOption = datalakeGetCustomOptions(RelationGetRelid(sstate->rel));
 		datalake_to_exttable_BeginForeignScan(node, eflags, (void*)sstate, isMasterOnly, uriList, customOption);
 	}
 }
@@ -1389,7 +1389,7 @@ endScanStatus(dataLakeFdwScanState *dataLakesstate)
 	{
 		destroyHandler(dataLakesstate->provider);
 	}
-	freeDataLakeOptions(dataLakesstate->options);
+	datalakeFreeDatalakeOptions(dataLakesstate->options);
 }
 
 void
@@ -1403,7 +1403,7 @@ void
 freeFdwPrivatePartitionList(List *fdw_private)
 {
 	List *partitionData = list_nth(fdw_private, PrivatePartitionData);
-	freePartitionList(partitionData);
+	datalakeFreePartitionList(partitionData);
 	pfree(fdw_private);
 }
 
@@ -1512,7 +1512,7 @@ initCopyStateForModify(ResultRelInfo *resultRelInfo)
 	CopyToState	cstate;
 #endif
 
-	copy_options = getCopyOptions(RelationGetRelid(dataLakesstate->rel));
+	copy_options = datalakeGetCopyOptions(RelationGetRelid(dataLakesstate->rel));
 
 #if (PG_VERSION_NUM < 140000)
 	cstate = BeginCopyTo(dataLakesstate->rel,
@@ -1524,7 +1524,7 @@ initCopyStateForModify(ResultRelInfo *resultRelInfo)
 	InitParseStateTo(dataLakesstate, cstate);
 	if (FORMAT_IS_CUSTOM(dataLakesstate->options->format))
 	{
-		List* customOptions = getCustomOption(RelationGetRelid(dataLakesstate->rel));
+		List* customOptions = datalakeGetCustomOptions(RelationGetRelid(dataLakesstate->rel));
 		datalake_to_exttable_BeginForeignModify(NULL, resultRelInfo, NIL, customOptions, 0, 0);
 	}
 }
@@ -1651,7 +1651,7 @@ endModify(ResultRelInfo *resultRelInfo)
 	destroyHandler(dataLakesstate->provider);
 	if (dataLakesstate)
 	{
-		freeDataLakeOptions(dataLakesstate->options);
+		datalakeFreeDatalakeOptions(dataLakesstate->options);
 		pfree(dataLakesstate);
 	}
 }
@@ -1753,7 +1753,7 @@ dataLakeAnalyzeBeginScan(Relation relation)
 	ForeignScanState *node = (ForeignScanState *) palloc0(sizeof(ForeignScanState));
 	dataLakeFdwScanState *state = (dataLakeFdwScanState *) palloc0(sizeof(dataLakeFdwScanState));
 
-	state->options = getOptions(RelationGetRelid(relation));
+	state->options = datalakeGetOptions(RelationGetRelid(relation));
 
 	int len = list_length(latestFragmentData);
 	for (int i = segmentcount; i >= 1; i--)
@@ -1764,7 +1764,7 @@ dataLakeAnalyzeBeginScan(Relation relation)
 	/* remove the last segmentcount elements */
 	latestFragmentData = list_truncate(latestFragmentData, len - segmentcount);
 
-	fragmentData = deserializeExternalFragmentList(relation,
+	fragmentData = datalakeDeserializeExternalFragmentList(relation,
 												   NIL,
 												   state->options,
 												   latestFragmentData);
@@ -2599,7 +2599,7 @@ acquire_sample_rows_dispatcher(Relation relation, bool inh, int elevel,
 	 */
 	perseg_targrows = targrows / relation->rd_cdbpolicy->numsegments;
 
-	options = getOptions(RelationGetRelid(relation));
+	options = datalakeGetOptions(RelationGetRelid(relation));
 
 	sFragmentList = list_make2(makeString("dummy"), makeString("dummy"));
 	sFragmentList = list_concat(sFragmentList, latestFragmentData);
@@ -2848,10 +2848,10 @@ dataLakeAnalyzeForeignTable(Relation relation,
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
-		options = getOptions(RelationGetRelid(relation));
-		latestFragmentData = GetExternalFragmentList(relation, NULL, options, &totalSize);
+		options = datalakeGetOptions(RelationGetRelid(relation));
+		latestFragmentData = datalakeGetExternalFragmentList(relation, NULL, options, &totalSize);
 		/* master does not process any fragments */
-		List *random_segments = select_random_segments(segmentcount, external_table_limit_segment_num);
+		List *random_segments = datalakeSelectRandomSegments(segmentcount, external_table_limit_segment_num);
 		/* put the random segments into the list */
 		latestFragmentData = list_concat(latestFragmentData, random_segments);
 	}

@@ -23,7 +23,7 @@ bool archiveRead::createPolicy()
 	bool exec = false;
 	int dummy_segid = 0;
 	int dummy_segnums = 0;
-	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	datalakeExecSegment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
 	if (!exec) {
 		if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 		{
@@ -36,16 +36,16 @@ bool archiveRead::createPolicy()
 	int64_t totalsize = 0;
 	if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 	{
-		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
+		List *fragment = datalakeGetNextPartitionFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
-		freeFragmentLists(fragment);
+		datalakeFreeFragmentLists(fragment);
 		scanstate->options->hiveOption->curPartition += 1;
 	}
 	else
 	{
-		List *fragments = GetFragmentList(scanstate->options, &totalsize);
+		List *fragments = datalakeGetFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragments);
-		freeFragmentLists(fragments);
+		datalakeFreeFragmentLists(fragments);
 	}
 	readPolicy.accordingConsistentHash(dummy_segid, dummy_segnums, lists);
 	blockSerial = 0;
@@ -105,7 +105,7 @@ nextPartition:
 		return 0;
 	}
 
-	if (!isLastPartition(scanstate))
+	if (!datalakeIsLastPartition(scanstate))
 	{
 		restart();
 		goto nextPartition;
@@ -126,7 +126,7 @@ void archiveRead::setPartitionValue(void* values, void* nulls) {
 			/* only eval const expr, so we don't need pg_try catch block here */
 			Datum* value = (Datum*)values;
 			bool* null = (bool*)nulls;
-			value[defaultMap[i]] = ExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
+			value[defaultMap[i]] = datalakeExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
 		}
 	}
 }

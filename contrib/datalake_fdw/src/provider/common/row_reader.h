@@ -5,23 +5,23 @@
 #include "src/dlproxy/datalake.h"
 #include "utils.h"
 
-RowReader *createRowReader(MemoryContext mcxt,
+DatalakeRowReader *datalakeCreateRowReader(MemoryContext mcxt,
 						   TupleDesc tupleDesc,
 						   bool *attrUsed,
 						   gopherFS gopherFilesystem,
 						   List *combinedScanTasks,
 						   DLTblFmt format,
 						   ExternalTableMetadata *tableOptions);
-bool rowReaderNext(RowReader *reader, InternalRecord *record);
-void rowReaderClose(RowReader *reader);
+bool datalakeRowReaderNext(DatalakeRowReader *reader, DatalakeInternalRecord *record);
+void datalakeRowReaderClose(DatalakeRowReader *reader);
 
 /*
  * The following functions are migrated from datalake_extension.c in hashdata 3X.
  * see https://code.hashdata.xyz/hashdata/hashdata/-/blob/v3.x/gpcontrib/datalake_extension/src/datalake_extension.c?ref_type=heads
  */
-ProtocolContext *createContext(dataLakeOptions *options);
-void cleanupContext(ProtocolContext *context);
-void protocolImportStart(dataLakeFdwScanState *scanstate, ProtocolContext *context, bool *attrUsed);
+DatalakeProtocolContext *datalakeCreateContext(dataLakeOptions *options);
+void datalakeCleanupContext(DatalakeProtocolContext *context);
+void datalakeProtocolImportStart(dataLakeFdwScanState *scanstate, DatalakeProtocolContext *context, bool *attrUsed);
 
 
 #endif // ROW_READER_H

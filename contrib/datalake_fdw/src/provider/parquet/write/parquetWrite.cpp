@@ -10,9 +10,9 @@ void parquetWrite::createHandler(void *sstate)
 {
 	/* parquet init */ 
 	ss = (dataLakeFdwScanState*)sstate;
-	gopherConfig* conf = createGopherConfig((void*)(ss->options->gopher));
-	fileStream = createFileSystem(conf);
-	freeGopherConfig(conf);
+	gopherConfig* conf = datalakeCreateGopherConfig((void*)(ss->options->gopher));
+	fileStream = datalakeCreateFileSystem(conf);
+	datalakeFreeGopherConfig(conf);
 	prefix = (char*)lfirst(list_head(ss->fragments)); 
 	setOption(ss->options);
 	sliceIdx= 0;
@@ -53,6 +53,6 @@ void parquetWrite::destroyHandler()
 	{
 		file_writer.closeParquetWriter();
 	}
-	destroyFileSystem(fileStream);
+	datalakeDestroyFileSystem(fileStream);
 	fileStream = NULL;
 }

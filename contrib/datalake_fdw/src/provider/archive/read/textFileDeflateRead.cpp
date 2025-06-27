@@ -52,7 +52,7 @@ void textFileDeflateRead::open(ossFileStream ossFile, std::string fileName, read
     stream = ossFile;
     readFinish = false;
     memset(&strm, 0, sizeof(strm));
-    openFile(stream, fileName.c_str(), setStreamFlag(options));
+    datalakeOpenFile(stream, fileName.c_str(), setStreamFlag(options));
     path = fileName;
     state = FILE_OPEN;
     if (external_table_debug) {
@@ -101,7 +101,7 @@ int64_t textFileDeflateRead::fillInputBuffer(int length) {
         datalakeByteBuffer* tmp = resize_datalake_bytebuffer(inputBuffer);
         inputBuffer = tmp;
     }
-    int nread = readFile(stream, inputBuffer->buffer, length);
+    int nread = datalakeReadFile(stream, inputBuffer->buffer, length);
     if (nread <= 0) {
         elog(ERROR, "Datalake Error, deflate text file %s read block header 4 bytes failed! %s.",
             path.c_str(), gopherGetLastError());
@@ -161,7 +161,7 @@ int64_t textFileDeflateRead::getNext() {
 void textFileDeflateRead::close() {
     if (state == FILE_OPEN) {
         inflateEnd(&strm);
-        closeFile(stream);
+        datalakeCloseFile(stream);
         if (external_table_debug) {
             elog(LOG, "Datalake Log, close deflate file %s successful.", path.c_str());
         }

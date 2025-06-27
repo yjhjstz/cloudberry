@@ -15,7 +15,7 @@
 #include "common/hashfn.h"
 
 bool
-charSeqEquals(char *s1, int s1Len, char *s2, int s2Len)
+datalakeCharSeqEquals(char *s1, int s1Len, char *s2, int s2Len)
 {
 	int i;
 
@@ -37,7 +37,7 @@ charSeqEquals(char *s1, int s1Len, char *s2, int s2Len)
 }
 
 int64
-getFileRecordCount(List *deletes)
+datalakeGetFileRecordCount(List *deletes)
 {
 	ListCell *lc;
 	int64 result = 0;
@@ -52,7 +52,7 @@ getFileRecordCount(List *deletes)
 }
 
 int *
-createRecordKeyIndexes(List *recordKeys, List *columnDesc)
+datalakeCreateRecordKeyIndexes(List *recordKeys, List *columnDesc)
 {
 	ListCell *lco;
 	ListCell *lci;
@@ -68,7 +68,7 @@ createRecordKeyIndexes(List *recordKeys, List *columnDesc)
 		found = false;
 		foreach_with_count(lci, columnDesc, i)
 		{
-			FieldDescription *entry = (FieldDescription *) lfirst(lci);
+			DatalakeFieldDescription *entry = (DatalakeFieldDescription *) lfirst(lci);
 			if (pg_strcasecmp(entry->name, keyName) == 0)
 			{
 				found = true;
@@ -93,7 +93,7 @@ createRecordKeyIndexes(List *recordKeys, List *columnDesc)
 }
 
 bool *
-createDeleteProjectionColumns(List *recordKeys, List *columnDesc)
+datalakeCreateDeleteProjectionColumns(List *recordKeys, List *columnDesc)
 {
 	int i;
 	ListCell *lco;
@@ -106,7 +106,7 @@ createDeleteProjectionColumns(List *recordKeys, List *columnDesc)
 
 		foreach_with_count(lci, columnDesc, i)
 		{
-			FieldDescription *entry = (FieldDescription *) lfirst(lci);
+			DatalakeFieldDescription *entry = (DatalakeFieldDescription *) lfirst(lci);
 			if (pg_strcasecmp(entry->name, keyName) == 0)
 			{
 				attrUsed[i] = true;
@@ -121,7 +121,7 @@ createDeleteProjectionColumns(List *recordKeys, List *columnDesc)
 }
 
 uint32
-fieldHash(Datum datum, Oid type)
+datalakeFieldHash(Datum datum, Oid type)
 {
 	void  *key;
 	Size   keySize;
@@ -168,7 +168,7 @@ fieldHash(Datum datum, Oid type)
 }
 
 bool
-fieldCompare(Datum datum1, Datum datum2, Oid type)
+datalakeFieldCompare(Datum datum1, Datum datum2, Oid type)
 {
 	void  *key1;
 	void  *key2;
@@ -260,7 +260,7 @@ deepCopyField(Datum *newDatum, Datum *datum, Oid type, int index)
 }
 
 InternalRecordWrapper *
-createInternalRecordWrapper(void *recordDesc, int nColumns)
+datalakeCreateInternalRecordWrapper(void *recordDesc, int nColumns)
 {
 	InternalRecordWrapper *recordWrapper = palloc(sizeof(InternalRecordWrapper));
 
@@ -272,7 +272,7 @@ createInternalRecordWrapper(void *recordDesc, int nColumns)
 }
 
 void
-destroyInternalRecordWrapper(InternalRecordWrapper *recordWrapper)
+datalakeDestroyInternalRecordWrapper(InternalRecordWrapper *recordWrapper)
 {
 	pfree(recordWrapper->record.values);
 	pfree(recordWrapper->record.nulls);
@@ -280,14 +280,14 @@ destroyInternalRecordWrapper(InternalRecordWrapper *recordWrapper)
 }
 
 uint32
-recordHash(const void *key, Size keysize)
+datalakeRecordHash(const void *key, Size keysize)
 {
 	int i;
 	int colIndex;
 	uint32 hashValue = 0;
 	uint32 hashKey;
 	InternalRecordWrapper *recordWrapper = *((InternalRecordWrapper **) key);
-	InternalRecordDesc *recordDesc = recordWrapper->recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = recordWrapper->recordDesc;
 
 	for (i = 0; i < recordDesc->nKeys; i++)
 	{
@@ -299,7 +299,7 @@ recordHash(const void *key, Size keysize)
 		hashKey = (hashKey << 1) | ((hashKey & 0x80000000) ? 1 : 0);
 		if (!recordWrapper->record.nulls[colIndex])
 		{
-			uint32 hkey = fieldHash(recordWrapper->record.values[colIndex], recordDesc->attrType[colIndex]);
+			uint32 hkey = datalakeFieldHash(recordWrapper->record.values[colIndex], recordDesc->attrType[colIndex]);
 			hashKey ^= hkey;
 		}
 
@@ -310,13 +310,13 @@ recordHash(const void *key, Size keysize)
 }
 
 int
-recordMatch(const void *key1, const void *key2, Size keysize)
+datalakeRecordMatch(const void *key1, const void *key2, Size keysize)
 {
 	int i;
 	int colIndex;
 	InternalRecordWrapper *recordWrapper1 = *((InternalRecordWrapper **) key1);
 	InternalRecordWrapper *recordWrapper2 = *((InternalRecordWrapper **) key2);
-	InternalRecordDesc *recordDesc = recordWrapper1->recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = recordWrapper1->recordDesc;
 
 	for (i = 0; i < recordDesc->nKeys; i++)
 	{
@@ -328,7 +328,7 @@ recordMatch(const void *key1, const void *key2, Size keysize)
 		if (recordWrapper1->record.nulls[colIndex])
 			continue;
 
-		if (!fieldCompare(recordWrapper1->record.values[colIndex],
+		if (!datalakeFieldCompare(recordWrapper1->record.values[colIndex],
 						  recordWrapper2->record.values[colIndex],
 						  recordDesc->attrType[colIndex]))
 			return 1;
@@ -338,11 +338,11 @@ recordMatch(const void *key1, const void *key2, Size keysize)
 }
 
 InternalRecordWrapper *
-deepCopyRecord(InternalRecordWrapper *recordWrapper)
+datalakeDeepCopyRecord(InternalRecordWrapper *recordWrapper)
 {
 	int i;
 	InternalRecordWrapper *result;
-	InternalRecordDesc *recordDesc = recordWrapper->recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = recordWrapper->recordDesc;
 
 	result = palloc(sizeof(InternalRecordWrapper));
 	result->record.values = (Datum *) palloc(recordDesc->nColumns * sizeof(Datum));
@@ -366,7 +366,7 @@ deepCopyRecord(InternalRecordWrapper *recordWrapper)
 }
 
 int
-extractScalFromTypeMod(int32 typmod)
+datalakeExtractScalFromTypeMod(int32 typmod)
 {
 	int			precision;
 	int			scale;
@@ -382,13 +382,13 @@ extractScalFromTypeMod(int32 typmod)
 }
 
 void
-freeKeyValueList(List *kvs)
+datalakeFreeKeyValueList(List *kvs)
 {
 	ListCell *lc;
 
 	foreach(lc, kvs)
 	{
-		KeyValue *kv = (KeyValue *) lfirst(lc);
+		DatalakeKeyValue *kv = (DatalakeKeyValue *) lfirst(lc);
 
 		if (kv->key)
 			pfree(kv->key);
@@ -401,7 +401,7 @@ freeKeyValueList(List *kvs)
 }
 
 Datum
-createDatumByText(Oid attType, const char *value)
+datalakeCreateDatumByText(Oid attType, const char *value)
 {
 	Datum  datum;
 
@@ -496,7 +496,7 @@ hudiGreaterThan(Oid type, Datum datum1, Datum datum2)
 }
 
 void
-initRecord(InternalRecordWrapper *record, void *recordDesc, int nColumns)
+datalakeInitRecord(InternalRecordWrapper *record, void *recordDesc, int nColumns)
 {
 	record->record.values = (Datum *) palloc(nColumns * sizeof(Datum));
 	record->record.nulls = (bool *) palloc(nColumns * sizeof(bool));
@@ -504,13 +504,13 @@ initRecord(InternalRecordWrapper *record, void *recordDesc, int nColumns)
 }
 
 void
-cleanupRecord(InternalRecordWrapper *record)
+datalakeCleanupRecord(InternalRecordWrapper *record)
 {
 	pfree(record->record.values);
 	pfree(record->record.nulls);
 }
 
-InternalRecordDesc *
+DatalakeInternalRecordDesc *
 createInternalRecordDesc(MemoryContext mcxt,
 						 List *columnDesc,
 						 List *recordKeyFields,
@@ -523,16 +523,16 @@ createInternalRecordDesc(MemoryContext mcxt,
 	HASHCTL  hashCtl;
 	bool found = false;
 
-	InternalRecordDesc *result = palloc0(sizeof(InternalRecordDesc));
+	DatalakeInternalRecordDesc *result = palloc0(sizeof(DatalakeInternalRecordDesc));
 
 	result->nColumns = list_length(columnDesc);
 	result->nKeys = list_length(recordKeyFields);
-	result->keyIndexes = createRecordKeyIndexes(recordKeyFields, columnDesc);
+	result->keyIndexes = datalakeCreateRecordKeyIndexes(recordKeyFields, columnDesc);
 	result->attrType = palloc(sizeof(Oid) * list_length(columnDesc));
 
 	foreach_with_count(lc, columnDesc, i)
 	{
-		FieldDescription *entry = (FieldDescription *) lfirst(lc);
+		DatalakeFieldDescription *entry = (DatalakeFieldDescription *) lfirst(lc);
 		result->attrType[i] = entry->typeOid;
 
 		if (preCombineField && !found && pg_strcasecmp(preCombineField, entry->name) == 0)
@@ -547,9 +547,9 @@ createInternalRecordDesc(MemoryContext mcxt,
 	{
 		MemSet(&hashCtl, 0, sizeof(hashCtl));
 		hashCtl.keysize = sizeof(InternalRecordWrapper *);
-		hashCtl.entrysize = sizeof(LogRecordHashEntry);
-		hashCtl.hash = recordHash;
-		hashCtl.match = recordMatch;
+		hashCtl.entrysize = sizeof(DatalakeLogRecordHashEntry);
+		hashCtl.hash = datalakeRecordHash;
+		hashCtl.match = datalakeRecordMatch;
 		hashCtl.hcxt = mcxt;
 		result->hashTab = hash_create("HudiMergeLogTable", 10000 * 30, &hashCtl,
 								   HASH_ELEM | HASH_FUNCTION | HASH_COMPARE | HASH_CONTEXT);
@@ -559,7 +559,7 @@ createInternalRecordDesc(MemoryContext mcxt,
 }
 
 void
-destroyInternalRecordDesc(InternalRecordDesc *recordDesc)
+destroyInternalRecordDesc(DatalakeInternalRecordDesc *recordDesc)
 {
 	if (recordDesc->keyIndexes)
 		pfree(recordDesc->keyIndexes);

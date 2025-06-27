@@ -46,7 +46,7 @@ extern "C" {
         elog(ERROR, "Datalake foreign table Error, Parameter assert failed."); \
     }
 
-ossFileStream createFileSystem(gopherConfig *conf)
+ossFileStream datalakeCreateFileSystem(gopherConfig *conf)
 {
 	ossInternalFileStream *fileStream = NULL;
 
@@ -59,24 +59,24 @@ ossFileStream createFileSystem(gopherConfig *conf)
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "failed to createFileSystem: %s", e.what());
+		elog(ERROR, "failed to datalakeCreateFileSystem: %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "failed to createFileSystem: internal error");
+		elog(ERROR, "failed to datalakeCreateFileSystem: internal error");
 	}
 
 	return fileStream;
 }
 
-int openFile(ossFileStream file, const char *path, int flag)
+int datalakeOpenFile(ossFileStream file, const char *path, int flag)
 {
 	PARAMETER_ASSERT(file != NULL && strlen(path) > 0, EINVAL);
 	int ret = file->getContext().openFile(path, flag);
 	return ret;
 }
 
-int writeFile(ossFileStream file, void *buff, int64_t size)
+int datalakeWriteFile(ossFileStream file, void *buff, int64_t size)
 {
 	PARAMETER_ASSERT(file != NULL, EINVAL);
 	int ret = 0;
@@ -95,7 +95,7 @@ int writeFile(ossFileStream file, void *buff, int64_t size)
 	return ret;
 }
 
-int readFile(ossFileStream file, void *buff, int64_t size)
+int datalakeReadFile(ossFileStream file, void *buff, int64_t size)
 {
 	PARAMETER_ASSERT(file != NULL, EINVAL);
 	int ret = 0;
@@ -114,7 +114,7 @@ int readFile(ossFileStream file, void *buff, int64_t size)
 	return ret;
 }
 
-int seekFile(ossFileStream file, int64_t postion)
+int datalakeSeekFile(ossFileStream file, int64_t postion)
 {
 	PARAMETER_ASSERT(file != NULL, EINVAL);
 	int ret = 0;
@@ -133,7 +133,7 @@ int seekFile(ossFileStream file, int64_t postion)
 	return ret;
 }
 
-int closeFile(ossFileStream file)
+int datalakeCloseFile(ossFileStream file)
 {
 	if (file == NULL)
 	{
@@ -143,7 +143,7 @@ int closeFile(ossFileStream file)
 	return ret;
 }
 
-gopherFileInfo *listDir(ossFileStream file, const char *path, int *count, int recursive)
+gopherFileInfo *datalakeListDir(ossFileStream file, const char *path, int *count, int recursive)
 {
 	PARAMETER_ASSERT(file != NULL, EINVAL);
     gopherFileInfo* result = NULL;
@@ -163,7 +163,7 @@ gopherFileInfo *listDir(ossFileStream file, const char *path, int *count, int re
 	return result;
 }
 
-void freeListDir(ossFileStream file, gopherFileInfo *list, int count)
+void datalakeFreeListDir(ossFileStream file, gopherFileInfo *list, int count)
 {
 	if (file == NULL)
 		return;
@@ -174,15 +174,15 @@ void freeListDir(ossFileStream file, gopherFileInfo *list, int count)
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "failed to exec freeListDir(): %s", e.what());
+		elog(ERROR, "failed to exec datalakeFreeListDir(): %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "failed to exec freeListDir(): internal error");
+		elog(ERROR, "failed to exec datalakeFreeListDir(): internal error");
 	}
 }
 
-gopherFileInfo* getFileInfo(ossFileStream file, const char* path)
+gopherFileInfo* datalakeGetFileInfo(ossFileStream file, const char* path)
 {
     PARAMETER_ASSERT(file != NULL && strlen(path) > 0, EINVAL);
 
@@ -212,16 +212,16 @@ gopherFileInfo* getFileInfo(ossFileStream file, const char* path)
     }
 	catch (std::exception &e)
 	{
-        elog(ERROR, "failed to exec getFileInfo(): %s", e.what());
+        elog(ERROR, "failed to exec datalakeGetFileInfo(): %s", e.what());
     }
 	catch (...)
 	{
-		elog(ERROR, "failed to exec getFileInfo(): internal error");
+		elog(ERROR, "failed to exec datalakeGetFileInfo(): internal error");
 	}
     return result;
 }
 
-int getUfsId(ossFileStream file)
+int datalakeGetUfsId(ossFileStream file)
 {
     if (file == NULL)
     {
@@ -234,17 +234,17 @@ int getUfsId(ossFileStream file)
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "failed to exec gopherDestroyHandle(): %s", e.what());
+		elog(ERROR, "failed to exec datalakeGopherDestroyHandle(): %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "failed to exec gopherDestroyHandle(): internal error");
+		elog(ERROR, "failed to exec datalakeGopherDestroyHandle(): internal error");
 	}
 
 	return ret;
 }
 
-int gopherDestroyHandle(ossFileStream file)
+int datalakeGopherDestroyHandle(ossFileStream file)
 {
     if (file == NULL)
 	{
@@ -257,17 +257,17 @@ int gopherDestroyHandle(ossFileStream file)
 	}
 	catch (std::exception &e)
 	{
-		elog(ERROR, "failed to exec gopherDestroyHandle(): %s", e.what());
+		elog(ERROR, "failed to exec datalakeGopherDestroyHandle(): %s", e.what());
 	}
 	catch (...)
 	{
-		elog(ERROR, "failed to exec gopherDestroyHandle(): internal error");
+		elog(ERROR, "failed to exec datalakeGopherDestroyHandle(): internal error");
 	}
 
 	return ret;
 }
 
-void destroyFileSystem(ossFileStream file)
+void datalakeDestroyFileSystem(ossFileStream file)
 {
 	if (file == NULL)
 		return;
@@ -369,7 +369,7 @@ HdfsHAConfig* getHdfsHAConfig(gopherOptions *options)
 	return hdfs_ha_configs;
 }
 
-gopherConfig* createGopherConfig(void *opt)
+gopherConfig* datalakeCreateGopherConfig(void *opt)
 {
 	gopherOptions *options = (gopherOptions*)opt;
 	gopherConfig* conf = (gopherConfig*)palloc0(sizeof(gopherConfig));
@@ -564,7 +564,7 @@ gopherConfig* createGopherConfig(void *opt)
 	return conf;
 }
 
-void freeGopherConfig(gopherConfig* conf)
+void datalakeFreeGopherConfig(gopherConfig* conf)
 {
 	if (conf)
 	{

@@ -60,7 +60,7 @@ createMergedLogfileRecordReader(MemoryContext readerMcxt,
 	reader->tableOptions = tableOptions;
 
 	/* NB: I intentionally saved the fileSize into the recordCount field */
-	totalFileSize = getFileRecordCount(logfiles);
+	totalFileSize = datalakeGetFileRecordCount(logfiles);
 	if (totalFileSize < hudiLogMergerThreshold * 1024 * 1024)
 	{
 		reader->mergeProvider = (MergeProvider *) createHudiHashTableMerger(
@@ -222,21 +222,21 @@ processDataBlock(HudiMergedLogfileRecordReader *reader, HudiLogFileBlock *block)
 	stream->format = AVRO_FILE_BLOCK;
 
 	schema = (char *) logBlockGetSchema(block);
-	blockReader = (Reader *) createFileReader(reader->readerMcxt, reader->columnDesc, reader->attrUsed,
+	blockReader = (Reader *) datalakeCreateFileReader(reader->readerMcxt, reader->columnDesc, reader->attrUsed,
 											  false, stream, schema, dataBlock->length, strlen(schema),
 											  NULL);
 
-	initRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
+	datalakeInitRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
 	while (true)
 	{
-		found = blockReader->Next(blockReader, (InternalRecord *) &record);
+		found = blockReader->Next(blockReader, (DatalakeInternalRecord *) &record);
 		if (!found)
 			break;
 
 		reader->mergeProvider->CombineAndUpdate(reader->mergeProvider, &record);
 	}
 
-	cleanupRecord(&record);
+	datalakeCleanupRecord(&record);
 	blockReader->Close(blockReader);
 	MemoryContextSwitchTo(oldMcxt);
 }
@@ -264,7 +264,7 @@ parseKeyValue(List *result, char *pair, char *recordKey)
 	int       keyLen;
 	int       valueLen;
 	char     *sep = strchr(pair, ':');
-	KeyValue *data = palloc0(sizeof(KeyValue));
+	DatalakeKeyValue *data = palloc0(sizeof(DatalakeKeyValue));
 
 	if (sep == NULL)
 		elog(ERROR, "invalid record key %s: '%s' missing delimiter ':'", recordKey, pair);
@@ -300,7 +300,7 @@ extractRecordKeyValues(char *strRecordKey, int strSize, int keySize)
 
 	if (keySize == 1 && sep == NULL)
 	{
-		KeyValue *data = palloc0(sizeof(KeyValue));
+		DatalakeKeyValue *data = palloc0(sizeof(DatalakeKeyValue));
 
 		data->value = pnstrdup(strRecordKey, strSize);
 		result = lappend(result, data);
@@ -328,7 +328,7 @@ populateDeleteRecord(MergeProvider *provider,
 	int colIndex;
 	ListCell *lc;
 	List *recordKeyFields;
-	InternalRecordDesc *recordDesc = provider->recordDesc;
+	DatalakeInternalRecordDesc *recordDesc = provider->recordDesc;
 	KryoStringDatum *strRecordKey = kryoDatumToString(recordKey);
 
 	recordKeyFields = extractRecordKeyValues(strRecordKey->s, strRecordKey->size, provider->recordDesc->nKeys);
@@ -340,10 +340,10 @@ populateDeleteRecord(MergeProvider *provider,
 
 	foreach_with_count(lc, recordKeyFields, i)
 	{
-		KeyValue *field = (KeyValue *) lfirst(lc);
+		DatalakeKeyValue *field = (DatalakeKeyValue *) lfirst(lc);
 		colIndex = recordDesc->keyIndexes[i];
 
-		recordWrapper->record.values[colIndex] = createDatumByText(recordDesc->attrType[colIndex], field->value);
+		recordWrapper->record.values[colIndex] = datalakeCreateDatumByText(recordDesc->attrType[colIndex], field->value);
 		recordWrapper->record.nulls[colIndex] = false;
 	}
 
@@ -354,7 +354,7 @@ populateDeleteRecord(MergeProvider *provider,
 		recordWrapper->record.nulls[provider->preCombineFieldIndex] = false;
 	}
 
-	freeKeyValueList(recordKeyFields);
+	datalakeFreeKeyValueList(recordKeyFields);
 }
 
 static void
@@ -364,7 +364,7 @@ processV1DeleteRecords(HudiMergedLogfileRecordReader *reader, KryoDatum hoodieKe
 	InternalRecordWrapper record;
 	MemoryContext oldContext;
 
-	initRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
+	datalakeInitRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
 	for (i = 0; i < kryoDatumToArray(hoodieKeys)->size; i++)
 	{
 		KryoDatum hoodieKey = kryoDatumToArray(hoodieKeys)->elements[i];
@@ -380,7 +380,7 @@ processV1DeleteRecords(HudiMergedLogfileRecordReader *reader, KryoDatum hoodieKe
 		MemoryContextSwitchTo(oldContext);
 	}
 
-	cleanupRecord(&record);
+	datalakeCleanupRecord(&record);
 }
 
 static void
@@ -390,7 +390,7 @@ processV2DeleteRecords(HudiMergedLogfileRecordReader *reader, KryoDatum deleteRe
 	InternalRecordWrapper record;
 	MemoryContext oldContext;
 
-	initRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
+	datalakeInitRecord(&record, reader->mergeProvider->recordDesc, list_length(reader->columnDesc));
 	for (i = 0; i < kryoDatumToArray(deleteRecords)->size; i++)
 	{
 		KryoDatum deleteRecord = kryoDatumToArray(deleteRecords)->elements[i];
@@ -421,12 +421,12 @@ processDeleteBlock(HudiMergedLogfileRecordReader *reader, HudiLogFileBlock *bloc
 
 	version = *((int *) (dataBlock->content));
 #ifndef WORDS_BIGENDIAN
-	version = reverse32(version);
+	version = datalakeReverse32(version);
 #endif
 
 	length = *((int *) (dataBlock->content + 4));
 #ifndef WORDS_BIGENDIAN
-	length = reverse32(length);
+	length = datalakeReverse32(length);
 #endif
 
 	MemoryContextReset(reader->deleteBlockMcxt);
@@ -556,15 +556,15 @@ scanBlock(HudiMergedLogfileRecordReader *reader, HudiLogFileBlock *block)
 }
 
 bool
-mergedLogfileRecordReaderNext(HudiMergedLogfileRecordReader *reader, InternalRecord *record)
+mergedLogfileRecordReaderNext(HudiMergedLogfileRecordReader *reader, DatalakeInternalRecord *record)
 {
 	return reader->mergeProvider->Next(reader->mergeProvider, record);
 }
 
 bool
 mergedLogfileContains(HudiMergedLogfileRecordReader *reader,
-					  InternalRecord *record,
-					  InternalRecord **newRecord,
+					  DatalakeInternalRecord *record,
+					  DatalakeInternalRecord **newRecord,
 					  bool *isDeleted)
 {
 	return reader->mergeProvider->Contains(reader->mergeProvider, record, newRecord, isDeleted);

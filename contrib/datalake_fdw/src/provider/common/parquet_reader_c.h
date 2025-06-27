@@ -4,7 +4,7 @@
 #include <gopher/gopher.h>
 
 struct List;
-struct InternalRecord;
+struct DatalakeInternalRecord;
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +25,7 @@ void parquet_open(void *reader,
 				  int64_t beginOffset,
 				  int64_t endOffset);
 void parquet_close(void *reader);
-bool parquet_next(void *reader, InternalRecord *record);
+bool parquet_next(void *reader, DatalakeInternalRecord *record);
 
 #ifdef __cplusplus
 }

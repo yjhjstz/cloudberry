@@ -13,7 +13,7 @@ typedef struct IcebergTaskReader
 } IcebergTaskReader;
 
 Reader *createIcebergTaskReader(void *args);
-bool icebergTaskReaderNext(Reader *reader, InternalRecord *record);
+bool icebergTaskReaderNext(Reader *reader, DatalakeInternalRecord *record);
 void icebergTaskReaderClose(Reader *reader);
 
 #endif // ICEBERG_TASK_READER_H

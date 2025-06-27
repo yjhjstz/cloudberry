@@ -13,7 +13,7 @@
 extern bool disableCacheFile;
 
 static bool resownerCallbackRegistered;
-static RemoteFileHandle *openRemoteHandles;
+static DatalakeRemoteFileHandle *openRemoteHandles;
 
 static void flatCombinedTasks(List *combinedScanTasks, List **fileScanTasks);
 static bool isCacheEnabled(char *cacheEnabled);
@@ -26,7 +26,7 @@ createFieldDescription(TupleDesc tupleDesc)
 
 	for (i = 0; i < tupleDesc->natts; i++)
 	{
-		FieldDescription *fieldDesc = (FieldDescription *) palloc0(sizeof(FieldDescription));
+		DatalakeFieldDescription *fieldDesc = (DatalakeFieldDescription *) palloc0(sizeof(DatalakeFieldDescription));
 		Oid typeOid = TupleDescAttr(tupleDesc, i)->atttypid;
 		int typeMod = TupleDescAttr(tupleDesc, i)->atttypmod;
 		const char *attname = NameStr(TupleDescAttr(tupleDesc, i)->attname);
@@ -41,12 +41,12 @@ createFieldDescription(TupleDesc tupleDesc)
 	return result;
 }
 
-static RemoteFileHandle *
+static DatalakeRemoteFileHandle *
 createRemoteFileHandle(gopherFS gopherFilesystem)
 {
-	RemoteFileHandle *result;
+	DatalakeRemoteFileHandle *result;
 
-	result = MemoryContextAlloc(TopMemoryContext, sizeof(RemoteFileHandle));
+	result = MemoryContextAlloc(TopMemoryContext, sizeof(DatalakeRemoteFileHandle));
 	result->gopherFilesystem = gopherFilesystem;
 	result->reader = NULL;
 	result->prev = NULL;
@@ -62,7 +62,7 @@ createRemoteFileHandle(gopherFS gopherFilesystem)
 }
 
 static void
-destroyRemoteFileHandle(RemoteFileHandle *handle)
+destroyRemoteFileHandle(DatalakeRemoteFileHandle *handle)
 {
 	if (handle->prev)
 		handle->prev->next = handle->next;
@@ -76,7 +76,7 @@ destroyRemoteFileHandle(RemoteFileHandle *handle)
 		gopherDisconnect(handle->gopherFilesystem);
 
 	if (handle->reader)
-		rowReaderClose(handle->reader);
+		datalakeRowReaderClose(handle->reader);
 
 	pfree(handle);
 }
@@ -87,8 +87,8 @@ remoteFileAbortCallback(ResourceReleasePhase phase,
 						bool isTopLevel,
 						void *arg)
 {
-	RemoteFileHandle *cur;
-	RemoteFileHandle *next;
+	DatalakeRemoteFileHandle *cur;
+	DatalakeRemoteFileHandle *next;
 
 	if (phase != RESOURCE_RELEASE_AFTER_LOCKS)
 		return;
@@ -122,8 +122,8 @@ static Reader deltaLakeHandler = {
 	NULL
 };
 
-RowReader *
-createRowReader(MemoryContext mcxt,
+DatalakeRowReader *
+datalakeCreateRowReader(MemoryContext mcxt,
 				TupleDesc tupleDesc,
 				bool *attrUsed,
 				gopherFS gopherFilesystem,
@@ -131,7 +131,7 @@ createRowReader(MemoryContext mcxt,
 				DLTblFmt format,
 				ExternalTableMetadata *tableOptions)
 {
-	RowReader *reader = palloc0(sizeof(RowReader));
+	DatalakeRowReader *reader = palloc0(sizeof(DatalakeRowReader));
 
 	flatCombinedTasks(combinedScanTasks, &reader->fileScanTasks);
 	list_free(combinedScanTasks);
@@ -161,7 +161,7 @@ createRowReader(MemoryContext mcxt,
 }
 
 bool
-rowReaderNext(RowReader *reader, InternalRecord *record)
+datalakeRowReaderNext(DatalakeRowReader *reader, DatalakeInternalRecord *record)
 {
 	while (true)
 	{
@@ -171,7 +171,7 @@ rowReaderNext(RowReader *reader, InternalRecord *record)
 		}
 		else if (list_length(reader->fileScanTasks) > 0)
 		{
-			ReaderInitInfo initInfo;
+			DatalakeReaderInitInfo initInfo;
 
 			reader->handler->Close(reader->curReader);
 			MemoryContextSwitchTo(reader->curMcxt);
@@ -204,7 +204,7 @@ rowReaderNext(RowReader *reader, InternalRecord *record)
 }
 
 void
-rowReaderClose(RowReader *reader)
+datalakeRowReaderClose(DatalakeRowReader *reader)
 {
 	if (reader->curReader)
 		reader->handler->Close(reader->curReader);
@@ -250,17 +250,17 @@ checkInterrupt(void)
 	return true;
 }
 
-ProtocolContext *
-createContext(dataLakeOptions *options)
+DatalakeProtocolContext *
+datalakeCreateContext(dataLakeOptions *options)
 {
-	ProtocolContext *context;
+	DatalakeProtocolContext *context;
 	gopherConfig    *gopherConfig;
 	gopherFS        fs;
 
-	context = (ProtocolContext *)palloc0(sizeof(ProtocolContext));
+	context = (DatalakeProtocolContext *)palloc0(sizeof(DatalakeProtocolContext));
 
 	disableCacheFile = !isCacheEnabled(options->cache_enabled);
-	gopherConfig = createGopherConfig((void*)(options->gopher));
+	gopherConfig = datalakeCreateGopherConfig((void*)(options->gopher));
 	gopherUserCanceledCallBack(&checkInterrupt);
 
 	fs = gopherConnect(*gopherConfig);
@@ -269,7 +269,7 @@ createContext(dataLakeOptions *options)
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("failed to connect to gopher: %s", gopherGetLastError())));
 
-	gopherConfigDestroy(gopherConfig);
+	datalakeGopherConfigDestroy(gopherConfig);
 
 	if (!resownerCallbackRegistered)
 	{
@@ -301,7 +301,7 @@ isCacheEnabled(char *cacheEnabled)
 }
 
 void
-cleanupContext(ProtocolContext *context)
+datalakeCleanupContext(DatalakeProtocolContext *context)
 {
 	if (context->file)
 		destroyRemoteFileHandle(context->file);
@@ -316,7 +316,7 @@ cleanupContext(ProtocolContext *context)
 }
 
 void
-protocolImportStart(dataLakeFdwScanState *scanstate, ProtocolContext *context, bool *attrUsed)
+datalakeProtocolImportStart(dataLakeFdwScanState *scanstate, DatalakeProtocolContext *context, bool *attrUsed)
 {
 	int       i = 0;
 	ListCell *lc;
@@ -341,7 +341,7 @@ protocolImportStart(dataLakeFdwScanState *scanstate, ProtocolContext *context, b
 												ALLOCSET_DEFAULT_INITSIZE,
 												ALLOCSET_DEFAULT_MAXSIZE);
 
-	context->file->reader = createRowReader(context->rowContext,
+	context->file->reader = datalakeCreateRowReader(context->rowContext,
 											scanstate->rel->rd_att,
 											attrUsed,
 											context->file->gopherFilesystem,

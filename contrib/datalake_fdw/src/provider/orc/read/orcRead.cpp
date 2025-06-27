@@ -16,7 +16,7 @@ void orcRead::createHandler(void *sstate)
 {
 	initParameter(sstate);
 	options.transactionTable = scanstate->options->hiveOption->transactional;
-	exec_segment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
+	datalakeExecSegment(selected_segments, segId, segnum, &exec, &dummy_segid, &dummy_segnums);
 	if (!exec)
 	{
 		return;
@@ -37,16 +37,16 @@ bool orcRead::createPolicy()
 	
 	if (scanstate->options->hiveOption->hivePartitionKey != NULL)
 	{
-		List *fragment = GetNextPartitionFragmentList(scanstate->options, &totalsize);
+		List *fragment = datalakeGetNextPartitionFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
-		freeFragmentLists(fragment);
+		datalakeFreeFragmentLists(fragment);
 		scanstate->options->hiveOption->curPartition += 1;
 	}
 	else
 	{
-		List *fragment = GetFragmentList(scanstate->options, &totalsize);
+		List *fragment = datalakeGetFragmentList(scanstate->options, &totalsize);
 		extraFragmentLists(lists, fragment);
-		freeFragmentLists(fragment);
+		datalakeFreeFragmentLists(fragment);
 	}
 	
 	readPolicy.hiveTranscation = options.transactionTable;
@@ -92,7 +92,7 @@ nextPartition:
 				/* only eval const expr, so we don't need pg_try catch block here */
 				Datum* value = (Datum*)values;
 				bool* null = (bool*)nulls;
-				value[defaultMap[i]] = ExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
+				value[defaultMap[i]] = datalakeExecEvalConst(defaultExprs[i], NULL, &null[defaultMap[i]], NULL);
 			}
 		}
 		return 1;
@@ -103,7 +103,7 @@ nextPartition:
 		return 0;
 	}
 
-	if (!isLastPartition(scanstate))
+	if (!datalakeIsLastPartition(scanstate))
 	{
 		restart();
 		goto nextPartition;
@@ -120,7 +120,7 @@ void orcRead::destroyHandler()
 {
 	tupleIndex = 0;
 	fileReader.closeORCReader();
-	destroyFileSystem(fileStream);
+	datalakeDestroyFileSystem(fileStream);
 	fileStream = NULL;
 	releaseResources();
 }

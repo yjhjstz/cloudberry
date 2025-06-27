@@ -5,9 +5,9 @@
 void avroWrite::createHandler(void* sstate)
 {
     dataLakeFdwScanState *ss = (dataLakeFdwScanState*)sstate;
-    gopherConfig *conf = createGopherConfig((void*)(ss->options->gopher));
-    fileStream = createFileSystem(conf);
-    freeGopherConfig(conf);
+    gopherConfig *conf = datalakeCreateGopherConfig((void*)(ss->options->gopher));
+    fileStream = datalakeCreateFileSystem(conf);
+    datalakeFreeGopherConfig(conf);
     std::string prefix = (char*)lfirst(list_head(ss->fragments)); 
     setOption(ss->options->compress);
     generateAvroFileName(prefix);
@@ -30,7 +30,7 @@ std::string& avroWrite::generateAvroFileName(const std::string &filePath)
 void avroWrite::destroyHandler()
 {
     file_writer->close();
-    destroyFileSystem(fileStream);
+    datalakeDestroyFileSystem(fileStream);
     fileStream = NULL;
 }
 

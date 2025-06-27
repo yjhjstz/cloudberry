@@ -11,14 +11,14 @@ typedef struct EqualityHashEntry {
 	InternalRecordWrapper *recordValue;
 } EqualityHashEntry;
 
-static bool equalityFilterNext(Reader *filter, InternalRecord *record);
+static bool equalityFilterNext(Reader *filter, DatalakeInternalRecord *record);
 static void equalityFilterClose(Reader *filter);
 static List *readEqualityDeletes(MemoryContext filterMcxt,
 								 MemoryContext readerMcxt,
 								 List *datafileDesc,
 								 gopherFS gopherFilesystem,
 								 List *deletes);
-static bool deletesSetsContains(EqualityFilter *filter, InternalRecord *record);
+static bool deletesSetsContains(DatalakeEqualityFilter *filter, DatalakeInternalRecord *record);
 
 static Reader methods = {
 	NULL,
@@ -26,14 +26,14 @@ static Reader methods = {
 	equalityFilterClose,
 };
 
-EqualityFilter *
-createEqualityFilter(MemoryContext readerMcxt,
+DatalakeEqualityFilter *
+datalakeCreateEqualityFilter(MemoryContext readerMcxt,
 					 List *datafileDesc,
 					 Reader *dataReader,
 					 gopherFS gopherFilesystem,
 					 List *deletes)
 {
-	EqualityFilter *filter = palloc0(sizeof(EqualityFilter));
+	DatalakeEqualityFilter *filter = palloc0(sizeof(DatalakeEqualityFilter));
 
 	elog(DEBUG1, "create iceberg equality filter");
 
@@ -50,10 +50,10 @@ createEqualityFilter(MemoryContext readerMcxt,
 }
 
 static bool
-equalityFilterNext(Reader *filter, InternalRecord *record)
+equalityFilterNext(Reader *filter, DatalakeInternalRecord *record)
 {
 	bool isDeleted;
-	EqualityFilter *equalityFilter = (EqualityFilter *) filter;
+	DatalakeEqualityFilter *equalityFilter = (DatalakeEqualityFilter *) filter;
 
 	while(equalityFilter->dataReader->Next(equalityFilter->dataReader, record))
 	{
@@ -68,7 +68,7 @@ equalityFilterNext(Reader *filter, InternalRecord *record)
 static void
 equalityFilterClose(Reader *filter)
 {
-	EqualityFilter *equalityFilter = (EqualityFilter *) filter;
+	DatalakeEqualityFilter *equalityFilter = (DatalakeEqualityFilter *) filter;
 
 	equalityFilter->dataReader->Close(equalityFilter->dataReader);
 	MemoryContextDelete(equalityFilter->mcxt);
@@ -78,7 +78,7 @@ equalityFilterClose(Reader *filter)
 }
 
 static bool
-deletesSetsContains(EqualityFilter *filter, InternalRecord *record)
+deletesSetsContains(DatalakeEqualityFilter *filter, DatalakeInternalRecord *record)
 {
 	bool           found = false;
 	ListCell      *lc;
@@ -93,7 +93,7 @@ deletesSetsContains(EqualityFilter *filter, InternalRecord *record)
 
 	foreach(lc, filter->deletesSets)
 	{
-		InternalRecordDesc *deletesSet = (InternalRecordDesc *) lfirst(lc);
+		DatalakeInternalRecordDesc *deletesSet = (DatalakeInternalRecordDesc *) lfirst(lc);
 		recordWrapper.recordDesc = deletesSet;
 
 		entry = (EqualityHashEntry *) hash_search(deletesSet->hashTab, &pRecordWrapper, HASH_FIND, NULL);
@@ -118,8 +118,8 @@ createHashTable(MemoryContext mcxt, int64 totalRecords)
 	MemSet(&hashCtl, 0, sizeof(hashCtl));
 	hashCtl.keysize = sizeof(InternalRecordWrapper *);
 	hashCtl.entrysize = sizeof(EqualityHashEntry);
-	hashCtl.hash = recordHash;
-	hashCtl.match = recordMatch;
+	hashCtl.hash = datalakeRecordHash;
+	hashCtl.match = datalakeRecordMatch;
 	hashCtl.hcxt = mcxt;
 	hashTab = hash_create("EqualityFilterTable", totalRecords, &hashCtl,
 						   HASH_ELEM | HASH_FUNCTION | HASH_COMPARE | HASH_CONTEXT);
@@ -131,26 +131,26 @@ static void
 createDeletesReaderResources(MemoryContext mcxt,
 							 List *datafileDesc,
 							 FileFragment **deleteFile,
-							 InternalRecordDesc **deletesSet,
+							 DatalakeInternalRecordDesc **deletesSet,
 							 List *deletes)
 {
 	int i;
 	ListCell *lc;
 
-	*deletesSet = palloc(sizeof(InternalRecordDesc));
+	*deletesSet = palloc(sizeof(DatalakeInternalRecordDesc));
 
 	(*deleteFile) = list_nth(deletes, 0);
 
 	(*deletesSet)->hashTab = createHashTable(mcxt, (*deleteFile)->recordCount);
 	(*deletesSet)->nColumns = list_length(datafileDesc);
 	(*deletesSet)->nKeys = list_length((*deleteFile)->eqColumnNames);
-	(*deletesSet)->keyIndexes = createRecordKeyIndexes((*deleteFile)->eqColumnNames, datafileDesc);
+	(*deletesSet)->keyIndexes = datalakeCreateRecordKeyIndexes((*deleteFile)->eqColumnNames, datafileDesc);
 	(*deletesSet)->attrType = palloc0(sizeof(Oid) * list_length(datafileDesc));
-	(*deletesSet)->attrUsed = createDeleteProjectionColumns((*deleteFile)->eqColumnNames, datafileDesc);
+	(*deletesSet)->attrUsed = datalakeCreateDeleteProjectionColumns((*deleteFile)->eqColumnNames, datafileDesc);
 
 	foreach_with_count(lc, datafileDesc, i)
 	{
-		FieldDescription *entry = (FieldDescription *) lfirst(lc);
+		DatalakeFieldDescription *entry = (DatalakeFieldDescription *) lfirst(lc);
 		(*deletesSet)->attrType[i] = entry->typeOid;
 	}
 
@@ -173,7 +173,7 @@ readEqualityDeletes(MemoryContext filterMcxt,
 	Reader         *curReader;
 	FileFragment   *deleteFile;
 	List           *result = NIL;
-	InternalRecordDesc *deletesSet;
+	DatalakeInternalRecordDesc *deletesSet;
 	MemoryContext   oldMcxt;
 	InternalRecordWrapper *recordWrapper;
 
@@ -181,7 +181,7 @@ readEqualityDeletes(MemoryContext filterMcxt,
 
 	createDeletesReaderResources(filterMcxt, datafileDesc, &deleteFile, &deletesSet, deletes);
 	elog(DEBUG1, "scanning equalityDeletes file %s", deleteFile->filePath);
-	curReader = (Reader *) createFileReader(readerMcxt, datafileDesc, deletesSet->attrUsed,
+	curReader = (Reader *) datalakeCreateFileReader(readerMcxt, datafileDesc, deletesSet->attrUsed,
 											true, deleteFile, gopherFilesystem, -1, -1, NULL);
 	destroyDeletesReaderResource(&deletes);
 
@@ -189,24 +189,24 @@ readEqualityDeletes(MemoryContext filterMcxt,
 
 	while (true)
 	{
-		recordWrapper = createInternalRecordWrapper(deletesSet, deletesSet->nColumns);
-		if (curReader->Next(curReader, (InternalRecord *) recordWrapper))
+		recordWrapper = datalakeCreateInternalRecordWrapper(deletesSet, deletesSet->nColumns);
+		if (curReader->Next(curReader, (DatalakeInternalRecord *) recordWrapper))
 		{
 			bool found;
 			EqualityHashEntry *hentry;
 			hentry = (EqualityHashEntry *) hash_search(deletesSet->hashTab, &recordWrapper, HASH_ENTER, &found);
 			if (!found)
-				deepCopyRecord(recordWrapper);
+				datalakeDeepCopyRecord(recordWrapper);
 		}
 		else if (list_length(deletes) > 0)
 		{
-			destroyInternalRecordWrapper(recordWrapper);
+			datalakeDestroyInternalRecordWrapper(recordWrapper);
 			curReader->Close(curReader);
 
 			createDeletesReaderResources(filterMcxt, datafileDesc, &deleteFile, &deletesSet, deletes);
 
 			elog(DEBUG1, "scanning equalityDeletes file %s", deleteFile->filePath);
-			curReader = (Reader *) createFileReader(readerMcxt, datafileDesc, deletesSet->attrUsed,
+			curReader = (Reader *) datalakeCreateFileReader(readerMcxt, datafileDesc, deletesSet->attrUsed,
 													true, deleteFile, gopherFilesystem, -1, -1, NULL);
 			destroyDeletesReaderResource(&deletes);
 
@@ -214,7 +214,7 @@ readEqualityDeletes(MemoryContext filterMcxt,
 		}
 		else
 		{
-			destroyInternalRecordWrapper(recordWrapper);
+			datalakeDestroyInternalRecordWrapper(recordWrapper);
 			curReader->Close(curReader);
 			break;
 		}

@@ -109,7 +109,7 @@ void readLogical::initializeColumnValue()
 	}
 	else
 	{
-		PartitionConstraint *pc = (PartitionConstraint*) list_nth(scanstate->options->hiveOption->hivePartitionConstraints,
+		datalakePartitionConstraint *pc = (datalakePartitionConstraint*) list_nth(scanstate->options->hiveOption->hivePartitionConstraints,
 			scanstate->options->hiveOption->curPartition);
 		constraints = pc->constraints;
 	}
@@ -142,7 +142,7 @@ void readLogical::initializeColumnValue()
 		}
 	}
 
-	nDefaults = initializeDefaultMap(attNums,
+	nDefaults = datalakeInitializeDefaultMap(attNums,
 						constraints,
 						includes_columns,
 						defMap,
@@ -221,9 +221,9 @@ bool readLogical::createPolicy()
 
 ossFileStream readLogical::createFileStream()
 {
-	gopherConfig *gopherConf = createGopherConfig((void*)(scanstate->options->gopher));
-	ossFileStream fileStream = createFileSystem(gopherConf);
-	freeGopherConfig(gopherConf);
+	gopherConfig *gopherConf = datalakeCreateGopherConfig((void*)(scanstate->options->gopher));
+	ossFileStream fileStream = datalakeCreateFileSystem(gopherConf);
+	datalakeFreeGopherConfig(gopherConf);
 	return fileStream;
 }
 

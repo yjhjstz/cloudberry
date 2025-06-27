@@ -6,14 +6,14 @@
 #include "utils.h"
 #include <gopher/gopher.h>
 
-typedef struct FormatReader
+typedef struct DatalakeFormatReader
 {
 	const char *formatName;
 	void *(*Create) (MemoryContext mcxt, void *filenameOrStream, void *extraArg);
 	void (*Open) (void *reader, List *columnDesc, bool *attrUsed, int64_t beginOffset, int64_t endOffset);
-	bool (*Next) (void *reader, InternalRecord *record);
+	bool (*Next) (void *reader, DatalakeInternalRecord *record);
 	void (*Close) (void *reader);
-} FormatReader;
+} DatalakeFormatReader;
 
 typedef struct FileReader
 {
@@ -21,11 +21,11 @@ typedef struct FileReader
 	bool          isFileStream;
 	FileFragment *dataFile;
 	void         *dataReader;
-	FormatReader *formatReader;
+	DatalakeFormatReader *formatReader;
 } FileReader;
 
 FileReader *
-createFileReader(MemoryContext mcxt,
+datalakeCreateFileReader(MemoryContext mcxt,
 				 List *columnDesc,
 				 bool *attrUsed,
 				 bool isFileStream,

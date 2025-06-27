@@ -44,7 +44,7 @@ class avroOssInputStream : public avro::SeekableInputStream
             if (available_ == 0)
             {
                 byteCount_ += len;
-                seekFile(in_, byteCount_);
+                datalakeSeekFile(in_, byteCount_);
                 return;
             }
             size_t n = std::min(available_, len);
@@ -59,7 +59,7 @@ class avroOssInputStream : public avro::SeekableInputStream
 
     bool fill()
     {
-        size_t n = readFile(in_, buffer_, bufferSize_);
+        size_t n = datalakeReadFile(in_, buffer_, bufferSize_);
         if (n > 0)
         {
             next_ = buffer_;
@@ -71,7 +71,7 @@ class avroOssInputStream : public avro::SeekableInputStream
 
     void seek(int64_t position) final
     {
-        seekFile(in_, position);
+        datalakeSeekFile(in_, position);
         byteCount_ = position;
         available_ = 0;
     }
@@ -92,15 +92,15 @@ public:
         {
             flag = O_RDONLY;
         }
-        openFile(in_, filePath_.c_str(), flag);
-        gopherFileInfo *info = getFileInfo(in_, filePath_.c_str());
+        datalakeOpenFile(in_, filePath_.c_str(), flag);
+        gopherFileInfo *info = datalakeGetFileInfo(in_, filePath_.c_str());
         fileSize_ = info->mLength;
-        freeListDir(in_, info, 1);
+        datalakeFreeListDir(in_, info, 1);
     }
 
     ~avroOssInputStream() override
     {
-        closeFile(in_);
+        datalakeCloseFile(in_);
     }
 };
 

@@ -65,7 +65,7 @@ void parquet_close(void *reader)
 		elog(ERROR, "failed to close parquet file: %s", errorMessage.c_str());
 }
 
-bool parquet_next(void *reader, InternalRecord *record)
+bool parquet_next(void *reader, DatalakeInternalRecord *record)
 {
 	bool result;
 	std::string errorMessage;

@@ -13,7 +13,7 @@ BaseFileReader::~BaseFileReader()
 {}
 
 void
-BaseFileReader::populateRecord(InternalRecord *record)
+BaseFileReader::populateRecord(DatalakeInternalRecord *record)
 {
 	bool   isNull;
 	size_t size = typeMap_.size();
@@ -38,7 +38,7 @@ BaseFileReader::populateRecord(InternalRecord *record)
 }
 
 bool
-BaseFileReader::next(InternalRecord *record)
+BaseFileReader::next(DatalakeInternalRecord *record)
 {
 	MemoryContext oldContext;
 

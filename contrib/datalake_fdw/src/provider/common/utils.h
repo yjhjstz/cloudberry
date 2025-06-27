@@ -14,7 +14,7 @@ struct ExternalTableMetadata;
 
 #define BLOCK_SIZE (1024 * 1024 * gopher_local_blocksize_mb)
 
-typedef struct ReaderInitInfo
+typedef struct DatalakeReaderInitInfo
 {
 	int				taskId;
 	MemoryContext	mcxt;
@@ -25,70 +25,70 @@ typedef struct ReaderInitInfo
 	FileScanTask   *fileScanTask;
 	ExternalTableMetadata *tableOptions;
 	void		   *buffer;
-} ReaderInitInfo;
+} DatalakeReaderInitInfo;
 
-typedef struct InternalRecord
+typedef struct DatalakeInternalRecord
 {
 	Datum    *values;
 	bool     *nulls;
 	int64     position;
-} InternalRecord;
+} DatalakeInternalRecord;
 
 typedef struct InternalRecordWrapper {
-	InternalRecord  record;
+	DatalakeInternalRecord  record;
 	void           *recordDesc;
 } InternalRecordWrapper;
 
-typedef struct LogRecordHashEntry {
+typedef struct DatalakeLogRecordHashEntry {
 	InternalRecordWrapper *recordKey;
 	InternalRecordWrapper *recordValue;
-} LogRecordHashEntry;
+} DatalakeLogRecordHashEntry;
 
-typedef struct InternalRecordDesc {
+typedef struct DatalakeInternalRecordDesc {
 	void *hashTab;
 	int   nColumns;
 	int   nKeys;
 	int  *keyIndexes;
 	Oid  *attrType;
 	bool *attrUsed;
-} InternalRecordDesc;
+} DatalakeInternalRecordDesc;
 
 typedef struct Reader
 {
 	struct Reader *(*Create) (void *args);
-	bool (*Next) (struct Reader *reader, InternalRecord *record);
+	bool (*Next) (struct Reader *reader, DatalakeInternalRecord *record);
 	void (*Close) (struct Reader *reader);
 } Reader;
 
-typedef struct FieldDescription
+typedef struct DatalakeFieldDescription
 {
 	char  name[NAMEDATALEN];
 	Oid   typeOid;
 	int   typeMod;
-} FieldDescription;
+} DatalakeFieldDescription;
 
-typedef struct KeyValue
+typedef struct DatalakeKeyValue
 {
 	char *key;
 	char *value;
-} KeyValue;
+} DatalakeKeyValue;
 
 typedef struct MergeProvider
 {
 	void (*Close) (struct MergeProvider *merger);
 	void (*CombineAndUpdate) (struct MergeProvider *merger, InternalRecordWrapper *record);
 	void (*UpdateOnDelete) (struct MergeProvider *merger, InternalRecordWrapper *record);
-	bool (*Next) (struct MergeProvider *merger, InternalRecord *record);
-	bool (*Contains) (struct MergeProvider *merger, InternalRecord *record, InternalRecord **newRecord, bool *isDeleted);
+	bool (*Next) (struct MergeProvider *merger, DatalakeInternalRecord *record);
+	bool (*Contains) (struct MergeProvider *merger, DatalakeInternalRecord *record, DatalakeInternalRecord **newRecord, bool *isDeleted);
 
-	InternalRecordDesc *recordDesc;
+	DatalakeInternalRecordDesc *recordDesc;
 	Oid preCombineFieldType;
 	int preCombineFieldIndex;
 } MergeProvider;
 
 extern PGDLLIMPORT int PostPortNumber;
 
-typedef struct RowReader
+typedef struct DatalakeRowReader
 {
 	List					*fileScanTasks;
 	Reader					*curReader;
@@ -103,35 +103,35 @@ typedef struct RowReader
 	MemoryContext			taskMcxt;
 	MemoryContext			curMcxt;
 	void 					*buffer;
-} RowReader;
+} DatalakeRowReader;
 
-typedef struct RemoteFileHandle
+typedef struct DatalakeRemoteFileHandle
 {
 	gopherFS        gopherFilesystem;
-	RowReader      *reader;
+	DatalakeRowReader      *reader;
 	ResourceOwner   owner;
-	struct RemoteFileHandle *next;
-	struct RemoteFileHandle *prev;
-} RemoteFileHandle;
+	struct DatalakeRemoteFileHandle *next;
+	struct DatalakeRemoteFileHandle *prev;
+} DatalakeRemoteFileHandle;
 
-typedef struct ProtocolContext
+typedef struct DatalakeProtocolContext
 {
 	List			*filterQuals;
 	MemoryContext	rowContext;
-	InternalRecord	*record;
-	RemoteFileHandle *file;
-} ProtocolContext;
+	DatalakeInternalRecord	*record;
+	DatalakeRemoteFileHandle *file;
+} DatalakeProtocolContext;
 
 #ifndef WORDS_BIGENDIAN
 static inline uint32_t
-reverse32(uint32_t value)
+datalakeReverse32(uint32_t value)
 {
 	value = (value >> 16) | (value << 16);
 	return ((value & 0xff00ff00UL) >> 8) | ((value & 0x00ff00ffUL) << 8);
 }
 
 static inline uint64_t
-reverse64(uint64_t value)
+datalakeReverse64(uint64_t value)
 {
 	value = (value >> 32) | (value << 32);
 	value = ((value & 0xff00ff00ff00ff00ULL) >> 8) | ((value & 0x00ff00ff00ff00ffULL) << 8);
@@ -139,25 +139,25 @@ reverse64(uint64_t value)
 }
 #endif
 
-bool charSeqEquals(char *s1, int s1Len, char *s2, int s2Len);
-int64 getFileRecordCount(List *deletes);
-int *createRecordKeyIndexes(List *recordKeys, List *columnDesc);
-uint32 fieldHash(Datum datum, Oid type);
-bool fieldCompare(Datum datum1, Datum datum2, Oid type);
-InternalRecordWrapper *createInternalRecordWrapper(void *recordDesc, int nColumns);
-void destroyInternalRecordWrapper(InternalRecordWrapper *recordWrapper);
-bool *createDeleteProjectionColumns(List *recordKeys, List *columnDesc);
-uint32 recordHash(const void *key, Size keysize);
-int recordMatch(const void *key1, const void *key2, Size keysize);
-InternalRecordWrapper *deepCopyRecord(InternalRecordWrapper *recordWrapper);
-int extractScalFromTypeMod(int32 typmod);
-Datum createDatumByText(Oid attType, const char *value);
-void freeKeyValueList(List *kvs);
+bool datalakeCharSeqEquals(char *s1, int s1Len, char *s2, int s2Len);
+int64 datalakeGetFileRecordCount(List *deletes);
+int *datalakeCreateRecordKeyIndexes(List *recordKeys, List *columnDesc);
+uint32 datalakeFieldHash(Datum datum, Oid type);
+bool datalakeFieldCompare(Datum datum1, Datum datum2, Oid type);
+InternalRecordWrapper *datalakeCreateInternalRecordWrapper(void *recordDesc, int nColumns);
+void datalakeDestroyInternalRecordWrapper(InternalRecordWrapper *recordWrapper);
+bool *datalakeCreateDeleteProjectionColumns(List *recordKeys, List *columnDesc);
+uint32 datalakeRecordHash(const void *key, Size keysize);
+int datalakeRecordMatch(const void *key1, const void *key2, Size keysize);
+InternalRecordWrapper *datalakeDeepCopyRecord(InternalRecordWrapper *recordWrapper);
+int datalakeExtractScalFromTypeMod(int32 typmod);
+Datum datalakeCreateDatumByText(Oid attType, const char *value);
+void datalakeFreeKeyValueList(List *kvs);
 bool hudiGreaterThan(Oid type, Datum datum1, Datum datum2);
-void initRecord(InternalRecordWrapper *record, void *recordDesc, int nColumns);
-void cleanupRecord(InternalRecordWrapper *record);
-InternalRecordDesc *createInternalRecordDesc(MemoryContext mcxt, List *columnDesc, List *recordKeyFields,
+void datalakeInitRecord(InternalRecordWrapper *record, void *recordDesc, int nColumns);
+void datalakeCleanupRecord(InternalRecordWrapper *record);
+DatalakeInternalRecordDesc *createInternalRecordDesc(MemoryContext mcxt, List *columnDesc, List *recordKeyFields,
 							 char *preCombineField, int *preCombineFieldIndex, Oid *preCombineFieldType);
-void destroyInternalRecordDesc(InternalRecordDesc *recordDesc);
+void destroyInternalRecordDesc(DatalakeInternalRecordDesc *recordDesc);
 
 #endif /* _UTILS_H_ */
