@@ -1,41 +1,4 @@
 #!/usr/bin/env bash
-# --------------------------------------------------------------------
-# NOTICE from the Apache Cloudberry PPMC
-# --------------------------------------------------------------------
-# This file uses the term 'greenplum' to maintain compatibility with
-# earlier versions of Apache Cloudberry, which was originally called
-# Greenplum. This usage does not refer to VMware Tanzu Greenplum,
-# nor does it imply that Apache Cloudberry (Incubating) is affiliated
-# with, endorsed by, or sponsored by Broadcom Inc.
-#
-# This file will be renamed in a future Apache Cloudberry release to
-# ensure compliance with Apache Software Foundation guidelines.
-# We will announce the change on the project mailing list and website.
-#
-# See: https://lists.apache.org/thread/b8o974mnnqk6zpy86dgll2pgqcvqgnwm
-# --------------------------------------------------------------------
-
-cat <<"EOF"
-if [ -n "${PS1-}" ]; then
-    echo "
-# --------------------------------------------------------------------
-# NOTICE from the Apache Cloudberry PPMC
-# --------------------------------------------------------------------
-# This file uses the term 'greenplum' to maintain compatibility with
-# earlier versions of Apache Cloudberry, which was originally called
-# Greenplum. This usage does not refer to VMware Tanzu Greenplum,
-# nor does it imply that Apache Cloudberry (Incubating) is affiliated
-# with, endorsed by, or sponsored by Broadcom Inc.
-#
-# This file will be renamed in a future Apache Cloudberry release to
-# ensure compliance with Apache Software Foundation guidelines.
-# We will announce the change on the project mailing list and website.
-#
-# See: https://lists.apache.org/thread/b8o974mnnqk6zpy86dgll2pgqcvqgnwm
-# --------------------------------------------------------------------
-"
-fi
-EOF
 
 cat <<"EOF"
 if test -n "${ZSH_VERSION:-}"; then
@@ -69,11 +32,10 @@ PATH="${GPHOME}/bin:${PATH}"
 LD_LIBRARY_PATH="${GPHOME}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 if [ -e "${GPHOME}/etc/openssl.cnf" ]; then
-	export OPENSSL_CONF="${GPHOME}/etc/openssl.cnf"
+	OPENSSL_CONF="${GPHOME}/etc/openssl.cnf"
 fi
-
 if [ -d "${GPHOME}/lib/ossl-modules/" ]; then
-  export OPENSSL_MODULES=${GPHOME}/lib/ossl-modules/
+	export OPENSSL_MODULES=${GPHOME}/lib/ossl-modules/
 fi
 
 #setup JAVA_HOME
@@ -101,10 +63,12 @@ if [ -x "${GPHOME}/ext/R/bin/R" ]; then
     LD_LIBRARY_PATH="${GPHOME}/ext/R/lib:${LD_LIBRARY_PATH}"
 fi
 
+
 export GPHOME
 export PATH
 export PYTHONPATH
 export LD_LIBRARY_PATH
+export OPENSSL_CONF
 export JAVA_HOME
 export CLASSPATH
 
