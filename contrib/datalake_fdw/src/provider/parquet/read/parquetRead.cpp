@@ -63,7 +63,8 @@ bool parquetRead::checkSchemaCompatibility()
 {
     auto file_schema = fileReader.getFileMetadata()->schema();
     ParquetLogicalType parquet_type;
-    for (int i = 0; i < ncolumns; i++)
+    int columnInFile = file_schema->num_columns();
+    for (int i = 0; i < columnInFile; i++)
     {
         Oid typeOid = tupdesc->attrs[i].atttypid;\
         const auto &des = file_schema->Column(i);

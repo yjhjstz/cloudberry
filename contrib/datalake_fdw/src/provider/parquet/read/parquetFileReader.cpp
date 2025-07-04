@@ -71,10 +71,7 @@ bool parquetFileReader::createParquetReader(ossFileStream ossFile, std::string f
         return false;
     }
     int ncolumns = options.includes_columns.size() - options.nPartitionKey;
-    for (int i = 0; i < ncolumns; i++)
-    {
-        scanners.push_back(NULL);
-    }
+    scanners.resize(ncolumns);
     return true;
 }
 
