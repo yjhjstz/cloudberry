@@ -17,4 +17,6 @@ void datalakeGetUriFromOptions(Oid foreigntableid, char** uri);
 void datalakeFreeDatalakeOptions(dataLakeOptions *options);
 
 void datalakeCheckValidRecordBatchOpt(dataLakeOptions *options);
+
+char* datalakeGetCompressionName(CompressType compress);
 #endif							/* DATALAKE_OPTION_H */

@@ -106,3 +106,5 @@ int int_to_numeric_with_scale(T val, int scale, Numeric dest)
 	free_numeric_var(&numeric);
 	return len;
 }
+
+void numeric_to_FLBA(Numeric num, char *res);

@@ -514,7 +514,7 @@ void parseForeignTableOptions(dataLakeOptions* opt, List *options)
 
 		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_FILE_SIZE_LIMIT) == 0)
 		{
-			size_t filesize = atoll(defGetString(def));
+			int64_t filesize = atoll(defGetString(def));
 			if (filesize == 0 || filesize < -1)
 			{
 				ereport(ERROR,
@@ -1628,5 +1628,31 @@ void datalakeCheckValidRecordBatchOpt(dataLakeOptions *options)
 		ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 						errmsg("vectorization only support format orc.")));
+	}
+}
+
+char *datalakeGetCompressionName(CompressType compress)
+{
+	switch (compress) {
+		case UNCOMPRESS:
+			return "uncompress";
+		case BROTLI:
+			return "brotli";
+		case ZLIB:
+			return "zlib";
+		case GZIP:
+			return "gzip";
+		case ZIP:
+			return "zip";
+		case SNAPPY:
+			return "snappy";
+		case LZ4:
+			return "lz4";
+		case ZSTD:
+			return "zstd";
+		case LZJB:
+			return "lzjb";
+		default:
+			return "not support compression";
 	}
 }

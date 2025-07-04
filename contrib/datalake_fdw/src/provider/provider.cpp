@@ -190,7 +190,7 @@ CompressType Provider::getCompressType(char* type)
 	return compresstype;
 }
 
-std::string Provider::generateWriteFileName(const std::string &writePrefix, const std::string &suffix, int segid, int fileSliceIndex)
+std::string Provider::generateWriteFileName(const std::string &writePrefix, const std::string &compress, const std::string &suffix, int segid, int fileSliceIndex)
 {
 	std::stringstream fileName;
 	if (!writePrefix.empty())
@@ -203,6 +203,10 @@ std::string Provider::generateWriteFileName(const std::string &writePrefix, cons
 	}
 
 	fileName << "seg" << segid << "-" << fileSliceIndex;
+	if (!compress.empty())
+	{
+		fileName << "." << compress;
+	}
 	if (!suffix.empty())
 	{
 		fileName << "." << suffix;

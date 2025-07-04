@@ -124,9 +124,14 @@ void parquetFileReader::setRowGroup(int row_group_num)
 
 int64_t parquetFileReader::rowGroupOffset(int row_group_num)
 {
-    int64_t offset = parquet_reader->RowGroup(row_group_num)->metadata()->file_offset();
-
-    return offset;
+    if (file_metadata->RowGroup(row_group_num)->ColumnChunk(0)->has_dictionary_page())
+    {
+        return file_metadata->RowGroup(row_group_num)->ColumnChunk(0)->dictionary_page_offset();
+    }
+    else
+    {
+        return file_metadata->RowGroup(row_group_num)->ColumnChunk(0)->data_page_offset();
+    }
 }
 
 void parquetFileReader::createScanners()

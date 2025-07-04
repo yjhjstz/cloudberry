@@ -2,6 +2,10 @@
 #include "src/common/util.h"
 #include "src/common/fileSystemWrapper.h"
 
+extern "C"
+{
+#include "src/datalake_option.h"
+}
 
 #define DATALAKE_EXPORT_NAME ("datalake")
 
@@ -27,7 +31,7 @@ void parquetWrite::setOption(dataLakeOptions *options)
 
 std::string parquetWrite::generateParquetFileName(const std::string &filePath, uint32 fileSliceIndex)
 {
-	return generateWriteFileName(filePath, PARQUET_WRITE_SUFFIX, GpIdentity.segindex, fileSliceIndex);
+	return generateWriteFileName(filePath, std::string(datalakeGetCompressionName(option.compression)), PARQUET_WRITE_SUFFIX, GpIdentity.segindex, fileSliceIndex);
 }
 
 int64_t parquetWrite::write(const void *buf, int64_t length)

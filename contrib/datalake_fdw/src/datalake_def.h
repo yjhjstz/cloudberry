@@ -283,7 +283,7 @@ typedef struct dataLakeOptions
 	/* parser filePath get prefix */
 	char		*prefix;
 	bool		readFdw;
-	size_t		fileSizeLimit;
+	int64_t		fileSizeLimit;
 	bool		vectorization;
 	/* iceberg & hudi options */
 	char		*table_identifier;

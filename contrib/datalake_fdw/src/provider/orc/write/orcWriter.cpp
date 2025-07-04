@@ -67,7 +67,7 @@ void orcWrite::createHandler(void* sstate)
 	datalakeFreeGopherConfig(conf);
 
 	generateOrcSchema();
-	stripeSize = std::min(fdwState->options->fileSizeLimit, (size_t)ORC_STRIPE_SIZE);
+	stripeSize = std::min(fdwState->options->fileSizeLimit, (int64_t)ORC_STRIPE_SIZE);
 	batchSize = ORC_WRITER_BATCH_SIZE;
 	fileSizeLimit = fdwState->options->fileSizeLimit;
 }
@@ -106,7 +106,7 @@ columType orcWrite::columnBelongType(int attColumn)
 
 void orcWrite::initORC()
 {
-	fileName = generateWriteFileName(prefix, ORC_WRITE_SUFFIX, segid, currentSliceId);
+	fileName = generateWriteFileName(prefix, "", ORC_WRITE_SUFFIX, segid, currentSliceId);
 	uint64_t blockSize = 64 * 1024;     // 64K
 	orc::CompressionKind compression = orc::CompressionKind_NONE;
 	writeOptions.setStripeSize(stripeSize);

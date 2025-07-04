@@ -2,8 +2,10 @@
 #include <parquet/schema.h>
 #include <parquet/column_writer.h>
 #include <parquet/internal/arrow/util/bit_util.h>
+#include <parquet/arrow/writer.h>
 
 #include "parquetFileWriter.h"
+#include "src/provider/common/datalake_numeric.h"
 
 extern "C"
 {
@@ -17,7 +19,6 @@ extern "C"
 #define BATCH_WRITE_SIZE (1024)
 #define DECIMAL_FIXBUFFER_SIZE (16)
 #define GP_NUMERIC_MAX_SIZE (1000)
-#define PARQUET_ROW_GROUP_MAX_SIZE (64*1024*1024)
 
 parquetFileWriter::parquetFileWriter()
 {
@@ -193,13 +194,13 @@ std::shared_ptr<parquet::schema::GroupNode> parquetFileWriter::setupSchema()
                 break;
             }
             case NUMERICOID: {
-                int64_t precision = 0;
-                int64_t scale = 0;
+                int32_t precision = 0;
+                int32_t scale = 0;
                 if (tupdesc->attrs[i].atttypmod < 0)
                 {
                     ereport(ERROR,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					errmsg("The precision of numeric in foreign tables with parquet format should be specified explicitly.")));
+                    (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+                    errmsg("The precision of numeric in foreign tables with parquet format should be specified explicitly.")));
                 }
                 else
                 {
@@ -207,7 +208,7 @@ std::shared_ptr<parquet::schema::GroupNode> parquetFileWriter::setupSchema()
                     scale = (tupdesc->attrs[i].atttypmod - VARHDRSZ) & 0xffff;
                 }
                 fields.push_back(::parquet::schema::PrimitiveNode::Make(columnName.c_str(), ::parquet::Repetition::OPTIONAL,
-                    ::parquet::Type::FIXED_LEN_BYTE_ARRAY, ::parquet::ConvertedType::DECIMAL, DECIMAL_FIXBUFFER_SIZE, precision, scale));
+                    ::parquet::Type::FIXED_LEN_BYTE_ARRAY, ::parquet::ConvertedType::DECIMAL, ::parquet_arrow::DecimalType::DecimalSize(precision), precision, scale));
                 break;
             }
             case CHAROID: {
@@ -293,9 +294,8 @@ void parquetFileWriter::writeProperties()
 
     builder.compression(codec_type);
     builder.created_by("Hashdata");
-    builder.max_row_group_length(PARQUET_ROW_GROUP_MAX_SIZE);
     builder.data_pagesize(1024*1024);
-    builder.disable_dictionary();
+    builder.enable_dictionary();
     props = builder.build();
 }
 
@@ -572,12 +572,13 @@ void parquetFileWriter::writeToField(int index, const void* data)
                 StringVectorBatch* val = reinterpret_cast<StringVectorBatch*>(batchField[i]);
                 if (!isNULL)
                 {
-                    int64_t precision = ((tupdesc->attrs[i].atttypmod - VARHDRSZ) >> 16) & 0xffff;
-                    int64_t scale = (tupdesc->attrs[i].atttypmod - VARHDRSZ) & 0xffff;
-                    char *data = DatumGetCString(DirectFunctionCall1(numeric_out, tts_values));
-                    int64_t datalen = static_cast<int64_t> (strlen(data));
+                    int32_t precision = ((tupdesc->attrs[i].atttypmod - VARHDRSZ) >> 16) & 0xffff;
+                    int32_t scale = (tupdesc->attrs[i].atttypmod - VARHDRSZ) & 0xffff;
+                    char data[16];
+                    numeric_to_FLBA(DatumGetNumeric(tts_values), data);
+                    int32_t datalen = ::parquet_arrow::DecimalType::DecimalSize(precision);
                     resizeDataBuff(index, dataBuffer, datalen, dataBufferOffset);
-                    memcpy(dataBuffer.data() + dataBufferOffset, data, datalen);
+                    memcpy(dataBuffer.data() + dataBufferOffset, data + 16 - datalen, datalen);
                     val->buffer[index] = dataBuffer.data() + dataBufferOffset;
                     val->length[index] = datalen;
                     val->notNull[index] = true;
@@ -585,10 +586,6 @@ void parquetFileWriter::writeToField(int index, const void* data)
                     val->scale[index] = scale;
                     val->num = index;
                     dataBufferOffset += datalen;
-                    if (data != NULL)
-                    {
-                        pfree(data);
-                    }
                     estimated_bytes += datalen;
                 }
                 else
@@ -693,10 +690,10 @@ void parquetFileWriter::writeToField(int index, const void* data)
 
 void parquetFileWriter::writeToBatch(int rows)
 {
-    if (rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes() + estimated_bytes >= std::min((int64_t)PARQUET_ROW_GROUP_MAX_SIZE, option.writeFileSize))
+    if (rg_writer && rg_writer->num_rows() >= props->max_row_group_length())
     {
-        currentWriteBytes += rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes();
         rg_writer->Close();
+        currentWriteBytes = out_file->Tell().MoveValueUnsafe();
         rg_writer = file_writer->AppendBufferedRowGroup();
     }
     for (int i = 0; i < ncolumns; i++)
@@ -861,26 +858,17 @@ void parquetFileWriter::writeToBatch(int rows)
                 std::vector<uint8_t> valid_bits(parquet_arrow::bit_util::BytesForBits(BATCH_WRITE_SIZE), 255);
                 memset(decimalOutBuf, 0, DECIMAL_FIXBUFFER_SIZE * BATCH_WRITE_SIZE);
                 decimalOutBufOffset = 0;
-                char buffer[256] = {0};
                 for (int row = 0; row < rows; row++)
                 {
                     bool notNull = val->notNull[row];
                     if (notNull)
                     {
                         int64_t datalen = val->length[row];
-                        memcpy(buffer, val->buffer[row], datalen);
-                        buffer[datalen] = '\0';
-                        std::string decimal = buffer;
-                        parquet_arrow::Decimal128 ptr = parquet_arrow::Decimal128(decimal.c_str());
                         uint8_t* out_buf = decimalOutBuf + decimalOutBufOffset;
-                        ptr.ToBytes(out_buf);
-                        int64_t typeLen = DECIMAL_FIXBUFFER_SIZE;
-                        parquet_arrow::Result<parquet_arrow::Decimal128> t = parquet_arrow::Decimal128::FromBigEndian(out_buf, typeLen);
-                        auto v = t.MoveValueUnsafe();
-                        v.ToBytes(out_buf);
+                        memcpy(out_buf, val->buffer[row], datalen);
                         fixByteArray[row].ptr = reinterpret_cast<const uint8_t*>(out_buf);
                         definition_level[row] = 1;
-                        decimalOutBufOffset += DECIMAL_FIXBUFFER_SIZE;
+                        decimalOutBufOffset += datalen;
                     }
                     else
                     {

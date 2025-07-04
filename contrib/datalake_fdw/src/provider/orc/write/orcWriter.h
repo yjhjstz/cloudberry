@@ -200,7 +200,7 @@ private:
 	std::string fileName;
 	bool openState;
 	size_t stripeSize;
-	size_t fileSizeLimit;
+	int64_t fileSizeLimit;
 };
 
 
