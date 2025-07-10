@@ -94,7 +94,20 @@ OBJS = 	src/datalake_fdw.o \
 		src/hdw_gopher_cache/hdw_gopher_cache.o
 
 
-SHLIB_LINK += -lgopher -lparquet -lorc -larchive -lavrocpp -ljansson -larrow -lavro -lcurl -lyaml -lboost_iostreams -lsnappy -lprotobuf -lstdc++ -lm
+SHLIB_LINK += -lgopher -lparquet -lorc -larchive -lavrocpp -larrow -lavro -lcurl -lyaml -lboost_iostreams -lsnappy -lprotobuf -lstdc++ -lm
+
+JANSSON_STATIC_PATH ?= /usr/lib64 /usr/local/lib /usr/lib /opt/local/lib
+JANSSON_STATIC_LIBS = $(wildcard $(addsuffix /libjansson.a,$(JANSSON_STATIC_PATH)))
+
+ifneq ($(JANSSON_STATIC_LIBS),)
+    $(info Found JANSSON_STATIC_LIBS: $(JANSSON_STATIC_LIBS))
+    $(info Using JANSSON_STATIC_LIB: $(firstword $(JANSSON_STATIC_LIBS)))
+    SHLIB_LINK_INTERNAL = -Wl,--exclude-libs=libpq.a -Wl,-Bstatic $(firstword $(JANSSON_STATIC_LIBS)) -Wl,-Bdynamic
+else
+    $(error FATAL: No JANSSON_STATIC_LIBS found in paths: $(JANSSON_STATIC_PATH))
+    $(info Please specify JANSSON_STATIC_PATH with: make JANSSON_STATIC_PATH="/path/to/lib")
+endif
+
 PG_CPPFLAGS = -DENABLE_NLS -DSNAPPY_CODEC_AVAILABLE
 
 EXTENSION = datalake_fdw
