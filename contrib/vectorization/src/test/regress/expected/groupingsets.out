@@ -1869,26 +1869,24 @@ explain (costs off)
          count(hundred), count(thousand), count(twothousand),
          count(*)
     from tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
-                                                QUERY PLAN                                                 
------------------------------------------------------------------------------------------------------------
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
-   ->  Finalize GroupAggregate
+   ->  Finalize HashAggregate
          Group Key: unique1, twothousand, thousand, hundred, ten, four, two, (GROUPINGSET_ID())
-         ->  Sort
-               Sort Key: unique1, twothousand, thousand, hundred, ten, four, two, (GROUPINGSET_ID())
-               ->  Redistribute Motion 3:3  (slice2; segments: 3)
-                     Hash Key: unique1, twothousand, thousand, hundred, ten, four, two, (GROUPINGSET_ID())
-                     ->  Partial HashAggregate
-                           Hash Key: unique1
-                           Hash Key: twothousand
-                           Hash Key: thousand
-                           Hash Key: hundred
-                           Hash Key: ten
-                           Hash Key: four
-                           Hash Key: two
-                           ->  Seq Scan on tenk1
+         ->  Redistribute Motion 3:3  (slice2; segments: 3)
+               Hash Key: unique1, twothousand, thousand, hundred, ten, four, two, (GROUPINGSET_ID())
+               ->  Partial HashAggregate
+                     Hash Key: unique1
+                     Hash Key: twothousand
+                     Hash Key: thousand
+                     Hash Key: hundred
+                     Hash Key: ten
+                     Hash Key: four
+                     Hash Key: two
+                     ->  Seq Scan on tenk1
  Optimizer: Postgres query optimizer
-(17 rows)
+(15 rows)
 
 explain (costs off)
   select unique1,
@@ -1898,12 +1896,11 @@ explain (costs off)
     from tenk1 group by grouping sets (unique1,hundred,ten,four,two);
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
- Finalize GroupAggregate
-   Group Key: unique1, hundred, ten, four, two, (GROUPINGSET_ID())
-   ->  Gather Motion 3:1  (slice1; segments: 3)
-         Merge Key: unique1, hundred, ten, four, two, (GROUPINGSET_ID())
-         ->  Sort
-               Sort Key: unique1, hundred, ten, four, two, (GROUPINGSET_ID())
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Finalize HashAggregate
+         Group Key: unique1, hundred, ten, four, two, (GROUPINGSET_ID())
+         ->  Redistribute Motion 3:3  (slice2; segments: 3)
+               Hash Key: unique1, hundred, ten, four, two, (GROUPINGSET_ID())
                ->  Partial HashAggregate
                      Hash Key: unique1
                      Hash Key: hundred
@@ -1912,7 +1909,7 @@ explain (costs off)
                      Hash Key: two
                      ->  Seq Scan on tenk1
  Optimizer: Postgres query optimizer
-(14 rows)
+(13 rows)
 
 set work_mem = '384kB';
 explain (costs off)

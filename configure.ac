@@ -955,10 +955,40 @@ PGAC_ARG_BOOL(enable, pax, no,
                          [Define to 1 to support PAX])])
 if test "$enable_pax" = yes; then
   # Check protobuf >= 3.5.0
-  PKG_CHECK_MODULES([PROTOBUF], [protobuf >= 3.5.0],
-    [AC_DEFINE([HAVE_PROTOBUF], [1], [Define if protobuf is available])],
-    [AC_MSG_ERROR([protobuf >= 3.5.0 is required for PAX support])]
-  )
+  # hashdata-lightning-umbrella can't use the pkgconfig to check protobuf 
+  AC_LANG_PUSH([C++])
+  save_CPPFLAGS="$CPPFLAGS"
+  save_LIBS="$LIBS"
+  CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+  LIBS="$LIBS -L/usr/local/lib -lprotobuf"
+  # check protobuf header
+  AC_CHECK_HEADER([google/protobuf/stubs/common.h], [
+      # check protobuf version
+      AC_MSG_CHECKING([for libprotobuf version])
+      AC_COMPUTE_INT([PROTOBUF_VERSION], [GOOGLE_PROTOBUF_VERSION], [
+          #include <google/protobuf/stubs/common.h>
+      ], [
+          AC_MSG_ERROR([Failed to determine libprotobuf version])
+      ])
+      AC_MSG_RESULT([$PROTOBUF_VERSION])
+
+      if test "$PROTOBUF_VERSION" -lt 3005000; then
+          AC_MSG_ERROR([libprotobuf version too old (requires >= 3.5.0)])
+      fi
+  ], [
+      AC_MSG_ERROR([google/protobuf/stubs/common.h not found])
+  ])
+
+  # check libprotobuf 
+  AC_CHECK_LIB([protobuf], [main], [
+      LIBPROTOBUF_LIBS="-lprotobuf"
+  ], [
+      AC_MSG_ERROR([libprotobuf library not found])
+  ])
+
+  CPPFLAGS="$save_CPPFLAGS"
+  LIBS="$save_LIBS"
+  AC_LANG_POP([C++])
 
   # Check libzstd >= 1.4.0
   PKG_CHECK_MODULES([ZSTD], [libzstd >= 1.4.0],

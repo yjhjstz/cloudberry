@@ -562,22 +562,21 @@ SELECT * FROM t1, t2 WHERE t1.c2 = t2.c2;
 SET gp_enable_runtime_filter_pushdown TO on;
 EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
 SELECT * FROM t1, t2 WHERE t1.c2 = t2.c2;
-                                        QUERY PLAN                                         
--------------------------------------------------------------------------------------------
+                                         QUERY PLAN                                         
+--------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3) (actual rows=96 loops=1)
    ->  Hash Join (actual rows=64 loops=1)
          Hash Cond: (t1.c2 = t2.c2)
-         Extra Text: (seg0)   Hash chain length 1.0 avg, 1 max, using 6 of 524288 buckets.
+         Extra Text: (seg0)   Hash chain length 1.0 avg, 1 max, using 6 of 1048576 buckets.
          ->  Dynamic Seq Scan on t1 (actual rows=64 loops=1)
-               Rows Removed by Pushdown Runtime Filter: 544
                Number of partitions to scan: 2 (out of 2)
                Partitions scanned:  Avg 2.0 x 3 workers.  Max 2 parts (seg0).
          ->  Hash (actual rows=6 loops=1)
-               Buckets: 524288  Batches: 1  Memory Usage: 4097kB
+               Buckets: 1048576  Batches: 1  Memory Usage: 8193kB
                ->  Partition Selector (selector id: $0) (actual rows=6 loops=1)
                      ->  Seq Scan on t2 (actual rows=6 loops=1)
  Optimizer: GPORCA
-(13 rows)
+(12 rows)
 
 RESET gp_enable_runtime_filter_pushdown;
 DROP TABLE IF EXISTS t1;

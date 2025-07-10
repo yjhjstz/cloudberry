@@ -30,7 +30,7 @@ static int remoteFilePWrite(UFile *file, char *buffer, int amount, off_t offset)
 static off_t remoteFileSize(UFile *file);
 static int remoteFileUnlink(Oid spcId, const char *fileName);
 static int remoteFileRmdir(Oid spcId, const char *dirName);
-static char *remoteFormatPathName(RelFileNode *relFileNode);
+static char *remoteFormatPathName(Oid relid, RelFileNode *relFileNode);
 static bool remoteEnsurePath(Oid spcId, const char *pathName);
 static bool remoteFileExists(Oid spcId, const char *fileName);
 static const char *remoteFileName(UFile *file);
@@ -353,7 +353,7 @@ remoteFileRmdir(Oid spcId, const char *dirName)
 }
 
 static char *
-remoteFormatPathName(RelFileNode *relFileNode)
+remoteFormatPathName(Oid /*relid*/, RelFileNode *relFileNode)
 {
     char *remoteFileName;
 
