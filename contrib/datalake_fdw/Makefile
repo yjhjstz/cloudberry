@@ -102,7 +102,7 @@ JANSSON_STATIC_LIBS = $(wildcard $(addsuffix /libjansson.a,$(JANSSON_STATIC_PATH
 ifneq ($(JANSSON_STATIC_LIBS),)
     $(info Found JANSSON_STATIC_LIBS: $(JANSSON_STATIC_LIBS))
     $(info Using JANSSON_STATIC_LIB: $(firstword $(JANSSON_STATIC_LIBS)))
-    SHLIB_LINK_INTERNAL = -Wl,--exclude-libs=libpq.a -Wl,-Bstatic $(firstword $(JANSSON_STATIC_LIBS)) -Wl,-Bdynamic
+    SHLIB_LINK += -Wl,--exclude-libs=libjansson.a -Wl,-Bstatic $(firstword $(JANSSON_STATIC_LIBS)) -Wl,-Bdynamic
 else
     $(error FATAL: No JANSSON_STATIC_LIBS found in paths: $(JANSSON_STATIC_PATH))
     $(info Please specify JANSSON_STATIC_PATH with: make JANSSON_STATIC_PATH="/path/to/lib")
