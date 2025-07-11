@@ -76,6 +76,8 @@ variables:
     - ${CI_PROJECT_DIR}/build/test/postgis/*diff
     - ${CI_PROJECT_DIR}/**/gpMgmt/**/*.out
     - ${CI_PROJECT_DIR}/**/gpMgmt/**/*.diff
+    - ${CI_PROJECT_DIR}/deploy/**/*.log
+    - ${CI_PROJECT_DIR}/deploy/**/*.csv
   when: always
   reports:
     dotenv: ${CI_PROJECT_DIR}/dist/packages/manifest*.txt
