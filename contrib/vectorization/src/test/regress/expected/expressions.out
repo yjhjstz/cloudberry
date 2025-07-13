@@ -393,3 +393,33 @@ select * from inttest where a in (1::myint,2::myint,3::myint,4::myint,5::myint, 
 (2 rows)
 
 rollback;
+-- only support IN operator.
+create table t1 (c1 text) with(appendonly=true, orientation=column) distributed by (c1);
+explain (costs off) select * from t1 where c1 = any (null::text[]);
+                QUERY PLAN                
+------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Seq Scan on t1
+         Filter: (c1 = ANY (NULL::text[]))
+ Optimizer: GPORCA
+(4 rows)
+
+explain (costs off) select * from t1 where c1 = all (null::text[]);
+                QUERY PLAN                
+------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Seq Scan on t1
+         Filter: (c1 = ALL (NULL::text[]))
+ Optimizer: GPORCA
+(4 rows)
+
+explain (costs off) select * from t1 where c1 in ('a', 'b');
+                  QUERY PLAN                  
+----------------------------------------------
+ Vec Gather Motion 2:1  (slice1; segments: 2)
+   ->  Vec Seq Scan on t1
+         Filter: (c1 = ANY ('{a,b}'::text[]))
+ Optimizer: GPORCA
+(4 rows)
+
+drop table t1;

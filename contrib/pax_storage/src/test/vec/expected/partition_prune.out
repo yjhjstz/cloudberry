@@ -1421,8 +1421,8 @@ explain (costs off) select * from coercepart where a = any (null::text[]);
 explain (costs off) select * from coercepart where a = all ('{ab}');
                      QUERY PLAN                     
 ----------------------------------------------------
- Vec Gather Motion 1:1  (slice1; segments: 1)
-   ->  Vec Seq Scan on coercepart_ab coercepart
+ Gather Motion 1:1  (slice1; segments: 1)
+   ->  Seq Scan on coercepart_ab coercepart
          Filter: ((a)::text = ALL ('{ab}'::text[]))
  Optimizer: Postgres query optimizer
 (4 rows)

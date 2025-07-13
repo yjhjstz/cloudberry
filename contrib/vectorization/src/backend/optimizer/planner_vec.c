@@ -561,9 +561,18 @@ is_expr_vectorable(Expr* expr, void *context)
 
 				/* Fixme: Fully support of ScalarArrayOpExpr, only "IN" now. */
 				if (strcmp(get_opname(arrayexpr->opno), "=")
-						|| !IsA(lsecond(arrayexpr->args), Const))
+						|| !IsA(lsecond(arrayexpr->args), Const)
+						|| !arrayexpr->useOr)
 				{
-					elog(DEBUG2, "Fallback to non-vectorization; ScalarArrayOpExpr not in");
+					elog(DEBUG2, "Fallback to non-vectorization; ScalarArrayOpExpr only support IN operator");
+					return false;
+				}
+
+				/* IN operator doesn't support null::type[] as array, so const_expr must be not null */
+				Const *const_expr = (Const *) lsecond(arrayexpr->args);
+				if (const_expr->constisnull)
+				{
+					elog(DEBUG2, "Fallback to non-vectorization; ScalarArrayOpExpr only support IN operator");
 					return false;
 				}
 			}

@@ -203,3 +203,12 @@ select * from inttest where a in (1::myint,2::myint,3::myint,4::myint,5::myint,6
 select * from inttest where a in (1::myint,2::myint,3::myint,4::myint,5::myint, null);
 
 rollback;
+
+-- only support IN operator.
+create table t1 (c1 text) with(appendonly=true, orientation=column) distributed by (c1);
+
+explain (costs off) select * from t1 where c1 = any (null::text[]);
+explain (costs off) select * from t1 where c1 = all (null::text[]);
+explain (costs off) select * from t1 where c1 in ('a', 'b');
+
+drop table t1;
