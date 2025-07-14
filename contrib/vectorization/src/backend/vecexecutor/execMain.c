@@ -64,7 +64,6 @@ typedef struct PlanBuildContext
 
 	/* Aggregate information */
 	List *agginfos;
-	AggSplit aggsplit;
 	AggStrategy aggstrategy;
 	const gchar **keys; /* column name of group keys, used by windowagg also */
 	int nkey;           /* number of groups, used by windowagg also */
@@ -1333,8 +1332,6 @@ new_agg_info(Aggref *aggref, int aggno, PlanBuildContext *pcontext)
 	const ArrowAggFmgr *fmgr;
 	const AggFuncTable *table;
 
-	Assert(aggref->aggsplit == pcontext->aggsplit);
-
 	agginfo = palloc(sizeof(VecAggInfo));
 	agginfo->aggref = aggref;
 
@@ -1342,14 +1339,14 @@ new_agg_info(Aggref *aggref, int aggno, PlanBuildContext *pcontext)
 	if (!fmgr)
 		elog(ERROR, "Can not find Arrow aggregate fmgr, aggfnoid: %d",
 				aggref->aggfnoid);
-	if (pcontext->aggsplit == AGGSPLIT_FINAL_DESERIAL)
+	if (aggref->aggsplit == AGGSPLIT_FINAL_DESERIAL)
 		table = get_arrow_agg_functable(fmgr->finalfn);
-	else if (pcontext->aggsplit == AGGSPLIT_INITIAL_SERIAL)
+	else if (aggref->aggsplit == AGGSPLIT_INITIAL_SERIAL)
 		table = get_arrow_agg_functable(fmgr->transfn);
-	else if (pcontext->aggsplit == AGGSPLIT_SIMPLE)
+	else if (aggref->aggsplit == AGGSPLIT_SIMPLE)
 		table = get_arrow_agg_functable(fmgr->simplefn);
 	else
-		elog(ERROR, "doesn't support aggsplit: %d", pcontext->aggsplit);
+		elog(ERROR, "doesn't support aggsplit: %d", aggref->aggsplit);
 
 	agginfo->aname = get_agg_func_name(aggref, table, pcontext);
 	agginfo->options = table->getOption(list_length(aggref->args));
@@ -1614,7 +1611,6 @@ BuildVecPlan(PlanState *planstate, VecExecuteState *estate)
 			pcontext.inputschema = GetSchemaFromSlot(
 					outerPlanState(planstate)->ps_ResultTupleSlot);
 			pcontext.aggstrategy = agg->aggstrategy;
-			pcontext.aggsplit = agg->aggsplit;
 			pcontext.ishaving = true;
 		}
 		break;
