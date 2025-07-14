@@ -116,6 +116,14 @@ datalakeSelectRandomSegments(int num_nodes, int random_num)
 
 void datalakeExecSegment(List* selectSegments, int cursegid, int cursegnum,
 				  bool *exec, int *segindex, int *segnum) {
+  
+	if (cursegid < 0) {
+		*exec = true;
+		*segindex = 0;
+		*segnum = cursegnum;
+		return;
+	}
+
   int cursegindex = cursegid;
   int size = list_length(selectSegments);
   int selectNode = list_nth_int(selectSegments, cursegindex);
