@@ -649,9 +649,31 @@ ConvertExternalTableStmt(CreateExternalStmt *createExtStmt)
 
 			const char *enc_name = get_encoding_name_for_icu(encoding);
 			if (!enc_name)
-				ereport(ERROR,
-						(errcode(ERRCODE_UNDEFINED_OBJECT),
-						errmsg("encoding %d is not supported", encoding)));
+			{
+				/* Handle encodings not supported by ICU but valid in PostgreSQL */
+				switch (encoding)
+				{
+					case 0:  /* PG_SQL_ASCII */
+						enc_name = "US-ASCII";
+						break;
+					case 5:  /* PG_EUC_JIS_2004 */
+						enc_name = "EUC-JP";  /* Use EUC-JP as fallback */
+						break;
+					case 7:  /* PG_MULE_INTERNAL */
+						enc_name = "UTF-8";   /* Use UTF-8 as fallback */
+						break;
+					case 18: /* PG_LATIN10 */
+						enc_name = "ISO-8859-16"; /* ISO-8859-16 Latin10 */
+						break;
+					case 21: /* PG_WIN874 */
+						enc_name = "CP874";   /* Windows-874 */
+						break;
+					default:
+						ereport(ERROR,
+								(errcode(ERRCODE_UNDEFINED_OBJECT),
+								errmsg("encoding %d is not supported", encoding)));
+				}
+			}
 			foreignOptions = lappend(foreignOptions, makeDefElem("encoding", (Node *) makeString(psprintf("%s", enc_name)), -1));
 
 			// find forenign server by hdfs cluster name
