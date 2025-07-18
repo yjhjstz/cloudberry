@@ -1364,7 +1364,7 @@ int perfmon_main(Datum arg)
 				DataDir);
 
 	memset(port, 0, sizeof(port));
-	snprintf(port, 5, "%d", PostPortNumber);
+	snprintf(port, sizeof(port), "%d", PostPortNumber);
 	opt.gpdb_port = port;
 
 	/* Set env if we got a port.  This will be picked up by libpq */
