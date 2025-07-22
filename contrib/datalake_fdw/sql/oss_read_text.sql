@@ -403,5 +403,5 @@ CREATE FOREIGN TABLE read_split_file (
 )
 SERVER oss_server
 OPTIONS (filePath '/ossext-ci-test/split_file_write/', enableCache 'false', format 'text');
-SELECT count(*) FROM read_split_file ORDER BY a;
+SELECT count(*) FROM read_split_file;
 DROP FOREIGN TABLE IF EXISTS read_split_file;

@@ -212,15 +212,8 @@ void textFileRead::restart()
 }
 
 int64_t textFileRead::readForFile(void* buffer, int64_t length) {
-    int64_t readBytes = 0;
-    int64_t blockRemainBytes = curMetaInfo.rangeOffsetEnd - (curMetaInfo.rangeOffset + blockOffset);
-    int64_t remainReadBytes = blockRemainBytes >= length ? length : blockRemainBytes;
-    while(remainReadBytes) {
-        int64_t nread = reader->read(buffer, length);
-        blockOffset += nread;
-        remainReadBytes -= nread;
-        readBytes += nread;
-    }
+    int64_t readBytes = reader->read(buffer, length);
+    blockOffset += readBytes;
     return readBytes;
 }
 
@@ -356,15 +349,11 @@ bool textFileRead::getNextGroup() {
         } else if (lineReader->getState() == LINE_RECORD_FETCH_FINAL_LINE) {
             return false;
         }
-    } else if (curMetaInfo.compress == SNAPPY ||
-                curMetaInfo.compress == DEFLATE) {
+    } else {
         if (reader->isReadFinish()) {
             return false;
         }
-    } else if ((curMetaInfo.rangeOffset + blockOffset >= curMetaInfo.rangeOffsetEnd)) {
-        return false;
     }
-
     return true;
 }
 

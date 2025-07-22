@@ -14,6 +14,7 @@ public:
 	textFileArchiveRead()
 	{
 		state = FILE_UNDEF;
+		readFinish = false;
 	}
 
 	virtual void open(ossFileStream ossFile, std::string fileName, readOption options);
@@ -35,7 +36,7 @@ public:
     virtual void setFileLength(int64_t length) {}
 
     virtual bool isReadFinish() {
-        return false;
+        return readFinish;
     }
 
 private:
@@ -51,7 +52,7 @@ private:
 	std::string fileName;
 	fileState state;
     int archive_format_tag;
-
+	bool readFinish;
 };
 
 }

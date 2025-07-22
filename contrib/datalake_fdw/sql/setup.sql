@@ -23,7 +23,7 @@ CREATE USER MAPPING FOR gpadmin
 
 -- Create server and user mapping for hive_s3
 CREATE SERVER hive_s3_server
-        FOREIGN DATA WRAPPER datalake_fdw OPTIONS (host '127.0.0.1:9100', protocol 's3', isvirtual 'false', ishttps 'false');
+        FOREIGN DATA WRAPPER datalake_fdw OPTIONS (host 'services-hive-s3:9100', protocol 's3', isvirtual 'false', ishttps 'false');
 CREATE USER MAPPING FOR gpadmin
         SERVER hive_s3_server
         OPTIONS (user 'gpadmin', accesskey 'admin', secretkey 'password');

@@ -20,6 +20,7 @@ void textFileArchiveRead::open(ossFileStream ossFile, std::string fileName, read
 	archive_read_support_filter_all(archive);
 	setArchiveReadSupport(fileName.c_str());
 	this->fileName = fileName;
+	readFinish = false;
 
 	int ret = archive_read_open(archive, ossFile, NULL, read_call_back, NULL);
 
@@ -111,6 +112,9 @@ int64_t textFileArchiveRead::seek(int64_t offset) {
 int64_t textFileArchiveRead::read(void* buffer, size_t length)
 {
 	int64_t size = archive_read_data(archive, buffer, length);
+	if (size == 0) {
+		readFinish = true;
+	}
 	return size;
 }
 
