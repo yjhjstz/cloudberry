@@ -116,7 +116,7 @@ datalakeSelectRandomSegments(int num_nodes, int random_num)
 
 void datalakeExecSegment(List* selectSegments, int cursegid, int cursegnum,
 				  bool *exec, int *segindex, int *segnum) {
-  
+
 	if (cursegid < 0) {
 		*exec = true;
 		*segindex = 0;
@@ -124,28 +124,28 @@ void datalakeExecSegment(List* selectSegments, int cursegid, int cursegnum,
 		return;
 	}
 
-  int cursegindex = cursegid;
-  int size = list_length(selectSegments);
-  int selectNode = list_nth_int(selectSegments, cursegindex);
-  if (selectNode == 1) {
-	*exec = true;
-  } else {
-	*exec = false;
-  }
-  if (!*exec) {
-    *segindex = 0;
-  }
+	int cursegindex = cursegid;
+	int size = list_length(selectSegments);
+	int selectNode = list_nth_int(selectSegments, cursegindex);
+	if (selectNode == 1) {
+		*exec = true;
+	} else {
+		*exec = false;
+	}
+	if (!*exec) {
+		*segindex = 0;
+	}
 
-  int index = 0;
-  int total = 0;
-  for (int i = 0; i < size; i++) {
-    if (i == cursegindex) {
-      index = total;
-    }
-    if (list_nth_int(selectSegments, i)) {
-      total++;
-    }
-  }
-  *segindex = index;
-  *segnum = total;
+	int index = 0;
+	int total = 0;
+	for (int i = 0; i < size; i++) {
+	if (i == cursegindex) {
+		index = total;
+	}
+	if (list_nth_int(selectSegments, i)) {
+		total++;
+	}
+	}
+	*segindex = index;
+	*segnum = total;
 }
