@@ -44,8 +44,6 @@ private:
 
 	fileState state;
 
-	ossFileStream mOssFile;
-
 };
 
 }

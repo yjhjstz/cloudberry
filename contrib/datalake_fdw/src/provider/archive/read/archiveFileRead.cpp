@@ -17,7 +17,6 @@ void archiveFileRead::open(ossFileStream ossFile, std::string fileName, readOpti
 	this->fileName = fileName;
 
 	int ret = archive_read_open(archive, ossFile, NULL, read_call_back, NULL);
-	mOssFile = ossFile;
 
 	if (ret != ARCHIVE_OK)
 	{
@@ -90,7 +89,7 @@ void archiveFileRead::close()
 				fileName.c_str(), 
 				archive_error_string(archive));
 		}
-		closeFile(mOssFile);
+
 		archive = NULL;
 	}
 }
