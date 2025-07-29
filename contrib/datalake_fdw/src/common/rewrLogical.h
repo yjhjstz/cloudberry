@@ -17,7 +17,7 @@ namespace Datalake {
 namespace Internal {
 
 #define READ_BATCH_SIZE (1000)
-#define BLOCK_POLICY_SIZE (16 * 1024 * 1024)
+#define BLOCK_POLICY_SIZE (128 * 1024 * 1024)
 
 #define SUPPORT_ENABLE_CACHE(option) \
 	((option.enableCache == true)) \

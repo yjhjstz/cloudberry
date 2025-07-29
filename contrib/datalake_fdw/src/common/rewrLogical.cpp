@@ -199,7 +199,15 @@ bool readLogical::readNextGroup()
 			last = true;
 			return false;
 		}
-		blockSerial += dummy_segnums;
+		if (nPartitionKey)
+		{
+			blockSerial += dummy_segnums;
+		}
+		else
+		{
+			blockSerial++; 
+		}
+		
 	}
 	return false;
 }

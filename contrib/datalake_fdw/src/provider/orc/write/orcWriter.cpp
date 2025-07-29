@@ -144,7 +144,7 @@ void orcWrite::closeORC()
 
 int64_t orcWrite::write(const void* buf, int64_t length)
 {
-	if (openState && fileSizeLimit > 0 && outStream->getLength() + stripeSize > fileSizeLimit)
+	if (openState && fileSizeLimit > 0 && (int64_t)(outStream->getLength() + stripeSize) > fileSizeLimit)
 	{
 		closeORC();
 		currentSliceId += 1;

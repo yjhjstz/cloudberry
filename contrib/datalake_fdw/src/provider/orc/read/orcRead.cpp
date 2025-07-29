@@ -51,6 +51,11 @@ bool orcRead::createPolicy()
 	
 	readPolicy.hiveTranscation = options.transactionTable;
 	readPolicy.build(dummy_segid, dummy_segnums, BLOCK_POLICY_SIZE, lists);
+	if (!nPartitionKey)
+	{
+		readPolicy.distBlock();
+		blockSerial = readPolicy.start;
+	}
 
 	return exec;
 }
