@@ -65,7 +65,7 @@ class VecAdapter final {
 
   ~VecAdapter();
 
-  void SetDataSource(std::shared_ptr<PaxColumns> columns, int group_base_offset);
+  void SetDataSource(PaxColumns *columns, int group_base_offset);
 
   bool IsInitialized() const;
 
@@ -137,7 +137,7 @@ class VecAdapter final {
   VecBatchBuffer *vec_cache_buffer_;
   int vec_cache_buffer_lens_;
 
-  std::shared_ptr<PaxColumns> process_columns_;
+  PaxColumns *process_columns_ = nullptr;
   size_t current_index_;
   bool build_ctid_;
 

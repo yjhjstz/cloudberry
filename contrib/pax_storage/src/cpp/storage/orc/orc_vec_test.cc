@@ -108,7 +108,7 @@ TEST_F(OrcVecTest, WriteReadGroup) {
   writer_options.rel_tuple_desc = tuple_slot->tts_tupleDescriptor;
   writer_options.storage_format = PaxStorageFormat::kTypeStoragePorcVec;
 
-  auto writer = OrcWriter::CreateWriter(writer_options, types, file_ptr);
+  auto writer = OrcWriter::CreateWriter(writer_options, types, std::move(file_ptr));
 
   for (uint16 i = 0; i < 10000; i++) {
     if (i % 3 == 0) {
@@ -144,14 +144,14 @@ TEST_F(OrcVecTest, WriteReadGroup) {
 
   file_ptr = local_fs->Open(file_name_, fs::kReadMode);
 
-  auto reader = new OrcReader(file_ptr);
+  auto reader = new OrcReader(std::move(file_ptr));
   reader->Open(reader_options);
 
   EXPECT_EQ(2UL, reader->GetGroupNums());
 
   // verify group1
   auto group1 = reader->ReadGroup(0);
-  auto columns1 = group1->GetAllColumns();
+  auto &columns1 = group1->GetAllColumns();
 
   EXPECT_EQ(2UL, columns1->GetColumns());
 
@@ -196,7 +196,7 @@ TEST_F(OrcVecTest, WriteReadGroup) {
 
   // verify group 2
   auto group2 = reader->ReadGroup(1);
-  auto columns2 = group2->GetAllColumns();
+  auto &columns2 = group2->GetAllColumns();
 
   column1 = static_cast<PaxVecNonFixedColumn*>((*columns2)[0].get());
   column2 = static_cast<PaxVecCommColumn<int32>*>((*columns2)[1].get());
@@ -257,7 +257,7 @@ TEST_F(OrcVecTest, WriteReadGroupWithEncoding) {
   writer_options.encoding_opts = types_encoding;
   writer_options.storage_format = PaxStorageFormat::kTypeStoragePorcVec;
 
-  auto writer = new OrcWriter(writer_options, types, file_ptr);
+  auto writer = new OrcWriter(writer_options, types, std::move(file_ptr));
 
   for (uint16 i = 0; i < 10000; i++) {
     if (i % 3 == 0) {
@@ -294,14 +294,14 @@ TEST_F(OrcVecTest, WriteReadGroupWithEncoding) {
 
   file_ptr = local_fs->Open(file_name_, fs::kReadMode);
 
-  auto reader = new OrcReader(file_ptr);
+  auto reader = new OrcReader(std::move(file_ptr));
   reader->Open(reader_options);
 
   EXPECT_EQ(2UL, reader->GetGroupNums());
 
   // verify group1
   auto group1 = reader->ReadGroup(0);
-  auto columns1 = group1->GetAllColumns();
+  auto &columns1 = group1->GetAllColumns();
 
   EXPECT_EQ(2UL, columns1->GetColumns());
 
@@ -346,7 +346,7 @@ TEST_F(OrcVecTest, WriteReadGroupWithEncoding) {
 
   // verify group 2
   auto group2 = reader->ReadGroup(1);
-  auto columns2 = group2->GetAllColumns();
+  auto &columns2 = group2->GetAllColumns();
 
   column1 = static_cast<PaxVecNonFixedColumn*>((*columns2)[0].get());
   column2 = static_cast<PaxVecCommColumn<int32>*>((*columns2)[1].get());

@@ -78,7 +78,7 @@ retry_next_group:
     }
 
     working_group_ = reader_->ReadGroup(group_index);
-    adapter_->SetDataSource(working_group_->GetAllColumns(),
+    adapter_->SetDataSource(working_group_->GetAllColumns().get(),
                             working_group_->GetRowOffset());
   }
 
@@ -114,7 +114,7 @@ retry_read_group:
 
     working_group_ = reader_->ReadGroup(group_index);
 
-    adapter_->SetDataSource(working_group_->GetAllColumns(),
+    adapter_->SetDataSource(working_group_->GetAllColumns().get(),
                             working_group_->GetRowOffset());
   }
 

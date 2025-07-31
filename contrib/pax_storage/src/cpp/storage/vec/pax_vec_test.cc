@@ -220,7 +220,7 @@ TEST_P(PaxVecTest, PaxColumnToVec) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
   if (with_visimap) {
     adapter->SetVisibitilyMapInfo(visimap);
   }
@@ -353,7 +353,7 @@ TEST_P(PaxVecTest, PaxColumnWithDictToVec) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
 
   auto append_rc = adapter->AppendToVecBuffer();
 
@@ -465,7 +465,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullAndDictToVec) {
   column->GetBuffer();
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
 
   auto append_rc = adapter->AppendToVecBuffer();
   ASSERT_EQ(static_cast<size_t>(append_rc), VEC_BATCH_LENGTH + null_counts);
@@ -613,8 +613,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullToVec) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  std::shared_ptr<PaxColumns> sp_columns = std::move(columns);
-  adapter->SetDataSource(sp_columns, 0);
+  adapter->SetDataSource(columns.get(), 0);
 
   auto append_rc = adapter->AppendToVecBuffer();
   ASSERT_EQ(append_rc, num_rows);
@@ -646,7 +645,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullToVec) {
     ASSERT_EQ(child_array->length, num_rows);
     ASSERT_EQ(
         static_cast<size_t>(child_array->null_count),
-        num_rows - (*sp_columns)[0]->GetRangeNonNullRows(0, num_rows));
+        num_rows - (*columns)[0]->GetRangeNonNullRows(0, num_rows));
     ASSERT_EQ(child_array->offset, 0);
     ASSERT_EQ(child_array->n_buffers, is_fixed ? 2 : 3);
     ASSERT_EQ(child_array->n_children, 0);
@@ -771,7 +770,7 @@ TEST_P(PaxVecTest, PaxColumnToVecNoFull) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
   auto append_rc = adapter->AppendToVecBuffer();
   ASSERT_EQ(append_rc, 1000);
 
@@ -881,7 +880,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullToVecNoFull) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
   auto append_rc = adapter->AppendToVecBuffer();
   ASSERT_EQ(static_cast<size_t>(append_rc), 1000 + null_counts);
 
@@ -1019,7 +1018,7 @@ TEST_P(PaxVecTest, PaxColumnAllNullToVec) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
   auto append_rc = adapter->AppendToVecBuffer();
   ASSERT_EQ(append_rc, 1000);
 
@@ -1114,7 +1113,7 @@ TEST_P(PaxVecTest, DecimalTest) {
   columns->SetStorageFormat(PaxStorageFormat::kTypeStoragePorcVec);
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(std::move(columns), 0);
+  adapter->SetDataSource(columns.get(), 0);
   auto append_rc = adapter->AppendToVecBuffer();
   ASSERT_EQ(append_rc, VEC_BATCH_LENGTH);
 
@@ -1168,7 +1167,7 @@ TEST_P(PaxVecTest, DecimalTest) {
 
 TEST_P(PaxVecTest, PaxColumnWithNullAndVisimapToVec) {
   std::shared_ptr<VecAdapter> adapter;
-  std::shared_ptr<PaxColumns> columns;
+  std::unique_ptr<PaxColumns> columns;
   std::unique_ptr<PaxColumn> column;
   auto is_fixed = ::testing::get<0>(GetParam());
   auto with_visimap = ::testing::get<1>(GetParam());
@@ -1181,7 +1180,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullAndVisimapToVec) {
 
   adapter =
       std::make_shared<VecAdapter>(tuple_slot->tts_tupleDescriptor, false);
-  columns = std::make_shared<PaxColumns>();
+  columns = std::make_unique<PaxColumns>();
   if (is_fixed) {
     column = std::make_unique<PaxCommColumn<int32>>(VEC_BATCH_LENGTH);
   } else {
@@ -1215,7 +1214,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullAndVisimapToVec) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(columns, 0);
+  adapter->SetDataSource(columns.get(), 0);
   if (with_visimap) {
     adapter->SetVisibitilyMapInfo(visimap);
   }
@@ -1324,7 +1323,7 @@ TEST_P(PaxVecTest, PaxColumnWithNullAndVisimapToVec) {
 
 TEST_P(PaxVecTest, PaxColumnBuildCtidToVec) {
   std::shared_ptr<VecAdapter> adapter;
-  std::shared_ptr<PaxColumns> columns;
+  std::unique_ptr<PaxColumns> columns;
   std::unique_ptr<PaxColumn> column;
 
   auto is_fixed = ::testing::get<0>(GetParam());
@@ -1337,7 +1336,7 @@ TEST_P(PaxVecTest, PaxColumnBuildCtidToVec) {
 
   adapter = std::make_shared<VecAdapter>(tuple_slot->tts_tupleDescriptor,
                                 true);
-  columns = std::make_shared<PaxColumns>();
+  columns = std::make_unique<PaxColumns>();
   if (is_fixed) {
     column = std::make_unique<PaxCommColumn<int32>>(VEC_BATCH_LENGTH);
   } else {
@@ -1365,7 +1364,7 @@ TEST_P(PaxVecTest, PaxColumnBuildCtidToVec) {
 
   columns->AddRows(column->GetRows());
   columns->Append(std::move(column));
-  adapter->SetDataSource(columns, 0);
+  adapter->SetDataSource(columns.get(), 0);
   if (with_visimap) {
     adapter->SetVisibitilyMapInfo(visimap);
   }

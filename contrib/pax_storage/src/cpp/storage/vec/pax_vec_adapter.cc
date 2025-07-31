@@ -432,12 +432,12 @@ VecAdapter::~VecAdapter() {
   }
 }
 
-void VecAdapter::SetDataSource(std::shared_ptr<PaxColumns> columns, int group_base_offset) {
+void VecAdapter::SetDataSource(PaxColumns *columns, int group_base_offset) {
   Assert(columns);
   Assert(group_base_offset >= 0);
   Assert(group_base_offset < static_cast<int>(PAX_MAX_NUM_TUPLES_PER_FILE));
 
-  process_columns_ = std::move(columns);
+  process_columns_ = columns;
   group_base_offset_ = group_base_offset;
   current_index_ = 0;
   cached_batch_lens_ = 0;
@@ -470,8 +470,8 @@ int VecAdapter::AppendToVecBuffer() {
   Assert(current_index_ == 0);
   std::tie(number_of_append, current_index_) =
       porc_vec_format
-          ? AppendPorcVecFormat(process_columns_.get())
-          : AppendPorcFormat(process_columns_.get(), 0, total_rows);
+          ? AppendPorcVecFormat(process_columns_)
+          : AppendPorcFormat(process_columns_, 0, total_rows);
   Assert(number_of_append <= total_rows);
 
   // In this time cached_batch_lens_ always be 0
@@ -720,7 +720,7 @@ size_t VecAdapter::FlushVecBuffer(TupleTableSlot *slot) {
   size_t column_size = 0;
   size_t rc = 0;
 
-  columns = process_columns_.get();
+  columns = process_columns_;
   Assert(columns);
 
   vslot = VECSLOT(slot);
