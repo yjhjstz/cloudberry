@@ -25,7 +25,7 @@ function start_regress_test() {
 		    done
 		    exit 1
 		}
-		source /usr/local/cloudberry-db-devel/greenplum_path.sh
+		source /usr/local/cloudberry-db-devel/cloudberry-env.sh
 		export PGPORT=7000
 		export COORDINATOR_DATA_DIRECTORY=/code/gpdb_src/gpAux/gpdemo/datadirs/qddir/demoDataDir-1
 		pushd "/code/gpdb_src/contrib/datalake_fdw/"
@@ -48,7 +48,7 @@ function start_regress_test() {
 
 function start_tpcds_test() {
     BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-    source ${CBDB_INSTALL_DIRECTORY}/greenplum_path.sh
+    source ${CBDB_INSTALL_DIRECTORY}/cloudberry-env.sh
 	$BASE_DIR/tpcds/run.sh
 }
 

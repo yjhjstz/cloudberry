@@ -81,8 +81,8 @@ echo "127.0.0.1     namenode" >> /etc/hosts
     sudo cp -p /opt/gphdfs.conf ${CBDB_SRC_DIRECTORY}/gpAux/gpdemo/datadirs/dbfast3/demoDataDir2/
     sudo cp -p /opt/gphive.conf ${CBDB_SRC_DIRECTORY}/gpAux/gpdemo/datadirs/dbfast3/demoDataDir2/
 
-    # source /usr/local/cloudberry-db-devel/greenplum_path.sh
-    source /usr/local/cloudberry-db-devel/greenplum_path.sh
+    # source /usr/local/cloudberry-db-devel/cloudberry-env.sh
+    source /usr/local/cloudberry-db-devel/cloudberry-env.sh
     export PGPORT=7000
     export COORDINATOR_DATA_DIRECTORY=${CBDB_SRC_DIRECTORY}/gpAux/gpdemo/datadirs/qddir/demoDataDir-1
 

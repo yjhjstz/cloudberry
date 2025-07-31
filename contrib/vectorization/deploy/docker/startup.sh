@@ -19,9 +19,9 @@ echo "cbdb_dir=\"$parent_dir/cbdb\"" > /home/gpadmin/.bashrc
 echo 'export PATH=/home/gpadmin/.local/bin:$GPHOME/bin:$PATH' >> /home/gpadmin/.bashrc
 echo 'export PYTHONPATH=/home/gpadmin/install/gpdb/lib/python:$PYTHONPATH' >> /home/gpadmin/.bashrc
 echo 'export LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu:/usr/local/lib:/home/gpadmin/install/gpdb/lib:$LD_LIBRARY_PATH' >> /home/gpadmin/.bashrc
-echo 'if [ -f  /home/gpadmin/install/gpdb/greenplum_path.sh ]
+echo 'if [ -f  /home/gpadmin/install/gpdb/cloudberry-env.sh ]
 then
-  source /home/gpadmin/install/gpdb/greenplum_path.sh
+  source /home/gpadmin/install/gpdb/cloudberry-env.sh
 fi' >> /home/gpadmin/.bashrc
 echo "gpdemo_file=\"\$cbdb_dir/gpAux/gpdemo/gpdemo-env.sh\"" >> /home/gpadmin/.bashrc
 echo 'if [ -f "$gpdemo_file" ]; then source "$gpdemo_file"; fi' >> /home/gpadmin/.bashrc

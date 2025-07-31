@@ -55,7 +55,7 @@ function install_lib() {
 }
 
 function source_file() {
-	source /usr/local/cloudberry-db-devel/greenplum_path.sh
+	source /usr/local/cloudberry-db-devel/cloudberry-env.sh
 	source /code/gpdb_src/gpAux/gpdemo/gpdemo-env.sh
 }
 
