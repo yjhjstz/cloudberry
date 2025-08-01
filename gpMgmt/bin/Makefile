@@ -79,6 +79,25 @@ endif
 #
 # Python Libraries
 #
+# Download Python source packages using pip3 download
+# This replaces the previously bundled tar.gz files to comply with Apache Release policy
+#
+MOCK_VERSION=1.0.1
+PYGRESQL_VERSION=5.2
+PSUTIL_VERSION=5.7.0
+PYYAML_VERSION=5.4.1
+
+download-python-deps:
+	@echo "--- Downloading Python dependencies for gpMgmt modules"
+	@mkdir -p $(PYLIB_SRC_EXT)
+	# Download psutil using curl
+	curl -sSL https://files.pythonhosted.org/packages/source/p/psutil/psutil-$(PSUTIL_VERSION).tar.gz -o $(PYLIB_SRC_EXT)/psutil-$(PSUTIL_VERSION).tar.gz
+	# Download PyYAML using curl
+	curl -sSL https://files.pythonhosted.org/packages/source/P/PyYAML/PyYAML-$(PYYAML_VERSION).tar.gz -o $(PYLIB_SRC_EXT)/PyYAML-$(PYYAML_VERSION).tar.gz
+	# Download PyGreSQL using curl
+	curl -sSL https://files.pythonhosted.org/packages/source/P/PyGreSQL/PyGreSQL-$(PYGRESQL_VERSION).tar.gz -o $(PYLIB_SRC_EXT)/PyGreSQL-$(PYGRESQL_VERSION).tar.gz
+	# Install wheel and cython for PyYAML building
+	pip3 install --user wheel "cython<3.0.0"
 
 #
 # PyGreSQL
@@ -139,12 +158,14 @@ $(MOCK_BIN):
 	@echo "--- mock for platform $(UBUNTU_PLATFORM)"
 	@if [ "$(UBUNTU_PLATFORM)" = "Ubuntu" ]; then\
        pip3 install mock;\
-     else\
+    else\
+       mkdir -p $(PYLIB_SRC_EXT) && \
+       curl -sSL https://files.pythonhosted.org/packages/source/m/mock/mock-$(MOCK_VERSION).zip -o $(PYLIB_SRC_EXT)/mock-$(MOCK_VERSION).zip && \
        mkdir -p $(PYTHONSRC_INSTALL_SITE) && \
-	   cd $(PYLIB_SRC_EXT)/ && $(TAR) xzf $(MOCK_DIR).tar.gz && \
-	   cd $(PYLIB_SRC_EXT)/$(MOCK_DIR)/ && \
-	   PYTHONPATH=$(PYTHONSRC_INSTALL_PYTHON_PATH) python3 setup.py install --prefix $(PYTHONSRC_INSTALL) ; \
-	 fi;
+       cd $(PYLIB_SRC_EXT)/ && unzip -q $(MOCK_DIR).zip && \
+       cd $(PYLIB_SRC_EXT)/$(MOCK_DIR)/ && \
+       PYTHONPATH=$(PYTHONSRC_INSTALL_PYTHON_PATH) python3 setup.py install --prefix $(PYTHONSRC_INSTALL) ; \
+    fi;
 
 # -----------------------------------------------------------------------------
 #
