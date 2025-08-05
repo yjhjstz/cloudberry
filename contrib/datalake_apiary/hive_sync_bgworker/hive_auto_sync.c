@@ -66,9 +66,10 @@ static void hive_sync_start_worker(void);
 
 /* Helper function */
 static void startProxyProcess(pid_t pid);
-static void hiveSyncLoop(pid_t pid);
+static void hiveSyncMainLoop(void);
 static void hiveSyncQuickdie(SIGNAL_ARGS);
-static void hiveSyncDiedLoop(void);
+static void hiveSyncReloadConfig(SIGNAL_ARGS);
+static pid_t startHiveSync(void);
 
 bool IsUnderMasterDispatchMode(void);
 
@@ -80,6 +81,7 @@ static int hivesync_memory_limit = 2048;
 
 /* variables */
 static volatile sig_atomic_t gotSIG = false;
+static volatile sig_atomic_t gotSIGHUP = false;
 
 static void
 hiveSyncQuickdie(SIGNAL_ARGS)
@@ -87,6 +89,15 @@ hiveSyncQuickdie(SIGNAL_ARGS)
 	gotSIG = true;
 
 	if(MyProc)
+		SetLatch(&MyProc->procLatch);
+}
+
+static void
+hiveSyncReloadConfig(SIGNAL_ARGS)
+{
+	gotSIGHUP = true;
+
+	if (MyProc)
 		SetLatch(&MyProc->procLatch);
 }
 
@@ -205,38 +216,16 @@ hive_sync_start_worker(void)
 void
 hive_sync_main(Datum main_arg)
 {
-	pid_t proxyPid;
-	pid_t pid = getpid();
-
 	pqsignal(SIGTERM, hiveSyncQuickdie);
 	pqsignal(SIGQUIT, hiveSyncQuickdie);
-	pqsignal(SIGHUP, hiveSyncQuickdie);
+	pqsignal(SIGHUP, hiveSyncReloadConfig);
 
 	/* cbdb 3x default block sigquit */
 	sigdelset(&BlockSig, SIGQUIT);
 
 	BackgroundWorkerUnblockSignals();
 
-	if (!enable_hive_metastore_sync)
-	{
-		hiveSyncDiedLoop();
-		proc_exit(0);
-	}
-
-	switch (proxyPid = fork_process())
-	{
-		case -1:
-			ereport(ERROR,
-			        (errmsg("could not fork hive auto sync process: %m")));
-			break;
-		case 0:
-			startProxyProcess(pid);
-
-			/* if we're here an error occurred */
-			exit(EXIT_FAILURE);
-	}
-
-	hiveSyncLoop(proxyPid);
+	hiveSyncMainLoop();
 
 	proc_exit(0);
 }
@@ -277,47 +266,70 @@ startProxyProcess(pid_t pid)
 	ereport(ERROR, (errmsg("could not start proxy process: %m")));
 }
 
-static void
-hiveSyncLoop(pid_t pid)
+static pid_t
+startHiveSync()
 {
-	int rc;
-	while (true)
+	pid_t proxyPid;
+	pid_t pid = getpid();
+	switch (proxyPid = fork_process())
 	{
-		if (gotSIG)
-		{
-			gotSIG = false;
-			kill(pid, SIGTERM);
-			proc_exit(1);
-		}
+		case -1:
+			ereport(ERROR,
+			        (errmsg("could not fork hive auto sync process: %m")));
+			break;
+		case 0:
+			startProxyProcess(pid);
 
-		if (waitpid(pid, NULL, WNOHANG) != 0)
-			proc_exit(1);
-
-		rc = WaitLatch(&MyProc->procLatch,
-					   WL_LATCH_SET | WL_TIMEOUT | WL_POSTMASTER_DEATH,
-					   1 * 1000L, WAIT_EVENT_BGWORKER_STARTUP);
-
-		ResetLatch(&MyProc->procLatch);
-
-		/* emergency bailout if postmaster has died */
-		if (rc & WL_POSTMASTER_DEATH)
-		{
-			kill(pid, SIGTERM);
-			proc_exit(1);
-		}
+			/* if we're here an error occurred */
+			exit(EXIT_FAILURE);
 	}
+	return proxyPid;
 }
 
-static void 
-hiveSyncDiedLoop()
+static void
+hiveSyncMainLoop()
 {
 	int rc;
+	pid_t pid = 0;
 	while (true)
 	{
 		if (gotSIG)
 		{
 			gotSIG = false;
+			if (pid > 0)
+			{
+				kill(pid, SIGTERM);
+				pid = 0;
+			}
 			proc_exit(1);
+		}
+
+		if (gotSIGHUP)
+		{
+			gotSIGHUP = false;
+			ereport(LOG,
+					(errmsg("hive auto sync process received SIGHUP, restart to reload configuration.")));
+			if (pid > 0)
+			{
+				kill(pid, SIGTERM);
+				pid = 0;
+			}
+			ProcessConfigFile(PGC_SIGHUP);
+		}
+
+		if (enable_hive_metastore_sync && pid <= 0)
+		{
+			pid = startHiveSync();
+			ereport(LOG,
+					(errmsg("hive auto sync process started with pid %d", pid)));
+		}
+
+		if (pid > 0 && waitpid(pid, NULL, WNOHANG) != 0)
+		{
+			ereport(LOG,
+					(errmsg("hive auto sync process with pid %d already dead, restarting", pid)));
+			pid = 0;
+			SetLatch(&MyProc->procLatch);
 		}
 
 		rc = WaitLatch(&MyProc->procLatch,
@@ -329,6 +341,10 @@ hiveSyncDiedLoop()
 		/* emergency bailout if postmaster has died */
 		if (rc & WL_POSTMASTER_DEATH)
 		{
+			if (pid > 0)
+			{
+				kill(pid, SIGTERM);
+			}
 			proc_exit(1);
 		}
 	}
