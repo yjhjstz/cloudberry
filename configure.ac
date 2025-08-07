@@ -789,6 +789,11 @@ fi
 AC_PROG_CPP
 AC_SUBST(GCC)
 
+#
+# Check for egrep and grep
+#
+AC_PROG_GREP
+AC_PROG_EGREP
 
 #
 # Set up TAS assembly code if needed; the template file has now had its
