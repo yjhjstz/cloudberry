@@ -1,8 +1,21 @@
+default:
+  interruptible: true
+
 stages:
 - build
 - test
 - .post
 
+
+# only merge request will trigger the pipeline
+workflow:
+  name: Hashdata Lightning Merge Request Check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+    - when: never
+  auto_cancel:
+    on_new_commit: interruptible
 
 variables:
   ARTIFACTORY_USERNAME: "admin"
