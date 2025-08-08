@@ -14,7 +14,9 @@
 #include "src/provider/iceberg/iceberg_read.h"
 #include "src/provider/hudi/hudi_read.h"
 #include "provider.h"
+extern "C" {
 #include "src/common/util.h"
+}
 
 using Datalake::Internal::orcRead;
 using Datalake::Internal::parquetRead;

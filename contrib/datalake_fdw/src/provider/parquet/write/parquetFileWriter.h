@@ -8,12 +8,12 @@
 #include <parquet/internal/arrow/io/interfaces.h>
 #include <parquet/file_writer.h>
 #include "parquetOutputStream.h"
-#include "src/common/util.h"
 #include "src/provider/provider.h"
 #include "src/common/logicalType.h"
 #include "src/common/rewrLogical.h"
 
 extern "C" {
+#include "src/common/util.h"
 #include "src/datalake_def.h"
 }
 

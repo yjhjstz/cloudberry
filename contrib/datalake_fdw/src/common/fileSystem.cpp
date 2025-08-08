@@ -8,6 +8,9 @@ extern "C" {
 #include "utils/elog.h"
 #include "miscadmin.h"
 #include "utils/guc.h"
+#include "access/xact.h"
+#include "cdb/cdbvars.h"
+
 }
 
 #define GOPHER_BLOCK_SIZE (1024 * 1024 * gopher_local_blocksize_mb)
@@ -166,7 +169,7 @@ int FileSystem::closeFile() {
 	return ret;
 }
 
-gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive) {
+gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive, bool iswrite) {
 	int numEntries = 0;
 	std::string gopher_prefix = "";
 	std::string prefix = "";
@@ -196,7 +199,8 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 		elog(LOG, "Datalake foreign table gopherListDirectory path %s recursive %d.", gopher_prefix.c_str(), recursive);
 	}
 
-	gopherFileInfo *res = gopherListDirectory(fs, gopher_prefix.c_str(), recursive, &numEntries);
+	gopherFileInfo *res = gopherListDirectory(fs, gopher_prefix.c_str(), recursive, &numEntries, /*getLocation*/true,
+											  gp_session_id, gp_command_count, iswrite);
 	if (numEntries == -1)
 		throw Error("failed to list directory: \"%s\" %s.", path, gopherGetLastError());
 

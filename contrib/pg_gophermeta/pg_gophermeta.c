@@ -89,6 +89,7 @@ static bool gopher_connect_hdfs_disable_getstate = false;
 static bool gphdfs_configure_router = false;
 static bool gopher_hash_connect_hdfs_router = false;
 static bool gopher_enable_update_oss_context = false;
+static int gopher_master_port = 6789;
 
 /*
  * Module load callback.
@@ -125,6 +126,19 @@ _PG_init(void)
 							PGC_SIGHUP,
 							0,
 							NULL, NULL, NULL);
+
+	DefineCustomIntVariable("pg_gophermeta.gopher_master_port",
+							"The port of master tcp socket for gopher.",
+							NULL,
+							&gopher_master_port,
+							6789,
+							0,
+							65535,
+							PGC_USERSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
 
 	if (!process_shared_preload_libraries_in_progress)
 		return;
@@ -255,131 +269,131 @@ gophermeta_main(Datum main_arg)
 
 	int rc;
 
-    /* Prepare folder path */
-    GetGopherMetaPath(workDir);
+	/* Prepare folder path */
+	GetGopherMetaPath(workDir);
 	GetGopherSocketPath(socketDir);
 	GetGopherPlasmaSocketPath(plasmaSocketDir);
 
 	/*
-     * Properly accept or ignore signals the postmaster might send us.
-     *
-     * Note: we deliberately ignore SIGTERM, because during a standard Unix
-     * system shutdown cycle, init will SIGTERM all processes at once.  We
-     * want to wait for the backends to exit, whereupon the postmaster will
-     * tell us it's okay to shut down (via SIGUSR2).
-     *
-     * SIGUSR1 is presently unused; keep it spare in case someday we want this
-     * process to participate in ProcSignal messaging.
-     */
-    pqsignal(SIGHUP, GopherSigHupHandler);  /* set flag to read config file */
-    pqsignal(SIGINT, SIG_IGN);
-    pqsignal(SIGTERM, SIG_IGN); /* ignore SIGTERM */
-    pqsignal(SIGQUIT, quickdie);        /* hard crash time: nothing bg-writer specific, just use the standard */
-    pqsignal(SIGALRM, SIG_IGN);
-    pqsignal(SIGPIPE, SIG_IGN);
-    pqsignal(SIGUSR1, SIG_IGN); /* reserve for ProcSignal */
-    pqsignal(SIGUSR2, ReqShutdownHandler);      /* request shutdown */
+	 * Properly accept or ignore signals the postmaster might send us.
+	 *
+	 * Note: we deliberately ignore SIGTERM, because during a standard Unix
+	 * system shutdown cycle, init will SIGTERM all processes at once.  We
+	 * want to wait for the backends to exit, whereupon the postmaster will
+	 * tell us it's okay to shut down (via SIGUSR2).
+	 *
+	 * SIGUSR1 is presently unused; keep it spare in case someday we want this
+	 * process to participate in ProcSignal messaging.
+	 */
+	pqsignal(SIGHUP, GopherSigHupHandler);  /* set flag to read config file */
+	pqsignal(SIGINT, SIG_IGN);
+	pqsignal(SIGTERM, SIG_IGN); /* ignore SIGTERM */
+	pqsignal(SIGQUIT, quickdie);		/* hard crash time: nothing bg-writer specific, just use the standard */
+	pqsignal(SIGALRM, SIG_IGN);
+	pqsignal(SIGPIPE, SIG_IGN);
+	pqsignal(SIGUSR1, SIG_IGN); /* reserve for ProcSignal */
+	pqsignal(SIGUSR2, ReqShutdownHandler);	  /* request shutdown */
 
 	/*
-     * Reset some signals that are accepted by postmaster but not here
-     */
-    pqsignal(SIGCHLD, SIG_DFL);
-    pqsignal(SIGTTIN, SIG_DFL);
-    pqsignal(SIGTTOU, SIG_DFL);
-    pqsignal(SIGCONT, SIG_DFL);
-    pqsignal(SIGWINCH, SIG_DFL);
+	 * Reset some signals that are accepted by postmaster but not here
+	 */
+	pqsignal(SIGCHLD, SIG_DFL);
+	pqsignal(SIGTTIN, SIG_DFL);
+	pqsignal(SIGTTOU, SIG_DFL);
+	pqsignal(SIGCONT, SIG_DFL);
+	pqsignal(SIGWINCH, SIG_DFL);
 
 	/* hashdata 3x default block sigquit */
 	sigdelset(&BlockSig, SIGQUIT);
 
 	/*
-     * Create a memory context that we will do all our work in.  We do this so
-     * that we can reset the context during error recovery and thereby avoid
-     * possible memory leaks.  Formerly this code just ran in
-     * TopMemoryContext, but resetting that would be a really bad idea.
-     */
-    gophermeta_context = AllocSetContextCreate(TopMemoryContext,
-                                               "Gopher Meta",
-                                               ALLOCSET_DEFAULT_MINSIZE,
-                                               ALLOCSET_DEFAULT_INITSIZE,
-                                               ALLOCSET_DEFAULT_MAXSIZE);
-    MemoryContextSwitchTo(gophermeta_context);
+	 * Create a memory context that we will do all our work in.  We do this so
+	 * that we can reset the context during error recovery and thereby avoid
+	 * possible memory leaks.  Formerly this code just ran in
+	 * TopMemoryContext, but resetting that would be a really bad idea.
+	 */
+	gophermeta_context = AllocSetContextCreate(TopMemoryContext,
+											   "Gopher Meta",
+											   ALLOCSET_DEFAULT_MINSIZE,
+											   ALLOCSET_DEFAULT_INITSIZE,
+											   ALLOCSET_DEFAULT_MAXSIZE);
+	MemoryContextSwitchTo(gophermeta_context);
 
 	/*
-     * If an exception is encountered, processing resumes here.
-     *
-     * See notes in postgres.c about the design of this coding.
-     */
-    if (sigsetjmp(local_sigjmp_buf, 1) != 0)
-    {
-        /* Since not using PG_TRY, must reset error stack by hand */
-        error_context_stack = NULL;
+	 * If an exception is encountered, processing resumes here.
+	 *
+	 * See notes in postgres.c about the design of this coding.
+	 */
+	if (sigsetjmp(local_sigjmp_buf, 1) != 0)
+	{
+		/* Since not using PG_TRY, must reset error stack by hand */
+		error_context_stack = NULL;
 
-        /* Prevent interrupts while cleaning up */
-        HOLD_INTERRUPTS();
+		/* Prevent interrupts while cleaning up */
+		HOLD_INTERRUPTS();
 
-        /* Report the error to the server log */
-        EmitErrorReport();
+		/* Report the error to the server log */
+		EmitErrorReport();
 
-        /* TODO(Gopher): Add cleanup code here if we catched exception here */
-        /* Release Gopherwood context */
+		/* TODO(Gopher): Add cleanup code here if we catched exception here */
+		/* Release Gopherwood context */
 
-        /*
-         * Now return to normal top-level context and clear ErrorContext for
-         * next time.
-         */
-        MemoryContextSwitchTo(gophermeta_context);
-        FlushErrorState();
+		/*
+		 * Now return to normal top-level context and clear ErrorContext for
+		 * next time.
+		 */
+		MemoryContextSwitchTo(gophermeta_context);
+		FlushErrorState();
 
-        /* Flush any leaked data in the top-level context */
-        MemoryContextResetAndDeleteChildren(gophermeta_context);
+		/* Flush any leaked data in the top-level context */
+		MemoryContextResetAndDeleteChildren(gophermeta_context);
 
-        /* Now we can allow interrupts again */
-        RESUME_INTERRUPTS();
+		/* Now we can allow interrupts again */
+		RESUME_INTERRUPTS();
 
-        /*
-         * Sleep at least 1 second after any error.  We don't want to be
-         * filling the error logs as fast as we can.
-         */
-        pg_usleep(1000000L);
-    }
+		/*
+		 * Sleep at least 1 second after any error.  We don't want to be
+		 * filling the error logs as fast as we can.
+		 */
+		pg_usleep(1000000L);
+	}
 
-    /* We can now handle ereport(ERROR) */
-    PG_exception_stack = &local_sigjmp_buf;
+	/* We can now handle ereport(ERROR) */
+	PG_exception_stack = &local_sigjmp_buf;
 
-    /*
-     * Unblock signals (they were blocked when the postmaster forked us)
-     */
-    BackgroundWorkerUnblockSignals();
+	/*
+	 * Unblock signals (they were blocked when the postmaster forked us)
+	 */
+	BackgroundWorkerUnblockSignals();
 
-    /* Check and create gophermeta working directory */
-    DIR* dir = opendir(workDir);
-    if (dir)
-    {
-        /* Directory exists. */
-        closedir(dir);
-    }
-    else if (ENOENT == errno)
-    {
-        /* Directory does not exist. */
-        mkdir(workDir, 0750);
-    }
-    else
-    {
-        int errnocode = errno;
-        elog(WARNING, "Gopher Meta working directory %s create failed, errno=%d", workDir, errnocode);
-        exit(1);
-    }
+	/* Check and create gophermeta working directory */
+	DIR* dir = opendir(workDir);
+	if (dir)
+	{
+		/* Directory exists. */
+		closedir(dir);
+	}
+	else if (ENOENT == errno)
+	{
+		/* Directory does not exist. */
+		mkdir(workDir, 0750);
+	}
+	else
+	{
+		int errnocode = errno;
+		elog(WARNING, "Gopher Meta working directory %s create failed, errno=%d", workDir, errnocode);
+		exit(1);
+	}
 
-    int64 capacity = (int64)gopher_local_capacity_mb * 1024 * 1024;
-    int64 blockSize = (int64)gopher_local_blocksize_mb * 1024 * 1024;
-    /* Start Gopher Meta store service, it's an forever loop to response meta requests. */
-    elog(LOG, "GopherMeta workDir = %s, gopher_local_capacity_mb=%d, capacity = %ld",
-        workDir, gopher_local_capacity_mb, capacity);
+	int64 capacity = (int64)gopher_local_capacity_mb * 1024 * 1024;
+	int64 blockSize = (int64)gopher_local_blocksize_mb * 1024 * 1024;
+	/* Start Gopher Meta store service, it's an forever loop to response meta requests. */
+	elog(LOG, "GopherMeta workDir = %s, gopher_local_capacity_mb=%d, capacity = %ld",
+		workDir, gopher_local_capacity_mb, capacity);
 
-    gopherOssServerConfig ossConfig;
-    ossConfig.mCapacity = capacity;
-    ossConfig.blockSize = blockSize;
+	gopherOssServerConfig ossConfig;
+	ossConfig.mCapacity = capacity;
+	ossConfig.blockSize = blockSize;
 	ossConfig.socketPath = NULL;
 	ossConfig.socketName = socketDir;
 	ossConfig.socketPlasmaName = plasmaSocketDir;
@@ -388,85 +402,86 @@ gophermeta_main(Datum main_arg)
 	ossConfig.hdfsConfigureRouter = gphdfs_configure_router;
 	ossConfig.hdfsHashConnectRouter = gopher_hash_connect_hdfs_router;
 	ossConfig.segmentIdx = GpIdentity.segindex;
-    GetGopherServerOssLogLevel(&ossConfig);
+	ossConfig.hdfs_list_connect_master_port = gopher_master_port;
+	GetGopherServerOssLogLevel(&ossConfig);
 
-    rc = gopherStartServer(workDir, &ossConfig, NULL, GOPHER_SERVER_WARNING, false);
+	rc = gopherStartServer(workDir, &ossConfig, NULL, GOPHER_SERVER_WARNING, false);
 
-    if (rc != 0)
-    {
-        elog(WARNING, "Gopher Meta Server(ContentId %d) got error!", GpIdentity.segindex);
-    }
+	if (rc != 0)
+	{
+		elog(WARNING, "Gopher Meta Server(ContentId %d) got error!", GpIdentity.segindex);
+	}
 
 	if (!PostmasterIsAlive())
-        exit(1);
+		exit(1);
 
-    /* Normal exit from the bgwriter server is here */
-    proc_exit(0);       /* done */
+	/* Normal exit from the bgwriter server is here */
+	proc_exit(0);	   /* done */
 }
 
 static void
 GetGopherServerOssLogLevel(gopherOssServerConfig* ossConfig)
 {
-    if (gopher_oss_log_level) {
-        if (pg_strcasecmp(gopher_oss_log_level, "DEBUG3") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_DEBUG3;
-        } else if (pg_strcasecmp(gopher_oss_log_level, "DEBUG2") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_DEBUG2;
-        } else if (pg_strcasecmp(gopher_oss_log_level, "DEBUG1") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_DEBUG1;
-        } else if (pg_strcasecmp(gopher_oss_log_level, "INFO") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_INFO;
-        } else if (pg_strcasecmp(gopher_oss_log_level, "WARNING") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_WARNING;
-        } else if (pg_strcasecmp(gopher_oss_log_level, "ERROR") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_ERROR;
-        } else if (pg_strcasecmp(gopher_oss_log_level, "FATAL") == 0) {
-            ossConfig->logSeverity = GOPHER_SERVER_FATAL;
-        } else {
-            elog(ERROR, "Gopher OSS log severity not recognized : %s", gopher_oss_log_level);
-        }
-    }
-    if (gopher_oss_liboss2_log_level) {
-        if (pg_strcasecmp(gopher_oss_liboss2_log_level, "DEBUG3") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_DEBUG3;
-        } else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "DEBUG2") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_DEBUG2;
-        } else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "DEBUG1") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_DEBUG1;
-        } else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "INFO") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_INFO;
-        } else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "WARNING") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_WARNING;
-        } else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "ERROR") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_ERROR;
-        } else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "FATAL") == 0) {
-            ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_FATAL;
-        } else {
-            elog(ERROR, "Gopher OSS Liboss2 log severity not recognized : %s",
-                 gopher_oss_liboss2_log_level);
-        }
-    }
+	if (gopher_oss_log_level) {
+		if (pg_strcasecmp(gopher_oss_log_level, "DEBUG3") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_DEBUG3;
+		} else if (pg_strcasecmp(gopher_oss_log_level, "DEBUG2") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_DEBUG2;
+		} else if (pg_strcasecmp(gopher_oss_log_level, "DEBUG1") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_DEBUG1;
+		} else if (pg_strcasecmp(gopher_oss_log_level, "INFO") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_INFO;
+		} else if (pg_strcasecmp(gopher_oss_log_level, "WARNING") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_WARNING;
+		} else if (pg_strcasecmp(gopher_oss_log_level, "ERROR") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_ERROR;
+		} else if (pg_strcasecmp(gopher_oss_log_level, "FATAL") == 0) {
+			ossConfig->logSeverity = GOPHER_SERVER_FATAL;
+		} else {
+			elog(ERROR, "Gopher OSS log severity not recognized : %s", gopher_oss_log_level);
+		}
+	}
+	if (gopher_oss_liboss2_log_level) {
+		if (pg_strcasecmp(gopher_oss_liboss2_log_level, "DEBUG3") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_DEBUG3;
+		} else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "DEBUG2") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_DEBUG2;
+		} else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "DEBUG1") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_DEBUG1;
+		} else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "INFO") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_INFO;
+		} else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "WARNING") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_WARNING;
+		} else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "ERROR") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_ERROR;
+		} else if (pg_strcasecmp(gopher_oss_liboss2_log_level, "FATAL") == 0) {
+			ossConfig->liboss2LogSeverity = GOPHER_SERVER_LIBOSS2_FATAL;
+		} else {
+			elog(ERROR, "Gopher OSS Liboss2 log severity not recognized : %s",
+				 gopher_oss_liboss2_log_level);
+		}
+	}
 }
 
 /* SIGUSR2: set flag to run a shutdown checkpoint and exit */
 static void
 ReqShutdownHandler(SIGNAL_ARGS)
 {
-    /*
-  	 * From here on, elog(ERROR) should end with exit(1), not send
-  	 * control back to the sigsetjmp block above
-  	 */
-    ExitOnAnyError = true;
+	/*
+	 * From here on, elog(ERROR) should end with exit(1), not send
+	 * control back to the sigsetjmp block above
+	*/
+	ExitOnAnyError = true;
 
-    gopherStopServer(workDir);
+	gopherStopServer(workDir);
 }
 
 /* SIGHUP: re-read config file and update gopher server */
 static void
 GopherSigHupHandler(SIGNAL_ARGS)
 {
-    ProcessConfigFile(PGC_SIGHUP);
-    gopherOption updateOptions;
-    updateOptions.capacity = gopher_local_capacity_mb * 1024 * 1024;
-    gopherUpdateGopherOption(&updateOptions);
+	ProcessConfigFile(PGC_SIGHUP);
+	gopherOption updateOptions;
+	updateOptions.capacity = gopher_local_capacity_mb * 1024 * 1024;
+	gopherUpdateGopherOption(&updateOptions);
 }

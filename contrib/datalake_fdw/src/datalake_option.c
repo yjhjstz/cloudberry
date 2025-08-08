@@ -18,9 +18,9 @@
 #include "access/table.h"
 #include "postmaster/postmaster.h"
 #include "datalake_def.h"
+#include "common/util.h"
 
 
-#define DATALAKE_GOPHERMETA_FOLDER "gophermeta"
 
 struct datalakeFdwOption
 {
@@ -256,12 +256,6 @@ static void check_server_option(List *options_list, Oid catalog);
 static void checkHdfsCombin(List *options_list, Oid catalog);
 
 static void check_user_mapping_option(List *options_list, Oid catalog);
-
-static void DatalakeGetGopherSocketPath(char *dest);
-
-static void DatalakeGetGopherPlasmaSocketPath(char *dest);
-
-static void DatalakeGetGopherMetaPath(char *dest);
 
 static void checkForeignDataWrapper(ForeignDataWrapper *wrapper);
 
@@ -1594,21 +1588,6 @@ void checkHdfsCombin(List *options_list, Oid catalog)
 						errmsg("hdfs-ha need specify options \"dfs_client_failover_proxy_provider\".")));
 		}
 	}
-}
-
-void DatalakeGetGopherSocketPath(char *dest)
-{
-	snprintf(dest, 1024, "/tmp/.s.gopher.%d", PostPortNumber);
-}
-
-void DatalakeGetGopherPlasmaSocketPath(char *dest)
-{
-	snprintf(dest, 1024, "/tmp/.s.gopher.plasma.%d", PostPortNumber);
-}
-
-void DatalakeGetGopherMetaPath(char *dest)
-{
-	sprintf(dest, "%s/%s", DataDir, DATALAKE_GOPHERMETA_FOLDER);
 }
 
 void datalakeCheckValidRecordBatchOpt(dataLakeOptions *options)

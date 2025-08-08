@@ -19,6 +19,7 @@ OBJS = 	src/datalake_fdw.o \
 		src/common/random_segment.o \
 		src/common/grammar_convert.o \
 		src/common/exttable.o \
+		src/common/gopherresowner.o \
 		src/dlproxy/deparse.o \
 		src/dlproxy/filters.o \
 		src/dlproxy/headers.o \

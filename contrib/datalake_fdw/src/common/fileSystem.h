@@ -47,7 +47,7 @@ public:
 
 	int getUfsId();
 
-	gopherFileInfo* listInfo(const char *path, int &count, int recursive = 1);
+	gopherFileInfo* listInfo(const char *path, int &count, int recursive = 1, bool iswrite = false);
 
 	gopherFileInfo* getFileInfo(const char* path);
 

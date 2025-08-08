@@ -233,6 +233,7 @@ int icebergPostionDeletesThreshold;
 int hudiLogMergerThreshold;
 double hudiLogSizeScaleFactor;
 int external_table_limit_segment_num;
+bool enable_list_in_master;
 
 void
 _PG_init(void)
@@ -335,7 +336,7 @@ _PG_init(void)
 							NULL,
 							NULL,
 							NULL);
-	
+
 	DefineCustomBoolVariable("datalake.external_table_ignore_hidden_file",
 							"If the value is true, datalake foreign table ignore read hidden file or directory.",
 							NULL,
@@ -348,9 +349,21 @@ _PG_init(void)
 							NULL);
 
 	DefineCustomBoolVariable("datalake.enable_set_hdfs_user",
-							"If the value is true, set the user for writing to HDFS based on the users in the user mapping..",
+							"If the value is true, set the user for writing to HDFS based on the users in the user mapping.",
 							NULL,
 							&enable_set_hdfs_user,
+							true,
+							PGC_USERSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
+
+	DefineCustomBoolVariable("datalake.enable_list_in_master",
+							"If the guc is set to true, the list directory operation will be executed only by the master."
+							"Note: This guc is only used for hdfs list directory operation.",
+							NULL,
+							&enable_list_in_master,
 							true,
 							PGC_USERSET,
 							0,
@@ -756,6 +769,9 @@ dataLakeBeginForeignScan(ForeignScanState *node, int eflags)
 		List *random_segments = datalakeSelectRandomSegments(segmentcount, external_table_limit_segment_num);
 		/* put the random segments into the list */
 		foreignScan->fdw_private = list_concat(foreignScan->fdw_private, random_segments);
+		/* register resource context for gopher */
+		dataLakesstate->gopher_handle_t = gopher_registe_resource_context(/*gp_is_writer*/false);
+		node->fdw_state = (void*)dataLakesstate;
 		return;
 	}
 
@@ -1011,6 +1027,9 @@ dataLakeEndForeignScan(ForeignScanState *node)
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
+		/* release resource context for gopher */
+		cleanup_gopher_resource_context(sstate->gopher_handle_t);
+		sstate->gopher_handle_t = NULL;
 		return;
 	}
 

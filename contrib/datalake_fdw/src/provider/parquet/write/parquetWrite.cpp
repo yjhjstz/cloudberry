@@ -1,9 +1,9 @@
 #include "parquetWrite.h"
-#include "src/common/util.h"
 #include "src/common/fileSystemWrapper.h"
 
 extern "C"
 {
+#include "src/common/util.h"
 #include "src/datalake_option.h"
 }
 

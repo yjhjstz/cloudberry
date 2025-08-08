@@ -1,11 +1,12 @@
 extern "C" {
 #include "src/datalake_option.h"
 #include "src/datalake_def.h"
+#include "libpq/libpq-be.h"
+#include "util.h"
 }
 
 #include "fileSystemWrapper.h"
 #include "fileSystem.h"
-#include "util.h"
 #include <exception>
 #include <iostream>
 #include <vector>
@@ -376,6 +377,8 @@ gopherConfig* datalakeCreateGopherConfig(void *opt)
 	conf->connect_path = pstrdup(options->connect_path);
 	conf->connect_plasma_path = pstrdup(options->connect_plasma_path);
 	conf->worker_path = pstrdup(options->worker_path);
+	conf->master_ip = pstrdup(MyProcPort->remote_host);
+	conf->external_hdfs_list_use_master = enable_list_in_master;
 
 	if (options->enableCache)
 	{

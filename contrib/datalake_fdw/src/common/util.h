@@ -1,21 +1,16 @@
 #ifndef DATALAKE_UTIL_H
 #define DATALAKE_UTIL_H
 
-#include "src/common/fileSystemWrapper.h"
-#include <iostream>
+#include <ctype.h>  /* for tolower */
 
-std::string generateFileName(std::string prefix,
-                             std::string gpossextName,
-                             int segmentID,
-                             int segmentFileNum,
-                             std::string suffix);
-
-int getFileMaxNumv2(ossFileStream file,
-                  std::string prefix,
-                  std::string gpossextName,
-                  std::string suffix,
-                  int segmentID);
+#define DATALAKE_GOPHERMETA_FOLDER "gophermeta"
 
 char *strConvertLow(char *str);
+
+void DatalakeGetGopherSocketPath(char *dest);
+
+void DatalakeGetGopherPlasmaSocketPath(char *dest);
+
+void DatalakeGetGopherMetaPath(char *dest);
 
 #endif

@@ -12,7 +12,7 @@
 #include "cdb/cdbutil.h"
 #include "commands/copy.h"
 #include "common/exttable.h"
-
+#include "common/gopherresowner.h"
 
 #include "src/provider/providerWrapper.h"
 #include "datalake_type.h"
@@ -335,6 +335,7 @@ typedef struct dataLakeFdwScanState
 	dataLakeCopyState		cstate;
 	List					*selected_segments;
 	dataLakeCustomState 	customState;
+	gopher_context_handle_t *gopher_handle_t;
 } dataLakeFdwScanState;
 
 
