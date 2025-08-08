@@ -1,6 +1,11 @@
 Record the cherry-pick history from Cloudberry(github), make it easy
 to find the start commit for cherry-pick.
 
+Auther: zhaoxi <zhaoxi@hashdata.cn>
+Date: Wed Aug 12 15:42:41 CST 2025
+cherry-pick start commit:54a402cf3ede217ca8c2d8efc98eb291744f2980
+cherry-pick end commit:78fd76886c874cae4a4622e2afb6642aaec1f890
+
 Auther: GongXun <gongxun0928@gmail.com>
 Date: Fri Aug 8 15:37:44 CST 2025
 cherry-pick start commit: 21821ebe9480bf61e10b358da91edd102e1982c0
