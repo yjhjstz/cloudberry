@@ -47,7 +47,12 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM pg_class;
 
 -- Test: explain output: Endpoint info (on coordinator/on some segments/on all segments)
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM pg_class;
+-- disable indexscan and indexonlyscan to avoid flaky test
+set enable_indexscan = off;
+set enable_indexonlyscan = off;
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM pg_class ORDER BY relname;
+reset enable_indexscan;
+reset enable_indexonlyscan;
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM pg_class WHERE gp_segment_id=1;
 EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM pg_class WHERE gp_segment_id=1 OR gp_segment_id=2;
 
