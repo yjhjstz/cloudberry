@@ -358,7 +358,7 @@ bool textFileRead::getNextGroup() {
 }
 
 bool textFileRead::readNextFile() {
-    if (serial > (int)readPolicy.end) {
+    if (serial >= (int)readPolicy.end) {
 
         return false;
     }

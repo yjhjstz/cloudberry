@@ -19,9 +19,9 @@ void readBlockPolicy::build(int segId, int segNum, int blockSize, std::vector<Li
     this->blockSize = blockSize;
     this->segId = segId;
     this->segNum = segNum;
-	filterList(lists);
+    filterList(lists);
     start = globalIdx;
-	for (auto it = normalLists.begin(); it != normalLists.end(); it++)
+    for (auto it = normalLists.begin(); it != normalLists.end(); it++)
     {
         if (it->size <= blockSize)
         {
@@ -31,6 +31,16 @@ void readBlockPolicy::build(int segId, int segNum, int blockSize, std::vector<Li
         else
         {
             buildBigFile(globalIdx, it->keyName, it->size);
+        }
+    }
+    int64_t remainderSize = block.size() % segNum;
+    if (remainderSize != 0)
+    {
+        for (int64_t i = 0; i < segNum - remainderSize; i++)
+        {
+            std::string name = "";
+            insertNewBlock(globalIdx, name, 0, blockSize, false, 0, 0);
+            globalIdx += 1;
         }
     }
     end = globalIdx;
@@ -61,7 +71,7 @@ void readBlockPolicy::distBlock()
     }
     // segid num begin is 0
     start = (segId) * (num);
-    end = (segId + 1) * num - 1;
+    end = (segId + 1) * num;
 }
 
 std::string readBlockPolicy::explainPolicy()
@@ -169,6 +179,16 @@ void orcReadPolicy::build(int segId, int segNum,  int blockSize, std::vector<Lis
         else
         {
             buildBigFile(globalIdx, it->keyName, it->size);
+        }
+    }
+    int64_t remainderSize = block.size() % segNum;
+    if (remainderSize != 0)
+    {
+        for (int64_t i = 0; i < segNum - remainderSize; i++)
+        {
+            std::string name = "";
+            insertNewBlock(globalIdx, name, 0, blockSize, false, 0, 0);
+            globalIdx += 1;
         }
     }
     end = globalIdx;

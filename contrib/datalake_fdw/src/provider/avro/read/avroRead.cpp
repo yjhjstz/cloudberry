@@ -217,6 +217,11 @@ bool avroRead::createPolicy()
     }
 
     blockPolicy.build(dummy_segid, dummy_segnums, BLOCK_POLICY_SIZE, lists);
+    if (!nPartitionKey)
+    {
+        blockPolicy.distBlock();
+        blockSerial = blockPolicy.start;
+    }
 
     return exec;
 }
