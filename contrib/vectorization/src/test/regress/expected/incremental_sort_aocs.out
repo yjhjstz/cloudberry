@@ -633,20 +633,19 @@ delete from t;
 insert into t(a, b) select (case when i < 5 then i else 9 end), i from generate_series(1, 1000) n(i);
 analyze t;
 explain (costs off) select * from (select * from t order by a) s order by a, b limit 70;
-                   QUERY PLAN                   
-------------------------------------------------
- Limit
-   ->  Gather Motion 3:1  (slice1; segments: 3)
+                     QUERY PLAN                     
+----------------------------------------------------
+ Vec Limit
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)
          Merge Key: t.a, t.b
-         ->  Limit
-               ->  Incremental Sort
+         ->  Vec Limit
+               ->  Vec Sort
                      Sort Key: t.a, t.b
-                     Presorted Key: t.a
-                     ->  Sort
+                     ->  Vec Sort
                            Sort Key: t.a
-                           ->  Seq Scan on t
+                           ->  Vec Seq Scan on t
  Optimizer: Postgres query optimizer
-(11 rows)
+(10 rows)
 
 select * from (select * from t order by a) s order by a, b limit 70;
  a | b  
@@ -728,20 +727,19 @@ select * from (select * from t order by a) s order by a, b limit 70;
 -- transition point) but only retain 5. Thus when we transition modes, all
 -- tuples in the full sort state have different prefix keys.
 explain (costs off) select * from (select * from t order by a) s order by a, b limit 5;
-                   QUERY PLAN                   
-------------------------------------------------
- Limit
-   ->  Gather Motion 3:1  (slice1; segments: 3)
+                     QUERY PLAN                     
+----------------------------------------------------
+ Vec Limit
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3)
          Merge Key: t.a, t.b
-         ->  Limit
-               ->  Incremental Sort
+         ->  Vec Limit
+               ->  Vec Sort
                      Sort Key: t.a, t.b
-                     Presorted Key: t.a
-                     ->  Sort
+                     ->  Vec Sort
                            Sort Key: t.a
-                           ->  Seq Scan on t
+                           ->  Vec Seq Scan on t
  Optimizer: Postgres query optimizer
-(11 rows)
+(10 rows)
 
 select * from (select * from t order by a) s order by a, b limit 5;
  a | b 
@@ -792,66 +790,30 @@ select * from t left join (select * from (select * from t order by a) v order by
 rollback;
 -- Test EXPLAIN ANALYZE with both fullsort and presorted groups.
 select explain_analyze_without_memory('select * from (select * from t order by a) s order by a, b limit 70');
-                                         explain_analyze_without_memory                                         
-----------------------------------------------------------------------------------------------------------------
- Limit (actual rows=70 loops=1)
-   ->  Gather Motion 3:1  (slice1; segments: 3) (actual rows=70 loops=1)
+                              explain_analyze_without_memory                               
+-------------------------------------------------------------------------------------------
+ Vec Limit (actual rows=70 loops=1)
+   Executor Memory: NNkB  Segments: 1  Max: NNkB (segment -1)
+   ->  Vec Gather Motion 3:1  (slice1; segments: 3) (actual rows=74 loops=1)
          Merge Key: t.a, t.b
-         ->  Limit (actual rows=70 loops=1)
-               ->  Incremental Sort (actual rows=70 loops=1)
+         Executor Memory: NNkB  Segments: 1  Max: NNkB (segment -1)
+         ->  Vec Limit (actual rows=70 loops=1)
+               Executor Memory: NNkB  Segments: 3  Max: NNkB (segment 0)
+               ->  Vec Sort (actual rows=70 loops=1)
                      Sort Key: t.a, t.b
-                     Presorted Key: t.a
-                     Full-sort Groups: 1  Sort Method: quicksort  Average Memory: NNkB  Peak Memory: NNkB
-                     Pre-sorted Groups: 1  Sort Method: top-N heapsort  Average Memory: NNkB  Peak Memory: NNkB
-                     ->  Sort (actual rows=996 loops=1)
+                     Executor Memory: NNkB  Segments: 3  Max: NNkB (segment 0)
+                     ->  Vec Sort (actual rows=996 loops=1)
                            Sort Key: t.a
-                           Sort Method:  quicksort  Memory: NNkB
-                           ->  Seq Scan on t (actual rows=996 loops=1)
+                           Executor Memory: NNkB  Segments: 3  Max: NNkB (segment 0)
+                           ->  Vec Seq Scan on t (actual rows=996 loops=1)
+                                 Executor Memory: NNkB  Segments: 3  Max: NNkB (segment 0)
  Optimizer: Postgres query optimizer
-(14 rows)
+(16 rows)
 
 select jsonb_pretty(explain_analyze_inc_sort_nodes_without_memory('select * from (select * from t order by a) s order by a, b limit 70'));
-                  jsonb_pretty                   
--------------------------------------------------
- [                                              +
-     {                                          +
-         "Slice": 1,                            +
-         "Segments": 3,                         +
-         "Sort Key": [                          +
-             "t.a",                             +
-             "t.b"                              +
-         ],                                     +
-         "Gang Type": "primary reader",         +
-         "Node Type": "Incremental Sort",       +
-         "Actual Rows": 70,                     +
-         "Actual Loops": 1,                     +
-         "Async Capable": false,                +
-         "Presorted Key": [                     +
-             "t.a"                              +
-         ],                                     +
-         "Parallel Aware": false,               +
-         "Full-sort Groups": {                  +
-             "Group Count": 1,                  +
-             "Sort Methods Used": [             +
-                 "quicksort"                    +
-             ],                                 +
-             "Sort Space Memory": {             +
-                 "Peak Sort Space Used": "NN",  +
-                 "Average Sort Space Used": "NN"+
-             }                                  +
-         },                                     +
-         "Pre-sorted Groups": {                 +
-             "Group Count": 1,                  +
-             "Sort Methods Used": [             +
-                 "top-N heapsort"               +
-             ],                                 +
-             "Sort Space Memory": {             +
-                 "Peak Sort Space Used": "NN",  +
-                 "Average Sort Space Used": "NN"+
-             }                                  +
-         },                                     +
-         "Parent Relationship": "Outer"         +
-     }                                          +
+ jsonb_pretty 
+--------------
+ [           +
  ]
 (1 row)
 
