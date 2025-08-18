@@ -25,10 +25,10 @@ order by
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Vec Gather Motion 3:1  (slice1; segments: 3)
    Merge Key: orders.o_orderpriority
-   ->  Vec Finalize Vec GroupAggregate
-         Group Key: orders.o_orderpriority
-         ->  Vec Sort
-               Sort Key: orders.o_orderpriority
+   ->  Vec Sort
+         Sort Key: orders.o_orderpriority
+         ->  Vec Finalize Vec HashAggregate
+               Group Key: orders.o_orderpriority
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: orders.o_orderpriority
                      ->  Vec Streaming Vec Partial Vec HashAggregate

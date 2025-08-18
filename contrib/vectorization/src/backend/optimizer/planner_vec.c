@@ -237,7 +237,7 @@ assign_plannode_id(PlannedStmt *stmt)
 }
 
 static PlannedStmt *
-generate_plan(Query *parse, const char *query_string, int cursorOptions, ParamListInfo boundParams)
+generate_plan(Query *parse, const char *query_string, int cursorOptions, ParamListInfo boundParams, OptimizerOptions *optimizer_options)
 {
 	PlannedStmt *result;
 	instr_time	starttime, endtime;
@@ -248,7 +248,7 @@ generate_plan(Query *parse, const char *query_string, int cursorOptions, ParamLi
 		if (gp_log_optimization_time)
 			INSTR_TIME_SET_CURRENT(starttime);
 
-		result = (*planner_prev) (parse, query_string, cursorOptions, boundParams);
+		result = (*planner_prev) (parse, query_string, cursorOptions, boundParams, optimizer_options);
 
 		if (gp_log_optimization_time)
 		{
@@ -259,14 +259,14 @@ generate_plan(Query *parse, const char *query_string, int cursorOptions, ParamLi
 	}
 	else
 	{
-		result = standard_planner(parse, query_string, cursorOptions, boundParams);
+		result = standard_planner(parse, query_string, cursorOptions, boundParams, optimizer_options);
 	}
 
 	return result;
 }
 
 PlannedStmt *
-planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, ParamListInfo boundParams)
+planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, ParamListInfo boundParams, OptimizerOptions *optimizer_options)
 {
 	PlannedStmt *result;
 	bool optimizer_origin;
@@ -276,7 +276,7 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 	optimizer_origin = optimizer;
 	if (enable_vector_optimizer)
 		optimizer_spilling_mem_threshold = optimizer ? orca_spilling_mem_threshold : 0;
-	result = generate_plan(parse, query_string, cursorOptions, boundParams);
+	result = generate_plan(parse, query_string, cursorOptions, boundParams, optimizer_options);
 
 	/* fallback for prepare and execute */
 	/* fallback for cursor */
@@ -292,7 +292,7 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 			optimizer = !optimizer;
 			if (enable_vector_optimizer)
 				optimizer_spilling_mem_threshold = optimizer ? orca_spilling_mem_threshold : 0;
-			result = generate_plan(parse, query_string, cursorOptions, boundParams); 
+			result = generate_plan(parse, query_string, cursorOptions, boundParams, optimizer_options);
 		}
 		PG_FINALLY();
 		{
@@ -300,7 +300,7 @@ planner_hook_wrapper(Query *parse, const char *query_string, int cursorOptions, 
 			if(!try_vectorize_plan(result))
 			{
 				optimizer_spilling_mem_threshold = 0.0;
-				result = generate_plan(parse, query_string, cursorOptions, boundParams);
+				result = generate_plan(parse, query_string, cursorOptions, boundParams, optimizer_options);
 				FALLBACK_LOG("current plan cannot be vectorized");
 			}
 			else
