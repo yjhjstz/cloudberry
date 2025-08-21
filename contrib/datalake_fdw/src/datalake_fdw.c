@@ -65,11 +65,11 @@ PG_MODULE_MAGIC;
 #define DATALAKE_SEGMENT_ID                 GpIdentity.segindex
 #define DATALAKE_SEGMENT_COUNT              getgpsegmentCount()
 #define EXEC_FLAG_VECTOR 0x8000
-#define FIX_ATTR_NUM  3
 
 extern Datum datalake_fdw_handler(PG_FUNCTION_ARGS);
 
 extern Bitmapset **acquire_func_colLargeRowIndexes;
+extern double *acquire_func_colNDVBySeg;
 
 void _PG_init(void);
 
@@ -2003,6 +2003,7 @@ process_sample_rows(Portal portal,
 	 */
 	Bitmapset **colLargeRowIndexes = acquire_func_colLargeRowIndexes;
 	/* double     *colLargeRowLength = acquire_func_colLargeRowLength; */
+	double     *colNDVBySeg = acquire_func_colNDVBySeg;
 	TupleDesc	relDesc = RelationGetDescr(onerel);
 	TupleDesc	funcTupleDesc;
 	TupleDesc	sampleTupleDesc;
@@ -2042,12 +2043,13 @@ process_sample_rows(Portal portal,
 	 * Also create tupledesc of return record of function gp_acquire_sample_rows.
 	 */
 	sampleTupleDesc = CreateTupleDescCopy(relDesc);
-	ncolumns = numLiveColumns + FIX_ATTR_NUM;
+	ncolumns = numLiveColumns + NUM_SAMPLE_FIXED_COLS;
 	
 	funcTupleDesc = CreateTemplateTupleDesc(ncolumns);
 	TupleDescInitEntry(funcTupleDesc, (AttrNumber) 1, "", FLOAT8OID, -1, 0);
 	TupleDescInitEntry(funcTupleDesc, (AttrNumber) 2, "", FLOAT8OID, -1, 0);
 	TupleDescInitEntry(funcTupleDesc, (AttrNumber) 3, "", FLOAT8ARRAYOID, -1, 0);
+	TupleDescInitEntry(funcTupleDesc, (AttrNumber) 4, "", FLOAT8ARRAYOID, -1, 0);
 
 	for (i = 0; i < relDesc->natts; i++)
 	{
@@ -2157,10 +2159,34 @@ process_sample_rows(Portal portal,
 			if (!funcRetNulls[0])
 			{
 				/* This is a summary row. */
+				ArrayType  *arrayVal;
+				Datum      *colndv;
+				bool       *nulls;
+				int        numelems;
+
+				Assert(!funcRetNulls[1] && !funcRetNulls[3]);
+
 				this_totalrows = DatumGetFloat8(funcRetValues[0]);
 				this_totaldeadrows = DatumGetFloat8(funcRetValues[1]);
 				(*totalrows) += this_totalrows;
 				(*totaldeadrows) += this_totaldeadrows;
+
+				arrayVal = DatumGetArrayTypeP(funcRetValues[3]);
+				deconstruct_array(arrayVal, FLOAT8OID, 8, true, 'd',
+								  &colndv, &nulls, &numelems);
+				for (i = 0; i < relDesc->natts; i++)
+				{
+					double this_colndv = DatumGetFloat8(colndv[i]);
+					if (this_colndv < 0) {
+						Assert(this_colndv >= -1);
+						colNDVBySeg[i] += abs(this_colndv) * this_totalrows;
+					} else {
+						/* if current segment have any data, then ndv won't be 0.
+						 * if current segment have no rows, ndv is 0.
+						 */
+						colNDVBySeg[i] += DatumGetFloat8(colndv[i]);
+					}
+				}
 			}
 			else
 			{
@@ -2206,8 +2232,8 @@ process_sample_rows(Portal portal,
 						continue;
 					}
 
-					dnulls[i] = funcRetNulls[FIX_ATTR_NUM + index];
-					dvalues[i] = funcRetValues[FIX_ATTR_NUM + index];
+					dnulls[i] = funcRetNulls[NUM_SAMPLE_FIXED_COLS + index];
+					dvalues[i] = funcRetValues[NUM_SAMPLE_FIXED_COLS + index];
 					index++;	/* Move index to the next result set attribute */
 				}
 
@@ -2286,6 +2312,9 @@ datalake_acquire_sample_rows(PG_FUNCTION_ARGS)
 		onerel = table_open(relOid, AccessShareLock);
 		relDesc = RelationGetDescr(onerel);
 
+		/* will be init in `analyze_rel` */
+		ctx->stadistincts = (Datum *) palloc0(relDesc->natts * sizeof(Datum));
+
 		decodedFragment = decode_string(VARDATA_ANY(encodedFragment), VARSIZE_ANY_EXHDR(encodedFragment), &decodedLen);
 		latestFragmentData = (List *) deserializeNode(decodedFragment, decodedLen);
 		pfree(decodedFragment);
@@ -2340,6 +2369,14 @@ datalake_acquire_sample_rows(PG_FUNCTION_ARGS)
 		TupleDescInitEntry(outDesc,
 						   3,
 						   "oversized_cols_length",
+						   FLOAT8ARRAYOID,
+						   -1,
+						   0);
+
+		/* stadistinct for each live column */
+		TupleDescInitEntry(outDesc,
+						   4,
+						   "stadistinct_array",
 						   FLOAT8ARRAYOID,
 						   -1,
 						   0);
@@ -2459,6 +2496,9 @@ datalake_acquire_sample_rows(PG_FUNCTION_ARGS)
 		outvalues[1] = (Datum) 0;
 		outnulls[1] = true;
 
+		outvalues[3] = (Datum) 0;
+		outnulls[3] = true;
+
 		res = heap_form_tuple(outDesc, outvalues, outnulls);
 
 		ctx->index++;
@@ -2479,6 +2519,11 @@ datalake_acquire_sample_rows(PG_FUNCTION_ARGS)
 
 		outvalues[2] = (Datum) 0;
 		outnulls[2] = true;
+
+		outvalues[3] = PointerGetDatum(construct_array(ctx->stadistincts, relDesc->natts,
+													   FLOAT8OID, 8, true, 'd'));
+		outnulls[3] = false;
+
 		for (outattno = NUM_SAMPLE_FIXED_COLS + 1; outattno <= outDesc->natts; outattno++)
 		{
 			outvalues[outattno - 1] = (Datum) 0;
