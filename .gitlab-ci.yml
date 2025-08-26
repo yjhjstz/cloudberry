@@ -2,18 +2,11 @@ default:
   interruptible: true
 
 stages:
-- build
-- test
-- .post
+  - build
+  - test
+  - .post
 
-
-# only merge request will trigger the pipeline
 workflow:
-  name: Hashdata Lightning Merge Request Check
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: always
-    - when: never
   auto_cancel:
     on_new_commit: interruptible
 
@@ -77,6 +70,7 @@ variables:
         - ${CI_PROJECT_DIR}/database
       when: 'always'
 
+
 .artifacts: &artifacts
   name: "hashdata-lightning"
   paths:
@@ -95,6 +89,15 @@ variables:
   reports:
     dotenv: ${CI_PROJECT_DIR}/dist/packages/manifest*.txt
   expire_in: 1 week
+
+
+.common-rules:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    when: always
+  - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
+    when: always
+    interruptible: false
+  - when: manual
 
 
 build_develop:
@@ -146,11 +149,7 @@ build_develop:
     make build-database
     make package-prepare
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
 
 test_database:
   stage: test
@@ -166,11 +165,7 @@ test_database:
     export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=off' installcheck" 
     make test-database
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -188,11 +183,7 @@ test_database-src:
     export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=off' installcheck" 
     make test-src-test
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -210,11 +201,7 @@ test_pax:
     export MAKE_TEST_COMMAND="-c default_table_access_method=pax -c optimizer=off -c enable_parallel=off"
     make test-pax
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -232,11 +219,7 @@ test_vectorization:
     export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off"
     make test-vectorization
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -254,11 +237,7 @@ test_database_orca:
     export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=on' installcheck" 
     make test-database
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -276,11 +255,7 @@ test_database-src_orca:
     export MAKE_TEST_COMMAND="-s -k PGOPTIONS='-c optimizer=on' installcheck" 
     make test-src-test
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -298,11 +273,7 @@ test_pax_orca:
     export MAKE_TEST_COMMAND="-c default_table_access_method=pax -c optimizer=on -c enable_parallel=off"
     make test-pax
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -320,11 +291,7 @@ test_vectorization_orca:
     export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c optimizer=on -c enable_parallel=off"
     make test-vectorization
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
@@ -341,11 +308,7 @@ test_parallel:
     export ENV=devel
     make test-parallel
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-      when: always
-    - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
-      when: always
-    - when: manual
+    - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
 
