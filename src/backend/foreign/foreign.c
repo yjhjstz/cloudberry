@@ -19,6 +19,7 @@
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
 #include "catalog/pg_foreign_table_seg.h"
+#include "catalog/pg_foreign_catalog.h"
 #include "catalog/pg_user_mapping.h"
 #include "cdb/cdbgang.h"
 #include "cdb/cdbutil.h"
@@ -990,6 +991,73 @@ get_foreign_server_oid(const char *servername, bool missing_ok)
 		ereport(ERROR,
 				(errcode(ERRCODE_UNDEFINED_OBJECT),
 				 errmsg("server \"%s\" does not exist", servername)));
+	return oid;
+}
+
+/*
+ * get_foreign_catalog_oid - given a foreign catalog name and optionally server name,
+ * look up the OID
+ *
+ * If missing_ok is false, throw an error if name not found.  If true, just
+ * return InvalidOid.
+ */
+Oid
+get_foreign_catalog_oid(const char *catalogname, const char *servername, bool missing_ok)
+{
+	Oid			oid;
+	HeapTuple	tuple;
+	Relation	rel;
+	ScanKeyData	key[2];
+	int			nkeys = 1;
+	SysScanDesc scan;
+
+	rel = table_open(ForeignCatalogRelationId, AccessShareLock);
+
+	ScanKeyInit(&key[0],
+				Anum_pg_foreign_catalog_fcname,
+				BTEqualStrategyNumber, F_NAMEEQ,
+				CStringGetDatum(catalogname));
+
+	if (servername)
+	{
+		Oid serverid = get_foreign_server_oid(servername, missing_ok);
+		if (!OidIsValid(serverid))
+		{
+			table_close(rel, AccessShareLock);
+			return InvalidOid;
+		}
+		ScanKeyInit(&key[1],
+					Anum_pg_foreign_catalog_fcserver,
+					BTEqualStrategyNumber, F_OIDEQ,
+					ObjectIdGetDatum(serverid));
+		nkeys = 2;
+	}
+
+	scan = systable_beginscan(rel, ForeignCatalogNameServerIndexId, true,
+							  NULL, nkeys, key);
+
+	tuple = systable_getnext(scan);
+	if (HeapTupleIsValid(tuple))
+		oid = ((Form_pg_foreign_catalog) GETSTRUCT(tuple))->oid;
+	else
+		oid = InvalidOid;
+
+	systable_endscan(scan);
+	table_close(rel, AccessShareLock);
+
+	if (!OidIsValid(oid) && !missing_ok)
+	{
+		if (servername)
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_OBJECT),
+					 errmsg("foreign catalog \"%s\" on server \"%s\" does not exist",
+							catalogname, servername)));
+		else
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_OBJECT),
+					 errmsg("foreign catalog \"%s\" does not exist", catalogname)));
+	}
+
 	return oid;
 }
 

@@ -294,7 +294,7 @@ static void check_expressions_in_partition_key(PartitionSpec *spec, core_yyscan_
 		CreateOpFamilyStmt AlterOpFamilyStmt CreatePLangStmt
 		CreateSchemaStmt CreateSeqStmt CreateStmt CreateStatsStmt
 		CreateStorageServerStmt CreateStorageUserMappingStmt
-		CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignTableStmt CreateDirectoryTableStmt
+		CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignCatalogStmt CreateForeignTableStmt CreateDirectoryTableStmt
 		CreateAssertionStmt CreateTransformStmt CreateTrigStmt CreateEventTrigStmt
 		CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatePolicyStmt
 		CreatedbStmt CreateWarehouseStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
@@ -1478,6 +1478,7 @@ stmt:
 			| CreateExternalStmt
 			| CreateFdwStmt
 			| CreateForeignServerStmt
+			| CreateForeignCatalogStmt
 			| CreateForeignTableStmt
 			| CreateFunctionStmt
 			| CreateGroupStmt
@@ -8201,6 +8202,33 @@ foreign_server_version:
 opt_foreign_server_version:
 			foreign_server_version	{ $$ = $1; }
 			| /*EMPTY*/				{ $$ = NULL; }
+		;
+
+/*****************************************************************************
+ *
+ *		QUERY :
+ *				CREATE FOREIGN CATALOG name SERVER name [OPTIONS]
+ *
+ ****************************************************************************/
+
+CreateForeignCatalogStmt: CREATE FOREIGN CATALOG_P name SERVER name create_generic_options
+				{
+					CreateForeignCatalogStmt *n = makeNode(CreateForeignCatalogStmt);
+					n->catalogname = $4;
+					n->servername = $6;
+					n->options = $7;
+					n->if_not_exists = false;
+					$$ = (Node *) n;
+				}
+				| CREATE FOREIGN CATALOG_P IF_P NOT EXISTS name SERVER name create_generic_options
+				{
+					CreateForeignCatalogStmt *n = makeNode(CreateForeignCatalogStmt);
+					n->catalogname = $7;
+					n->servername = $9;
+					n->options = $10;
+					n->if_not_exists = true;
+					$$ = (Node *) n;
+				}
 		;
 
 /*****************************************************************************

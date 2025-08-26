@@ -44,6 +44,7 @@
 #include "catalog/pg_extprotocol.h"
 #include "catalog/pg_foreign_data_wrapper.h"
 #include "catalog/pg_foreign_server.h"
+#include "catalog/pg_foreign_catalog.h"
 #include "catalog/pg_inherits.h"
 #include "catalog/pg_init_privs.h"
 #include "catalog/pg_language.h"
@@ -5784,6 +5785,33 @@ pg_foreign_server_ownercheck(Oid srv_oid, Oid roleid)
 						srv_oid)));
 
 	ownerId = ((Form_pg_foreign_server) GETSTRUCT(tuple))->srvowner;
+
+	ReleaseSysCache(tuple);
+
+	return has_privs_of_role(roleid, ownerId);
+}
+
+/*
+ * Ownership check for a foreign catalog (specified by OID).
+ */
+bool
+pg_foreign_catalog_ownercheck(Oid catalog_oid, Oid roleid)
+{
+	HeapTuple	tuple;
+	Oid			ownerId;
+
+	/* Superusers bypass all permission checking. */
+	if (superuser_arg(roleid))
+		return true;
+
+	tuple = SearchSysCache1(FOREIGNCATALOGOID, ObjectIdGetDatum(catalog_oid));
+	if (!HeapTupleIsValid(tuple))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("foreign catalog with OID %u does not exist",
+						catalog_oid)));
+
+	ownerId = ((Form_pg_foreign_catalog) GETSTRUCT(tuple))->fcowner;
 
 	ReleaseSysCache(tuple);
 

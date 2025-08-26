@@ -124,7 +124,8 @@ extern char *GetPreassignedIndexNameForChildIndex(Oid parentIdxOid, Oid childRel
 extern void RememberPreassignedIndexNameForChildIndex(Oid parentIdxOid, Oid childRelId,
 													  const char *idxname);
 
-
+extern Oid GetNewOidForForeignCatalog(Relation relation, Oid indexId, AttrNumber oidcolumn,
+										char *catname);
 /* Functions used in master and QE nodes */
 extern void PreserveOidAssignmentsOnCommit(void);
 extern void ClearOidAssignmentsOnCommit(void);
@@ -136,5 +137,6 @@ extern bool IsOidAcceptable(Oid oid);
 extern void MarkOidPreassignedFromBinaryUpgrade(Oid oid);
 
 extern void AtEOXact_DispatchOids(bool isCommit);
+
 
 #endif   /* OID_DISPATCH_H */

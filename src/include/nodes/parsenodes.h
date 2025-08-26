@@ -2938,6 +2938,19 @@ typedef struct AlterForeignServerStmt
 } AlterForeignServerStmt;
 
 /* ----------------------
+ *		Create FOREIGN CATALOG Statements
+ * ----------------------
+ */
+typedef struct CreateForeignCatalogStmt
+{
+	NodeTag		type;
+	char	   *catalogname;		/* catalog name */
+	char	   *servername;			/* server name */
+	bool		if_not_exists;		/* just do nothing if it already exists? */
+	List	   *options;			/* generic options to catalog */
+} CreateForeignCatalogStmt;
+
+/* ----------------------
  *		Create/Alter/Drop STORAGE SERVER Statements
  * ----------------------
  */

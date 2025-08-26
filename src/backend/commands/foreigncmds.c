@@ -27,6 +27,7 @@
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
 #include "catalog/pg_foreign_table_seg.h"
+#include "catalog/pg_foreign_catalog.h"
 #include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
 #include "catalog/pg_user_mapping.h"
@@ -1015,6 +1016,122 @@ CreateForeignServer(CreateForeignServerStmt *stmt)
 
 	/* Post creation hook for new foreign server */
 	InvokeObjectPostCreateHook(ForeignServerRelationId, srvId, 0);
+
+	if (Gp_role == GP_ROLE_DISPATCH)
+	{
+		CdbDispatchUtilityStatement((Node *) stmt,
+									DF_WITH_SNAPSHOT | DF_CANCEL_ON_ERROR | DF_NEED_TWO_PHASE,
+									GetAssignedOidsForDispatch(),
+									NULL);
+	}
+
+	table_close(rel, RowExclusiveLock);
+
+	return myself;
+}
+
+/*
+ * Create foreign catalog
+ */
+ObjectAddress
+CreateForeignCatalog(CreateForeignCatalogStmt *stmt)
+{
+	Relation	rel;
+	Datum		catalogoptions;
+	Datum		values[Natts_pg_foreign_catalog];
+	bool		nulls[Natts_pg_foreign_catalog];
+	HeapTuple	tuple;
+	Oid			catalogId;
+	Oid			ownerId;
+	AclResult	aclresult;
+	ObjectAddress myself;
+	ObjectAddress referenced;
+	ForeignServer *server;
+
+	rel = table_open(ForeignCatalogRelationId, RowExclusiveLock);
+
+	/* For now the owner cannot be specified on create. Use effective user ID. */
+	ownerId = GetUserId();
+
+	/*
+	 * Check that there is no other foreign catalog by this name for the same server.
+	 * If there is one, do nothing if IF NOT EXISTS was specified.
+	 */
+	catalogId = get_foreign_catalog_oid(stmt->catalogname, stmt->servername, true);
+	if (OidIsValid(catalogId))
+	{
+		if (stmt->if_not_exists)
+		{
+			/* OK to skip */
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("foreign catalog \"%s\" already exists, skipping",
+							stmt->catalogname)));
+			table_close(rel, RowExclusiveLock);
+			return InvalidObjectAddress;
+		}
+		else
+			ereport(ERROR,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("foreign catalog \"%s\" already exists",
+							stmt->catalogname)));
+	}
+
+	/*
+	 * Check that the server exists and that we have USAGE on it.
+	 */
+	server = GetForeignServerByName(stmt->servername, false);
+
+	aclresult = pg_foreign_server_aclcheck(server->serverid, ownerId, ACL_USAGE);
+	if (aclresult != ACLCHECK_OK)
+		aclcheck_error(aclresult, OBJECT_FOREIGN_SERVER, server->servername);
+
+	/*
+	 * Insert tuple into pg_foreign_catalog.
+	 */
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
+
+	catalogId = GetNewOidForForeignCatalog(rel, ForeignCatalogOidIndexId,
+										   Anum_pg_foreign_catalog_oid,
+										   stmt->catalogname);
+
+	values[Anum_pg_foreign_catalog_oid - 1] = ObjectIdGetDatum(catalogId);
+	values[Anum_pg_foreign_catalog_fcname - 1] =
+		DirectFunctionCall1(namein, CStringGetDatum(stmt->catalogname));
+	values[Anum_pg_foreign_catalog_fcowner - 1] = ObjectIdGetDatum(ownerId);
+	values[Anum_pg_foreign_catalog_fcserver - 1] = ObjectIdGetDatum(server->serverid);
+
+	/* Add catalog options */
+	catalogoptions = transformGenericOptions(ForeignCatalogRelationId,
+											 PointerGetDatum(NULL),
+											 stmt->options,
+											 InvalidOid); // FIXME
+
+	if (PointerIsValid(DatumGetPointer(catalogoptions)))
+		values[Anum_pg_foreign_catalog_fcoptions - 1] = catalogoptions;
+	else
+		nulls[Anum_pg_foreign_catalog_fcoptions - 1] = true;
+
+	tuple = heap_form_tuple(rel->rd_att, values, nulls);
+
+	CatalogTupleInsert(rel, tuple);
+	heap_freetuple(tuple);
+
+	/* record dependencies */
+	myself.classId = ForeignCatalogRelationId;
+	myself.objectId = catalogId;
+	myself.objectSubId = 0;
+
+	referenced.classId = ForeignServerRelationId;
+	referenced.objectId = server->serverid;
+	referenced.objectSubId = 0;
+	recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+
+	recordDependencyOnOwner(ForeignCatalogRelationId, catalogId, ownerId);
+
+	/* Post creation hook for new foreign catalog */
+	InvokeObjectPostCreateHook(ForeignCatalogRelationId, catalogId, 0);
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{

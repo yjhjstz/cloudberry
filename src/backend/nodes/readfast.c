@@ -1476,6 +1476,19 @@ _readCreateForeignServerStmt(void)
 	READ_DONE();
 }
 
+static CreateForeignCatalogStmt *
+_readCreateForeignCatalogStmt(void)
+{
+	READ_LOCALS(CreateForeignCatalogStmt);
+
+	READ_STRING_FIELD(catalogname);
+	READ_STRING_FIELD(servername);
+	READ_BOOL_FIELD(if_not_exists);
+	READ_NODE_FIELD(options);
+
+	READ_DONE();
+}
+
 static AddForeignSegStmt *
 _readAddForeignSegStmt(void)
 {
@@ -2818,6 +2831,9 @@ readNodeBinary(void)
 				break;
 			case T_CreateForeignServerStmt:
 				return_value = _readCreateForeignServerStmt();
+				break;
+			case T_CreateForeignCatalogStmt:
+				return_value = _readCreateForeignCatalogStmt();
 				break;
 			case T_AddForeignSegStmt:
 				return_value = _readAddForeignSegStmt();
