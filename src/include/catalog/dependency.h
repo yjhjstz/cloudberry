@@ -135,6 +135,7 @@ typedef enum ObjectClass
 	OCLASS_TBLSPACE,			/* pg_tablespace */
 	OCLASS_FDW,					/* pg_foreign_data_wrapper */
 	OCLASS_FOREIGN_SERVER,		/* pg_foreign_server */
+	OCLASS_FOREIGN_CATALOG,		/* pg_foreign_catalog */
 	OCLASS_USER_MAPPING,		/* pg_user_mapping */
 	OCLASS_DEFACL,				/* pg_default_acl */
 	OCLASS_EXTENSION,			/* pg_extension */

@@ -1922,6 +1922,7 @@ typedef enum ObjectType
 	OBJECT_EXTENSION,
 	OBJECT_FDW,
 	OBJECT_FOREIGN_SERVER,
+	OBJECT_FOREIGN_CATALOG,
 	OBJECT_STORAGE_SERVER,
 	OBJECT_FOREIGN_TABLE,
 	OBJECT_FUNCTION,
@@ -3460,7 +3461,7 @@ typedef struct AlterDirectoryTableStmt
 /* ----------------------
  *		DROP Statement, applies to:
  *        Table, External Table, Sequence, View, Index, Type, Domain,
- *        Conversion, Schema
+ *        Conversion, Schema, Catalog
  * ----------------------
  */
 

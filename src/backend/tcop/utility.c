@@ -3403,6 +3403,9 @@ CreateCommandTag(Node *parsetree)
 				case OBJECT_FOREIGN_SERVER:
 					tag = CMDTAG_DROP_SERVER;
 					break;
+				case OBJECT_FOREIGN_CATALOG:
+					tag = CMDTAG_DROP_FOREIGN_CATALOG;
+					break;
 				case OBJECT_STORAGE_SERVER:
 					tag = CMDTAG_DROP_STORAGE_SERVER;
 					break;

@@ -41,6 +41,7 @@
 #include "catalog/pg_extprotocol.h"
 #include "catalog/pg_foreign_data_wrapper.h"
 #include "catalog/pg_foreign_server.h"
+#include "catalog/pg_foreign_catalog.h"
 #include "catalog/pg_language.h"
 #include "catalog/pg_largeobject.h"
 #include "catalog/pg_largeobject_metadata.h"
@@ -300,6 +301,20 @@ static const ObjectPropertyType ObjectProperty[] =
 		Anum_pg_foreign_server_srvowner,
 		Anum_pg_foreign_server_srvacl,
 		OBJECT_FOREIGN_SERVER,
+		true
+	},
+	{
+		"foreign catalog",
+		ForeignCatalogRelationId,
+		ForeignCatalogOidIndexId,
+		FOREIGNCATALOGOID,
+		FOREIGNCATALOGNAME,
+		Anum_pg_foreign_catalog_oid,
+		Anum_pg_foreign_catalog_fcname,
+		InvalidAttrNumber,
+		Anum_pg_foreign_catalog_fcowner,
+		InvalidAttrNumber,
+		OBJECT_FOREIGN_CATALOG,
 		true
 	},
 	{
@@ -1134,6 +1149,7 @@ get_object_address(ObjectType objtype, Node *object,
 			case OBJECT_LANGUAGE:
 			case OBJECT_FDW:
 			case OBJECT_FOREIGN_SERVER:
+			case OBJECT_FOREIGN_CATALOG:
 			case OBJECT_EVENT_TRIGGER:
 			case OBJECT_EXTPROTOCOL:
 			case OBJECT_ACCESS_METHOD:
@@ -1436,6 +1452,11 @@ get_object_address_unqualified(ObjectType objtype,
 		case OBJECT_FOREIGN_SERVER:
 			address.classId = ForeignServerRelationId;
 			address.objectId = get_foreign_server_oid(name, missing_ok);
+			address.objectSubId = 0;
+			break;
+		case OBJECT_FOREIGN_CATALOG:
+			address.classId = ForeignCatalogRelationId;
+			address.objectId = get_foreign_catalog_oid(name, NULL, missing_ok);
 			address.objectSubId = 0;
 			break;
 		case OBJECT_EVENT_TRIGGER:
@@ -2448,6 +2469,7 @@ pg_get_object_address(PG_FUNCTION_ARGS)
 		case OBJECT_EXTENSION:
 		case OBJECT_FDW:
 		case OBJECT_FOREIGN_SERVER:
+		case OBJECT_FOREIGN_CATALOG:
 		case OBJECT_STORAGE_SERVER:
 		case OBJECT_LANGUAGE:
 		case OBJECT_PUBLICATION:
@@ -2640,6 +2662,11 @@ check_object_ownership(Oid roleid, ObjectType objtype, ObjectAddress address,
 			break;
 		case OBJECT_FOREIGN_SERVER:
 			if (!pg_foreign_server_ownercheck(address.objectId, roleid))
+				aclcheck_error(ACLCHECK_NOT_OWNER, objtype,
+							   strVal((Value *) object));
+			break;
+		case OBJECT_FOREIGN_CATALOG:
+			if (!pg_foreign_catalog_ownercheck(address.objectId, roleid))
 				aclcheck_error(ACLCHECK_NOT_OWNER, objtype,
 							   strVal((Value *) object));
 			break;
@@ -3846,6 +3873,27 @@ getObjectDescription(const ObjectAddress *object, bool missing_ok)
 				break;
 			}
 
+		case OCLASS_FOREIGN_CATALOG:
+			{
+				HeapTuple	catTup;
+				Form_pg_foreign_catalog catForm;
+
+				catTup = SearchSysCache1(FOREIGNCATALOGOID,
+										 ObjectIdGetDatum(object->objectId));
+				if (!HeapTupleIsValid(catTup))
+				{
+					if (!missing_ok)
+						elog(ERROR, "cache lookup failed for foreign catalog %u",
+							 object->objectId);
+					break;
+				}
+
+				catForm = (Form_pg_foreign_catalog) GETSTRUCT(catTup);
+				appendStringInfo(&buffer, _("catalog %s"), NameStr(catForm->fcname));
+				ReleaseSysCache(catTup);
+				break;
+			}
+
 		case OCLASS_USER_MAPPING:
 			{
 				HeapTuple	tup;
@@ -4819,6 +4867,10 @@ getObjectTypeDescription(const ObjectAddress *object, bool missing_ok)
 
 		case OCLASS_FOREIGN_SERVER:
 			appendStringInfoString(&buffer, "server");
+			break;
+
+		case OCLASS_FOREIGN_CATALOG:
+			appendStringInfoString(&buffer, "catalog");
 			break;
 
 		case OCLASS_USER_MAPPING:
@@ -5889,6 +5941,30 @@ getObjectIdentityParts(const ObjectAddress *object,
 					if (objname)
 						*objname = list_make1(pstrdup(srv->servername));
 				}
+				break;
+			}
+
+		case OCLASS_FOREIGN_CATALOG:
+			{
+				HeapTuple	catTup;
+				Form_pg_foreign_catalog catForm;
+
+				catTup = SearchSysCache1(FOREIGNCATALOGOID,
+										 ObjectIdGetDatum(object->objectId));
+				if (!HeapTupleIsValid(catTup))
+				{
+					if (!missing_ok)
+						elog(ERROR, "cache lookup failed for foreign catalog %u",
+							 object->objectId);
+					break;
+				}
+
+				catForm = (Form_pg_foreign_catalog) GETSTRUCT(catTup);
+				appendStringInfoString(&buffer,
+									   quote_identifier(NameStr(catForm->fcname)));
+				if (objname)
+					*objname = list_make1(pstrdup(NameStr(catForm->fcname)));
+				ReleaseSysCache(catTup);
 				break;
 			}
 
