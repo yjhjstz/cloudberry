@@ -2164,6 +2164,17 @@ _equalCreateForeignCatalogStmt(const CreateForeignCatalogStmt *a, const CreateFo
 }
 
 static bool
+_equalCreateForeignVolumeStmt(const CreateForeignVolumeStmt *a, const CreateForeignVolumeStmt *b)
+{
+	COMPARE_STRING_FIELD(volumename);
+	COMPARE_STRING_FIELD(servername);
+	COMPARE_SCALAR_FIELD(if_not_exists);
+	COMPARE_NODE_FIELD(options);
+
+	return true;
+}
+
+static bool
 _equalAddForeignSegStmt(const AddForeignSegStmt *a, const AddForeignSegStmt *b)
 {
 	COMPARE_STRING_FIELD(servername);
@@ -4141,6 +4152,9 @@ equal(const void *a, const void *b)
 			break;
 		case T_CreateForeignCatalogStmt:
 			retval = _equalCreateForeignCatalogStmt(a, b);
+			break;
+		case T_CreateForeignVolumeStmt:
+			retval = _equalCreateForeignVolumeStmt(a, b);
 			break;
 		case T_AddForeignSegStmt:
 			retval = _equalAddForeignSegStmt(a, b);

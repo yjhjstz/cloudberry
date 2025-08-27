@@ -1489,6 +1489,19 @@ _readCreateForeignCatalogStmt(void)
 	READ_DONE();
 }
 
+static CreateForeignVolumeStmt *
+_readCreateForeignVolumeStmt(void)
+{
+	READ_LOCALS(CreateForeignVolumeStmt);
+
+	READ_STRING_FIELD(volumename);
+	READ_STRING_FIELD(servername);
+	READ_BOOL_FIELD(if_not_exists);
+	READ_NODE_FIELD(options);
+
+	READ_DONE();
+}
+
 static AddForeignSegStmt *
 _readAddForeignSegStmt(void)
 {
@@ -2834,6 +2847,9 @@ readNodeBinary(void)
 				break;
 			case T_CreateForeignCatalogStmt:
 				return_value = _readCreateForeignCatalogStmt();
+				break;
+			case T_CreateForeignVolumeStmt:
+				return_value = _readCreateForeignVolumeStmt();
 				break;
 			case T_AddForeignSegStmt:
 				return_value = _readAddForeignSegStmt();

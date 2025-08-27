@@ -1923,6 +1923,7 @@ typedef enum ObjectType
 	OBJECT_FDW,
 	OBJECT_FOREIGN_SERVER,
 	OBJECT_FOREIGN_CATALOG,
+	OBJECT_FOREIGN_VOLUME,
 	OBJECT_STORAGE_SERVER,
 	OBJECT_FOREIGN_TABLE,
 	OBJECT_FUNCTION,
@@ -2950,6 +2951,19 @@ typedef struct CreateForeignCatalogStmt
 	bool		if_not_exists;		/* just do nothing if it already exists? */
 	List	   *options;			/* generic options to catalog */
 } CreateForeignCatalogStmt;
+
+/* ----------------------
+ *		Create FOREIGN VOLUME Statements
+ * ----------------------
+ */
+typedef struct CreateForeignVolumeStmt
+{
+	NodeTag		type;
+	char	   *volumename;			/* volume name */
+	char	   *servername;			/* server name */
+	bool		if_not_exists;		/* just do nothing if it already exists? */
+	List	   *options;			/* generic options to volume */
+} CreateForeignVolumeStmt;
 
 /* ----------------------
  *		Create/Alter/Drop STORAGE SERVER Statements

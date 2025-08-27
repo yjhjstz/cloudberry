@@ -5176,6 +5176,19 @@ _copyCreateForeignCatalogStmt(const CreateForeignCatalogStmt *from)
 	return newnode;
 }
 
+static CreateForeignVolumeStmt *
+_copyCreateForeignVolumeStmt(const CreateForeignVolumeStmt *from)
+{
+	CreateForeignVolumeStmt *newnode = makeNode(CreateForeignVolumeStmt);
+
+	COPY_STRING_FIELD(volumename);
+	COPY_STRING_FIELD(servername);
+	COPY_SCALAR_FIELD(if_not_exists);
+	COPY_NODE_FIELD(options);
+
+	return newnode;
+}
+
 static AlterForeignServerStmt *
 _copyAlterForeignServerStmt(const AlterForeignServerStmt *from)
 {
@@ -7177,6 +7190,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_CreateForeignCatalogStmt:
 			retval = _copyCreateForeignCatalogStmt(from);
+			break;
+		case T_CreateForeignVolumeStmt:
+			retval = _copyCreateForeignVolumeStmt(from);
 			break;
 		case T_AlterForeignServerStmt:
 			retval = _copyAlterForeignServerStmt(from);

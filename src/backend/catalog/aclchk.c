@@ -45,6 +45,7 @@
 #include "catalog/pg_foreign_data_wrapper.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_catalog.h"
+#include "catalog/pg_foreign_volume.h"
 #include "catalog/pg_inherits.h"
 #include "catalog/pg_init_privs.h"
 #include "catalog/pg_language.h"
@@ -3722,6 +3723,9 @@ aclcheck_error(AclResult aclerr, ObjectType objtype,
 					case OBJECT_FOREIGN_CATALOG:
 						msg = gettext_noop("permission denied for foreign catalog %s");
 						break;
+					case OBJECT_FOREIGN_VOLUME:
+						msg = gettext_noop("permission denied for foreign volume %s");
+						break;
 					case OBJECT_FOREIGN_TABLE:
 						msg = gettext_noop("permission denied for foreign table %s");
 						break;
@@ -3868,6 +3872,9 @@ aclcheck_error(AclResult aclerr, ObjectType objtype,
 						break;
 					case OBJECT_FOREIGN_CATALOG:
 						msg = gettext_noop("must be owner of foreign catalog %s");
+						break;
+					case OBJECT_FOREIGN_VOLUME:
+						msg = gettext_noop("must be owner of foreign volume %s");
 						break;
 					case OBJECT_FOREIGN_TABLE:
 						msg = gettext_noop("must be owner of foreign table %s");
@@ -5818,6 +5825,33 @@ pg_foreign_catalog_ownercheck(Oid catalog_oid, Oid roleid)
 						catalog_oid)));
 
 	ownerId = ((Form_pg_foreign_catalog) GETSTRUCT(tuple))->fcowner;
+
+	ReleaseSysCache(tuple);
+
+	return has_privs_of_role(roleid, ownerId);
+}
+
+/*
+ * Ownership check for a foreign volume (specified by OID).
+ */
+bool
+pg_foreign_volume_ownercheck(Oid volume_oid, Oid roleid)
+{
+	HeapTuple	tuple;
+	Oid			ownerId;
+
+	/* Superusers bypass all permission checking. */
+	if (superuser_arg(roleid))
+		return true;
+
+	tuple = SearchSysCache1(FOREIGNVOLUMEOID, ObjectIdGetDatum(volume_oid));
+	if (!HeapTupleIsValid(tuple))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("foreign volume with OID %u does not exist",
+						volume_oid)));
+
+	ownerId = ((Form_pg_foreign_volume) GETSTRUCT(tuple))->fvowner;
 
 	ReleaseSysCache(tuple);
 

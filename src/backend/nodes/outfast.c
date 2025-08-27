@@ -655,6 +655,17 @@ _outCreateForeignCatalogStmt(StringInfo str, CreateForeignCatalogStmt *node)
 }
 
 static void
+_outCreateForeignVolumeStmt(StringInfo str, CreateForeignVolumeStmt *node)
+{
+	WRITE_NODE_TYPE("CREATEFOREIGNVOLUMESTMT");
+
+	WRITE_STRING_FIELD(volumename);
+	WRITE_STRING_FIELD(servername);
+	WRITE_BOOL_FIELD(if_not_exists);
+	WRITE_NODE_FIELD(options);
+}
+
+static void
 _outAddForeignSegstmt(StringInfo str, AddForeignSegStmt *node)
 {
 	WRITE_NODE_TYPE("ADDFOREIGNSEGSTMT");
@@ -1806,6 +1817,9 @@ _outNode(StringInfo str, void *obj)
 				break;
 			case T_CreateForeignCatalogStmt:
 				_outCreateForeignCatalogStmt(str, obj);
+				break;
+			case T_CreateForeignVolumeStmt:
+				_outCreateForeignVolumeStmt(str, obj);
 				break;
 			case T_AddForeignSegStmt:
 				_outAddForeignSegstmt(str, obj);

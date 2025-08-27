@@ -131,6 +131,7 @@ extern ObjectAddress CreateForeignDataWrapper(CreateFdwStmt *stmt);
 extern ObjectAddress AlterForeignDataWrapper(AlterFdwStmt *stmt);
 extern ObjectAddress CreateForeignServer(CreateForeignServerStmt *stmt);
 extern ObjectAddress CreateForeignCatalog(CreateForeignCatalogStmt *stmt);
+extern ObjectAddress CreateForeignVolume(CreateForeignVolumeStmt *stmt);
 extern ObjectAddress AlterForeignServer(AlterForeignServerStmt *stmt);
 extern ObjectAddress CreateStorageServer(CreateStorageServerStmt *stmt);
 extern ObjectAddress AlterStorageServer(AlterStorageServerStmt *stmt);

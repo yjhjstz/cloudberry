@@ -294,7 +294,7 @@ static void check_expressions_in_partition_key(PartitionSpec *spec, core_yyscan_
 		CreateOpFamilyStmt AlterOpFamilyStmt CreatePLangStmt
 		CreateSchemaStmt CreateSeqStmt CreateStmt CreateStatsStmt
 		CreateStorageServerStmt CreateStorageUserMappingStmt
-		CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignCatalogStmt CreateForeignTableStmt CreateDirectoryTableStmt
+		CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignCatalogStmt CreateForeignVolumeStmt CreateForeignTableStmt CreateDirectoryTableStmt
 		CreateAssertionStmt CreateTransformStmt CreateTrigStmt CreateEventTrigStmt
 		CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatePolicyStmt
 		CreatedbStmt CreateWarehouseStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
@@ -832,7 +832,7 @@ static void check_expressions_in_partition_key(PartitionSpec *spec, core_yyscan_
 	UNLISTEN UNLOGGED UNTIL UPDATE USER USING
 
 	VACUUM VALID VALIDATE VALIDATOR VALUE_P VALUES VARCHAR VARIADIC VARYING
-	VERBOSE VERSION_P VIEW VIEWS VOLATILE
+	VERBOSE VERSION_P VIEW VIEWS VOLATILE VOLUME
 
 	WHEN WHERE WHITESPACE_P WINDOW WITH WITHIN WITHOUT WORK WRAPPER WRITE
 
@@ -1479,6 +1479,7 @@ stmt:
 			| CreateFdwStmt
 			| CreateForeignServerStmt
 			| CreateForeignCatalogStmt
+			| CreateForeignVolumeStmt
 			| CreateForeignTableStmt
 			| CreateFunctionStmt
 			| CreateGroupStmt
@@ -8234,6 +8235,32 @@ CreateForeignCatalogStmt: CREATE FOREIGN CATALOG_P name SERVER name create_gener
 /*****************************************************************************
  *
  *		QUERY :
+ *				CREATE FOREIGN VOLUME name SERVER name [OPTIONS]
+ *
+ ****************************************************************************/
+CreateForeignVolumeStmt: CREATE FOREIGN VOLUME name SERVER name create_generic_options
+				{
+					CreateForeignVolumeStmt *n = makeNode(CreateForeignVolumeStmt);
+					n->volumename = $4;
+					n->servername = $6;
+					n->options = $7;
+					n->if_not_exists = false;
+					$$ = (Node *) n;
+				}
+				| CREATE FOREIGN VOLUME IF_P NOT EXISTS name SERVER name create_generic_options
+				{
+					CreateForeignVolumeStmt *n = makeNode(CreateForeignVolumeStmt);
+					n->volumename = $7;
+					n->servername = $9;
+					n->options = $10;
+					n->if_not_exists = true;
+					$$ = (Node *) n;
+				}
+		;
+
+/*****************************************************************************
+ *
+ *		QUERY :
  *				ALTER SERVER name [VERSION] [OPTIONS]
  *
  ****************************************************************************/
@@ -9983,6 +10010,7 @@ drop_type_name:
 			| SCHEMA								{ $$ = OBJECT_SCHEMA; }
 			| SERVER								{ $$ = OBJECT_FOREIGN_SERVER; }
 			| CATALOG_P								{ $$ = OBJECT_FOREIGN_CATALOG; }
+			| VOLUME								{ $$ = OBJECT_FOREIGN_VOLUME; }
 			| PROTOCOL								{ $$ = OBJECT_EXTPROTOCOL; }
 		;
 
@@ -19979,6 +20007,7 @@ unreserved_keyword:
 			| VIEW
 			| VIEWS
 			| VOLATILE
+			| VOLUME
 			| WAREHOUSE
 			| WAREHOUSE_SIZE
 			| WEB /* gp */
@@ -20283,6 +20312,7 @@ PartitionIdentKeyword: ABORT_P
 			| VIEW
 			| VALUE_P
 			| VOLATILE
+			| VOLUME
 			| WORK
 			| WRITE
 			| ZONE
@@ -21014,6 +21044,7 @@ bare_label_keyword:
 			| VIEW
 			| VIEWS
 			| VOLATILE
+			| VOLUME
 			| WAREHOUSE
 			| WAREHOUSE_SIZE
 			| WEB

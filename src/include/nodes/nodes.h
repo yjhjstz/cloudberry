@@ -507,6 +507,7 @@ typedef enum NodeTag
 	T_CreateForeignServerStmt,
 	T_AlterForeignServerStmt,
 	T_CreateForeignCatalogStmt,
+	T_CreateForeignVolumeStmt,
 	T_CreateStorageServerStmt,
 	T_AlterStorageServerStmt,
 	T_DropStorageServerStmt,

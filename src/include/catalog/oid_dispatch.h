@@ -126,6 +126,8 @@ extern void RememberPreassignedIndexNameForChildIndex(Oid parentIdxOid, Oid chil
 
 extern Oid GetNewOidForForeignCatalog(Relation relation, Oid indexId, AttrNumber oidcolumn,
 										char *catname);
+extern Oid GetNewOidForForeignVolume(Relation relation, Oid indexId, AttrNumber oidcolumn,
+									  char *volumename);
 /* Functions used in master and QE nodes */
 extern void PreserveOidAssignmentsOnCommit(void);
 extern void ClearOidAssignmentsOnCommit(void);
