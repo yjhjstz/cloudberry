@@ -135,6 +135,7 @@ pg_enum|t
 pg_event_trigger|t
 pg_extension|t
 pg_extprotocol|t
+pg_foreign_catalog|t
 pg_foreign_data_wrapper|t
 pg_foreign_server|t
 pg_foreign_table|t
