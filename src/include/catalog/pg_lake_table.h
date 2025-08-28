@@ -28,12 +28,12 @@
  */
 CATALOG(pg_lake_table,9901,LakeTableRelationId)
 {
-	Oid		ltrelid BKI_LOOKUP(pg_class);			/* OID of the lake table relation */
+	Oid     ltrelid BKI_LOOKUP(pg_class);			/* OID of the lake table relation */
+	Oid     ltforeign_catalog BKI_LOOKUP(pg_foreign_server); /* OID of foreign catalog */
+	Oid     ltforeign_volume BKI_LOOKUP(pg_foreign_volume);  /* OID of foreign volume */
 	
 #ifdef CATALOG_VARLEN			/* variable-length fields start here */
 	text	lttable_type;		/* table type: ICEBERG, HUDI, etc. */
-	text	ltforeign_catalog;	/* foreign catalog name */
-	text	ltforeign_volume;	/* foreign volume name */
 	text	ltoptions[1];		/* lake table options */
 #endif
 } FormData_pg_lake_table;

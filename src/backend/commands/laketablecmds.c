@@ -70,7 +70,7 @@ validate_foreign_catalog(const char *catalog_name)
 				 errmsg("foreign catalog name cannot be NULL")));
 
 	/* Look up the catalog in pg_foreign_server for now */
-	catalog_oid = get_foreign_server_oid(catalog_name, false);
+	catalog_oid = get_foreign_catalog_oid(catalog_name, NULL, false);
 
 	return catalog_oid;
 }
@@ -89,7 +89,7 @@ validate_foreign_volume(const char *volume_name)
 				 errmsg("foreign volume name cannot be NULL")));
 
 	/* Look up the volume in pg_foreign_server for now */
-	volume_oid = get_foreign_server_oid(volume_name, false);
+	volume_oid = get_foreign_volume_oid(volume_name, NULL, false);
 
 	return volume_oid;
 }
@@ -130,9 +130,9 @@ CreateLakeTable(CreateLakeTableStmt *stmt, Oid relId)
 	memset(nulls, false, sizeof(nulls));
 
 	values[Anum_pg_lake_table_ltrelid - 1] = ObjectIdGetDatum(relId);
+	values[Anum_pg_lake_table_ltforeign_catalog - 1] = ObjectIdGetDatum(catalog_oid);
+	values[Anum_pg_lake_table_ltforeign_volume - 1] = ObjectIdGetDatum(volume_oid);
 	values[Anum_pg_lake_table_lttable_type - 1] = CStringGetTextDatum(stmt->table_type);
-	values[Anum_pg_lake_table_ltforeign_catalog - 1] = CStringGetTextDatum(stmt->foreign_catalog);
-	values[Anum_pg_lake_table_ltforeign_volume - 1] = CStringGetTextDatum(stmt->foreign_volume);
 
 	/* Handle options */
 	if (stmt->options)
@@ -175,93 +175,4 @@ CreateLakeTable(CreateLakeTableStmt *stmt, Oid relId)
 	heap_freetuple(tuple);
 	table_close(lake_rel, RowExclusiveLock);
 	return;
-}
-
-/*
- * GetLakeTable
- *
- * Fetch lake table information for a given relation OID
- */
-LakeTable *
-GetLakeTable(Oid relid)
-{
-	Relation	lake_rel;
-	ScanKeyData key[1];
-	SysScanDesc scan;
-	HeapTuple	tuple;
-	LakeTable  *lake_table = NULL;
-
-	lake_rel = table_open(LakeTableRelationId, AccessShareLock);
-
-	ScanKeyInit(&key[0],
-				Anum_pg_lake_table_ltrelid,
-				BTEqualStrategyNumber, F_OIDEQ,
-				ObjectIdGetDatum(relid));
-
-	scan = systable_beginscan(lake_rel, LakeTableOidIndexId, true,
-							  NULL, 1, key);
-
-	tuple = systable_getnext(scan);
-	if (HeapTupleIsValid(tuple))
-	{
-		Datum		datum;
-		bool		isnull;
-
-		lake_table = (LakeTable *) palloc0(sizeof(LakeTable));
-		lake_table->relid = relid;
-
-		/* Extract text fields */
-		datum = heap_getattr(tuple, Anum_pg_lake_table_lttable_type,
-							 RelationGetDescr(lake_rel), &isnull);
-		if (!isnull)
-			lake_table->table_type = TextDatumGetCString(datum);
-
-		datum = heap_getattr(tuple, Anum_pg_lake_table_ltforeign_catalog,
-							 RelationGetDescr(lake_rel), &isnull);
-		if (!isnull)
-			lake_table->foreign_catalog = TextDatumGetCString(datum);
-
-		datum = heap_getattr(tuple, Anum_pg_lake_table_ltforeign_volume,
-							 RelationGetDescr(lake_rel), &isnull);
-		if (!isnull)
-			lake_table->foreign_volume = TextDatumGetCString(datum);
-
-		/* Extract options array */
-		datum = heap_getattr(tuple, Anum_pg_lake_table_ltoptions,
-							 RelationGetDescr(lake_rel), &isnull);
-		if (!isnull)
-		{
-			ArrayType  *options_array = DatumGetArrayTypeP(datum);
-			Datum	   *options_datums;
-			int			noptions;
-			int			i;
-
-			deconstruct_array(options_array, TEXTOID, -1, false, 'i',
-							  &options_datums, NULL, &noptions);
-
-			lake_table->options = NIL;
-			for (i = 0; i < noptions; i++)
-			{
-				char	   *option_str = TextDatumGetCString(options_datums[i]);
-				char	   *eq_pos = strchr(option_str, '=');
-				DefElem    *def;
-
-				if (eq_pos)
-				{
-					*eq_pos = '\0';
-					def = makeDefElem(option_str, (Node *) makeString(eq_pos + 1), -1);
-				}
-				else
-				{
-					def = makeDefElem(option_str, NULL, -1);
-				}
-				lake_table->options = lappend(lake_table->options, def);
-			}
-		}
-	}
-
-	systable_endscan(scan);
-	table_close(lake_rel, AccessShareLock);
-
-	return lake_table;
 }

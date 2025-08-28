@@ -4553,12 +4553,16 @@ add_lake_table_footer(printTableContent *const cont, const char *oid)
 
 	initPQExpBuffer(&buf);
 
-	/* Get lake table information from pg_lake_table */
+	/* Get lake table information from pg_lake_table with JOINs to get names */
 	printfPQExpBuffer(&buf,
-					  "SELECT lttable_type, ltforeign_catalog, ltforeign_volume,\n"
-					  "       pg_catalog.array_to_string(ltoptions, ', ') as options_str\n"
-					  "FROM pg_catalog.pg_lake_table\n"
-					  "WHERE ltrelid = '%s';",
+					  "SELECT l.lttable_type,\n"
+					  "       cs.fcname as catalog_name,\n"
+					  "       fv.fvname as volume_name,\n"
+					  "       pg_catalog.array_to_string(l.ltoptions, ', ') as options_str\n"
+					  "FROM pg_catalog.pg_lake_table l\n"
+					  "LEFT JOIN pg_catalog.pg_foreign_catalog cs ON l.ltforeign_catalog = cs.oid\n"
+					  "LEFT JOIN pg_catalog.pg_foreign_volume fv ON l.ltforeign_volume = fv.oid\n"
+					  "WHERE l.ltrelid = '%s';",
 					  oid);
 
 	result = PSQLexec(buf.data);

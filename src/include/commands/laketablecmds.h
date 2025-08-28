@@ -21,6 +21,5 @@
 #include "catalog/pg_lake_table.h"
 
 extern void CreateLakeTable(CreateLakeTableStmt *stmt, Oid relId);
-extern LakeTable *GetLakeTable(Oid relid);
 
 #endif /* LAKETABLECMDS_H */
