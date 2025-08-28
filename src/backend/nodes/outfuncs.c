@@ -3054,6 +3054,20 @@ _outCreateForeignTableStmt(StringInfo str, const CreateForeignTableStmt *node)
 }
 
 static void
+_outCreateLakeTableStmt(StringInfo str, const CreateLakeTableStmt *node)
+{
+	WRITE_NODE_TYPE("CREATELAKETABLESTMT");
+
+	_outCreateStmtInfo(str, (const CreateStmt *) &node->base);
+
+	WRITE_STRING_FIELD(table_type);
+	WRITE_STRING_FIELD(foreign_catalog);
+	WRITE_STRING_FIELD(foreign_volume);
+	WRITE_NODE_FIELD(options);
+	WRITE_NODE_FIELD(distributedBy);
+}
+
+static void
 _outImportForeignSchemaStmt(StringInfo str, const ImportForeignSchemaStmt *node)
 {
 	WRITE_NODE_TYPE("IMPORTFOREIGNSCHEMASTMT");
@@ -4836,6 +4850,9 @@ outNode(StringInfo str, const void *obj)
 				break;
 			case T_CreateForeignTableStmt:
 				_outCreateForeignTableStmt(str, obj);
+				break;
+			case T_CreateLakeTableStmt:
+				_outCreateLakeTableStmt(str, obj);
 				break;
 			case T_DistributionKeyElem:
 				_outDistributionKeyElem(str, obj);

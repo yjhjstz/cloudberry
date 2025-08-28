@@ -294,7 +294,7 @@ static void check_expressions_in_partition_key(PartitionSpec *spec, core_yyscan_
 		CreateOpFamilyStmt AlterOpFamilyStmt CreatePLangStmt
 		CreateSchemaStmt CreateSeqStmt CreateStmt CreateStatsStmt
 		CreateStorageServerStmt CreateStorageUserMappingStmt
-		CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignCatalogStmt CreateForeignVolumeStmt CreateForeignTableStmt CreateDirectoryTableStmt
+		CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignCatalogStmt CreateForeignVolumeStmt CreateForeignTableStmt CreateLakeTableStmt CreateDirectoryTableStmt
 		CreateAssertionStmt CreateTransformStmt CreateTrigStmt CreateEventTrigStmt
 		CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatePolicyStmt
 		CreatedbStmt CreateWarehouseStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
@@ -386,7 +386,7 @@ static void check_expressions_in_partition_key(PartitionSpec *spec, core_yyscan_
 %type <defelt>	AlterOnlyOptRoleElem
 %type <defelt>  OptProfileElem
 
-%type <str>		opt_type
+%type <str>		opt_type OptTableType
 %type <str>		foreign_server_version opt_foreign_server_version
 %type <str>		opt_in_database
 
@@ -779,9 +779,9 @@ static void check_expressions_in_partition_key(PartitionSpec *spec, core_yyscan_
 
 	GENERATED GLOBAL GRANT GRANTED GREATEST GROUP_P GROUPING GROUPS
 
-	HANDLER HAVING HEADER_P HOLD HOUR_P
+	HANDLER HAVING HEADER_P HOLD HOUR_P HUDI
 
-	IDENTITY_P IF_P ILIKE IMMEDIATE IMMUTABLE IMPLICIT_P IMPORT_P IN_P INCLUDE
+	ICEBERG IDENTITY_P IF_P ILIKE IMMEDIATE IMMUTABLE IMPLICIT_P IMPORT_P IN_P INCLUDE
 	INCLUDING INCREMENT INCREMENTAL INDEX INDEXES INHERIT INHERITS INITIALLY INLINE_P
 	INNER_P INOUT INPUT_P INSENSITIVE INSERT INSTEAD INT_P INTEGER
 	INTERSECT INTERVAL INTO INVOKER IS ISNULL ISOLATION
@@ -1481,6 +1481,7 @@ stmt:
 			| CreateForeignCatalogStmt
 			| CreateForeignVolumeStmt
 			| CreateForeignTableStmt
+			| CreateLakeTableStmt
 			| CreateFunctionStmt
 			| CreateGroupStmt
 			| CreateMatViewStmt
@@ -8458,6 +8459,82 @@ CreateForeignTableStmt:
 					n->servername = $14;
 					n->options = $15;
 					n->base.tags = $16;
+					$$ = (Node *) n;
+				}
+		;
+
+/*****************************************************************************
+ *
+ *		QUERY:
+ *				CREATE [table_type] TABLE table_name (...)
+ *				FOREIGN CATALOG catalog_name 
+ *				FOREIGN VOLUME volume_name
+ *				OPTIONS (...)
+ *
+ *****************************************************************************/
+
+/* OptTableType allows table type to be specified (no empty allowed to avoid conflicts) */
+OptTableType:
+		ICEBERG			{ $$ = "ICEBERG"; }
+		| HUDI			{ $$ = "HUDI"; }
+		;
+
+
+CreateLakeTableStmt:
+		CREATE OptTableType TABLE qualified_name
+			'(' OptTableElementList ')'
+			FOREIGN CATALOG_P name FOREIGN VOLUME name create_generic_options
+			OptDistributedBy
+				{
+					CreateLakeTableStmt *n = makeNode(CreateLakeTableStmt);
+					$4->relpersistence = RELPERSISTENCE_PERMANENT;
+					n->base.relation = $4;
+					n->base.tableElts = $6;
+					n->base.inhRelations = NIL;  /* No inheritance for extended tables */
+					n->base.ofTypename = NULL;
+					n->base.constraints = NIL;
+					n->base.options = NIL;
+					n->base.oncommit = ONCOMMIT_NOOP;
+					n->base.tablespacename = NULL;
+					n->base.if_not_exists = false;
+					n->base.tags = NIL;  /* No tags for extended tables */
+					n->base.origin = ORIGIN_NO_GEN;
+					
+					/* Lake table specific fields */
+					n->table_type = $2;
+					n->foreign_catalog = pstrdup($10);  /* Required FOREIGN CATALOG */
+					n->foreign_volume = pstrdup($13);   /* Required FOREIGN VOLUME */
+					n->options = $14;
+					n->distributedBy = (DistributedBy *) $15;
+					
+					$$ = (Node *) n;
+				}
+		| CREATE OptTableType TABLE IF_P NOT EXISTS qualified_name
+			'(' OptTableElementList ')'
+			FOREIGN CATALOG_P name FOREIGN VOLUME name create_generic_options
+			OptDistributedBy
+				{
+					CreateLakeTableStmt *n = makeNode(CreateLakeTableStmt);
+					$7->relpersistence = RELPERSISTENCE_PERMANENT;
+					n->base.relation = $7;
+					n->base.tableElts = $9;
+					n->base.inhRelations = NIL;  /* No inheritance for extended tables */
+					n->base.ofTypename = NULL;
+					n->base.constraints = NIL;
+					n->base.options = NIL;
+					n->base.oncommit = ONCOMMIT_NOOP;
+					n->base.tablespacename = NULL;
+					n->base.if_not_exists = true;
+					n->base.tags = NIL;  /* No tags for extended tables */
+					n->base.origin = ORIGIN_NO_GEN;
+
+					/* Lake table specific fields */
+					n->table_type = $2;
+					n->foreign_catalog = pstrdup($13);  /* Required FOREIGN CATALOG */
+					n->foreign_volume = pstrdup($16);   /* Required FOREIGN VOLUME */
+					n->options = $17;
+					n->distributedBy = (DistributedBy *) $18;
+					
 					$$ = (Node *) n;
 				}
 		;
@@ -19776,6 +19853,8 @@ unreserved_keyword:
 			| HOLD
 			| HOST
 			| HOUR_P
+			| HUDI
+			| ICEBERG
 			| IDENTITY_P
 			| IF_P
 			| IGNORE_P
@@ -20752,6 +20831,8 @@ bare_label_keyword:
 			| HEADER_P
 			| HOLD
 			| HOST
+			| HUDI
+			| ICEBERG
 			| IDENTITY_P
 			| IF_P
 			| IGNORE_P

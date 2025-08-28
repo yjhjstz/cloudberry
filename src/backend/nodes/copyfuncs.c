@@ -5324,6 +5324,22 @@ _copyCreateForeignTableStmt(const CreateForeignTableStmt *from)
 	return newnode;
 }
 
+static CreateLakeTableStmt *
+_copyCreateLakeTableStmt(const CreateLakeTableStmt *from)
+{
+	CreateLakeTableStmt *newnode = makeNode(CreateLakeTableStmt);
+
+	CopyCreateStmtFields((const CreateStmt *) &from->base, (CreateStmt *) &newnode->base);
+
+	COPY_STRING_FIELD(table_type);
+	COPY_STRING_FIELD(foreign_catalog);
+	COPY_STRING_FIELD(foreign_volume);
+	COPY_NODE_FIELD(options);
+	COPY_NODE_FIELD(distributedBy);
+
+	return newnode;
+}
+
 static ImportForeignSchemaStmt *
 _copyImportForeignSchemaStmt(const ImportForeignSchemaStmt *from)
 {
@@ -7226,6 +7242,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_CreateForeignTableStmt:
 			retval = _copyCreateForeignTableStmt(from);
+			break;
+		case T_CreateLakeTableStmt:
+			retval = _copyCreateLakeTableStmt(from);
 			break;
 		case T_ImportForeignSchemaStmt:
 			retval = _copyImportForeignSchemaStmt(from);

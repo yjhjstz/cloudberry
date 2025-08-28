@@ -820,6 +820,22 @@ _readCreateForeignTableStmt(void)
 	READ_DONE();
 }
 
+static CreateLakeTableStmt *
+_readCreateLakeTableStmt(void)
+{
+	READ_LOCALS(CreateLakeTableStmt);
+
+	_readCreateStmt_common(&local_node->base);
+
+	READ_STRING_FIELD(table_type);
+	READ_STRING_FIELD(foreign_catalog);
+	READ_STRING_FIELD(foreign_volume);
+	READ_NODE_FIELD(options);
+	READ_NODE_FIELD(distributedBy);
+
+	READ_DONE();
+}
+
 static AlterDefaultPrivilegesStmt *
 _readAlterDefaultPrivilegesStmt(void)
 {
@@ -2400,6 +2416,9 @@ readNodeBinary(void)
 				break;
 			case T_CreateForeignTableStmt:
 				return_value = _readCreateForeignTableStmt();
+				break;
+			case T_CreateLakeTableStmt:
+				return_value = _readCreateLakeTableStmt();
 				break;
 			case T_ColumnReferenceStorageDirective:
 				return_value = _readColumnReferenceStorageDirective();

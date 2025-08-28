@@ -1321,6 +1321,9 @@ _outNode(StringInfo str, void *obj)
 			case T_CreateForeignTableStmt:
 				_outCreateForeignTableStmt(str, obj);
 				break;
+			case T_CreateLakeTableStmt:
+				_outCreateLakeTableStmt(str, obj);
+				break;
 			case T_DistributionKeyElem:
 				_outDistributionKeyElem(str, obj);
 				break;

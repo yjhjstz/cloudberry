@@ -3005,6 +3005,20 @@ typedef struct CreateForeignTableStmt
 } CreateForeignTableStmt;
 
 /* ----------------------
+ *		Create Lake Table Statement (ICEBERG, HUDI, etc.)
+ * ----------------------
+ */
+typedef struct CreateLakeTableStmt
+{
+	CreateStmt	base;				/* base table creation info */
+	char	   *table_type;			/* table type: "ICEBERG", "HUDI", etc. */
+	char	   *foreign_catalog;	/* foreign catalog name */
+	char	   *foreign_volume;		/* foreign volume name */
+	List	   *options;			/* table-specific options */
+	DistributedBy *distributedBy;   /* what columns we distribute the data by */
+} CreateLakeTableStmt;
+
+/* ----------------------
  *		Create/Drop USER MAPPING Statements
  * ----------------------
  */

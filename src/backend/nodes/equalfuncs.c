@@ -2299,6 +2299,21 @@ _equalCreateForeignTableStmt(const CreateForeignTableStmt *a, const CreateForeig
 }
 
 static bool
+_equalCreateLakeTableStmt(const CreateLakeTableStmt *a, const CreateLakeTableStmt *b)
+{
+	if (!_equalCreateStmt(&a->base, &b->base))
+		return false;
+
+	COMPARE_STRING_FIELD(table_type);
+	COMPARE_STRING_FIELD(foreign_catalog);
+	COMPARE_STRING_FIELD(foreign_volume);
+	COMPARE_NODE_FIELD(options);
+	COMPARE_NODE_FIELD(distributedBy);
+
+	return true;
+}
+
+static bool
 _equalImportForeignSchemaStmt(const ImportForeignSchemaStmt *a, const ImportForeignSchemaStmt *b)
 {
 	COMPARE_STRING_FIELD(server_name);
@@ -4191,6 +4206,9 @@ equal(const void *a, const void *b)
 			break;
 		case T_CreateForeignTableStmt:
 			retval = _equalCreateForeignTableStmt(a, b);
+			break;
+		case T_CreateLakeTableStmt:
+			retval = _equalCreateLakeTableStmt(a, b);
 			break;
 		case T_ImportForeignSchemaStmt:
 			retval = _equalImportForeignSchemaStmt(a, b);
