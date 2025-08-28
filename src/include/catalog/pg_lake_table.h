@@ -28,7 +28,7 @@
  */
 CATALOG(pg_lake_table,9901,LakeTableRelationId)
 {
-	Oid		ltrelid;			/* OID of the lake table relation */
+	Oid		ltrelid BKI_LOOKUP(pg_class);			/* OID of the lake table relation */
 	
 #ifdef CATALOG_VARLEN			/* variable-length fields start here */
 	text	lttable_type;		/* table type: ICEBERG, HUDI, etc. */

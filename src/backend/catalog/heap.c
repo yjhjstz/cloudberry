@@ -63,6 +63,7 @@
 #include "catalog/pg_directory_table.h"
 #include "catalog/pg_foreign_table.h"
 #include "catalog/pg_foreign_table_seg.h"
+#include "catalog/pg_lake_table.h"
 #include "catalog/pg_inherits.h"
 #include "catalog/pg_namespace.h"
 #include "catalog/pg_opclass.h"
@@ -2508,35 +2509,61 @@ heap_drop_with_catalog(Oid relid)
 		HeapTuple	tuple;
 		ScanKeyData	ftkey;
 		SysScanDesc	ftscan;
+		bool 		skip = false;
 
 		/*
-		 * Drop the record on pg_foreign_table_seg
+		 * Check if this is a lake table and delete pg_lake_table record if so
 		 */
-		rel = table_open(ForeignTableRelationSegId, RowExclusiveLock);
+		rel = table_open(LakeTableRelationId, RowExclusiveLock);
 
 		ScanKeyInit(&ftkey,
-					Anum_pg_foreign_table_seg_ftsrelid,
+					Anum_pg_lake_table_ltrelid,
 					BTEqualStrategyNumber, F_OIDEQ,
 					ObjectIdGetDatum(relid));
 
-		ftscan = systable_beginscan(rel, InvalidOid, false, NULL, 1, &ftkey);
-
-		while (HeapTupleIsValid(tuple = systable_getnext(ftscan)))
+		ftscan = systable_beginscan(rel, LakeTableOidIndexId, true, NULL, 1, &ftkey);
+		tuple = systable_getnext(ftscan);
+		if (HeapTupleIsValid(tuple))
+		{
+			/* This is a lake table, delete the pg_lake_table record */
 			CatalogTupleDelete(rel, &tuple->t_self);
-
+			skip = true;
+		}
 		systable_endscan(ftscan);
 		table_close(rel, RowExclusiveLock);
 
-		rel = table_open(ForeignTableRelationId, RowExclusiveLock);
+		/* founding in pg_foreign_table. */
+		if (!skip)
+		{
+			/*
+		 	* Drop the record on pg_foreign_table_seg
+		 	*/
+			rel = table_open(ForeignTableRelationSegId, RowExclusiveLock);
 
-		tuple = SearchSysCache1(FOREIGNTABLEREL, ObjectIdGetDatum(relid));
-		if (!HeapTupleIsValid(tuple))
-			elog(ERROR, "cache lookup failed for foreign table %u", relid);
+			ScanKeyInit(&ftkey,
+						Anum_pg_foreign_table_seg_ftsrelid,
+						BTEqualStrategyNumber, F_OIDEQ,
+						ObjectIdGetDatum(relid));
 
-		CatalogTupleDelete(rel, &tuple->t_self);
+			ftscan = systable_beginscan(rel, InvalidOid, false, NULL, 1, &ftkey);
 
-		ReleaseSysCache(tuple);
-		table_close(rel, RowExclusiveLock);
+			while (HeapTupleIsValid(tuple = systable_getnext(ftscan)))
+				CatalogTupleDelete(rel, &tuple->t_self);
+
+			systable_endscan(ftscan);
+			table_close(rel, RowExclusiveLock);
+
+			rel = table_open(ForeignTableRelationId, RowExclusiveLock);
+
+			tuple = SearchSysCache1(FOREIGNTABLEREL, ObjectIdGetDatum(relid));
+			if (!HeapTupleIsValid(tuple))
+				elog(ERROR, "cache lookup failed for foreign table %u", relid);
+
+			CatalogTupleDelete(rel, &tuple->t_self);
+
+			ReleaseSysCache(tuple);
+			table_close(rel, RowExclusiveLock);
+		}
 	}
 
 	/*

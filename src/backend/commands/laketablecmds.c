@@ -170,12 +170,7 @@ CreateLakeTable(CreateLakeTableStmt *stmt, Oid relId)
 	CatalogTupleInsert(lake_rel, tuple);
 
 	/* Add dependencies */
-	// recordDependencyOnSingleRelExpr(NULL, (Node *) makeString(stmt->foreign_catalog),
-	// 								relId, DEPENDENCY_NORMAL,
-	// 								DEPENDENCY_NORMAL, false);
-	// recordDependencyOnSingleRelExpr(NULL, (Node *) makeString(stmt->foreign_volume),
-	// 								relId, DEPENDENCY_NORMAL,
-	// 								DEPENDENCY_NORMAL, false);
+	
 
 	heap_freetuple(tuple);
 	table_close(lake_rel, RowExclusiveLock);
