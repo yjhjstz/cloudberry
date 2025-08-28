@@ -23,6 +23,7 @@ void textFileArchiveRead::open(ossFileStream ossFile, std::string fileName, read
 	readFinish = false;
 
 	int ret = archive_read_open(archive, ossFile, NULL, read_call_back, NULL);
+	mOssFile = ossFile;
 
 	if (ret != ARCHIVE_OK)
 	{
@@ -136,7 +137,7 @@ void textFileArchiveRead::close()
 				fileName.c_str(), 
 				archive_error_string(archive));
 		}
-
+		datalakeCloseFile(mOssFile);
 		archive = NULL;
 	}
 }

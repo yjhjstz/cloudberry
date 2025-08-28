@@ -53,6 +53,7 @@ private:
 	fileState state;
     int archive_format_tag;
 	bool readFinish;
+	ossFileStream mOssFile;
 };
 
 }
