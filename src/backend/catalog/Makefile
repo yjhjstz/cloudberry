@@ -97,7 +97,7 @@ CATALOG_HEADERS := \
 	pg_collation.h pg_partitioned_table.h pg_range.h pg_transform.h \
 	pg_sequence.h pg_publication.h pg_publication_rel.h pg_subscription.h \
 	pg_subscription_rel.h gp_partition_template.h pg_task.h pg_task_run_history.h \
-	pg_profile.h pg_password_history.h pg_directory_table.h gp_storage_server.h \
+	pg_profile.h pg_password_history.h pg_directory_table.h pg_lake_table.h gp_storage_server.h \
 	gp_storage_user_mapping.h pg_tag.h pg_tag_description.h \
 	gp_matview_aux.h \
 	gp_matview_tables.h

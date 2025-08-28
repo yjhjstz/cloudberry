@@ -37,6 +37,7 @@ static bool describeOneTableDetails(const char *schemaname,
 									const char *oid,
 									bool verbose);
 static void add_external_table_footer(printTableContent *const cont, const char *oid);
+static void add_lake_table_footer(printTableContent *const cont, const char *oid);
 static void add_distributed_by_footer(printTableContent *const cont, const char *oid);
 static void add_partition_by_footer(printTableContent *const cont, const char *oid);
 static void add_tablespace_footer(printTableContent *const cont, char relkind,
@@ -2531,9 +2532,51 @@ describeOneTableDetails(const char *schemaname,
 							  schemaname, relationname);
 			break;
 		case RELKIND_FOREIGN_TABLE:
-			printfPQExpBuffer(&title, _("Foreign table \"%s.%s\""),
-							  schemaname, relationname);
+		{
+			/* Check if this is a lake table */
+			PGresult   *result;
+			bool        is_lake_table = false;
+			
+			printfPQExpBuffer(&tmpbuf,
+							  "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_lake_table WHERE ltrelid = '%s')",
+							  oid);
+			result = PSQLexec(tmpbuf.data);
+			if (result && PQntuples(result) == 1 && 
+				strcmp(PQgetvalue(result, 0, 0), "t") == 0)
+			{
+				is_lake_table = true;
+			}
+			if (result)
+				PQclear(result);
+			
+			if (is_lake_table)
+			{
+				/* Get the table type for lake tables */
+				printfPQExpBuffer(&tmpbuf,
+								  "SELECT lttable_type FROM pg_catalog.pg_lake_table WHERE ltrelid = '%s'",
+								  oid);
+				result = PSQLexec(tmpbuf.data);
+				if (result && PQntuples(result) == 1)
+				{
+					char *table_type = PQgetvalue(result, 0, 0);
+					printfPQExpBuffer(&title, _("%s table \"%s.%s\""),
+									  table_type, schemaname, relationname);
+				}
+				else
+				{
+					printfPQExpBuffer(&title, _("Lake table \"%s.%s\""),
+									  schemaname, relationname);
+				}
+				if (result)
+					PQclear(result);
+			}
+			else
+			{
+				printfPQExpBuffer(&title, _("Foreign table \"%s.%s\""),
+								  schemaname, relationname);
+			}
 			break;
+		}
 		case RELKIND_PARTITIONED_TABLE:
 			if (tableinfo.relpersistence == 'u')
 				printfPQExpBuffer(&title, _("Unlogged partitioned table \"%s.%s\""),
@@ -3924,47 +3967,69 @@ describeOneTableDetails(const char *schemaname,
 		is_partitioned = (tableinfo.relkind == RELKIND_PARTITIONED_TABLE ||
 						  tableinfo.relkind == RELKIND_PARTITIONED_INDEX);
 
-		/* print foreign server name */
+		/* print foreign server name or lake table info */
 		if (tableinfo.relkind == RELKIND_FOREIGN_TABLE)
 		{
-			char	   *ftoptions;
-
-			/* Footer information about foreign table */
+			/* First check if this is a lake table */
 			printfPQExpBuffer(&buf,
-							  "SELECT s.srvname,\n"
-							  "  pg_catalog.array_to_string(ARRAY(\n"
-							  "    SELECT pg_catalog.quote_ident(option_name)"
-							  " || ' ' || pg_catalog.quote_literal(option_value)\n"
-							  "    FROM pg_catalog.pg_options_to_table(ftoptions)),  ', ')\n"
-							  "FROM pg_catalog.pg_foreign_table f,\n"
-							  "     pg_catalog.pg_foreign_server s\n"
-							  "WHERE f.ftrelid = '%s' AND s.oid = f.ftserver;",
+							  "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_lake_table WHERE ltrelid = '%s')",
 							  oid);
 			result = PSQLexec(buf.data);
 			if (!result)
 				goto error_return;
-			else if (PQntuples(result) != 1)
+			
+			/* If it's a lake table, show lake table info */
+			if (result && PQntuples(result) == 1 && 
+				strcmp(PQgetvalue(result, 0, 0), "t") == 0)
 			{
 				PQclear(result);
-				goto error_return;
+				add_lake_table_footer(&cont, oid);
 			}
-
-			if (strcmp(PQgetvalue(result, 0, 0), GP_EXTTABLE_SERVER_NAME) != 0)
+			else
 			{
-				/* Print server name */
-				printfPQExpBuffer(&buf, _("Server: %s"),
-								  PQgetvalue(result, 0, 0));
-				printTableAddFooter(&cont, buf.data);
-			}
+				char	   *ftoptions;
+				
+				/* Clear the lake table check result */
+				if (result)
+					PQclear(result);
 
-			/* Print per-table FDW options, if any */
-			ftoptions = PQgetvalue(result, 0, 1);
-			if (ftoptions && ftoptions[0] != '\0')
-			{
-				printfPQExpBuffer(&buf, _("FDW options: (%s)"), ftoptions);
-				printTableAddFooter(&cont, buf.data);
+				/* Footer information about foreign table */
+				printfPQExpBuffer(&buf,
+								  "SELECT s.srvname,\n"
+								  "  pg_catalog.array_to_string(ARRAY(\n"
+								  "    SELECT pg_catalog.quote_ident(option_name)"
+								  " || ' ' || pg_catalog.quote_literal(option_value)\n"
+								  "    FROM pg_catalog.pg_options_to_table(ftoptions)),  ', ')\n"
+								  "FROM pg_catalog.pg_foreign_table f,\n"
+								  "     pg_catalog.pg_foreign_server s\n"
+								  "WHERE f.ftrelid = '%s' AND s.oid = f.ftserver;",
+								  oid);
+				result = PSQLexec(buf.data);
+				if (!result)
+					goto error_return;
+				else if (PQntuples(result) != 1)
+				{
+					PQclear(result);
+					goto error_return;
+				}
+
+				if (strcmp(PQgetvalue(result, 0, 0), GP_EXTTABLE_SERVER_NAME) != 0)
+				{
+					/* Print server name */
+					printfPQExpBuffer(&buf, _("Server: %s"),
+									  PQgetvalue(result, 0, 0));
+					printTableAddFooter(&cont, buf.data);
+				}
+
+				/* Print per-table FDW options, if any */
+				ftoptions = PQgetvalue(result, 0, 1);
+				if (ftoptions && ftoptions[0] != '\0')
+				{
+					printfPQExpBuffer(&buf, _("FDW options: (%s)"), ftoptions);
+					printTableAddFooter(&cont, buf.data);
+				}
+				PQclear(result);
 			}
-			PQclear(result);
 		}
 
 		/* print tables inherited from (exclude partitioned parents) */
@@ -4473,6 +4538,70 @@ error_return:
 	PQclear(result);
 	termPQExpBuffer(&buf);
 	termPQExpBuffer(&tmpbuf);
+}
+
+/* Print footer information for a lake table */
+static void
+add_lake_table_footer(printTableContent *const cont, const char *oid)
+{
+	PQExpBufferData buf;
+	PGresult   *result = NULL;
+	char	   *table_type = NULL;
+	char	   *foreign_catalog = NULL;
+	char	   *foreign_volume = NULL;
+	char	   *options_str = NULL;
+
+	initPQExpBuffer(&buf);
+
+	/* Get lake table information from pg_lake_table */
+	printfPQExpBuffer(&buf,
+					  "SELECT lttable_type, ltforeign_catalog, ltforeign_volume,\n"
+					  "       pg_catalog.array_to_string(ltoptions, ', ') as options_str\n"
+					  "FROM pg_catalog.pg_lake_table\n"
+					  "WHERE ltrelid = '%s';",
+					  oid);
+
+	result = PSQLexec(buf.data);
+	if (!result || PQntuples(result) != 1)
+		goto error_return;
+
+	/* Extract values */
+	table_type = PQgetvalue(result, 0, 0);
+	foreign_catalog = PQgetvalue(result, 0, 1);
+	foreign_volume = PQgetvalue(result, 0, 2);
+	options_str = PQgetvalue(result, 0, 3);
+
+	/* Print table type */
+	if (table_type && table_type[0] != '\0')
+	{
+		printfPQExpBuffer(&buf, _("Table type: %s"), table_type);
+		printTableAddFooter(cont, buf.data);
+	}
+
+	/* Print foreign catalog */
+	if (foreign_catalog && foreign_catalog[0] != '\0')
+	{
+		printfPQExpBuffer(&buf, _("Foreign catalog: %s"), foreign_catalog);
+		printTableAddFooter(cont, buf.data);
+	}
+
+	/* Print foreign volume */
+	if (foreign_volume && foreign_volume[0] != '\0')
+	{
+		printfPQExpBuffer(&buf, _("Foreign volume: %s"), foreign_volume);
+		printTableAddFooter(cont, buf.data);
+	}
+
+	/* Print options if any */
+	if (options_str && options_str[0] != '\0')
+	{
+		printfPQExpBuffer(&buf, _("Options: %s"), options_str);
+		printTableAddFooter(cont, buf.data);
+	}
+
+error_return:
+	PQclear(result);
+	termPQExpBuffer(&buf);
 }
 
 static void

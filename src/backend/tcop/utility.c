@@ -37,6 +37,7 @@
 #include "commands/dbcommands.h"
 #include "commands/defrem.h"
 #include "commands/dirtablecmds.h"
+#include "commands/laketablecmds.h"
 #include "commands/discard.h"
 #include "commands/event_trigger.h"
 #include "commands/explain.h"
@@ -261,6 +262,7 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 		case T_AlterResourceGroupStmt:
 		case T_AlterTagStmt:
 		case T_CreateDirectoryTableStmt:
+		case T_CreateLakeTableStmt:
 		case T_AlterDirectoryTableStmt:
 		case T_DropDirectoryTableStmt:
 		case T_CreateProfileStmt:
@@ -1438,6 +1440,7 @@ ProcessUtilitySlow(ParseState *pstate,
 			case T_CreateStmt:
 			case T_CreateForeignTableStmt:
 			case T_CreateDirectoryTableStmt:
+			case T_CreateLakeTableStmt:
 				{
 					List	   *stmts;
 					RangeVar   *table_rv = NULL;
@@ -1641,6 +1644,27 @@ ProcessUtilitySlow(ParseState *pstate,
 													 cstmt->base.intoPolicy);
 							/* Create directory table tuple */
 							CreateDirectoryTable(cstmt, address.objectId);
+							EventTriggerCollectSimpleCommand(address,
+															 secondaryObject,
+															 stmt);
+						}
+						else if (IsA(stmt, CreateLakeTableStmt))
+						{
+							CreateLakeTableStmt *cstmt = (CreateLakeTableStmt *) stmt;
+
+							/* Remember transformed RangeVar for LAKE */
+							table_rv = cstmt->base.relation;
+
+							/* Create the table itself as a foreign table */
+							address = DefineRelation(&cstmt->base,
+													 RELKIND_FOREIGN_TABLE,
+													 InvalidOid, NULL,
+													 queryString,
+													 true,
+													 true,
+													 NULL);
+							/* Create lake table metadata */
+							CreateLakeTable(cstmt, address.objectId);
 							EventTriggerCollectSimpleCommand(address,
 															 secondaryObject,
 															 stmt);
@@ -3302,6 +3326,10 @@ CreateCommandTag(Node *parsetree)
 			tag = CMDTAG_CREATE_DIRECTORY_TABLE;
 			break;
 
+		case T_CreateLakeTableStmt:
+			tag = CMDTAG_CREATE_LAKE_TABLE;
+			break;
+
 		case T_AlterDirectoryTableStmt:
 			tag = CMDTAG_ALTER_DIRECTORY_TABLE;
 			break;
@@ -4205,6 +4233,7 @@ GetCommandLogLevel(Node *parsetree)
 		case T_DropStorageUserMappingStmt:
 		case T_ImportForeignSchemaStmt:
 		case T_CreateDirectoryTableStmt:
+		case T_CreateLakeTableStmt:
 		case T_AlterDirectoryTableStmt:
 		case T_DropDirectoryTableStmt:
 			lev = LOGSTMT_DDL;
