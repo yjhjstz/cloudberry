@@ -22,7 +22,9 @@
 #include "catalog/heap.h"
 #include "catalog/indexing.h"
 #include "catalog/objectaccess.h"
+#include "catalog/pg_foreign_catalog.h"
 #include "catalog/pg_foreign_server.h"
+#include "catalog/pg_foreign_volume.h"
 #include "catalog/pg_lake_table.h"
 #include "catalog/pg_type.h"
 #include "cdb/cdbvars.h"
@@ -170,7 +172,24 @@ CreateLakeTable(CreateLakeTableStmt *stmt, Oid relId)
 	CatalogTupleInsert(lake_rel, tuple);
 
 	/* Add dependencies */
-	
+	ObjectAddress myself,
+				  referenced;
+
+	myself.classId = RelationRelationId;
+	myself.objectId = relId;
+	myself.objectSubId = 0;
+
+	/* Record dependency on foreign catalog */
+	referenced.classId = ForeignCatalogRelationId;
+	referenced.objectId = catalog_oid;
+	referenced.objectSubId = 0;
+	recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+
+	/* Record dependency on foreign volume */
+	referenced.classId = ForeignVolumeRelationId;
+	referenced.objectId = volume_oid;
+	referenced.objectSubId = 0;
+	recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
 
 	heap_freetuple(tuple);
 	table_close(lake_rel, RowExclusiveLock);
