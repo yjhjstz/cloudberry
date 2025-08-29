@@ -3921,6 +3921,27 @@ getObjectDescription(const ObjectAddress *object, bool missing_ok)
 				break;
 			}
 
+		case OCLASS_FOREIGN_VOLUME:
+			{
+				HeapTuple	volTup;
+				Form_pg_foreign_volume volForm;
+
+				volTup = SearchSysCache1(FOREIGNVOLUMEOID,
+										 ObjectIdGetDatum(object->objectId));
+				if (!HeapTupleIsValid(volTup))
+				{
+					if (!missing_ok)
+						elog(ERROR, "cache lookup failed for foreign volume %u",
+							 object->objectId);
+					break;
+				}
+
+				volForm = (Form_pg_foreign_volume) GETSTRUCT(volTup);
+				appendStringInfo(&buffer, _("volume %s"), NameStr(volForm->fvname));
+				ReleaseSysCache(volTup);
+				break;
+			}
+
 		case OCLASS_USER_MAPPING:
 			{
 				HeapTuple	tup;
@@ -4898,6 +4919,10 @@ getObjectTypeDescription(const ObjectAddress *object, bool missing_ok)
 
 		case OCLASS_FOREIGN_CATALOG:
 			appendStringInfoString(&buffer, "catalog");
+			break;
+
+		case OCLASS_FOREIGN_VOLUME:
+			appendStringInfoString(&buffer, "volume");
 			break;
 
 		case OCLASS_USER_MAPPING:
@@ -5992,6 +6017,30 @@ getObjectIdentityParts(const ObjectAddress *object,
 				if (objname)
 					*objname = list_make1(pstrdup(NameStr(catForm->fcname)));
 				ReleaseSysCache(catTup);
+				break;
+			}
+
+		case OCLASS_FOREIGN_VOLUME:
+			{
+				HeapTuple	volTup;
+				Form_pg_foreign_volume volForm;
+
+				volTup = SearchSysCache1(FOREIGNVOLUMEOID,
+										 ObjectIdGetDatum(object->objectId));
+				if (!HeapTupleIsValid(volTup))
+				{
+					if (!missing_ok)
+						elog(ERROR, "cache lookup failed for foreign volume %u",
+							 object->objectId);
+					break;
+				}
+
+				volForm = (Form_pg_foreign_volume) GETSTRUCT(volTup);
+				appendStringInfoString(&buffer,
+									   quote_identifier(NameStr(volForm->fvname)));
+				if (objname)
+					*objname = list_make1(pstrdup(NameStr(volForm->fvname)));
+				ReleaseSysCache(volTup);
 				break;
 			}
 
