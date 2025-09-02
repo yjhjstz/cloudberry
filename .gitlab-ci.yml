@@ -22,20 +22,20 @@ variables:
         - .cache/
       when: always
       policy: pull
-    - key: cache-build-${ARCH}-${CI_PIPELINE_ID}
+    - key: cache-pipeline-build-${ARCH}-${CI_PIPELINE_ID}
       unprotect: true
       paths:
         - ${CI_PROJECT_DIR}/build
         - ${CI_PROJECT_DIR}/scripts
         - ${CI_PROJECT_DIR}/Makefile
         - ${CI_PROJECT_DIR}/dist/database
-      when: 'always'
+      when: 'on_success'
       policy: pull
-    - key: cache-database-${ARCH}-${CI_PIPELINE_ID}
+    - key: cache-pipeline-database-${ARCH}-${CI_PIPELINE_ID}
       unprotect: true
       paths:
         - ${CI_PROJECT_DIR}/database
-      when: 'always'
+      when: 'on_success'
       policy: pull
 
 .common:
@@ -56,7 +56,7 @@ variables:
       paths:
         - .cache/
       when: always
-    - key: cache-build-${ARCH}-${CI_PIPELINE_ID}
+    - key: cache-pipeline-build-${ARCH}-${CI_PIPELINE_ID}
       unprotect: true
       paths:
         - ${CI_PROJECT_DIR}/build
@@ -64,7 +64,7 @@ variables:
         - ${CI_PROJECT_DIR}/Makefile
         - ${CI_PROJECT_DIR}/dist/database
       when: 'always'
-    - key: cache-database-${ARCH}-${CI_PIPELINE_ID}
+    - key: cache-pipeline-database-${ARCH}-${CI_PIPELINE_ID}
       unprotect: true
       paths:
         - ${CI_PROJECT_DIR}/database
@@ -311,12 +311,3 @@ test_parallel:
     - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
-
-cleanup-cache:
-  stage: .post
-  extends: .common
-  script: |
-    echo "cleanup cache"
-    rm -rfv ${CI_PROJECT_DIR}/*
-  rules:
-    - when: always
