@@ -903,6 +903,7 @@ is_plan_vectorable(Plan* plan, List *rtable)
 		case T_AssertOp:
 		case T_Hash:
 		case T_Material:
+		case T_ShareInputScan:
 			break;
 		/* All other plan node fallback */
 		default:

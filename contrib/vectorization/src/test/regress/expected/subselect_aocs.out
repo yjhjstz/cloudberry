@@ -1654,18 +1654,17 @@ with x as materialized (select * from (select f1 from subselect_tbl) ss)
 select * from x where f1 = 1;
                        QUERY PLAN                       
 --------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
+ Vec Gather Motion 3:1  (slice1; segments: 3)
    Output: x.f1
-   ->  Subquery Scan on x
+   ->  Vec Subquery Scan on x
          Output: x.f1
          Filter: (x.f1 = 1)
-         ->  Shared Scan (share slice:id 1:0)
-               Output: share0_ref1.f1
-               ->  Seq Scan on public.subselect_tbl
+         ->  Vec Shared Scan (share slice:id 1:0)
+               Output: f1
+               ->  Vec Seq Scan on public.subselect_tbl
                      Output: subselect_tbl.f1
  Settings: enable_parallel = 'off', optimizer = 'off'
  Optimizer: Postgres query optimizer
- Settings: gp_cte_sharing=on
 (11 rows)
 
 -- Stable functions are safe to inline
@@ -1904,14 +1903,15 @@ select * from (with y as (select * from x) select * from y) ss;
 explain (verbose, costs off)
 with x as materialized (select * from int4_tbl)
 select * from (with y as (select * from x) select * from y) ss;
-                  QUERY PLAN                  
-----------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
-   Output: share0_ref1.f1
-   ->  Shared Scan (share slice:id 1:0)
-         Output: share0_ref1.f1
-         ->  Seq Scan on public.int4_tbl
+                      QUERY PLAN                      
+------------------------------------------------------
+ Vec Gather Motion 3:1  (slice1; segments: 3)
+   Output: f1
+   ->  Vec Shared Scan (share slice:id 1:0)
+         Output: f1
+         ->  Vec Seq Scan on public.int4_tbl
                Output: int4_tbl.f1
+ Settings: enable_parallel = 'off', optimizer = 'off'
  Optimizer: Postgres query optimizer
 (8 rows)
 

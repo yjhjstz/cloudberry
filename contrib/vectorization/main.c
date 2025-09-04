@@ -267,6 +267,9 @@ CleanupWorker(bool is_init)
 	char vec_path[MAXPGPATH] = { "\0" };
 	bool ret = false;
 
+	if (!process_shared_preload_libraries_in_progress)
+		return ret;
+
 	tblspcOid = MyDatabaseTableSpace ? MyDatabaseTableSpace : DEFAULTTABLESPACE_OID;
 	TempTablespacePath(ts_path, tblspcOid);
 	snprintf(temp_path, sizeof(temp_path), "%s", ts_path);

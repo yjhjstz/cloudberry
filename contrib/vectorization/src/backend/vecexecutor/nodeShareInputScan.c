@@ -451,10 +451,13 @@ ExecInitVecShareInputScan(ShareInputScan *node, EState *estate, int eflags)
 	sisstate->ref = NULL;
 	vsisstate->gp_session_id = gp_session_id;
 	vsisstate->gp_command_count = gp_command_count;
-	vsisstate->share_id = node->share_id; 
-	vsisstate->num_slices = local_state->nsharers; 
+	vsisstate->share_id = node->share_id;
+	vsisstate->num_slices = node->nconsumers;
 	vsisstate->ready = (node->producer_slice_id == currentSliceId) ? false : true;
 	vsisstate->is_producer = (node->producer_slice_id == currentSliceId && (local_state->ready == false)) ? true : false;
+	if (childState && currentSliceId == -1)
+		vsisstate->is_producer = true;
+
 	local_state->ready = true;
 	vsisstate->vecdesc = TupleDescToVecDesc(sisstate->ss.ps.ps_ResultTupleDesc);
 
