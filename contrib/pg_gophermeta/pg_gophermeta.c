@@ -85,6 +85,10 @@ static bool register_gophermeta = true;
 static int gopher_local_capacity_mb = 10240;
 static char *gopher_oss_log_level = NULL;
 static char *gopher_oss_liboss2_log_level = NULL;
+static bool gopher_connect_hdfs_disable_getstate = false;
+static bool gphdfs_configure_router = false;
+static bool gopher_hash_connect_hdfs_router = false;
+static bool gopher_enable_update_oss_context = false;
 
 /*
  * Module load callback.
@@ -137,6 +141,41 @@ _PG_init(void)
 							 NULL,
 							 NULL);
 
+	DefineCustomBoolVariable("pg_gophermeta.gopher_connect_hdfs_disable_getstate",
+							"Close the collection of cluster information when connecting to HDFS.",
+							NULL,
+							&gopher_connect_hdfs_disable_getstate,
+							false,
+							PGC_SIGHUP,
+							0,
+							NULL, NULL, NULL);
+
+	DefineCustomBoolVariable("pg_gophermeta.gphdfs_configure_router",
+							"The gphdfs use router list.",
+							NULL,
+							&gphdfs_configure_router,
+							false,
+							PGC_SIGHUP,
+							0,
+							NULL, NULL, NULL);
+
+	DefineCustomBoolVariable("pg_gophermeta.gopher_hash_connect_hdfs_router",
+							"Breaking down access to different routers by segment ID.",
+							NULL,
+							&gopher_hash_connect_hdfs_router,
+							false,
+							PGC_SIGHUP,
+							0,
+							NULL, NULL, NULL);
+
+	DefineCustomBoolVariable("pg_gophermeta.gopher_enable_update_oss_context",
+							"The gophermeta will update oss context.",
+							NULL,
+							&gopher_enable_update_oss_context,
+							false,
+							PGC_SIGHUP,
+							0,
+							NULL, NULL, NULL);
 
 
 	EmitWarningsOnPlaceholders("pg_gophermeta");
@@ -345,6 +384,10 @@ gophermeta_main(Datum main_arg)
 	ossConfig.socketName = socketDir;
 	ossConfig.socketPlasmaName = plasmaSocketDir;
 	ossConfig.ossUserCanceledCallBack = NULL;
+	ossConfig.hdfsDisableGetFs = gopher_connect_hdfs_disable_getstate;
+	ossConfig.hdfsConfigureRouter = gphdfs_configure_router;
+	ossConfig.hdfsHashConnectRouter = gopher_hash_connect_hdfs_router;
+	ossConfig.segmentIdx = GpIdentity.segindex;
     GetGopherServerOssLogLevel(&ossConfig);
 
     rc = gopherStartServer(workDir, &ossConfig, NULL, GOPHER_SERVER_WARNING, false);
