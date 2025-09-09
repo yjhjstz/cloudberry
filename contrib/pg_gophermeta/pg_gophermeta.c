@@ -82,7 +82,7 @@ static void GetGopherServerOssLogLevel(gopherOssServerConfig* ossConfig);
 
 /* GUC variables */
 static bool register_gophermeta = true;
-static int gopher_local_capacity_mb = 10240;
+static int gopher_local_capacity_mb = 1024000;
 static char *gopher_oss_log_level = NULL;
 static char *gopher_oss_liboss2_log_level = NULL;
 static bool gopher_connect_hdfs_disable_getstate = false;
