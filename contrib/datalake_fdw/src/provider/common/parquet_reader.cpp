@@ -297,7 +297,17 @@ ParquetReader::readDecimal(std::shared_ptr<parquet::Scanner> &scanner, const Typ
 	parquet::FixedLenByteArray value;
 	const parquet::ColumnDescriptor *columnDesc = metadata->schema()->Column(typInfo.columnIndex_);
 	int scale = columnDesc->type_scale();
-	dataBuff *res = buffer_->getDataBuffer(typInfo.columnIndex_);
+	char *out_buf = nullptr;
+
+	if (!buffer_)
+	{
+		out_buf = (char *) gpdbPalloc(NUMERIC_HDRSZ + IntDigitsTraits<__int128>::digits * sizeof(NumericDigit));
+	}
+	else
+	{
+		dataBuff *res = buffer_->getDataBuffer(typInfo.columnIndex_);
+		out_buf = (char *) res->buffer;
+	}
 
 	// iceberg only support int4, int8, fixed-len
 	switch (typInfo.fileTypeId_)
@@ -307,16 +317,16 @@ ParquetReader::readDecimal(std::shared_ptr<parquet::Scanner> &scanner, const Typ
 			((parquet::TypedScanner<parquet::Int32Type> *)scanner.get())->NextValue(&d.int32Value, &isNull);
 			if (isNull)
 				PG_RETURN_DATUM(0);
-			int_to_numeric_with_scale(d.int32Value, scale, (Numeric) res->buffer);
-			return NumericGetDatum(res->buffer);
+			int_to_numeric_with_scale(d.int32Value, scale, (Numeric) out_buf);
+			return NumericGetDatum(out_buf);
 		}
 		case INT8OID:
 		{
 			((parquet::TypedScanner<parquet::Int64Type> *)scanner.get())->NextValue(&d.int64Value, &isNull);
 			if (isNull)
 				PG_RETURN_DATUM(0);
-			int_to_numeric_with_scale(d.int64Value, scale, (Numeric) res->buffer);
-			return NumericGetDatum(res->buffer);
+			int_to_numeric_with_scale(d.int64Value, scale, (Numeric) out_buf);
+			return NumericGetDatum(out_buf);
 		}
 		default:
 		{
@@ -324,8 +334,8 @@ ParquetReader::readDecimal(std::shared_ptr<parquet::Scanner> &scanner, const Typ
 			((parquet::TypedScanner<parquet::FLBAType> *)scanner.get())->NextValue(&value, &isNull);
 			if (isNull)
 				PG_RETURN_DATUM(0);
-			int_to_numeric_with_scale(FLBA_to_int128(value.ptr, typeLen), scale, (Numeric) res->buffer);
-			return NumericGetDatum(res->buffer);
+			int_to_numeric_with_scale(FLBA_to_int128(value.ptr, typeLen), scale, (Numeric) out_buf);
+			return NumericGetDatum(out_buf);
 		}
 	}
 
