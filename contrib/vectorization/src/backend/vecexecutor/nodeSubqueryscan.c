@@ -128,12 +128,6 @@ ExecInitVecSubqueryScan(SubqueryScan *node, EState *estate, int eflags)
 	return subquerystate;
 }
 
-static void 
-ExecEagerFreeVecSubqueryScan(VecSubqueryScanState *node)
-{
-	FreeVecExecuteState(&node->estate);
-}
-
 /* ----------------------------------------------------------------
  *		ExecEndVecSubqueryScan
  *
@@ -156,11 +150,12 @@ ExecEndVecSubqueryScan(SubqueryScanState *node)
 		ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
 
+	FreeVecExecuteState(&vnode->estate);
+
 	/*
 	 * close down subquery
 	 */
 	VecExecEndNode(node->subplan);
-	ExecEagerFreeVecSubqueryScan(vnode);
 }
 
 /* ----------------------------------------------------------------
@@ -193,8 +188,6 @@ ExecReScanSubqueryScan(SubqueryScanState *node)
 void
 ExecSquelchVecSubqueryScan(SubqueryScanState *node)
 {
-	VecSubqueryScanState *vnode = (VecSubqueryScanState *) node;
-	ExecEagerFreeVecSubqueryScan(vnode);
 	/* Recurse to subquery */
 	ExecVecSquelchNode(node->subplan);
 }

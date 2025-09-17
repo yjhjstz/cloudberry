@@ -219,6 +219,9 @@ ExecEndVecMaterial(MaterialState *node)
 	}
 	node->tuplestorestate = NULL;
 
+	VecMaterialState *vnode = (VecMaterialState *) node;
+	FreeVecExecuteState(&vnode->estate);
+
 	/*
 	 * shut down the subplan
 	 */

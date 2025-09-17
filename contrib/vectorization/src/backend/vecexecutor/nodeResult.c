@@ -327,12 +327,6 @@ ExecInitVecResult(Result *node, EState *estate, int eflags)
 	return resstate;
 }
 
-static void
-ExecEagerFreeVecResult(VecResultState *vnode)
-{
-	FreeVecExecuteState(&vnode->estate);
-}
-
 /* ----------------------------------------------------------------
  *		ExecEndResult
  *
@@ -342,7 +336,6 @@ ExecEagerFreeVecResult(VecResultState *vnode)
 void
 ExecEndVecResult(ResultState *node)
 {
-
 	/*
 	 * Free the exprcontext
 	 */
@@ -353,7 +346,8 @@ ExecEndVecResult(ResultState *node)
 	 */
 	ExecClearTuple(node->ps.ps_ResultTupleSlot);
 
-	ExecEagerFreeVecResult((VecResultState *)node);
+	VecResultState *vnode = (VecResultState *) node;
+	FreeVecExecuteState(&vnode->estate);
 
 	/*
 	 * shut down subplans
@@ -379,7 +373,5 @@ ExecReScanVecResult(ResultState *node)
 void
 ExecSquelchVecResult(ResultState *node)
 {
-	VecResultState *vnode = (VecResultState *) node;
-	ExecEagerFreeVecResult(vnode);
 	ExecVecSquelchNode(outerPlanState(node));
 }

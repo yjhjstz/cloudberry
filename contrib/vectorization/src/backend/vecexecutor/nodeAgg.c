@@ -291,7 +291,6 @@ ExecEagerFreeVecAgg(AggState *node)
 		if (vnode->veccontext->ecxt_aggvalues[aggno])
 			ARROW_FREE(GArrowArray, &vnode->veccontext->ecxt_aggvalues[aggno]);
 	}
-	FreeVecExecuteState(&vnode->estate);
 
 	int			transno;
 	int         numGroupingSets = Max(node->maxsets, 1);
@@ -362,6 +361,9 @@ ExecEndVecAgg(AggState *node)
 
 	/* clean up tuple table */
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
+
+	VecAggState *vnode = (VecAggState *) node;
+	FreeVecExecuteState(&vnode->estate);
 
 	outerPlan = outerPlanState(node);
 	VecExecEndNode(outerPlan);

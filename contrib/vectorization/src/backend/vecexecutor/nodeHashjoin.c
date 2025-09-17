@@ -291,7 +291,6 @@ ExecEagerFreeVecHashJoin(VecHashJoinState *vnode)
 
 	if (vnode->origin_rb)
 		ARROW_FREE_BATCH(&vnode->origin_rb);
-	FreeVecExecuteState(&vnode->estate);
 }
 
 void
@@ -309,6 +308,8 @@ ExecEndVecHashJoin(HashJoinState *node)
 	if (vnode->result_slot)
 		ExecClearTuple(vnode->result_slot);
 	ExecClearTuple(node->js.ps.ps_ResultTupleSlot);
+
+	FreeVecExecuteState(&vnode->estate);
 
 	/*
 	 * clean up subtrees

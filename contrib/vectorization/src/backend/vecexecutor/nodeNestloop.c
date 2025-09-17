@@ -249,12 +249,6 @@ ExecInitVecNestLoop(NestLoop *node, EState *estate, int eflags)
 	return nlstate;
 }
 
-static void
-ExecEagerFreeVecNestLoop(VecNestLoopState *node)
-{
-	FreeVecExecuteState(&node->estate);
-}
-
 /* ----------------------------------------------------------------
  *		ExecEndVecNestLoop
  *
@@ -267,7 +261,7 @@ ExecEndVecNestLoop(NestLoopState *node)
 	NL1_printf("ExecEndVecNestLoop: %s\n",
 			   "ending node processing");
 	VecNestLoopState *vnode = (VecNestLoopState *) node;
-	ExecEagerFreeVecNestLoop(vnode);
+
     /*
 	 * Free the exprcontext
 	 */
@@ -277,6 +271,8 @@ ExecEndVecNestLoop(NestLoopState *node)
 	 * clean out the tuple table
 	 */
 	ExecClearTuple(node->js.ps.ps_ResultTupleSlot);
+
+	FreeVecExecuteState(&vnode->estate);
 
 	/*
 	 * close down subplans
@@ -404,9 +400,7 @@ extractFuncExprArgs(Expr *clause, List **lclauses, List **rclauses)
 
 void
 ExecSquelchVecNestLoop(NestLoopState* node)
-{	
-	VecNestLoopState *vnode = (VecNestLoopState *) node;
-	ExecEagerFreeVecNestLoop(vnode);
+{
 	ExecVecSquelchNode(outerPlanState(node));
 	ExecVecSquelchNode(innerPlanState(node));
 }

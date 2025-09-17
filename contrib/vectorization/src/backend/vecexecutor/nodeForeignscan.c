@@ -300,7 +300,6 @@ static void
 ExecEagerFreeVecForeignScan(VecForeignScanState *node)
 {
 	ARROW_FREE(GArrowSchema, &node->schema);
-	FreeVecExecuteState(&(node->vestate));
 }
 
 /* ----------------------------------------------------------------
@@ -325,6 +324,8 @@ ExecEndVecForeignScan(VecForeignScanState *vnode)
 	}
 	else
 		node->fdwroutine->EndForeignScan(node);
+
+	FreeVecExecuteState(&(vnode->vestate));
 
 	/* Shut down any outer plan. */
 	if (outerPlanState(node))

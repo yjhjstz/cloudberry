@@ -219,12 +219,6 @@ ExecInitVecSeqScanForPartition(SeqScan *node, EState *estate,
 	return vscanstate;
 }
 
-static void
-ExecEagerFreeVecSeqScan(VecSeqScanState *node)
-{
-	FreeVecExecuteState(&node->vestate);
-}
-
 /* ----------------------------------------------------------------
  *		ExecEndVecSeqScan
  *
@@ -292,7 +286,7 @@ ExecEndVecSeqScan(VecSeqScanState *node)
 		table_endscan(scanDesc);
 	
 	FreeDummySchema();
-	ExecEagerFreeVecSeqScan(node);
+	FreeVecExecuteState(&node->vestate);
 }
 
 /* ----------------------------------------------------------------
@@ -324,6 +318,4 @@ ExecReScanVecSeqScan(VecSeqScanState *node)
 void
 ExecSquelchVecSeqScan(SeqScanState *node)
 {
-	VecSeqScanState *vnode = (VecSeqScanState *) node;
-	ExecEagerFreeVecSeqScan(vnode);
 }

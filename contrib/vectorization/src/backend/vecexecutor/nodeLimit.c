@@ -293,6 +293,10 @@ ExecEndVecLimit(LimitState *node)
 	if (node->last_slot)
 		ExecClearTuple(node->last_slot);
 	ExecFreeExprContext(&node->ps);
+
+	VecLimitState *vnode = (VecLimitState *)node;
+	FreeVecExecuteState(&vnode->estate);
+
 	VecExecEndNode(outerPlanState(node));
 }
 

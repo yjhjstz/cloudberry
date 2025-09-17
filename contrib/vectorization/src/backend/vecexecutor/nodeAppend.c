@@ -205,6 +205,7 @@ ExecEndVecAppend(AppendState *node)
 	int			i;
 
 	vnode = (VecAppendState *) node;
+
 	/*
 	 * get information from the node
 	 */
@@ -214,6 +215,8 @@ ExecEndVecAppend(AppendState *node)
 	ARROW_FREE(GArrowSchema, &vnode->schema);
 
 	vnode->schema = NULL;
+
+	FreeVecExecuteState(&vnode->estate);
 
 	/*
 	 * shut down each of the subscans

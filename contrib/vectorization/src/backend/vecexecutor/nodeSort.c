@@ -210,6 +210,9 @@ ExecEndVecSort(SortState *node)
 	FreeVecSchema(node->ss.ps.ps_ResultTupleSlot);
 
 	ExecEagerFreeVecSort(node);
+	
+	VecSortState *vnode = (VecSortState *)node;
+	FreeVecExecuteState(&vnode->estate);
 
 	/*
 	 * shut down the subplan

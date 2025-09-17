@@ -91,6 +91,9 @@ ExecVecSequence(PlanState *pstate)
 void
 ExecEndVecSequence(SequenceState *node)
 {
+	VecSequenceState *vnode = (VecSequenceState *) node;
+	FreeVecExecuteState(&vnode->estate);
+
 	/* shutdown subplans */
 	for(int no = 0; no < node->numSubplans; no++)
 	{

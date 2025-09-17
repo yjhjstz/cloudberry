@@ -48,7 +48,6 @@ ExecEagerFreeVecAssertOp(VecAssertOpState *vnode)
 {
 	AssertOpState *node = (AssertOpState *)vnode;
 	ExecClearTuple(node->ps.ps_ResultTupleSlot);
-	FreeVecExecuteState(&vnode->estate);
 }
 
 /* Release Resources Requested by AssertOp node. */
@@ -59,6 +58,9 @@ void ExecEndVecAssertOp(AssertOpState *node)
 	ExecFreeExprContext(&node->ps);
 
 	ExecEagerFreeVecAssertOp(vnode);
+
+	FreeVecExecuteState(&vnode->estate);
+
 	/*
 	 * shut down subplans
 	 */
