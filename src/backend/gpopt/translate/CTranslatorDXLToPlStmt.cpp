@@ -30,6 +30,7 @@ extern "C" {
 #include "partitioning/partdesc.h"
 #include "storage/lmgr.h"
 #include "utils/guc.h"
+#include "optimizer/cost.h"
 #include "utils/lsyscache.h"
 #include "utils/partcache.h"
 #include "utils/rel.h"
@@ -83,6 +84,7 @@ extern "C" {
 #include "naucrates/dxl/operators/CDXLPhysicalSplit.h"
 #include "naucrates/dxl/operators/CDXLPhysicalTVF.h"
 #include "naucrates/dxl/operators/CDXLPhysicalTableScan.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelTableScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalValuesScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalWindow.h"
 #include "naucrates/dxl/operators/CDXLScalarBitmapBoolOp.h"
@@ -342,6 +344,7 @@ CTranslatorDXLToPlStmt::TranslateDXLOperatorToPlan(
 					   dxlnode->GetOperator()->GetOpNameStr()->GetBuffer());
 		}
 		case EdxlopPhysicalTableScan:
+		case EdxlopPhysicalParallelTableScan:
 		case EdxlopPhysicalForeignScan:
 		{
 			plan = TranslateDXLTblScan(dxlnode, output_context,
@@ -619,6 +622,24 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 	// translate table descriptor into a range table entry
 	CDXLPhysicalTableScan *phy_tbl_scan_dxlop =
 		CDXLPhysicalTableScan::Cast(tbl_scan_dxlnode->GetOperator());
+	
+	// Check if this is a parallel table scan
+	bool is_parallel_scan = (phy_tbl_scan_dxlop->GetDXLOperator() == EdxlopPhysicalParallelTableScan);
+	CDXLPhysicalParallelTableScan *phy_parallel_tbl_scan_dxlop = nullptr;
+	ULONG parallel_workers = 1;
+	
+	if (is_parallel_scan)
+	{
+		phy_parallel_tbl_scan_dxlop = CDXLPhysicalParallelTableScan::Cast(tbl_scan_dxlnode->GetOperator());
+		parallel_workers = phy_parallel_tbl_scan_dxlop->UlParallelWorkers();
+		
+		// Set parallel workers for current slice
+		PlanSlice *current_slice = m_dxl_to_plstmt_context->GetCurrentSlice();
+		if (current_slice && parallel_workers > 1)
+		{
+			current_slice->parallel_workers = parallel_workers;
+		}
+	}
 
 	// translation context for column mappings in the base relation
 	CDXLTranslateContextBaseTable base_table_context(m_mp);
@@ -676,6 +697,17 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 		seq_scan->scanrelid = index;
 		plan = &(seq_scan->plan);
 		plan_return = (Plan *) seq_scan;
+
+		// Set parallel_aware flag if this is a parallel table scan
+		if (is_parallel_scan)
+		{
+			plan->parallel_aware = true;
+			plan->parallel_safe = true;  // Also mark as parallel safe
+			plan->parallel = (int) parallel_workers;  // Set parallel worker count
+			
+			// Note: Flow will be created later by PostgreSQL's plan processing
+			// We just need to ensure the parallel fields are set correctly
+		}
 
 		plan->targetlist = targetlist;
 
@@ -2415,15 +2447,32 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 	sendslice->directDispatch.contentIds = NIL;
 	sendslice->directDispatch.haveProcessedAnyCalculations = false;
 
+	// set parallel workers if needed
+	ULONG child_index = motion_dxlop->GetRelationChildIdx();
+	CDXLNode *child_dxlnode = (*motion_dxlnode)[child_index];
+	ULONG child_parallel_workers = ExtractParallelWorkersFromDXL(child_dxlnode);
+	if (child_parallel_workers > 1)
+	{
+		// Use unified parallel degree instead of per-table parallel degree
+		if (enable_parallel)
+		{
+			ULONG unified_parallel_workers = (max_parallel_workers_per_gather > 0)
+				? (ULONG)max_parallel_workers_per_gather
+				: 2; // Default fallback
+			sendslice->parallel_workers = unified_parallel_workers;
+		}
+		else
+		{
+			sendslice->parallel_workers = 1;
+		}
+	}
+
 	motion->motionID = sendslice->sliceIndex;
 
 	// translate motion child
 	// child node is in the same position in broadcast and gather motion nodes
 	// but different in redistribute motion nodes
-
-	ULONG child_index = motion_dxlop->GetRelationChildIdx();
-
-	CDXLNode *child_dxlnode = (*motion_dxlnode)[child_index];
+	// Note: child_index and child_dxlnode already defined above
 
 	CDXLTranslateContext child_context(m_mp, false,
 									   output_context->GetColIdToParamIdMap());
@@ -6156,9 +6205,18 @@ CTranslatorDXLToPlStmt::TranslatePlanCosts(const CDXLNode *dxlnode, Plan *plan)
 	// process, whereas the row estimates in GPORCA are global, across all
 	// processes. Divide the row count estimate by the number of segments
 	// executing it.
-	plan->plan_rows =
-		ceil(CostFromStr(costs->GetRowsOutStr()) /
-			 m_dxl_to_plstmt_context->GetCurrentSlice()->numsegments);
+	PlanSlice *current_slice = m_dxl_to_plstmt_context->GetCurrentSlice();
+	double total_rows = CostFromStr(costs->GetRowsOutStr());
+	double rows_per_segment = total_rows / current_slice->numsegments;
+	
+	// For parallel table scans, further divide by parallel workers
+	// since each worker processes a subset of the segment's data
+	if (plan->parallel_aware && current_slice->parallel_workers > 1)
+	{
+		rows_per_segment = rows_per_segment / current_slice->parallel_workers;
+	}
+	
+	plan->plan_rows = ceil(rows_per_segment);
 }
 
 //---------------------------------------------------------------------------
@@ -7282,4 +7340,76 @@ CTranslatorDXLToPlStmt::IsIndexForOrderBy(
 	}
 	return false;
 }
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL
+//
+//	@doc:
+//		Extract parallel workers count from DXL node tree recursively
+//		Returns unified parallel degree from max_parallel_workers_per_gather GUC
+//		if parallel scan is found, otherwise returns 1.
+//
+//---------------------------------------------------------------------------
+ULONG
+CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
+{
+	if (nullptr == dxlnode)
+	{
+		return 1;
+	}
+
+	// Check if this subtree contains any parallel scan
+	bool has_parallel_scan = ContainsParallelScanInDXL(dxlnode);
+	if (has_parallel_scan)
+	{
+		// Return unified parallel degree from GUC
+
+		if (enable_parallel && max_parallel_workers_per_gather > 0)
+		{
+			return (ULONG)max_parallel_workers_per_gather;
+		}
+		else if (enable_parallel)
+		{
+			return 2; // Default fallback
+		}
+	}
+
+	return 1;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CTranslatorDXLToPlStmt::ContainsParallelScanInDXL
+//
+//	@doc:
+//		Check if DXL node tree contains any parallel table scan
+//
+//---------------------------------------------------------------------------
+bool
+CTranslatorDXLToPlStmt::ContainsParallelScanInDXL(const CDXLNode *dxlnode)
+{
+	if (nullptr == dxlnode)
+	{
+		return false;
+	}
+
+	CDXLOperator *dxlop = dxlnode->GetOperator();
+	if (EdxlopPhysicalParallelTableScan == dxlop->GetDXLOperator())
+	{
+		return true;
+	}
+
+	// Recursively check child nodes
+	for (ULONG ul = 0; ul < dxlnode->Arity(); ul++)
+	{
+		if (ContainsParallelScanInDXL((*dxlnode)[ul]))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // EOF
