@@ -6211,9 +6211,11 @@ CTranslatorDXLToPlStmt::TranslatePlanCosts(const CDXLNode *dxlnode, Plan *plan)
 	
 	// For parallel table scans, further divide by parallel workers
 	// since each worker processes a subset of the segment's data
-	if (plan->parallel_aware && current_slice->parallel_workers > 1)
+	// Use ExtractParallelWorkersFromDXL to get parallel workers directly from DXL node
+	ULONG parallel_workers = ExtractParallelWorkersFromDXL(dxlnode);
+	if (plan->parallel_safe && parallel_workers > 1)
 	{
-		rows_per_segment = rows_per_segment / current_slice->parallel_workers;
+		rows_per_segment = rows_per_segment / parallel_workers;
 	}
 	
 	plan->plan_rows = ceil(rows_per_segment);
