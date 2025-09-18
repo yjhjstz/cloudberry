@@ -108,6 +108,19 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         // validate that the result has all required fields, and values are in valid ranges
         context.validate();
 
+        // Iterate over the remaining properties
+        // we clone the keyset to prevent concurrent modification exceptions
+        List<String> paramNames = new ArrayList<>(params.keySet());
+        for (String param : paramNames) {
+            if (StringUtils.startsWithIgnoreCase(param, RequestMap.USER_PROP_PREFIX)) {
+                // Add all left-over user properties as options
+                String optionName = param.toLowerCase().replace(RequestMap.USER_PROP_PREFIX_LOWERCASE, "");
+                String optionValue = params.removeUserProperty(optionName);
+                context.addOption(optionName, optionValue);
+                LOG.debug("Added option {} to request context", optionName);
+            }
+        }
+
         return context;
     }
 

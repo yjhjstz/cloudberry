@@ -82,7 +82,7 @@ public class HudiCatalogWrapper {
         String catalogType = context.getCatalogType();
         switch (catalogType) {
             case "s3":
-                String path = FilePathUtils.unescapePathName(context.getPath());
+                String path = FilePathUtils.unescapeString(context.getPath());
                 if (path.startsWith("/")) {
                     path = path.substring(1);
                 }
@@ -93,7 +93,7 @@ public class HudiCatalogWrapper {
             case "hadoop":
                 context.setPath(String.format("%s/%s",
                         context.getConfiguration().get("fs.defaultFS"),
-                        FilePathUtils.unescapePathName(context.getPath())));
+                        FilePathUtils.unescapeString(context.getPath())));
 
                 return new HudiHadoopCatalog(getMetaClient(context), secureLogin);
             case "hive":

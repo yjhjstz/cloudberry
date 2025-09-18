@@ -109,6 +109,13 @@ public class RequestContext {
     private String serverName = "default";
 
     /**
+     * USER-DEFINED OPTIONS other than NAMED PROPERTIES
+     */
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private Map<String, String> options = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+    /**
      * The filter string, <tt>null</tt> if #hasFilter is <tt>false</tt>.
      */
     private String filterString;
@@ -281,5 +288,24 @@ public class RequestContext {
     private void fail(String message, Object... args) {
         String errorMessage = String.format(message, args);
         throw new IllegalArgumentException(errorMessage);
+    }
+
+    /**
+     * Adds an option with the given name and value to the set of options.
+     *
+     * @param name  name of the option
+     * @param value value of the option
+     */
+    public void addOption(String name, String value) {
+        options.put(name, value);
+    }
+
+    /**
+     * Returns unmodifiable map of options.
+     *
+     * @return map of options, with keys as option names and values as option values
+     */
+    public Map<String, String> getOptions() {
+        return Collections.unmodifiableMap(options);
     }
 }

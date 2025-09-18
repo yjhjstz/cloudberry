@@ -55,11 +55,20 @@
 #define DATALAKE_OPTION_HDFS_AUTH_SIMPLE "simple"
 #define DATALAKE_OPTION_HDFS_AUTH_KERBEROS "kerberos"
 
+/* polaris server options */
+#define DATALAKE_OPTION_POLARIS_SERVER_URL "polaris_server_url"
+#define DATALAKE_OPTION_POLARIS_SERVER_REALM "polaris_server_realm"
+
 /* user mapping options */
 #define DATALAKE_OPTION_ACCESKEY "accesskey"
 #define DATALAKE_OPTION_SECRETKEY "secretkey"
 #define DATALAKE_OPTION_USER "user"
 #define DATALAKE_OPTION_PASSWORD "password"
+
+/* polaris credential options */
+#define DATALAKE_OPTION_CLIENT_ID "client_id"
+#define DATALAKE_OPTION_CLIENT_SECRET "client_secret"
+#define DATALAKE_OPTION_SCOPE "scope"
 
 /* foreign table options */
 #define DATALAKE_OPTION_COMPRESS "compression"
@@ -293,6 +302,11 @@ typedef struct dataLakeOptions
 	char		*cache_enabled;
 	char		*query_type;
 	char		*metadata_table_enable;
+	char		*client_id;
+	char		*client_secret;
+	char		*scope;
+	char		*polaris_server_url;
+	char		*polaris_server_realm;
 } dataLakeOptions;
 
 typedef struct dataLakeFdwPlanState

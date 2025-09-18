@@ -157,6 +157,13 @@ public class IcebergUtilities {
         if (!tableName.contains(".")) {
             return TableIdentifier.of("default", tableName);
         }
+
+        String[] tokens = tableName.split("\\.");
+        if (tokens.length == 3) {
+            tableName = tokens[1] + "." + tokens[2];
+        }
+
+        // Parse the (possibly modified) table name
         return TableIdentifier.parse(tableName);
     }
 
@@ -218,5 +225,12 @@ public class IcebergUtilities {
                     EnumIcebergToGpdbType.getFullIcebergTypeName(fieldSchema),
                     cd.columnName());
         }
+    }
+
+    public String extractWarehouseFromTableName(String tableName) {
+        if (tableName.contains(".")) {
+            return tableName.split("\\.")[0];
+        }
+        return "polaris";
     }
 }

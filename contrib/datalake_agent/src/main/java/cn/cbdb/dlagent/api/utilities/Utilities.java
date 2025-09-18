@@ -394,6 +394,9 @@ public class Utilities {
         } else if (tokens.size() == 2) {
             dbPattern = tokens.get(0);
             tablePattern = tokens.get(1);
+        } else if (tokens.size() == 3) {
+            dbPattern = tokens.get(tokens.size() - 2);
+            tablePattern = tokens.get(tokens.size() - 1);
         } else {
             throw new IllegalArgumentException("\"" + qualifiedName + "\"" + errorMsg);
         }

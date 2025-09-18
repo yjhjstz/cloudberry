@@ -57,6 +57,12 @@ static const struct datalakeFdwOption valid_hdfs_server_options[] = {
 	{NULL, InvalidOid}
 };
 
+static const struct datalakeFdwOption valid_polaris_server_options[] = {
+	{DATALAKE_OPTION_POLARIS_SERVER_URL, ForeignServerRelationId},
+	{DATALAKE_OPTION_POLARIS_SERVER_REALM, ForeignServerRelationId},
+	{NULL, InvalidOid}
+};
+
 static const struct datalakeFdwOption valid_ftp_server_options[] = {
 	{DATALAKE_OPTION_PROTOCOL, ForeignServerRelationId},
 	{DATALAKE_OPTION_HOST, ForeignServerRelationId},
@@ -109,6 +115,9 @@ static const struct datalakeFdwOption valid_usermaping_options[] = {
 	{DATALAKE_OPTION_SECRETKEY, UserMappingRelationId},
 	{DATALAKE_OPTION_USER, UserMappingRelationId},
 	{DATALAKE_OPTION_PASSWORD, UserMappingRelationId},
+	{DATALAKE_OPTION_CLIENT_ID, UserMappingRelationId},
+	{DATALAKE_OPTION_CLIENT_SECRET, UserMappingRelationId},
+	{DATALAKE_OPTION_SCOPE, UserMappingRelationId},
 	{NULL, InvalidOid}
 };
 
@@ -245,6 +254,8 @@ static bool IsValidHdfsServerOption(const char *option, Oid context);
 
 static bool IsValidFtpServerOption(const char *option, Oid context);
 
+static bool IsValidPolarisServerOption(const char *option, Oid context);
+
 static bool IsValidOSSServerOption(const char *option, Oid context);
 
 static bool IsValidUserMappingOption(const char *option, Oid context);
@@ -278,6 +289,12 @@ static void parseOssUserMappingOptions(dataLakeOptions* opt, List *options);
 
 static void parseOssServerOption(dataLakeOptions* opt, List *options);
 
+static void parsePolarisUserMappingOptions(dataLakeOptions* opt, List *options);
+
+static void parsePolarisServerOption(dataLakeOptions* opt, List *options);
+
+static void configurePolarisOptions(dataLakeOptions *options);
+
 /*
  * Validate the generic options given to a FOREIGN DATA WRAPPER, SERVER,
  * USER MAPPING or FOREIGN TABLE that uses file_fdw.
@@ -295,84 +312,6 @@ datalake_fdw_validator(PG_FUNCTION_ARGS)
 	check_foreign_option(options_list, catalog);
 	check_user_mapping_option(options_list, catalog);
 	PG_RETURN_VOID();
-}
-
-
-/*
- * Retrieve per-column generic options from pg_attribute and construct a list
- * of DefElems representing them.
- *
- * At the moment we only have "force_not_null", and "force_null",
- * which should each be combined into a single DefElem listing all such
- * columns, since that's what COPY expects.
- */
-static List *
-get_file_fdw_attribute_options(Oid relid)
-{
-	Relation	rel;
-	TupleDesc	tupleDesc;
-	AttrNumber	natts;
-	AttrNumber	attnum;
-	List	   *fnncolumns = NIL;
-	List	   *fncolumns = NIL;
-
-	List	   *options = NIL;
-
-	rel = table_open(relid, AccessShareLock);
-	tupleDesc = RelationGetDescr(rel);
-	natts = tupleDesc->natts;
-
-	/* Retrieve FDW options for all user-defined attributes. */
-	for (attnum = 1; attnum <= natts; attnum++)
-	{
-		Form_pg_attribute attr = TupleDescAttr(tupleDesc, attnum - 1);
-		List	   *options;
-		ListCell   *lc;
-
-		/* Skip dropped attributes. */
-		if (attr->attisdropped)
-			continue;
-
-		options = GetForeignColumnOptions(relid, attnum);
-		foreach(lc, options)
-		{
-			DefElem    *def = (DefElem *) lfirst(lc);
-
-			if (strcmp(def->defname, "force_not_null") == 0)
-			{
-				if (defGetBoolean(def))
-				{
-					char	   *attname = pstrdup(NameStr(attr->attname));
-
-					fnncolumns = lappend(fnncolumns, makeString(attname));
-				}
-			}
-			else if (strcmp(def->defname, "force_null") == 0)
-			{
-				if (defGetBoolean(def))
-				{
-					char	   *attname = pstrdup(NameStr(attr->attname));
-
-					fncolumns = lappend(fncolumns, makeString(attname));
-				}
-			}
-			/* maybe in future handle other options here */
-		}
-	}
-
-	table_close(rel, AccessShareLock);
-
-	/*
-	 * Return DefElem only when some column(s) have force_not_null /
-	 * force_null options set
-	 */
-	if (fnncolumns != NIL)
-		options = lappend(options, makeDefElem("force_not_null", (Node *) fnncolumns, -1));
-
-	if (fncolumns != NIL)
-		options = lappend(options, makeDefElem("force_null", (Node *) fncolumns, -1));
-
-	return options;
 }
 
 void parseOssServerOption(dataLakeOptions* opt, List *options)
@@ -608,7 +547,6 @@ dataLakeOptions *datalakeGetOptions(Oid foreigntableid)
 	ForeignTable *table;
 	ForeignServer *server;
 	ForeignDataWrapper *wrapper;
-	List	   *options;
 	UserMapping *user;
 	DLProt protocol;
 
@@ -623,13 +561,6 @@ dataLakeOptions *datalakeGetOptions(Oid foreigntableid)
 
 	/* ForeignDataWrapper */
 	checkForeignDataWrapper(wrapper);
-
-	options = NIL;
-	options = list_concat(options, wrapper->options);
-	options = list_concat(options, server->options);
-	options = list_concat(options, table->options);
-	options = list_concat(options, get_file_fdw_attribute_options(foreigntableid));
-	options = list_concat(options, user->options);
 
 	dataLakeOptions *opt = (dataLakeOptions*)palloc0(sizeof(dataLakeOptions));
 	opt->gopher = (gopherOptions*)palloc0(sizeof(gopherOptions));
@@ -672,6 +603,8 @@ dataLakeOptions *datalakeGetOptions(Oid foreigntableid)
 		parseOssUserMappingOptions(opt, user->options);
 		parseForeignTableOptions(opt, table->options);
 		parserUri(opt);
+
+		configurePolarisOptions(opt);
 	}
 
 	return opt;
@@ -1177,6 +1110,37 @@ void datalakeFreeDatalakeOptions(dataLakeOptions *options)
 			pfree(options->hdfs_cluster_name);
 			options->hdfs_cluster_name = NULL;
 		}
+
+		if (options->client_id)
+		{
+			pfree(options->client_id);
+			options->client_id = NULL;
+		}
+
+		if (options->client_secret)
+		{
+			pfree(options->client_secret);
+			options->client_secret = NULL;
+		}
+
+		if (options->scope)
+		{
+			pfree(options->scope);
+			options->scope = NULL;
+		}
+
+		if (options->polaris_server_url)
+		{
+			pfree(options->polaris_server_url);
+			options->polaris_server_url = NULL;
+		}
+
+		if (options->polaris_server_realm)
+		{
+			pfree(options->polaris_server_realm);
+			options->polaris_server_realm = NULL;
+		}
+
 		pfree(options);
 		options = NULL;
 	}
@@ -1192,6 +1156,25 @@ void check_server_option(List *options_list, Oid catalog)
 		return;
 
 	protocolStr = getOptionFromList(options_list, DATALAKE_OPTION_PROTOCOL);
+	if (!protocolStr)
+	{
+		if (getOptionFromList(options_list, DATALAKE_OPTION_POLARIS_SERVER_URL))
+		{
+			foreach(cell, options_list)
+			{
+				DefElem *def = (DefElem *) lfirst(cell);
+				if (!IsValidPolarisServerOption(def->defname, catalog))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+							errmsg("invalid polaris option \"%s\".", def->defname)));
+				}
+			}
+
+			return;
+		}
+	}
+
 	protocol = datalakeGetProtocol(protocolStr);
 	switch (protocol)
 	{
@@ -1249,7 +1232,6 @@ void check_server_option(List *options_list, Oid catalog)
 			}
 		}
 	}
-	return;
 }
 
 void check_foreign_option(List *options_list, Oid catalog)
@@ -1409,6 +1391,18 @@ bool IsValidFtpServerOption(const char *option, Oid context)
 {
 	const struct datalakeFdwOption *entry;
 	for (entry = valid_ftp_server_options; entry->optname; entry++)
+	{
+		if (context == entry->optcontext && strcmp(entry->optname, option) == 0)
+			return true;
+	}
+	return false;
+}
+
+static bool
+IsValidPolarisServerOption(const char *option, Oid context)
+{
+	const struct datalakeFdwOption *entry;
+	for (entry = valid_polaris_server_options; entry->optname; entry++)
 	{
 		if (context == entry->optcontext && strcmp(entry->optname, option) == 0)
 			return true;
@@ -1634,4 +1628,77 @@ char *datalakeGetCompressionName(CompressType compress)
 		default:
 			return "not support compression";
 	}
+}
+
+static void
+parsePolarisUserMappingOptions(dataLakeOptions* opt, List *options)
+{
+	ListCell   *lc;
+	foreach(lc, options)
+	{
+		DefElem *def = (DefElem *) lfirst(lc);
+
+		/* Polaris credential options */
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_CLIENT_ID) == 0)
+		{
+			opt->client_id = pstrdup(defGetString(def));
+		}
+
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_CLIENT_SECRET) == 0)
+		{
+			opt->client_secret = pstrdup(defGetString(def));
+		}
+
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_SCOPE) == 0)
+		{
+			opt->scope = pstrdup(defGetString(def));
+		}
+	}
+}
+
+static void
+parsePolarisServerOption(dataLakeOptions* opt, List *options)
+{
+	ListCell   *lc;
+	foreach(lc, options)
+	{
+		DefElem *def = (DefElem *) lfirst(lc);
+
+		/* Polaris server options */
+		if (pg_strcasecmp(def->defname, DATALAKE_OPTION_POLARIS_SERVER_URL) == 0)
+		{
+			opt->polaris_server_url = pstrdup(defGetString(def));
+		}
+		else if (pg_strcasecmp(def->defname, DATALAKE_OPTION_POLARIS_SERVER_REALM) == 0)
+		{
+			opt->polaris_server_realm = pstrdup(defGetString(def));
+		}
+	}
+}
+
+static void
+configurePolarisOptions(dataLakeOptions *options)
+{
+	if (options->catalog_type == NULL || pg_strcasecmp(options->catalog_type, "polaris") != 0)
+		return;
+
+	if (options->server_name == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("datalake polaris server name is required.")));
+
+	ForeignServer *polaris_server = GetForeignServerByName(options->server_name, true);
+	if (polaris_server == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("datalake polaris server %s not found.", options->server_name)));
+
+	UserMapping *polaris_user = GetUserMapping(GetUserId(), polaris_server->serverid);
+	if (polaris_user == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("datalake polaris user %s not found.", options->server_name)));
+
+	parsePolarisServerOption(options, polaris_server->options);
+	parsePolarisUserMappingOptions(options, polaris_user->options);
 }

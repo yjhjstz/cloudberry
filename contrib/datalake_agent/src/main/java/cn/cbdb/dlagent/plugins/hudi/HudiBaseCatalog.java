@@ -86,7 +86,7 @@ public abstract class HudiBaseCatalog {
                 HudiMetadataFetcher.getSupportedDatatypesForPushdown());
 
         TreeTraverser traverser = new TreeTraverser();
-        traverser.traverse(new FilterParser().parse(FilePathUtils.unescapePathName(context.getFilterString())),
+        traverser.traverse(new FilterParser().parse(FilePathUtils.unescapeString(context.getFilterString())),
                 dataTypePruner,
                 operatorPruner,
                 builder);

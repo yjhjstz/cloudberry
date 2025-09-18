@@ -72,13 +72,18 @@ public class IcebergCatalogWrapper {
         String catalogType = context.getCatalogType();
         switch (catalogType) {
             case "s3":
-                return new IcebergS3Catalog(FilePathUtils.unescapePathName(context.getPath()),
+                return new IcebergS3Catalog(FilePathUtils.unescapeString(context.getPath()),
                     icebergUtilities, context.getConfiguration());
             case "hadoop":
-                return new IcebergHadoopCatalog(FilePathUtils.unescapePathName(context.getPath()),
+                return new IcebergHadoopCatalog(FilePathUtils.unescapeString(context.getPath()),
                         icebergUtilities, context.getConfiguration());
             case "hive":
                 return getHiveCatalog(context);
+            case "polaris":
+                return new IcebergPolarisCatalog(
+                    context.getDataSource(),
+                    icebergUtilities,
+                    context.getConfiguration());
             default:
                 throw new DlRuntimeException("Unexpected catalog type: " + catalogType);
         }

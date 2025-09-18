@@ -254,6 +254,17 @@ convert_iceberg_hudi_options(dataLakeOptions *options)
 	if (options->metadata_table_enable)
 		appendStringInfo(&buf, " metadata_table_enable=%s", options->metadata_table_enable);
 
+	if (options->client_id)
+		appendStringInfo(&buf, " client_id=%s", options->client_id);
+	if (options->client_secret)
+		appendStringInfo(&buf, " client_secret=%s", options->client_secret);
+	if (options->scope)
+		appendStringInfo(&buf, " scope=%s", options->scope);
+	if (options->polaris_server_url)
+		appendStringInfo(&buf, " polaris_server_url=%s", options->polaris_server_url);
+	if (options->polaris_server_realm)
+		appendStringInfo(&buf, " polaris_server_realm=%s", options->polaris_server_realm);
+
 	result = lappend(result, makeString(pstrdup(buf.data)));
 	return result;
 }

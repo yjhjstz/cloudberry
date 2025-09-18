@@ -31,5 +31,6 @@ public interface ConfigurationFactory {
                                     String configFiles,
                                     String serverName,
                                     String userName,
-                                    String location);
+                                    String location,
+                                    Map<String, String> additionalProperties);
 }

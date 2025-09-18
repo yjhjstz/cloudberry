@@ -65,7 +65,8 @@ public abstract class BaseServiceImpl<T> extends DlErrorReporter<T> {
                         context.getConfig(),
                         context.getServerName(),
                         context.getUser(),
-                        context.getPath());
+                        context.getPath(),
+                        context.getOptions());
         context.setConfiguration(configuration);
 
         Instant startTime = Instant.now();

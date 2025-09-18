@@ -86,14 +86,14 @@ public class FilePathUtils {
       if (hivePartition) {
         Matcher m = HIVE_PARTITION_NAME_PATTERN.matcher(component);
         if (m.matches()) {
-          String k = unescapePathName(m.group(1));
-          String v = unescapePathName(m.group(2));
+          String k = unescapeString(m.group(1));
+          String v = unescapeString(m.group(2));
           kv[0] = k;
           kv[1] = v;
         }
       } else {
         kv[0] = partitionKeys[partitionKeys.length - 1 - curDepth];
-        kv[1] = unescapePathName(component);
+        kv[1] = unescapeString(component);
       }
       kvs.add(kv);
       currPath = currPath.getParent();
@@ -108,7 +108,7 @@ public class FilePathUtils {
     return fullPartSpec;
   }
 
-  public static String unescapePathName(String path) {
+  public static String unescapeString(String path) {
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < path.length(); i++) {
       char c = path.charAt(i);

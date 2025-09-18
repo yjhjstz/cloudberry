@@ -48,7 +48,8 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
                                            String configFies,
                                            String serverName,
                                            String userName,
-                                           String location) {
+                                           String location,
+                                           Map<String, String> additionalProperties) {
         // start with built-in Hadoop configuration that loads core-site.xml
         LOG.debug("Initializing configuration for server {}", serverName);
 
@@ -81,11 +82,19 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
         // add the server name itself as a configuration property
         configuration.set(DLAGENT_SERVER_NAME_PROPERTY, serverName);
 
-        // add all site files as URL resources to the configuration, no resources will be added from the classpath
-        LOG.debug("Using config file {} for server {} configuration", configFies, serverName);
-        String[] files = configFies.split("0");
-        for (String file : files) {
-            processServerResource(catalogType, file, serverName, configuration, location);
+        // add additional properties, if provided
+        if (additionalProperties != null) {
+            LOG.debug("Adding {} additional properties to configuration for server {}", additionalProperties.size(), serverName);
+            additionalProperties.forEach(configuration::set);
+        }
+
+        if (!catalogType.toLowerCase().equals("polaris")) {
+            // add all site files as URL resources to the configuration, no resources will be added from the classpath
+            LOG.debug("Using config file {} for server {} configuration", configFies, serverName);
+            String[] files = configFies.split("0");
+            for (String file : files) {
+                processServerResource(catalogType, file, serverName, configuration, location);
+            }
         }
 
         try {
@@ -147,7 +156,7 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
     private void transformS3Config(Map<String, Object> serverMap, Configuration configuration, String location) {
         String[] bucketName = new String[1];
         String[] prefix = new String[1];
-        Utilities.parserBucketAndPrefix(FilePathUtils.unescapePathName(location), bucketName, prefix);
+        Utilities.parserBucketAndPrefix(FilePathUtils.unescapeString(location), bucketName, prefix);
 
         serverMap.forEach((key, value) -> {
             if (key.equals("fs.defaultFS")) {
