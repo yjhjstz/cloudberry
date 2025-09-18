@@ -657,6 +657,11 @@ private:
 
 	// fill the aggno and transno for the aggnode
 	static void TranslateAggFillInfo(CContextDXLToPlStmt *context, Aggref *aggref);
+
+	// extract parallel workers from DXL node tree
+	static ULONG ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode);
+	// check if DXL node tree contains any parallel table scan
+	static bool ContainsParallelScanInDXL(const CDXLNode *dxlnode);
 };
 }  // namespace gpdxl
 
