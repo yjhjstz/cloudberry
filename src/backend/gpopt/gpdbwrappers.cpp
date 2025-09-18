@@ -36,8 +36,10 @@ extern "C" {
 #include "access/amapi.h"
 #include "access/external.h"
 #include "access/genam.h"
+#include "access/parallel.h"
 #include "catalog/pg_aggregate.h"
 #include "catalog/pg_inherits.h"
+#include "cdb/cdbvars.h"
 #include "foreign/fdwapi.h"
 #include "nodes/nodeFuncs.h"
 #include "optimizer/clauses.h"
@@ -52,6 +54,9 @@ extern "C" {
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/partcache.h"
+
+extern int enable_parallel;
+extern int max_parallel_workers_per_gather;
 }
 #define GP_WRAP_START                                            \
 	sigjmp_buf local_sigjmp_buf;                                 \
@@ -2705,5 +2710,32 @@ gpdb::TestexprIsHashable(Node *testexpr, List *param_ids)
 	GP_WRAP_END;
 	return false;
 }
+
+// check if parallel mode is OK (comprehensive check)
+bool
+gpdb::IsParallelModeOK(void)
+{
+	GP_WRAP_START;
+	{
+		// Basic GUC checks similar to PostgreSQL planner
+		if (!enable_parallel)
+			return false;
+
+		if (IS_SINGLENODE())
+			return false;
+
+		if (max_parallel_workers_per_gather <= 0)
+			return false;
+
+		// Check if we're in a parallel worker
+		if (IsParallelWorker())
+			return false;
+
+		return true;
+	}
+	GP_WRAP_END;
+	return false;
+}
+
 
 // EOF

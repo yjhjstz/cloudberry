@@ -23,11 +23,16 @@
 #include "gpopt/optimizer/COptimizerConfig.h"
 #include "naucrates/md/IMDRelation.h"
 
-// Forward declare GUC variables (defined in PostgreSQL)
-extern bool enable_parallel;
+// Use gpdbwrappers for parallel checks
 extern int max_parallel_workers_per_gather;
 
+// Forward declarations for gpdbwrappers functions
+namespace gpdb {
+	bool IsParallelModeOK(void);
+}
+
 using namespace gpopt;
+
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -56,8 +61,8 @@ CXformGet2ParallelTableScan::CXformGet2ParallelTableScan(CMemoryPool *mp)
 CXform::EXformPromise
 CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 {
-	// Check if parallel processing is enabled via GUC
-	if (!enable_parallel)
+	// Check if parallel processing is safe and enabled
+	if (!gpdb::IsParallelModeOK())
 	{
 		return CXform::ExfpNone;
 	}
@@ -115,7 +120,7 @@ CXformGet2ParallelTableScan::Transform(CXformContext *pxfctxt, CXformResult *pxf
 
 	// Use unified parallel degree from GUC parameter
 	ULONG ulParallelWorkers = 1;
-	if (enable_parallel)
+	if (gpdb::IsParallelModeOK())
 	{
 		// Use max_parallel_workers_per_gather as the unified parallel degree for all tables
 		// This ensures consistent parallelism across all table scans
