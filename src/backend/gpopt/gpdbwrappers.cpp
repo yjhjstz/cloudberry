@@ -25,6 +25,8 @@
 #include <limits>  // std::numeric_limits
 
 #include "gpos/base.h"
+#include "gpopt/base/COptCtxt.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
 #include "gpos/error/CAutoExceptionStack.h"
 #include "gpos/error/CException.h"
 
@@ -2728,7 +2730,7 @@ gpdb::IsParallelModeOK(void)
 			return false;
 
 		// Check if we're in a parallel worker
-		if (IsParallelWorker())
+		if (!IsParallelPlansEnabled())
 			return false;
 
 		return true;
@@ -2736,6 +2738,28 @@ gpdb::IsParallelModeOK(void)
 	GP_WRAP_END;
 	return false;
 }
+
+bool
+gpdb::IsParallelPlansEnabled(void)
+{
+	GP_WRAP_START;
+	{
+		// Get from current optimizer context
+		gpopt::COptCtxt *poctxt = gpopt::COptCtxt::PoctxtFromTLS();
+		if (nullptr != poctxt)
+		{
+			gpopt::COptimizerConfig *optimizer_config = poctxt->GetOptimizerConfig();
+			if (nullptr != optimizer_config)
+			{
+				return optimizer_config->CreateParallelPlan();
+			}
+		}
+		return false;  // default to disabled if no context
+	}
+	GP_WRAP_END;
+	return false;
+}
+
 
 
 // EOF

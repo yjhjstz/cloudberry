@@ -29,6 +29,7 @@ extern int max_parallel_workers_per_gather;
 // Forward declarations for gpdbwrappers functions
 namespace gpdb {
 	bool IsParallelModeOK(void);
+	bool IsParallelPlansEnabled(void);
 }
 
 using namespace gpopt;
@@ -61,7 +62,7 @@ CXformGet2ParallelTableScan::CXformGet2ParallelTableScan(CMemoryPool *mp)
 CXform::EXformPromise
 CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 {
-	// Check if parallel processing is safe and enabled
+	// Check if parallel plans are enabled in context and parallel processing is safe
 	if (!gpdb::IsParallelModeOK())
 	{
 		return CXform::ExfpNone;
