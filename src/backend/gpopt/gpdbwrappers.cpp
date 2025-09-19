@@ -57,7 +57,7 @@ extern "C" {
 #include "utils/memutils.h"
 #include "utils/partcache.h"
 
-extern int enable_parallel;
+extern bool enable_parallel;
 extern int max_parallel_workers_per_gather;
 }
 #define GP_WRAP_START                                            \
