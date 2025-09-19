@@ -633,12 +633,8 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 		phy_parallel_tbl_scan_dxlop = CDXLPhysicalParallelTableScan::Cast(tbl_scan_dxlnode->GetOperator());
 		parallel_workers = phy_parallel_tbl_scan_dxlop->UlParallelWorkers();
 		
-		// Set parallel workers for current slice
-		PlanSlice *current_slice = m_dxl_to_plstmt_context->GetCurrentSlice();
-		if (current_slice && parallel_workers > 1)
-		{
-			current_slice->parallel_workers = parallel_workers;
-		}
+		// Note: parallel_workers will be set by Motion node creation in createplan.c
+		// Do not set parallel_workers here to avoid affecting receiving slices
 	}
 
 	// translation context for column mappings in the base relation
@@ -2389,6 +2385,8 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 	const IntPtrArray *input_segids_array = motion_dxlop->GetInputSegIdsArray();
 	PlanSlice *recvslice = m_dxl_to_plstmt_context->GetCurrentSlice();
 
+	//GPOS_ASSERT(recvslice->parallel_workers <= 1);
+
 	// create motion node
 	Motion *motion = MakeNode(Motion);
 
@@ -2459,7 +2457,18 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 			ULONG unified_parallel_workers = (max_parallel_workers_per_gather > 0)
 				? (ULONG)max_parallel_workers_per_gather
 				: 2; // Default fallback
-			sendslice->parallel_workers = unified_parallel_workers;
+
+			// Only set parallel_workers for gang types that support parallel execution
+			// SINGLETON_READER, ENTRYDB_READER, UNALLOCATED should always be single-segment
+			if (sendslice->gangType == GANGTYPE_PRIMARY_READER ||
+				sendslice->gangType == GANGTYPE_PRIMARY_WRITER)
+			{
+				sendslice->parallel_workers = unified_parallel_workers;
+			}
+			else
+			{
+				sendslice->parallel_workers = 1;
+			}
 		}
 		else
 		{
