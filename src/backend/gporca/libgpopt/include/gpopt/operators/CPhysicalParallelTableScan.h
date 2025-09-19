@@ -116,9 +116,8 @@ public:
 			  CExpressionHandle &  // exprhdl
 	) const override
 	{
-		// mark-restorability of output is always true
 		return GPOS_NEW(mp)
-			CRewindabilitySpec(CRewindabilitySpec::ErtMarkRestore,
+			CRewindabilitySpec(CRewindabilitySpec::ErtNone,
 							   CRewindabilitySpec::EmhtNoMotion);
 	}
 
