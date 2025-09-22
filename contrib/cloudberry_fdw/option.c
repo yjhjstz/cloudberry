@@ -60,10 +60,10 @@ static bool is_libpq_option(const char *keyword);
  *
  * Raise an ERROR if the option or its value is considered invalid.
  */
-PG_FUNCTION_INFO_V1(postgres_fdw_validator);
+PG_FUNCTION_INFO_V1(cloudberry_fdw_validator);
 
 Datum
-postgres_fdw_validator(PG_FUNCTION_ARGS)
+cloudberry_fdw_validator(PG_FUNCTION_ARGS)
 {
 	List	   *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
 	Oid			catalog = PG_GETARG_OID(1);
@@ -145,7 +145,7 @@ postgres_fdw_validator(PG_FUNCTION_ARGS)
 		else if (strcmp(def->defname, "extensions") == 0)
 		{
 			/* check list syntax, warn about uninstalled extensions */
-			(void) ExtractExtensionList(defGetString(def), true);
+			(void) cbdbFdwExtractExtensionList(defGetString(def), true);
 		}
 		else if (strcmp(def->defname, "fetch_size") == 0 ||
 				 strcmp(def->defname, "batch_size") == 0)
@@ -369,7 +369,7 @@ is_libpq_option(const char *keyword)
  * allocated large-enough arrays.  Returns number of options found.
  */
 int
-ExtractConnectionOptions(List *defelems, const char **keywords,
+cbdbFdwExtractConnectionOptions(List *defelems, const char **keywords,
 						 const char **values)
 {
 	ListCell   *lc;
@@ -400,7 +400,7 @@ ExtractConnectionOptions(List *defelems, const char **keywords,
  * ignore them.
  */
 List *
-ExtractExtensionList(const char *extensionsString, bool warnOnMissing)
+cbdbFdwExtractExtensionList(const char *extensionsString, bool warnOnMissing)
 {
 	List	   *extensionOids = NIL;
 	List	   *extlist;

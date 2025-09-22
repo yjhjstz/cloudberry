@@ -104,6 +104,7 @@ typedef struct deparse_expr_cxt
 								 * a base relation. */
 	StringInfo	buf;			/* output buffer to append to */
 	List	  **params_list;	/* exprs that will become remote Params */
+	bool		is_explain;
 } deparse_expr_cxt;
 
 #define REL_ALIAS_PREFIX	"r"
@@ -207,7 +208,7 @@ static void get_relation_column_alias_ids(Var *node, RelOptInfo *foreignrel,
  *	- local_conds contains expressions that can't be evaluated remotely
  */
 void
-classifyConditions(PlannerInfo *root,
+cbdbFdwClassifyConditions(PlannerInfo *root,
 				   RelOptInfo *baserel,
 				   List *input_conds,
 				   List **remote_conds,
@@ -222,7 +223,7 @@ classifyConditions(PlannerInfo *root,
 	{
 		RestrictInfo *ri = lfirst_node(RestrictInfo, lc);
 
-		if (is_foreign_expr(root, baserel, ri->clause))
+		if (cbdb_fdw_is_foreign_expr(root, baserel, ri->clause))
 			*remote_conds = lappend(*remote_conds, ri);
 		else
 			*local_conds = lappend(*local_conds, ri);
@@ -233,7 +234,7 @@ classifyConditions(PlannerInfo *root,
  * Returns true if given expr is safe to evaluate on the foreign server.
  */
 bool
-is_foreign_expr(PlannerInfo *root,
+cbdb_fdw_is_foreign_expr(PlannerInfo *root,
 				RelOptInfo *baserel,
 				Expr *expr)
 {
@@ -410,6 +411,11 @@ foreign_expr_walker(Node *node,
 				 * to handle such cases as direct foreign updates.)
 				 */
 				if (p->paramkind == PARAM_MULTIEXPR)
+					return false;
+
+				/* Otherwise it will try to get the param before executor, and fail */
+				if (glob_cxt->foreignrel->exec_location == FTEXECLOCATION_ALL_SEGMENTS
+					&& p->paramkind == PARAM_EXEC)
 					return false;
 
 				/*
@@ -879,7 +885,7 @@ foreign_expr_walker(Node *node,
  * expression into).
  */
 bool
-is_foreign_param(PlannerInfo *root,
+cbdb_fdw_is_foreign_param(PlannerInfo *root,
 				 RelOptInfo *baserel,
 				 Expr *expr)
 {
@@ -920,7 +926,7 @@ is_foreign_param(PlannerInfo *root,
  * 'pathkey' to the foreign server.
  */
 bool
-is_foreign_pathkey(PlannerInfo *root,
+cbdb_fdw_is_foreign_pathkey(PlannerInfo *root,
 				   RelOptInfo *baserel,
 				   PathKey *pathkey)
 {
@@ -928,7 +934,7 @@ is_foreign_pathkey(PlannerInfo *root,
 	PgFdwRelationInfo *fpinfo = (PgFdwRelationInfo *) baserel->fdw_private;
 
 	/*
-	 * is_foreign_expr would detect volatile expressions as well, but checking
+	 * cbdb_fdw_is_foreign_expr would detect volatile expressions as well, but checking
 	 * ec_has_volatile here saves some cycles.
 	 */
 	if (pathkey_ec->ec_has_volatile)
@@ -939,7 +945,7 @@ is_foreign_pathkey(PlannerInfo *root,
 		return false;
 
 	/* can push if a suitable EC member exists */
-	return (find_em_for_rel(root, pathkey_ec, baserel) != NULL);
+	return (cbdb_fdw_find_em_for_rel(root, pathkey_ec, baserel) != NULL);
 }
 
 /*
@@ -973,7 +979,7 @@ deparse_type_name(Oid type_oid, int32 typemod)
  * foreign server.
  */
 List *
-build_tlist_to_deparse(RelOptInfo *foreignrel)
+cbdb_fdw_build_tlist_to_deparse(RelOptInfo *foreignrel)
 {
 	List	   *tlist = NIL;
 	PgFdwRelationInfo *fpinfo = (PgFdwRelationInfo *) foreignrel->fdw_private;
@@ -1030,9 +1036,9 @@ build_tlist_to_deparse(RelOptInfo *foreignrel)
  * List of columns selected is returned in retrieved_attrs.
  */
 void
-deparseSelectStmtForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *rel,
+cbdb_fdw_deparseSelectStmtForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *rel,
 						List *tlist, List *remote_conds, List *pathkeys,
-						bool has_final_sort, bool has_limit, bool is_subquery,
+						bool has_final_sort, bool has_limit, bool is_subquery, bool is_explain,
 						List **retrieved_attrs, List **params_list)
 {
 	deparse_expr_cxt context;
@@ -1051,6 +1057,7 @@ deparseSelectStmtForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *rel,
 	context.foreignrel = rel;
 	context.scanrel = IS_UPPER_REL(rel) ? fpinfo->outerrel : rel;
 	context.params_list = params_list;
+	context.is_explain = is_explain;
 
 	/* Construct SELECT clause */
 	deparseSelectSql(tlist, is_subquery, retrieved_attrs, &context);
@@ -1109,7 +1116,7 @@ deparseSelectStmtForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *rel,
  *
  * tlist is the list of desired columns.  is_subquery is the flag to
  * indicate whether to deparse the specified relation as a subquery.
- * Read prologue of deparseSelectStmtForRel() for details.
+ * Read prologue of cbdb_fdw_deparseSelectStmtForRel() for details.
  */
 static void
 deparseSelectSql(List *tlist, bool is_subquery, List **retrieved_attrs,
@@ -1270,6 +1277,23 @@ deparseTargetList(StringInfo buf,
 									   SelfItemPointerAttributeNumber);
 	}
 
+	if (bms_is_member(GpSegmentIdAttributeNumber - FirstLowInvalidHeapAttributeNumber,
+					  attrs_used))
+	{
+		if (!first)
+			appendStringInfoString(buf, ", ");
+		else if (is_returning)
+			appendStringInfoString(buf, " RETURNING ");
+		first = false;
+
+		if (qualify_col)
+			ADD_REL_QUALIFIER(buf, rtindex);
+		appendStringInfoString(buf, "gp_segment_id");
+
+		*retrieved_attrs = lappend_int(*retrieved_attrs,
+									   GpSegmentIdAttributeNumber);
+	}
+
 	/* Don't generate bad syntax if no undropped columns */
 	if (first && !is_returning)
 		appendStringInfoString(buf, "NULL");
@@ -1313,7 +1337,8 @@ deparseLockingClause(deparse_expr_cxt *context)
 			 root->parse->commandType == CMD_DELETE))
 		{
 			/* Relation is UPDATE/DELETE target, so use FOR UPDATE */
-			appendStringInfoString(buf, " FOR UPDATE");
+			if (!context->is_explain)
+				appendStringInfoString(buf, " FOR UPDATE");
 
 			/* Add the relation alias if we are here for a join relation */
 			if (IS_JOIN_REL(rel))
@@ -1378,7 +1403,7 @@ appendConditions(List *exprs, deparse_expr_cxt *context)
 	StringInfo	buf = context->buf;
 
 	/* Make sure any constants in the exprs are printed portably */
-	nestlevel = set_transmission_modes();
+	nestlevel = cbdb_fdw_set_transmission_modes();
 
 	foreach(lc, exprs)
 	{
@@ -1399,12 +1424,12 @@ appendConditions(List *exprs, deparse_expr_cxt *context)
 		is_first = false;
 	}
 
-	reset_transmission_modes(nestlevel);
+	cbdb_fdw_reset_transmission_modes(nestlevel);
 }
 
 /* Output join name for given join type */
 const char *
-get_jointype_name(JoinType jointype)
+cbdb_fdw_get_jointype_name(JoinType jointype)
 {
 	switch (jointype)
 	{
@@ -1618,7 +1643,7 @@ deparseFromExprForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 		 * ((outer relation) <join type> (inner relation) ON (joinclauses))
 		 */
 		appendStringInfo(buf, "(%s %s JOIN %s ON ", join_sql_o.data,
-						 get_jointype_name(fpinfo->jointype), join_sql_i.data);
+						 cbdb_fdw_get_jointype_name(fpinfo->jointype), join_sql_i.data);
 
 		/* Append join clause; (TRUE) if no join clause */
 		if (fpinfo->joinclauses)
@@ -1696,9 +1721,9 @@ deparseRangeTblRef(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 
 		/* Deparse the subquery representing the relation. */
 		appendStringInfoChar(buf, '(');
-		deparseSelectStmtForRel(buf, root, foreignrel, NIL,
+		cbdb_fdw_deparseSelectStmtForRel(buf, root, foreignrel, NIL,
 								fpinfo->remote_conds, NIL,
-								false, false, true,
+								false, false, true, false,
 								&retrieved_attrs, params_list);
 		appendStringInfoChar(buf, ')');
 
@@ -1743,7 +1768,7 @@ deparseRangeTblRef(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
  * an INSERT for a batch of rows later.
  */
 void
-deparseInsertSql(StringInfo buf, RangeTblEntry *rte,
+cbdb_fdw_deparseInsertSql(StringInfo buf, RangeTblEntry *rte,
 				 Index rtindex, Relation rel,
 				 List *targetAttrs, bool doNothing,
 				 List *withCheckOptionList, List *returningList,
@@ -1816,7 +1841,7 @@ deparseInsertSql(StringInfo buf, RangeTblEntry *rte,
  * right number of parameters.
  */
 void
-rebuildInsertSql(StringInfo buf, Relation rel,
+cbdb_fdw_rebuildInsertSql(StringInfo buf, Relation rel,
 				 char *orig_query, List *target_attrs,
 				 int values_end_len, int num_params,
 				 int num_rows)
@@ -1876,7 +1901,7 @@ rebuildInsertSql(StringInfo buf, Relation rel,
  * which is returned to *retrieved_attrs.
  */
 void
-deparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
+cbdb_fdw_deparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
 				 Index rtindex, Relation rel,
 				 List *targetAttrs,
 				 List *withCheckOptionList, List *returningList,
@@ -1936,7 +1961,7 @@ deparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
  *		by RETURNING (if any)
  */
 void
-deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
+cbdb_fdw_deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
 					   Index rtindex, Relation rel,
 					   RelOptInfo *foreignrel,
 					   List *targetlist,
@@ -1967,7 +1992,7 @@ deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
 	appendStringInfoString(buf, " SET ");
 
 	/* Make sure any constants in the exprs are printed portably */
-	nestlevel = set_transmission_modes();
+	nestlevel = cbdb_fdw_set_transmission_modes();
 
 	first = true;
 	forboth(lc, targetlist, lc2, targetAttrs)
@@ -1987,7 +2012,7 @@ deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
 		deparseExpr((Expr *) tle->expr, &context);
 	}
 
-	reset_transmission_modes(nestlevel);
+	cbdb_fdw_reset_transmission_modes(nestlevel);
 
 	if (foreignrel->reloptkind == RELOPT_JOINREL)
 	{
@@ -2021,7 +2046,7 @@ deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
  * to *retrieved_attrs.
  */
 void
-deparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
+cbdb_fdw_deparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
 				 Index rtindex, Relation rel,
 				 List *returningList,
 				 List **retrieved_attrs)
@@ -2050,7 +2075,7 @@ deparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
  *		by RETURNING (if any)
  */
 void
-deparseDirectDeleteSql(StringInfo buf, PlannerInfo *root,
+cbdb_fdw_deparseDirectDeleteSql(StringInfo buf, PlannerInfo *root,
 					   Index rtindex, Relation rel,
 					   RelOptInfo *foreignrel,
 					   List *remote_conds,
@@ -2158,7 +2183,7 @@ deparseReturningList(StringInfo buf, RangeTblEntry *rte,
  * Note: pg_relation_size() exists in 8.1 and later.
  */
 void
-deparseAnalyzeSizeSql(StringInfo buf, Relation rel)
+cbdb_fdw_deparseAnalyzeSizeSql(StringInfo buf, Relation rel)
 {
 	StringInfoData relname;
 
@@ -2167,7 +2192,7 @@ deparseAnalyzeSizeSql(StringInfo buf, Relation rel)
 	deparseRelation(&relname, rel);
 
 	appendStringInfoString(buf, "SELECT pg_catalog.pg_relation_size(");
-	deparseStringLiteral(buf, relname.data);
+	cbdb_fdw_deparseStringLiteral(buf, relname.data);
 	appendStringInfo(buf, "::pg_catalog.regclass) / %d", BLCKSZ);
 }
 
@@ -2178,7 +2203,7 @@ deparseAnalyzeSizeSql(StringInfo buf, Relation rel)
  * is returned to *retrieved_attrs.
  */
 void
-deparseAnalyzeSql(StringInfo buf, Relation rel, List **retrieved_attrs)
+cbdb_fdw_deparseAnalyzeSql(StringInfo buf, Relation rel, List **retrieved_attrs)
 {
 	Oid			relid = RelationGetRelid(rel);
 	TupleDesc	tupdesc = RelationGetDescr(rel);
@@ -2236,7 +2261,7 @@ deparseAnalyzeSql(StringInfo buf, Relation rel, List **retrieved_attrs)
  * Construct a simple "TRUNCATE rel" statement
  */
 void
-deparseTruncateSql(StringInfo buf,
+cbdb_fdw_deparseTruncateSql(StringInfo buf,
 				   List *rels,
 				   DropBehavior behavior,
 				   bool restart_seqs)
@@ -2439,7 +2464,7 @@ deparseRelation(StringInfo buf, Relation rel)
  * Append a SQL string literal representing "val" to buf.
  */
 void
-deparseStringLiteral(StringInfo buf, const char *val)
+cbdb_fdw_deparseStringLiteral(StringInfo buf, const char *val)
 {
 	const char *valptr;
 
@@ -2663,7 +2688,7 @@ deparseConst(Const *node, deparse_expr_cxt *context, int showtype)
 				appendStringInfoString(buf, "false");
 			break;
 		default:
-			deparseStringLiteral(buf, extval);
+			cbdb_fdw_deparseStringLiteral(buf, extval);
 			break;
 	}
 
@@ -3350,7 +3375,7 @@ appendOrderByClause(List *pathkeys, bool has_final_sort,
 	StringInfo	buf = context->buf;
 
 	/* Make sure any constants in the exprs are printed portably */
-	nestlevel = set_transmission_modes();
+	nestlevel = cbdb_fdw_set_transmission_modes();
 
 	appendStringInfoString(buf, " ORDER BY");
 	foreach(lcell, pathkeys)
@@ -3366,12 +3391,12 @@ appendOrderByClause(List *pathkeys, bool has_final_sort,
 			 * By construction, context->foreignrel is the input relation to
 			 * the final sort.
 			 */
-			em = find_em_for_rel_target(context->root,
+			em = cbdb_fdw_find_em_for_rel_target(context->root,
 										pathkey->pk_eclass,
 										context->foreignrel);
 		}
 		else
-			em = find_em_for_rel(context->root,
+			em = cbdb_fdw_find_em_for_rel(context->root,
 								 pathkey->pk_eclass,
 								 context->scanrel);
 
@@ -3411,7 +3436,7 @@ appendOrderByClause(List *pathkeys, bool has_final_sort,
 
 		delim = ", ";
 	}
-	reset_transmission_modes(nestlevel);
+	cbdb_fdw_reset_transmission_modes(nestlevel);
 }
 
 /*
@@ -3426,7 +3451,7 @@ appendLimitClause(deparse_expr_cxt *context)
 	RelOptInfo	*foreignrel = context->foreignrel;
 
 	/* Make sure any constants in the exprs are printed portably */
-	nestlevel = set_transmission_modes();
+	nestlevel = cbdb_fdw_set_transmission_modes();
 
 	if (foreignrel->exec_location != FTEXECLOCATION_ALL_SEGMENTS)
 	{
@@ -3497,7 +3522,7 @@ appendLimitClause(deparse_expr_cxt *context)
 		 */
 	}
 
-	reset_transmission_modes(nestlevel);
+	cbdb_fdw_reset_transmission_modes(nestlevel);
 }
 
 /*

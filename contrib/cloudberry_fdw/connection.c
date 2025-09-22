@@ -16,9 +16,11 @@
 #include "access/xact.h"
 #include "catalog/pg_user_mapping.h"
 #include "commands/defrem.h"
+#include "cdb/cdbvars.h"
 #include "funcapi.h"
 #include "mb/pg_wchar.h"
 #include "miscadmin.h"
+#include "nodes/makefuncs.h"
 #include "pgstat.h"
 #include "postgres_fdw.h"
 #include "storage/fd.h"
@@ -29,6 +31,8 @@
 #include "utils/inval.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
+
+#define INVALID_SEGMENT_ID -2
 
 /*
  * Connection cache hash table entry
@@ -46,7 +50,11 @@
  * ourselves, so that rolling back a subtransaction will kill the right
  * queries and not the wrong ones.
  */
-typedef Oid ConnCacheKey;
+typedef struct ConnCacheKey
+{
+	Oid			umid;			/* Oid of user mapping */
+	int			segid;			/* the segment ID of the foreign Cloudberry cluster */
+} ConnCacheKey;
 
 typedef struct ConnCacheEntry
 {
@@ -65,6 +73,7 @@ typedef struct ConnCacheEntry
 	uint32		server_hashvalue;	/* hash value of foreign server OID */
 	uint32		mapping_hashvalue;	/* hash value of user mapping OID */
 	PgFdwConnState state;		/* extra per-connection state */
+	int			session_id;
 } ConnCacheEntry;
 
 /*
@@ -82,13 +91,14 @@ static bool xact_got_connection = false;
 /*
  * SQL functions
  */
-PG_FUNCTION_INFO_V1(postgres_fdw_get_connections);
-PG_FUNCTION_INFO_V1(postgres_fdw_disconnect);
-PG_FUNCTION_INFO_V1(postgres_fdw_disconnect_all);
+PG_FUNCTION_INFO_V1(cloudberry_fdw_get_connections);
+PG_FUNCTION_INFO_V1(cloudberry_fdw_disconnect);
+PG_FUNCTION_INFO_V1(cloudberry_fdw_disconnect_all);
 
 /* prototypes of private functions */
-static void make_new_connection(ConnCacheEntry *entry, UserMapping *user);
-static PGconn *connect_pg_server(ForeignServer *server, UserMapping *user);
+static void make_new_connection(ConnCacheEntry *entry, UserMapping *user,
+								List *extra_srv_options, bool is_gp_retrieve, int session_id);
+static PGconn *connect_pg_server(ForeignServer *server, UserMapping *user, bool is_gp_retrieve);
 static void disconnect_pg_server(ConnCacheEntry *entry);
 static void check_conn_params(const char **keywords, const char **values, UserMapping *user);
 static void configure_remote_session(PGconn *conn);
@@ -122,13 +132,51 @@ static bool disconnect_cached_connections(Oid serverid);
  * with the PGconn.
  */
 PGconn *
-GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
+cbdbFdwGetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
+{
+	return cbdbFdwGetCustomConnection(user, will_prep_stmt, state, false, 0, NULL, -1);
+}
+
+/*
+ * Returns a raw PGconn for direct access to the remote server.
+ * This connection bypasses the ConnectionHash table and is intended
+ * for special-purpose or temporary operations.
+ *
+ * Must be explicitly released by the caller after use to avoid leaks.
+ */
+PGconn *
+cbdbFdwGetRawConnection(ForeignServer *server, UserMapping *user)
+{
+	return connect_pg_server(server, user, false);
+}
+
+/*
+ * Same as cbdbFdwGetConnection(), except if it's for gp retrieve connection,
+ * segid & server_options are used, else segid & server_options mean nothing.
+ */
+PGconn *
+cbdbFdwGetCustomConnection(UserMapping *user, bool will_prep_stmt,
+					PgFdwConnState **state, bool is_gp_retrieve,
+					int segid, List *extra_srv_options, int session_id)
 {
 	bool		found;
 	bool		retry = false;
 	ConnCacheEntry *entry;
 	ConnCacheKey key;
 	MemoryContext ccxt = CurrentMemoryContext;
+
+	/*
+	 * segid & extra_srv_options mean nothing for non-retrieve connection.  Clean
+	 * up extra_srv_options to avoid potential issues. segid is used in connection
+	 * cache hash so hardcoding segid as -2 (invalid segid) for non-retrieve
+	 * connection to avoid collision with retrieve connection with normal segid
+	 * values.
+	 */
+	if (!is_gp_retrieve)
+	{
+		segid = INVALID_SEGMENT_ID;
+		extra_srv_options = NULL;
+	}
 
 	/* First time through, initialize connection cache hashtable */
 	if (ConnectionHash == NULL)
@@ -153,11 +201,12 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
 									  pgfdw_inval_callback, (Datum) 0);
 	}
 
-	/* Set flag that we did GetConnection during the current transaction */
+	/* Set flag that we did cbdbFdwGetConnection during the current transaction */
 	xact_got_connection = true;
 
 	/* Create hash key for the entry.  Assume no pad bytes in key struct */
-	key = user->umid;
+	key.umid = user->umid;
+	key.segid = segid;
 
 	/*
 	 * Find or create cached entry for requested connection.
@@ -171,6 +220,29 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
 		 */
 		entry->conn = NULL;
 	}
+
+	/*
+	 * Handling stale connections due to remote backend restart.
+	 *
+	 * Certain fatal errors on the remote server can cause its backend to exit.
+	 * For example:
+	 *   ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 TYPE int;
+	 *   SELECT sum(c2), array_agg(c8) FROM ft1 GROUP BY c8;  -- ERROR
+	 *
+	 * In such cases, we may see errors like:
+	 *   "Endpoint retrieve session is quitting. All unfinished parallel retrieve
+	 *    cursors on the session will be terminated."
+	 *
+	 * When the remote backend exits, a new backend is spawned with a different
+	 * gp_session_id. However, our connection cache may still hold the old
+	 * connection object, and reusing it will lead to errors such as:
+	 *   "the endpoint c10000014300000007 does not exist for session id 320"
+	 *
+	 * To avoid this mismatch, we explicitly disconnect and drop the cached
+	 * connection whenever we detect a change in session id.
+	 */
+	if (entry->session_id != -1 && entry->session_id != session_id)
+		disconnect_pg_server(entry);
 
 	/* Reject further use of connections which failed abort cleanup. */
 	pgfdw_reject_incomplete_xact_state_change(entry);
@@ -192,7 +264,7 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
 	 * will remain in a valid empty state, ie conn == NULL.)
 	 */
 	if (entry->conn == NULL)
-		make_new_connection(entry, user);
+		make_new_connection(entry, user, extra_srv_options, is_gp_retrieve, session_id);
 
 	/*
 	 * We check the health of the cached connection here when using it.  In
@@ -203,9 +275,15 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
 	{
 		/* Process a pending asynchronous request if any. */
 		if (entry->state.pendingAreq)
-			process_pending_request(entry->state.pendingAreq);
-		/* Start a new transaction or subtransaction if needed. */
-		begin_remote_xact(entry);
+			cbdb_fdw_process_pending_request(entry->state.pendingAreq);
+		/*
+		 * Start a new transaction or subtransaction if needed.
+		 * If we are in a gp_retrieve connection, the sql command
+		 * must be RETRIEVE, otherwise we will get an error:
+		 * ERROR:  This is a retrieve connection, but the query is not a RETRIEVE.
+		 */
+		if (!is_gp_retrieve)
+			begin_remote_xact(entry);
 	}
 	PG_CATCH();
 	{
@@ -218,12 +296,12 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
 		 * After a broken connection is detected in libpq, any error other
 		 * than connection failure (e.g., out-of-memory) can be thrown
 		 * somewhere between return from libpq and the expected ereport() call
-		 * in pgfdw_report_error(). In this case, since PQstatus() indicates
+		 * in cbdbfdw_report_error(). In this case, since PQstatus() indicates
 		 * CONNECTION_BAD, checking only PQstatus() causes the false detection
 		 * of connection failure. To avoid this, we also verify that the
 		 * error's sqlstate is ERRCODE_CONNECTION_FAILURE. Note that also
 		 * checking only the sqlstate can cause another false detection
-		 * because pgfdw_report_error() may report ERRCODE_CONNECTION_FAILURE
+		 * because cbdbfdw_report_error() may report ERRCODE_CONNECTION_FAILURE
 		 * for any libpq-originated error condition.
 		 */
 		if (errdata->sqlerrcode != ERRCODE_CONNECTION_FAILURE ||
@@ -262,9 +340,10 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
 		disconnect_pg_server(entry);
 
 		if (entry->conn == NULL)
-			make_new_connection(entry, user);
+			make_new_connection(entry, user, extra_srv_options, is_gp_retrieve, session_id);
 
-		begin_remote_xact(entry);
+		if (!is_gp_retrieve)
+			begin_remote_xact(entry);
 	}
 
 	/* Remember if caller will prepare statements */
@@ -282,14 +361,22 @@ GetConnection(UserMapping *user, bool will_prep_stmt, PgFdwConnState **state)
  * establish new connection to the remote server.
  */
 static void
-make_new_connection(ConnCacheEntry *entry, UserMapping *user)
+make_new_connection(ConnCacheEntry *entry, UserMapping *user,
+					List *extra_srv_options, bool is_gp_retrieve, int session_id)
 {
 	ForeignServer *server = GetForeignServer(user->serverid);
 	ListCell   *lc;
 
 	Assert(entry->conn == NULL);
 
+	/* add extra server options if any. */
+	if (extra_srv_options != NULL)
+	{
+		server->options = list_concat(server->options, extra_srv_options);
+	}
+
 	/* Reset all transient state fields, to be sure all are clean */
+	entry->session_id = session_id;
 	entry->xact_depth = 0;
 	entry->have_prep_stmt = false;
 	entry->have_error = false;
@@ -325,7 +412,7 @@ make_new_connection(ConnCacheEntry *entry, UserMapping *user)
 	}
 
 	/* Now try to make the connection */
-	entry->conn = connect_pg_server(server, user);
+	entry->conn = connect_pg_server(server, user, is_gp_retrieve);
 
 	elog(DEBUG3, "new postgres_fdw connection %p for server \"%s\" (user mapping oid %u, userid %u)",
 		 entry->conn, server->servername, user->umid, user->userid);
@@ -335,7 +422,7 @@ make_new_connection(ConnCacheEntry *entry, UserMapping *user)
  * Connect to remote server using specified server and user mapping properties.
  */
 static PGconn *
-connect_pg_server(ForeignServer *server, UserMapping *user)
+connect_pg_server(ForeignServer *server, UserMapping *user, bool is_gp_retrieve)
 {
 	PGconn	   *volatile conn = NULL;
 
@@ -359,9 +446,9 @@ connect_pg_server(ForeignServer *server, UserMapping *user)
 		values = (const char **) palloc(n * sizeof(char *));
 
 		n = 0;
-		n += ExtractConnectionOptions(server->options,
+		n += cbdbFdwExtractConnectionOptions(server->options,
 									  keywords + n, values + n);
-		n += ExtractConnectionOptions(user->options,
+		n += cbdbFdwExtractConnectionOptions(user->options,
 									  keywords + n, values + n);
 
 		/* Use "postgres_fdw" as fallback_application_name. */
@@ -431,7 +518,8 @@ connect_pg_server(ForeignServer *server, UserMapping *user)
 					 errhint("Target server's authentication method must be changed or password_required=false set in the user mapping attributes.")));
 
 		/* Prepare new session for use */
-		configure_remote_session(conn);
+		if (!is_gp_retrieve)
+			configure_remote_session(conn);
 
 		pfree(keywords);
 		pfree(values);
@@ -535,7 +623,7 @@ configure_remote_session(PGconn *conn)
 	int			remoteversion = PQserverVersion(conn);
 
 	/* Force the search path to contain only pg_catalog (see deparse.c) */
-	do_sql_command(conn, "SET search_path = pg_catalog");
+	cbdb_fdw_do_sql_command(conn, "SET search_path = pg_catalog");
 
 	/*
 	 * Set remote timezone; this is basically just cosmetic, since all
@@ -546,35 +634,35 @@ configure_remote_session(PGconn *conn)
 	 * server might use a different timezone database.  Instead, use UTC
 	 * (quoted, because very old servers are picky about case).
 	 */
-	do_sql_command(conn, "SET timezone = 'UTC'");
+	cbdb_fdw_do_sql_command(conn, "SET timezone = 'UTC'");
 
 	/*
 	 * Set values needed to ensure unambiguous data output from remote.  (This
-	 * logic should match what pg_dump does.  See also set_transmission_modes
+	 * logic should match what pg_dump does.  See also cbdb_fdw_set_transmission_modes
 	 * in postgres_fdw.c.)
 	 */
-	do_sql_command(conn, "SET datestyle = ISO");
+	cbdb_fdw_do_sql_command(conn, "SET datestyle = ISO");
 	if (remoteversion >= 80400)
-		do_sql_command(conn, "SET intervalstyle = postgres");
+		cbdb_fdw_do_sql_command(conn, "SET intervalstyle = postgres");
 	if (remoteversion >= 90000)
-		do_sql_command(conn, "SET extra_float_digits = 3");
+		cbdb_fdw_do_sql_command(conn, "SET extra_float_digits = 3");
 	else
-		do_sql_command(conn, "SET extra_float_digits = 2");
+		cbdb_fdw_do_sql_command(conn, "SET extra_float_digits = 2");
 }
 
 /*
  * Convenience subroutine to issue a non-data-returning SQL command to remote
  */
 void
-do_sql_command(PGconn *conn, const char *sql)
+cbdb_fdw_do_sql_command(PGconn *conn, const char *sql)
 {
 	PGresult   *res;
 
 	if (!PQsendQuery(conn, sql))
-		pgfdw_report_error(ERROR, NULL, conn, false, sql);
-	res = pgfdw_get_result(conn, sql);
+		cbdbfdw_report_error(ERROR, NULL, conn, false, sql);
+	res = cbdbfdw_get_result(conn, sql);
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
-		pgfdw_report_error(ERROR, res, conn, true, sql);
+		cbdbfdw_report_error(ERROR, res, conn, true, sql);
 	PQclear(res);
 }
 
@@ -606,7 +694,7 @@ begin_remote_xact(ConnCacheEntry *entry)
 		else
 			sql = "START TRANSACTION ISOLATION LEVEL REPEATABLE READ";
 		entry->changing_xact_state = true;
-		do_sql_command(entry->conn, sql);
+		cbdb_fdw_do_sql_command(entry->conn, sql);
 		entry->xact_depth = 1;
 		entry->changing_xact_state = false;
 	}
@@ -622,17 +710,17 @@ begin_remote_xact(ConnCacheEntry *entry)
 
 		snprintf(sql, sizeof(sql), "SAVEPOINT s%d", entry->xact_depth + 1);
 		entry->changing_xact_state = true;
-		do_sql_command(entry->conn, sql);
+		cbdb_fdw_do_sql_command(entry->conn, sql);
 		entry->xact_depth++;
 		entry->changing_xact_state = false;
 	}
 }
 
 /*
- * Release connection reference count created by calling GetConnection.
+ * Release connection reference count created by calling cbdbFdwGetConnection.
  */
 void
-ReleaseConnection(PGconn *conn)
+cbdbFdwReleaseConnection(PGconn *conn)
 {
 	/*
 	 * Currently, we don't actually track connection references because all
@@ -653,7 +741,7 @@ ReleaseConnection(PGconn *conn)
  * collisions are highly improbable; just be sure to use %u not %d to print.
  */
 unsigned int
-GetCursorNumber(PGconn *conn)
+cbdbFdwGetCursorNumber(PGconn *conn)
 {
 	return ++cursor_number;
 }
@@ -661,13 +749,13 @@ GetCursorNumber(PGconn *conn)
 /*
  * Assign a "unique" number for a prepared statement.
  *
- * This works much like GetCursorNumber, except that we never reset the counter
+ * This works much like cbdbFdwGetCursorNumber, except that we never reset the counter
  * within a session.  That's because we can't be 100% sure we've gotten rid
  * of all prepared statements on all connections, and it's not really worth
  * increasing the risk of prepared-statement name collisions by resetting.
  */
 unsigned int
-GetPrepStmtNumber(PGconn *conn)
+cbdbFdwGetPrepStmtNumber(PGconn *conn)
 {
 	return ++prep_stmt_number;
 }
@@ -680,21 +768,21 @@ GetPrepStmtNumber(PGconn *conn)
  * Caller is responsible for the error handling on the result.
  */
 PGresult *
-pgfdw_exec_query(PGconn *conn, const char *query, PgFdwConnState *state)
+cbdbfdw_exec_query(PGconn *conn, const char *query, PgFdwConnState *state)
 {
 	/* First, process a pending asynchronous request, if any. */
 	if (state && state->pendingAreq)
-		process_pending_request(state->pendingAreq);
+		cbdb_fdw_process_pending_request(state->pendingAreq);
 
 	/*
 	 * Submit a query.  Since we don't use non-blocking mode, this also can
 	 * block.  But its risk is relatively small, so we ignore that for now.
 	 */
 	if (!PQsendQuery(conn, query))
-		pgfdw_report_error(ERROR, NULL, conn, false, query);
+		cbdbfdw_report_error(ERROR, NULL, conn, false, query);
 
 	/* Wait for the result. */
-	return pgfdw_get_result(conn, query);
+	return cbdbfdw_get_result(conn, query);
 }
 
 /*
@@ -708,7 +796,7 @@ pgfdw_exec_query(PGconn *conn, const char *query, PgFdwConnState *state)
  * Caller is responsible for the error handling on the result.
  */
 PGresult *
-pgfdw_get_result(PGconn *conn, const char *query)
+cbdbfdw_get_result(PGconn *conn, const char *query)
 {
 	PGresult   *volatile last_res = NULL;
 
@@ -737,7 +825,7 @@ pgfdw_get_result(PGconn *conn, const char *query)
 				if (wc & WL_SOCKET_READABLE)
 				{
 					if (!PQconsumeInput(conn))
-						pgfdw_report_error(ERROR, NULL, conn, false, query);
+						cbdbfdw_report_error(ERROR, NULL, conn, false, query);
 				}
 			}
 
@@ -773,7 +861,7 @@ pgfdw_get_result(PGconn *conn, const char *query)
  * marked with have_error = true.
  */
 void
-pgfdw_report_error(int elevel, PGresult *res, PGconn *conn,
+cbdbfdw_report_error(int elevel, PGresult *res, PGconn *conn,
 				   bool clear, const char *sql)
 {
 	/* If requested, PGresult must be released before leaving this function. */
@@ -794,6 +882,9 @@ pgfdw_report_error(int elevel, PGresult *res, PGconn *conn,
 									 diag_sqlstate[4]);
 		else
 			sqlstate = ERRCODE_CONNECTION_FAILURE;
+
+		if (sqlstate == ERRCODE_UNDEFINED_SCHEMA && !message_hint)
+			message_hint = "Ensure that the extension is also installed on the remote server by running: CREATE EXTENSION cloudberry_fdw;";
 
 		/*
 		 * If we don't get a message from the PGresult, try the PGconn.  This
@@ -872,7 +963,7 @@ pgfdw_xact_callback(XactEvent event, void *arg)
 
 					/* Commit all remote transactions during pre-commit */
 					entry->changing_xact_state = true;
-					do_sql_command(entry->conn, "COMMIT TRANSACTION");
+					cbdb_fdw_do_sql_command(entry->conn, "COMMIT TRANSACTION");
 					entry->changing_xact_state = false;
 
 					/*
@@ -997,7 +1088,7 @@ pgfdw_xact_callback(XactEvent event, void *arg)
 		/*
 		 * If the connection isn't in a good idle state, it is marked as
 		 * invalid or keep_connections option of its server is disabled, then
-		 * discard it to recover. Next GetConnection will open a new
+		 * discard it to recover. Next cbdbFdwGetConnection will open a new
 		 * connection.
 		 */
 		if (PQstatus(entry->conn) != CONNECTION_OK ||
@@ -1074,7 +1165,7 @@ pgfdw_subxact_callback(SubXactEvent event, SubTransactionId mySubid,
 			/* Commit all remote subtransactions during pre-commit */
 			snprintf(sql, sizeof(sql), "RELEASE SAVEPOINT s%d", curlevel);
 			entry->changing_xact_state = true;
-			do_sql_command(entry->conn, sql);
+			cbdb_fdw_do_sql_command(entry->conn, sql);
 			entry->changing_xact_state = false;
 		}
 		else if (in_error_recursion_trouble())
@@ -1312,7 +1403,7 @@ pgfdw_exec_cleanup_query(PGconn *conn, const char *query, bool ignore_errors)
 	 */
 	if (!PQsendQuery(conn, query))
 	{
-		pgfdw_report_error(WARNING, NULL, conn, false, query);
+		cbdbfdw_report_error(WARNING, NULL, conn, false, query);
 		return false;
 	}
 
@@ -1323,7 +1414,7 @@ pgfdw_exec_cleanup_query(PGconn *conn, const char *query, bool ignore_errors)
 	/* Issue a warning if not successful. */
 	if (PQresultStatus(result) != PGRES_COMMAND_OK)
 	{
-		pgfdw_report_error(WARNING, result, conn, true, query);
+		cbdbfdw_report_error(WARNING, result, conn, true, query);
 		return ignore_errors;
 	}
 	PQclear(result);
@@ -1427,7 +1518,7 @@ exit:	;
  * No records are returned when there are no cached connections at all.
  */
 Datum
-postgres_fdw_get_connections(PG_FUNCTION_ARGS)
+cloudberry_fdw_get_connections(PG_FUNCTION_ARGS)
 {
 #define POSTGRES_FDW_GET_CONNECTIONS_COLS	2
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
@@ -1554,7 +1645,7 @@ postgres_fdw_get_connections(PG_FUNCTION_ARGS)
  * foreign server with the given name is found, an error is reported.
  */
 Datum
-postgres_fdw_disconnect(PG_FUNCTION_ARGS)
+cloudberry_fdw_disconnect(PG_FUNCTION_ARGS)
 {
 	ForeignServer *server;
 	char	   *servername;
@@ -1575,7 +1666,7 @@ postgres_fdw_disconnect(PG_FUNCTION_ARGS)
  * returns true if it disconnects at least one connection, otherwise false.
  */
 Datum
-postgres_fdw_disconnect_all(PG_FUNCTION_ARGS)
+cloudberry_fdw_disconnect_all(PG_FUNCTION_ARGS)
 {
 	PG_RETURN_BOOL(disconnect_cached_connections(InvalidOid));
 }

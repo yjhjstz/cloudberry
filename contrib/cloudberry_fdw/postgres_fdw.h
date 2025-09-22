@@ -19,33 +19,7 @@
 #include "nodes/pathnodes.h"
 #include "utils/relcache.h"
 
-/* GPDB_13_MERGE_FIXME: Do we still needs this patch? */
-/* postgres_fdw is compiled as a backend, it needs the server's
- * header files such as executor/tuptable.h. It also needs libpq
- * to connect to a remote postgres database, so it's statically
- * linked to libpq.a which is compiled as a frontend using
- * -DFRONTEND.
- *
- * But the struct PQconninfoOption's length is different between
- * backend and frontend, there is no "connofs" field in frontend.
- * When postgres_fdw calls the function "PQconndefaults" implemented
- * in libpq.a and uses the returned PQconninfoOption variable, it crashs,
- * because the PQconninfoOption variable returned by libpq.a doesn't contain
- * the "connofs" value, but the postgres_fdw thinks it has, so it crashes.
- *
- * We define FRONTEND here to include frontend libpq header files.
- */
-#ifdef LIBPQ_FE_H
-#error "postgres_fdw.h" must be included before "libpq-fe.h"
-#endif /* LIBPQ_FE_H */
-
-#ifndef FRONTEND
-#define FRONTEND
 #include "libpq-fe.h"
-#undef FRONTEND
-#else
-#include "libpq-fe.h"
-#endif /* FRONTEND */
 
 /*
  * FDW-specific planner information kept in RelOptInfo.fdw_private for a
@@ -162,60 +136,65 @@ typedef struct PgFdwConnState
 } PgFdwConnState;
 
 /* in postgres_fdw.c */
-extern int	set_transmission_modes(void);
-extern void reset_transmission_modes(int nestlevel);
-extern void process_pending_request(AsyncRequest *areq);
+extern void _PG_init(void);
+extern int	cbdb_fdw_set_transmission_modes(void);
+extern void cbdb_fdw_reset_transmission_modes(int nestlevel);
+extern void cbdb_fdw_process_pending_request(AsyncRequest *areq);
 
 /* in connection.c */
-extern PGconn *GetConnection(UserMapping *user, bool will_prep_stmt,
+extern PGconn *cbdbFdwGetRawConnection(ForeignServer *server, UserMapping *user);
+extern PGconn *cbdbFdwGetConnection(UserMapping *user, bool will_prep_stmt,
 							 PgFdwConnState **state);
-extern void ReleaseConnection(PGconn *conn);
-extern unsigned int GetCursorNumber(PGconn *conn);
-extern unsigned int GetPrepStmtNumber(PGconn *conn);
-extern void do_sql_command(PGconn *conn, const char *sql);
-extern PGresult *pgfdw_get_result(PGconn *conn, const char *query);
-extern PGresult *pgfdw_exec_query(PGconn *conn, const char *query,
+extern PGconn *cbdbFdwGetCustomConnection(UserMapping *user, bool will_prep_stmt,
+								   PgFdwConnState **state, bool is_gp_retrieve,
+								   int segid, List *extra_srv_options, int session_id);
+extern void cbdbFdwReleaseConnection(PGconn *conn);
+extern unsigned int cbdbFdwGetCursorNumber(PGconn *conn);
+extern unsigned int cbdbFdwGetPrepStmtNumber(PGconn *conn);
+extern void cbdb_fdw_do_sql_command(PGconn *conn, const char *sql);
+extern PGresult *cbdbfdw_get_result(PGconn *conn, const char *query);
+extern PGresult *cbdbfdw_exec_query(PGconn *conn, const char *query,
 								  PgFdwConnState *state);
-extern void pgfdw_report_error(int elevel, PGresult *res, PGconn *conn,
+extern void cbdbfdw_report_error(int elevel, PGresult *res, PGconn *conn,
 							   bool clear, const char *sql);
 
 /* in option.c */
-extern int	ExtractConnectionOptions(List *defelems,
+extern int	cbdbFdwExtractConnectionOptions(List *defelems,
 									 const char **keywords,
 									 const char **values);
-extern List *ExtractExtensionList(const char *extensionsString,
+extern List *cbdbFdwExtractExtensionList(const char *extensionsString,
 								  bool warnOnMissing);
 
 /* in deparse.c */
-extern void classifyConditions(PlannerInfo *root,
+extern void cbdbFdwClassifyConditions(PlannerInfo *root,
 							   RelOptInfo *baserel,
 							   List *input_conds,
 							   List **remote_conds,
 							   List **local_conds);
-extern bool is_foreign_expr(PlannerInfo *root,
+extern bool cbdb_fdw_is_foreign_expr(PlannerInfo *root,
 							RelOptInfo *baserel,
 							Expr *expr);
-extern bool is_foreign_param(PlannerInfo *root,
+extern bool cbdb_fdw_is_foreign_param(PlannerInfo *root,
 							 RelOptInfo *baserel,
 							 Expr *expr);
-extern bool is_foreign_pathkey(PlannerInfo *root,
+extern bool cbdb_fdw_is_foreign_pathkey(PlannerInfo *root,
 							   RelOptInfo *baserel,
 							   PathKey *pathkey);
-extern void deparseInsertSql(StringInfo buf, RangeTblEntry *rte,
+extern void cbdb_fdw_deparseInsertSql(StringInfo buf, RangeTblEntry *rte,
 							 Index rtindex, Relation rel,
 							 List *targetAttrs, bool doNothing,
 							 List *withCheckOptionList, List *returningList,
 							 List **retrieved_attrs, int *values_end_len);
-extern void rebuildInsertSql(StringInfo buf, Relation rel,
+extern void cbdb_fdw_rebuildInsertSql(StringInfo buf, Relation rel,
 							 char *orig_query, List *target_attrs,
 							 int values_end_len, int num_params,
 							 int num_rows);
-extern void deparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
+extern void cbdb_fdw_deparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
 							 Index rtindex, Relation rel,
 							 List *targetAttrs,
 							 List *withCheckOptionList, List *returningList,
 							 List **retrieved_attrs);
-extern void deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
+extern void cbdb_fdw_deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
 								   Index rtindex, Relation rel,
 								   RelOptInfo *foreignrel,
 								   List *targetlist,
@@ -224,39 +203,39 @@ extern void deparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
 								   List **params_list,
 								   List *returningList,
 								   List **retrieved_attrs);
-extern void deparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
+extern void cbdb_fdw_deparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
 							 Index rtindex, Relation rel,
 							 List *returningList,
 							 List **retrieved_attrs);
-extern void deparseDirectDeleteSql(StringInfo buf, PlannerInfo *root,
+extern void cbdb_fdw_deparseDirectDeleteSql(StringInfo buf, PlannerInfo *root,
 								   Index rtindex, Relation rel,
 								   RelOptInfo *foreignrel,
 								   List *remote_conds,
 								   List **params_list,
 								   List *returningList,
 								   List **retrieved_attrs);
-extern void deparseAnalyzeSizeSql(StringInfo buf, Relation rel);
-extern void deparseAnalyzeSql(StringInfo buf, Relation rel,
+extern void cbdb_fdw_deparseAnalyzeSizeSql(StringInfo buf, Relation rel);
+extern void cbdb_fdw_deparseAnalyzeSql(StringInfo buf, Relation rel,
 							  List **retrieved_attrs);
-extern void deparseTruncateSql(StringInfo buf,
+extern void cbdb_fdw_deparseTruncateSql(StringInfo buf,
 							   List *rels,
 							   DropBehavior behavior,
 							   bool restart_seqs);
-extern void deparseStringLiteral(StringInfo buf, const char *val);
-extern EquivalenceMember *find_em_for_rel(PlannerInfo *root,
+extern void cbdb_fdw_deparseStringLiteral(StringInfo buf, const char *val);
+extern EquivalenceMember *cbdb_fdw_find_em_for_rel(PlannerInfo *root,
 										  EquivalenceClass *ec,
 										  RelOptInfo *rel);
-extern EquivalenceMember *find_em_for_rel_target(PlannerInfo *root,
+extern EquivalenceMember *cbdb_fdw_find_em_for_rel_target(PlannerInfo *root,
 												 EquivalenceClass *ec,
 												 RelOptInfo *rel);
-extern List *build_tlist_to_deparse(RelOptInfo *foreignrel);
-extern void deparseSelectStmtForRel(StringInfo buf, PlannerInfo *root,
+extern List *cbdb_fdw_build_tlist_to_deparse(RelOptInfo *foreignrel);
+extern void cbdb_fdw_deparseSelectStmtForRel(StringInfo buf, PlannerInfo *root,
 									RelOptInfo *foreignrel, List *tlist,
 									List *remote_conds, List *pathkeys,
 									bool has_final_sort, bool has_limit,
-									bool is_subquery,
+									bool is_subquery, bool is_explain,
 									List **retrieved_attrs, List **params_list);
-extern const char *get_jointype_name(JoinType jointype);
+extern const char *cbdb_fdw_get_jointype_name(JoinType jointype);
 
 /* in shippable.c */
 extern bool is_builtin(Oid objectId);

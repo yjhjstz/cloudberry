@@ -5,13 +5,17 @@
 -- ===================================================================
 -- Create source tables and populate with data
 -- ===================================================================
+-- start_ignore
+alter system set optimizer to off;
+select pg_reload_conf();
+--end_ignore
 CREATE SCHEMA postgres_fdw_gp;
 set search_path=postgres_fdw_gp;
-CREATE EXTENSION IF NOT EXISTS postgres_fdw;
+CREATE EXTENSION IF NOT EXISTS cloudberry_fdw;
 
 DO $d$
     BEGIN
-        EXECUTE $$CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw
+        EXECUTE $$CREATE SERVER loopback FOREIGN DATA WRAPPER cloudberry_fdw
             OPTIONS (dbname '$$||current_database()||$$',
                      port '$$||current_setting('port')||$$'
             )$$;
@@ -19,34 +23,6 @@ DO $d$
 $d$;
 
 CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER loopback;
-
-CREATE EXTENSION postgres_fdw;
-
-CREATE SERVER testserver1 FOREIGN DATA WRAPPER postgres_fdw;
-DO $d$
-    BEGIN
-        EXECUTE $$CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw
-            OPTIONS (dbname '$$||current_database()||$$',
-                     port '$$||current_setting('port')||$$'
-            )$$;
-        EXECUTE $$CREATE SERVER loopback2 FOREIGN DATA WRAPPER postgres_fdw
-            OPTIONS (dbname '$$||current_database()||$$',
-                     port '$$||current_setting('port')||$$'
-            )$$;
-        EXECUTE $$CREATE SERVER loopback3 FOREIGN DATA WRAPPER postgres_fdw
-            OPTIONS (dbname '$$||current_database()||$$',
-                     port '$$||current_setting('port')||$$'
-            )$$;
-    END;
-$d$;
-
-CREATE USER MAPPING FOR public SERVER testserver1
-	OPTIONS (user 'value', password 'value');
-CREATE USER MAPPING FOR CURRENT_USER SERVER loopback;
-CREATE USER MAPPING FOR CURRENT_USER SERVER loopback2;
-CREATE USER MAPPING FOR public SERVER loopback3;
-
-CREATE SCHEMA "S 1";
 
 CREATE TABLE table_dist_rand
 (
@@ -395,8 +371,8 @@ create user u16219 password '123456';
 
 create database database_16219;
 \c database_16219
-create extension postgres_fdw;
-grant usage on FOREIGN DATA WRAPPER postgres_fdw to public;
+create extension cloudberry_fdw;
+grant usage on FOREIGN DATA WRAPPER cloudberry_fdw to public;
 
 set role u16219;
 create table t1 (a int, b int);
@@ -404,7 +380,7 @@ insert into t1 values(generate_series(1,10),generate_series(11,20));
 
 DO $d$
     BEGIN
-        EXECUTE $$CREATE SERVER database_16219 FOREIGN DATA WRAPPER postgres_fdw
+        EXECUTE $$CREATE SERVER database_16219 FOREIGN DATA WRAPPER cloudberry_fdw
             OPTIONS (dbname '$$||current_database()||$$',
                      port '$$||current_setting('port')||$$',
                      host 'localhost'
@@ -431,3 +407,7 @@ drop database database_16219;
 drop user u16219;
 alter system reset password_encryption;
 select pg_reload_conf();
+-- start_ignore
+alter system reset optimizer;
+select pg_reload_conf();
+--end_ignore
