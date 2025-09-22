@@ -62,6 +62,13 @@ CXformGet2ParallelTableScan::CXformGet2ParallelTableScan(CMemoryPool *mp)
 CXform::EXformPromise
 CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 {
+	// Check if there are outer references (correlated subquery)
+	if (exprhdl.HasOuterRefs())
+	{
+		//FIXME: consider parallel scan for correlated subqueries
+		return CXform::ExfpNone;  // Don't use parallel scan with outer references
+	}
+
 	// Check if parallel plans are enabled in context and parallel processing is safe
 	if (!gpdb::IsParallelModeOK())
 	{
