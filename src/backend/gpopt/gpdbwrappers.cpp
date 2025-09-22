@@ -2748,6 +2748,11 @@ gpdb::IsParallelPlansEnabled(void)
 		gpopt::COptCtxt *poctxt = gpopt::COptCtxt::PoctxtFromTLS();
 		if (nullptr != poctxt)
 		{
+			if (poctxt->HasValuesScan())
+			{
+				// ValuesScan is not supported in parallel plans
+				return false;
+			}
 			gpopt::COptimizerConfig *optimizer_config = poctxt->GetOptimizerConfig();
 			if (nullptr != optimizer_config)
 			{
