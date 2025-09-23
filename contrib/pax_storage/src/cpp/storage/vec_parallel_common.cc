@@ -232,7 +232,7 @@ arrow::Status ParallelScanDesc::Initialize(Relation relation,
 
   CalculateScanColumns(table_names);
   if (pax_enable_sparse_filter)
-    pax_filter_->InitSparseFilter(relation, ps->plan->qual);
+    pax_filter_->InitSparseFilter(relation, ps->plan->qual, nullptr, 0);
 
   while (it.HasNext()) {
     auto meta = it.Next();
