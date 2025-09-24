@@ -22,6 +22,9 @@
 #include "gpopt/operators/CPhysicalParallelTableScan.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
 #include "naucrates/md/IMDRelation.h"
+#include "gpopt/search/CGroupProxy.h"
+#include "gpopt/search/CMemo.h"
+
 
 // Use gpdbwrappers for parallel checks
 extern int max_parallel_workers_per_gather;
@@ -34,6 +37,67 @@ namespace gpdb {
 
 using namespace gpopt;
 
+//---------------------------------------------------------------------------
+//	@function:
+//		CXformGet2ParallelTableScan::FHasLogicalShareInputOps
+//
+//	@doc:
+//		Check if memo contains logical operators that will create ShareInput
+//
+//---------------------------------------------------------------------------
+BOOL
+CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl)
+{
+	CGroupExpression *pgexprHandle = exprhdl.Pgexpr();
+	if (nullptr == pgexprHandle)
+	{
+		return false;
+	}
+
+	CGroup *pgroup = pgexprHandle->Pgroup();
+	if (nullptr == pgroup)
+	{
+		return false;
+	}
+
+	CMemo *pmemo = pgroup->Pmemo();
+	if (nullptr == pmemo)
+	{
+		return false;
+	}
+
+	// Iterate through all groups in memo to check for logical ShareInput operations
+	const ULONG_PTR ulGroups = pmemo->UlpGroups();
+	for (ULONG_PTR ul = 0; ul < ulGroups; ul++)
+	{
+		CGroup *pgroupCurrent = pmemo->Pgroup(ul);
+		if (nullptr == pgroupCurrent)
+		{
+			continue;
+		}
+
+		// Check all group expressions in this group using CGroupProxy
+		CGroupProxy gp(pgroupCurrent);
+		CGroupExpression *pgexpr = gp.PgexprFirst();
+		while (nullptr != pgexpr)
+		{
+			COperator::EOperatorId eopid = pgexpr->Pop()->Eopid();
+
+			// Check for logical operators that will create ShareInput
+			if (COperator::EopLogicalCTEProducer == eopid ||
+				COperator::EopLogicalCTEConsumer == eopid ||
+				COperator::EopLogicalSequence == eopid ||
+				COperator::EopLogicalSequenceProject == eopid)
+			{
+				return true;
+			}
+
+			pgexpr = gp.PgexprNext(pgexpr);
+		}
+	}
+
+	return false;
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -75,6 +139,41 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
+	// Check for logical ShareInput operations that would conflict with parallel scans
+	if (FHasLogicalShareInputOps(exprhdl))
+	{
+		return CXform::ExfpNone;
+	}
+#if 0
+	if (nullptr != exprhdl.Pgexpr())
+	{
+		CGroupExpression *pgexprOrigin = exprhdl.Pgexpr();
+
+		while (nullptr != pgexprOrigin)
+		{
+			// Check for CTE related transformations
+			CXform::EXformId exfid = pgexprOrigin->ExfidOrigin();
+			if (CXform::ExfImplementCTEProducer == exfid ||
+				CXform::ExfCTEAnchor2Sequence == exfid)
+			{
+				return CXform::ExfpNone;
+			}
+
+			// COperator::EOperatorId eopid = pgexprOrigin->Pop()->Eopid();
+			// if (COperator::EopLogicalCTEProducer == eopid ||
+			// 	COperator::EopPhysicalCTEProducer == eopid) {
+			// 	return CXform::ExfpNone;
+			// }
+
+			if (CXform::ExfInvalid == exfid)
+			{
+				break;
+			}
+
+			pgexprOrigin = pgexprOrigin->PgexprOrigin();
+		}
+	}
+#endif
 	CLogicalGet *popGet = CLogicalGet::PopConvert(exprhdl.Pop());
 	CTableDescriptor *ptabdesc = popGet->Ptabdesc();
 
