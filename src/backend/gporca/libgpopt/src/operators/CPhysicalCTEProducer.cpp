@@ -168,12 +168,12 @@ CPhysicalCTEProducer::PdsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	GPOS_ASSERT(0 == child_index);
 
 	// Check if parallel distribution is requested
-	if (CDistributionSpec::EdtWorkerRandom == pdsRequired->Edt())
-	{
-		// CTE Producer needs rewindability, which is incompatible with parallel workers
-		// Downgrade to non-parallel random distribution to maintain distributed characteristics
-		return GPOS_NEW(mp) CDistributionSpecRandom();
-	}
+	// if (CDistributionSpec::EdtWorkerRandom == pdsRequired->Edt())
+	// {
+	// 	// CTE Producer needs rewindability, which is incompatible with parallel workers
+	// 	// Downgrade to non-parallel random distribution to maintain distributed characteristics
+	// 	return GPOS_NEW(mp) CDistributionSpecRandom();
+	// }
 
 	return PdsPassThru(mp, exprhdl, pdsRequired, child_index);
 }
