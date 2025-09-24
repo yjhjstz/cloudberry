@@ -92,6 +92,12 @@ CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl
 				return true;
 			}
 
+			if (COperator::EopLogicalConstTableGet == eopid)
+			{
+				// ConstTableGet is not supported in parallel plans
+				return true;
+			}
+
 			pgexpr = gp.PgexprNext(pgexpr);
 		}
 	}

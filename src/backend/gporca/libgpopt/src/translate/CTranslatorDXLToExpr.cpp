@@ -2686,10 +2686,6 @@ CTranslatorDXLToExpr::PexprLogicalConstTableGet(const CDXLNode *pdxlnConstTable)
 	CLogicalConstTableGet *popConstTableGet = GPOS_NEW(m_mp)
 		CLogicalConstTableGet(m_mp, pdrgpcoldesc, pdrgpdrgpdatum);
 
-	// Mark that we have encountered a VALUES scan (const table get)
-	// This will disable parallel table scans as VALUES are not parallel-safe
-	COptCtxt::PoctxtFromTLS()->SetHasValuesScan();
-
 	// construct the mapping between the DXL ColId and CColRef
 	ConstructDXLColId2ColRefMapping(pdxlopConstTable->GetDXLColumnDescrArray(),
 									popConstTableGet->PdrgpcrOutput());
