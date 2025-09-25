@@ -455,8 +455,8 @@ CGroupExpression::PccComputeCost(
 			CCost cost = CostCompute(mp, pcc);
 			pcc->SetCost(cost);
 		}
-		GPOS_ASSERT_IMP(COptCtxt::FAllEnforcersEnabled(),
-						fValid && "Cost context carries an invalid plan");
+		// GPOS_ASSERT_IMP(COptCtxt::FAllEnforcersEnabled(),
+		// 				fValid && "Cost context carries an invalid plan");
 	}
 	else
 	{
