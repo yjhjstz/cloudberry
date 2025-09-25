@@ -184,10 +184,10 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 	CTableDescriptor *ptabdesc = popGet->Ptabdesc();
 
 	// Don't use parallel scan for partitioned tables (FIXME)
-	if (ptabdesc->IsPartitioned())
-	{
-		return CXform::ExfpNone;
-	}
+	// if (ptabdesc->IsPartitioned())
+	// {
+	// 	return CXform::ExfpNone;
+	// }
 
 	// Don't use parallel scan for replicated tables
 	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrReplicated)
