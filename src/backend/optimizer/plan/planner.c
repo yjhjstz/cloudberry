@@ -353,10 +353,10 @@ planner(Query *parse, const char *query_string, int cursorOptions,
 		 * This prevents potential issues with parallel plan generation in distributed
 		 * environments where the distribution strategy is not predetermined.
 		 */
-		if (parse->intoPolicy == NULL && parse->parentStmtType == PARENTSTMTTYPE_CTAS)
-		{
-			optimizer_options->create_parallel_plan = false;
-		}
+		// if (parse->intoPolicy == NULL && parse->parentStmtType == PARENTSTMTTYPE_CTAS)
+		// {
+		// 	optimizer_options->create_parallel_plan = false;
+		// }
 	}
 	else
 	{
