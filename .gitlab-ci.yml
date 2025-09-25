@@ -91,7 +91,7 @@ variables:
   expire_in: 1 week
 
 
-.common-rules:
+.build-rules:
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     when: always
   - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
@@ -99,6 +99,13 @@ variables:
     interruptible: false
   - when: manual
 
+.common-rules:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    when: on_success
+  - if: '$CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME'
+    when: on_success
+    interruptible: false
+  - when: manual
 
 build_develop:
   stage: build
@@ -149,7 +156,7 @@ build_develop:
     make build-database
     make package-prepare
   rules:
-    - !reference [ .common-rules ]
+    - !reference [ .build-rules ]
 
 test_database:
   stage: test
