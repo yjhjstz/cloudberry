@@ -97,6 +97,14 @@ CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl
 				// ConstTableGet is not supported in parallel plans
 				return true;
 			}
+			if (COperator::EopLogicalDynamicGet == eopid ||
+				COperator::EopLogicalDynamicIndexGet == eopid ||
+				COperator::EopLogicalIndexOnlyGet == eopid ||
+				COperator::EopLogicalIndexGet == eopid)
+			{
+				// DynamicGet is not supported in parallel plans
+				return true;
+			}
 
 			pgexpr = gp.PgexprNext(pgexpr);
 		}
