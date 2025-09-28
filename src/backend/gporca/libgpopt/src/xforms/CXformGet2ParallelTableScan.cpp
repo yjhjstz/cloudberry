@@ -39,14 +39,15 @@ using namespace gpopt;
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CXformGet2ParallelTableScan::FHasLogicalShareInputOps
+//		CXformGet2ParallelTableScan::FHasParallelIncompatibleOps
 //
 //	@doc:
-//		Check if memo contains logical operators that will create ShareInput
+//		Check if memo contains logical operators that are incompatible
+//		with parallel execution (CTE, Dynamic scans, Foreign scans, etc.)
 //
 //---------------------------------------------------------------------------
 BOOL
-CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl)
+CXformGet2ParallelTableScan::FHasParallelIncompatibleOps(CExpressionHandle &exprhdl)
 {
 	CGroupExpression *pgexprHandle = exprhdl.Pgexpr();
 	if (nullptr == pgexprHandle)
@@ -66,7 +67,7 @@ CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl
 		return false;
 	}
 
-	// Iterate through all groups in memo to check for logical ShareInput operations
+	// Iterate through all groups in memo to check for parallel-incompatible operations
 	const ULONG_PTR ulGroups = pmemo->UlpGroups();
 	for (ULONG_PTR ul = 0; ul < ulGroups; ul++)
 	{
@@ -83,7 +84,7 @@ CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl
 		{
 			COperator::EOperatorId eopid = pgexpr->Pop()->Eopid();
 
-			// Check for logical operators that will create ShareInput
+			// Check for CTE-related operators (incompatible with parallel execution)
 			if (COperator::EopLogicalCTEProducer == eopid ||
 				COperator::EopLogicalCTEConsumer == eopid ||
 				COperator::EopLogicalSequence == eopid ||
@@ -103,6 +104,12 @@ CXformGet2ParallelTableScan::FHasLogicalShareInputOps(CExpressionHandle &exprhdl
 				COperator::EopLogicalIndexGet == eopid)
 			{
 				// DynamicGet is not supported in parallel plans
+				return true;
+			}
+
+			if (COperator::EopLogicalForeignGet == eopid)
+			{
+				// ForeignScan is not supported in parallel plans
 				return true;
 			}
 
@@ -140,21 +147,14 @@ CXformGet2ParallelTableScan::CXformGet2ParallelTableScan(CMemoryPool *mp)
 CXform::EXformPromise
 CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 {
-	// Check if there are outer references (correlated subquery)
-	// if (exprhdl.HasOuterRefs())
-	// {
-	// 	//FIXME: consider parallel scan for correlated subqueries
-	// 	return CXform::ExfpNone;  // Don't use parallel scan with outer references
-	// }
-
 	// Check if parallel plans are enabled in context and parallel processing is safe
 	if (!gpdb::IsParallelModeOK())
 	{
 		return CXform::ExfpNone;
 	}
 
-	// Check for logical ShareInput operations that would conflict with parallel scans
-	if (FHasLogicalShareInputOps(exprhdl))
+	// Check for parallel-incompatible operations that would conflict with parallel scans
+	if (FHasParallelIncompatibleOps(exprhdl))
 	{
 		return CXform::ExfpNone;
 	}

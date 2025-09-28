@@ -46,8 +46,8 @@ using namespace gpos;
 class CXformGet2ParallelTableScan : public CXformImplementation
 {
 private:
-	// check if memo contains logical operators that will create ShareInput
-	static BOOL FHasLogicalShareInputOps(CExpressionHandle &exprhdl);
+	// check if memo contains logical operators that are incompatible with parallel execution
+	static BOOL FHasParallelIncompatibleOps(CExpressionHandle &exprhdl);
 
 public:
 	CXformGet2ParallelTableScan(const CXformGet2ParallelTableScan &) = delete;
