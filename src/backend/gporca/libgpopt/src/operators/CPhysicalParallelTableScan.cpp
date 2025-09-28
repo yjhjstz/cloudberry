@@ -19,6 +19,7 @@
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CUtils.h"
+#include "gpopt/base/CEnfdDistribution.h"
 #include "gpopt/metadata/CName.h"
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -204,6 +205,37 @@ CPhysicalParallelTableScan::PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhd
 	// Otherwise, derive from the base physical scan
 	// This uses the m_pds member from CPhysicalScan
 	return CPhysicalScan::PdsDerive(mp, exprhdl);
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelTableScan::EpetDistribution
+//
+//	@doc:
+//		Return the enforcing type for distribution property based on this
+//		operator
+//
+//---------------------------------------------------------------------------
+CEnfdProp::EPropEnforcingType
+CPhysicalParallelTableScan::EpetDistribution(CExpressionHandle & /*exprhdl*/,
+											  const CEnfdDistribution *ped) const
+{
+	GPOS_ASSERT(nullptr != ped);
+
+	//GPOS_TRACE(GPOS_WSZ_LIT("CPhysicalParallelTableScan::EpetDistribution - Checking distribution enforcement"));
+
+	// First check if worker-level distribution can satisfy the requirement
+	// This is the primary distribution for parallel scans
+	if (nullptr != m_pdsWorkerDistribution && ped->FCompatible(m_pdsWorkerDistribution))
+	{
+		//GPOS_TRACE(GPOS_WSZ_LIT("  Worker distribution is compatible - no motion needed"));
+		return CEnfdProp::EpetUnnecessary;
+	}
+
+	// Neither distribution satisfies the requirement
+	// Motion enforcement will be needed on the output
+	//GPOS_TRACE(GPOS_WSZ_LIT("  No compatible distribution found - motion required"));
+	return CEnfdProp::EpetRequired;
 }
 
 // EOF

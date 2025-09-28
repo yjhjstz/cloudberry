@@ -12,10 +12,12 @@
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 
 #include "gpopt/base/CColRefSet.h"
+#include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecStrictRandom.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalMotionHashDistribute.h"
 #include "gpopt/operators/CPhysicalMotionRandom.h"
 #include "naucrates/traceflags/traceflags.h"
 
@@ -173,11 +175,7 @@ CDistributionSpecWorkerRandom::FSatisfies(const CDistributionSpec *pds) const
 void
 CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 											   CExpressionHandle &exprhdl,
-											   CReqdPropPlan *
-#ifdef GPOS_DEBUG
-												   prpp
-#endif	// GPOS_DEBUG
-											   ,
+											   CReqdPropPlan *prpp,
 											   CExpressionArray *pdrgpexpr,
 											   CExpression *pexpr)
 {
@@ -190,40 +188,93 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 		this == prpp->Ped()->PdsRequired() &&
 		"required plan properties don't match enforced distribution spec");
 
-	if (GPOS_FTRACE(EopttraceDisableMotionRandom))
-	{
-		// random Motion is disabled
-		return;
-	}
+	// Get the actually required distribution specification
+	CDistributionSpec *pdsRequired = prpp->Ped()->PdsRequired();
+	GPOS_ASSERT(nullptr != pdsRequired);
 
-	// For worker-level distribution, we create a specialized motion
-	// that handles worker-level redistribution
+	// Get child's distribution for duplicate hazard checking
 	CDistributionSpec *expr_dist_spec =
 		CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pds();
-	CDistributionSpecRandom *random_dist_spec = nullptr;
+	BOOL fDuplicateHazard = CUtils::FDuplicateHazardDistributionSpec(expr_dist_spec);
 
-	if (CUtils::FDuplicateHazardDistributionSpec(expr_dist_spec))
-	{
-		// the motion node is enforced on top of a child
-		// deriving universal spec or replicated distribution, this motion node
-		// will be translated to a result node with hash filter to remove
-		// duplicates, therefore we also need to mark it as duplicate sensitive
-		random_dist_spec = GPOS_NEW(mp) CDistributionSpecWorkerRandom(m_ulWorkers, m_pdsSegmentBase);
-		random_dist_spec->MarkDuplicateSensitive();
-	}
-	else
-	{
-		// For worker-level enforcement, we still use worker random distribution
-		// but create a specialized motion that will translate to
-		// a redistribute motion with worker-level parallelism
-		random_dist_spec = GPOS_NEW(mp) CDistributionSpecWorkerRandom(m_ulWorkers, m_pdsSegmentBase);
-	}
-
-	// add a distribution enforcer
 	pexpr->AddRef();
-	CExpression *pexprMotion = GPOS_NEW(mp) CExpression(
-		mp, GPOS_NEW(mp) CPhysicalMotionRandom(mp, random_dist_spec), pexpr);
-	pdrgpexpr->Append(pexprMotion);
+	CExpression *pexprMotion = nullptr;
+
+	// Generate appropriate motion based on required distribution type
+	switch (pdsRequired->Edt())
+	{
+		case CDistributionSpec::EdtHashed:
+		{
+			// Required: Hashed distribution -> Generate HashDistribute Motion
+			if (GPOS_FTRACE(EopttraceDisableMotionHashDistribute))
+			{
+				// Hash redistribute Motion is disabled, cannot satisfy requirement
+				pexpr->Release();
+				return;
+			}
+
+			CDistributionSpecHashed *pdsHashedRequired =
+				CDistributionSpecHashed::PdsConvert(pdsRequired);
+			pdsHashedRequired->AddRef();
+
+			if (fDuplicateHazard)
+			{
+				pdsHashedRequired->MarkDuplicateSensitive();
+			}
+
+			pexprMotion = GPOS_NEW(mp) CExpression(
+				mp, GPOS_NEW(mp) CPhysicalMotionHashDistribute(mp, pdsHashedRequired), pexpr);
+			break;
+		}
+
+		case CDistributionSpec::EdtRandom:
+		case CDistributionSpec::EdtWorkerRandom:
+		{
+			// Required: Random/WorkerRandom distribution -> Generate Random Motion
+			if (GPOS_FTRACE(EopttraceDisableMotionRandom))
+			{
+				// Random Motion is disabled
+				pexpr->Release();
+				return;
+			}
+
+			CDistributionSpecWorkerRandom *random_dist_spec =
+				GPOS_NEW(mp) CDistributionSpecWorkerRandom(m_ulWorkers, m_pdsSegmentBase);
+
+			if (fDuplicateHazard)
+			{
+				random_dist_spec->MarkDuplicateSensitive();
+			}
+
+			pexprMotion = GPOS_NEW(mp) CExpression(
+				mp, GPOS_NEW(mp) CPhysicalMotionRandom(mp, random_dist_spec), pexpr);
+			break;
+		}
+
+		default:
+		{
+			// For other distribution types (Singleton, Replicated, etc.),
+			// delegate to the base segment distribution if available
+			// if (nullptr != m_pdsSegmentBase)
+			// {
+			// 	pexpr->Release();
+			// 	m_pdsSegmentBase->AppendEnforcers(mp, exprhdl, prpp, pdrgpexpr, pexpr);
+			// 	return;
+			// }
+			// else
+			{
+				// Fallback: cannot generate appropriate motion
+				pexpr->Release();
+				return;
+			}
+		}
+	}
+
+	// Add the generated motion to the enforcer array
+	if (nullptr != pexprMotion)
+	{
+		pdrgpexpr->Append(pexprMotion);
+	}
 }
 
 //---------------------------------------------------------------------------

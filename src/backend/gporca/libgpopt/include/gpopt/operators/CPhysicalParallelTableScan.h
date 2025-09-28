@@ -124,6 +124,11 @@ public:
 	// derive distribution
 	CDistributionSpec *PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
 
+	// return distribution property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetDistribution(
+		CExpressionHandle &exprhdl,
+		const CEnfdDistribution *ped) const override;
+
 };	// class CPhysicalParallelTableScan
 
 }  // namespace gpopt
