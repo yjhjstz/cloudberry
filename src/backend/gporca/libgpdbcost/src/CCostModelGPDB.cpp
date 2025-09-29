@@ -2379,7 +2379,8 @@ CCostModelGPDB::CostScan(CMemoryPool *,	 // mp
 	GPOS_ASSERT(COperator::EopPhysicalTableScan == op_id ||
 				COperator::EopPhysicalDynamicTableScan == op_id ||
 				COperator::EopPhysicalForeignScan == op_id ||
-				COperator::EopPhysicalDynamicForeignScan == op_id);
+				COperator::EopPhysicalDynamicForeignScan == op_id ||
+				COperator::EopPhysicalParallelTableScan == op_id);
 
 	const CDouble dInitScan =
 		pcmgpdb->GetCostModelParams()
@@ -2401,6 +2402,7 @@ CCostModelGPDB::CostScan(CMemoryPool *,	 // mp
 		case COperator::EopPhysicalDynamicTableScan:
 		case COperator::EopPhysicalForeignScan:
 		case COperator::EopPhysicalDynamicForeignScan:
+		case COperator::EopPhysicalParallelTableScan:
 			// table scan cost considers only retrieving tuple cost,
 			// since we scan the entire table here, the cost is correlated with table rows and table width,
 			// since Scan's parent operator may be a filter that will be pushed into Scan node in GPDB plan,
@@ -2439,6 +2441,12 @@ CCostModelGPDB::CostParallelTableScan(CMemoryPool *mp,
 	CPhysicalParallelTableScan *popParallelScan =
 		CPhysicalParallelTableScan::PopConvert(pop);
 	ULONG ulWorkers = popParallelScan->UlParallelWorkers();
+
+	// If this group was marked as disallowing parallel scan (e.g. NLJ input), penalize heavily
+	if (exprhdl.Pgexpr() && exprhdl.Pgexpr()->Pgroup()->FDisallowParallelScan())
+	{
+		return CCost(1e15);
+	}
 
 	// If only 1 worker, use regular scan cost
 	if (ulWorkers <= 1)

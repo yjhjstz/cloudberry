@@ -78,7 +78,13 @@ CXformLeftOuterJoin2NLJoin::Transform(CXformContext *pxfctxt,
 
 	CXformUtils::ImplementNLJoin<CPhysicalLeftOuterNLJoin>(pxfctxt, pxfres,
 														   pexpr);
+	CExpression *left = (*pexpr)[0];
+	CExpression *right = (*pexpr)[1];
+	if (left && left->Pgexpr()) { left->Pgexpr()->Pgroup()->SetDisallowParallelScan(); }
+	if (right && right->Pgexpr()) { right->Pgexpr()->Pgroup()->SetDisallowParallelScan(); }
+
 }
+
 
 
 // EOF

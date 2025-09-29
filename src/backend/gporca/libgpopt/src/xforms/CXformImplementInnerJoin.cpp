@@ -90,6 +90,10 @@ CXformImplementInnerJoin::Transform(CXformContext *pxfctxt,
 		 pxfres->Size() == 0) &&
 		!GPOS_FTRACE(EopttraceDisableInnerNLJ))
 	{
+		CExpression *left = (*pexpr)[0];
+		CExpression *right = (*pexpr)[1];
+		if (left && left->Pgexpr()) { left->Pgexpr()->Pgroup()->SetDisallowParallelScanRecursive(); }
+		if (right && right->Pgexpr()) { right->Pgexpr()->Pgroup()->SetDisallowParallelScanRecursive(); }
 		CXformUtils::ImplementNLJoin<CPhysicalInnerNLJoin>(pxfctxt, pxfres,
 														   pexpr);
 	}

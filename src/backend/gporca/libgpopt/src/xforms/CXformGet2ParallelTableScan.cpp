@@ -91,6 +91,12 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
+	// Strict pruning: if parent join xform marked this group disallowing parallel scan
+	if (exprhdl.Pgexpr() && exprhdl.Pgexpr()->Pgroup()->FDisallowParallelScan())
+	{
+		return CXform::ExfpNone;
+	}
+
 	// High promise for parallel scan when enabled
 	// All tables will use the same parallel degree from max_parallel_workers_per_gather
 	return CXform::ExfpHigh;

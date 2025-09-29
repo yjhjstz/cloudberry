@@ -617,9 +617,44 @@ CGroup::Insert(CGroupExpression *pgexpr)
 		{
 			GPOS_ASSERT(gpos::ulong_max == m_ulCTEProducerId);
 			m_ulCTEProducerId = CLogicalCTEProducer::PopConvert(pop)->UlCTEId();
-			;
+			// Mark direct child groups of the CTE producer to disallow parallel scan
+			// (minimal change, no recursion)
+			for (ULONG i = 0; i < pgexpr->Arity(); i++)
+			{
+				CGroup *childGrp = (*pgexpr)[i];
+				if (childGrp)
+				{
+					childGrp->SetDisallowParallelScan();
+				}
+			}
+		}
+
+		// Const table get never benefits from parallel scan; mark group
+		if (COperator::EopLogicalConstTableGet == pop->Eopid())
+		{
+			SetDisallowParallelScan();
 		}
 	}
+
+#if 0
+	if (pop->FPhysical())
+	{
+		// For any physical Nested Loop Join variant, disallow parallel scan on its inputs
+		switch (pop->Eopid())
+		{
+			case COperator::EopPhysicalInnerNLJoin:
+			case COperator::EopPhysicalLeftOuterNLJoin:
+			case COperator::EopPhysicalLeftOuterIndexNLJoin:
+			case COperator::EopPhysicalLeftSemiNLJoin:
+			case COperator::EopPhysicalLeftAntiSemiNLJoin:
+			case COperator::EopPhysicalLeftAntiSemiNLJoinNotIn:
+				SetDisallowParallelScanRecursive();
+				break;
+			default:
+				break;
+		}
+	}
+#endif
 
 	if (pgexpr->Eol() > m_eolMax)
 	{
@@ -2130,6 +2165,35 @@ CGroup::DbgPrintWithProperties()
 	CAutoTraceFlag atf(EopttracePrintGroupProperties, true);
 	CAutoTrace at(m_mp);
 	(void) this->OsPrint(at.Os());
+}
+
+//---------------------------------------------------------------------------
+//		CGroup::SetDisallowParallelScanRecursive
+//
+//	@doc:
+//		Recursively set disallow parallel scan on this group and all child groups
+//
+//---------------------------------------------------------------------------
+void
+CGroup::SetDisallowParallelScanRecursive()
+{
+	// Set flag on current group
+	SetDisallowParallelScan();
+	
+	// Recursively set flag on all child groups through all group expressions
+	CGroupExpression *pgexpr = PgexprFirst();
+	while (nullptr != pgexpr)
+	{
+		for (ULONG i = 0; i < pgexpr->Arity(); i++)
+		{
+			CGroup *childGrp = (*pgexpr)[i];
+			if (childGrp && !childGrp->FDisallowParallelScan())
+			{
+				childGrp->SetDisallowParallelScanRecursive();
+			}
+		}
+		pgexpr = PgexprNext(pgexpr);
+	}
 }
 
 #endif

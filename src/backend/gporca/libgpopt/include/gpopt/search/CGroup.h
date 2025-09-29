@@ -96,6 +96,9 @@ public:
 
 
 private:
+	// flag: disallow parallel table scan transforms in this group (set by NLJ xforms)
+	bool m_fDisallowParallelScan = false;
+
 	// definition of hash table iter
 	using ShtIter =
 		CSyncHashtableIter<COptimizationContext, COptimizationContext>;
@@ -535,6 +538,17 @@ public:
 	CGroupExpression *PgexprBest(COptimizationContext *poc);
 
 	// materialize a scalar expression for stat derivation if this is a scalar group
+	// mark disallow parallel scan
+	void SetDisallowParallelScan()
+	{
+		m_fDisallowParallelScan = true;
+	}
+
+	// recursively mark disallow parallel scan on this group and all child groups
+	void SetDisallowParallelScanRecursive();
+
+	bool FDisallowParallelScan() const { return m_fDisallowParallelScan; }
+
 	void CreateScalarExpression();
 
 	// materialize a dummy cost context attached to the first group expression
