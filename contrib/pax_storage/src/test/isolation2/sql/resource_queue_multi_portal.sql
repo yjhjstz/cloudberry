@@ -86,6 +86,8 @@
 0:SELECT pg_cancel_backend(pid) FROM pg_stat_activity
     WHERE query = 'DECLARE c3 CURSOR FOR SELECT 1;';
 
+0:SELECT pg_sleep(1);
+
 -- There should now only be one active statement, following the abort of session
 -- 1's transaction. The active statement is contributed by session 2.
 0:SELECT rsqcountlimit, rsqcountvalue FROM pg_resqueue_status WHERE rsqname = 'rq_multi_portal';

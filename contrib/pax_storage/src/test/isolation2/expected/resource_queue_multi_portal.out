@@ -148,6 +148,12 @@ DECLARE
  t                 
 (1 row)
 
+0:SELECT pg_sleep(1);
+ pg_sleep 
+----------
+          
+(1 row)
+
 -- There should now only be one active statement, following the abort of session
 -- 1's transaction. The active statement is contributed by session 2.
 0:SELECT rsqcountlimit, rsqcountvalue FROM pg_resqueue_status WHERE rsqname = 'rq_multi_portal';
