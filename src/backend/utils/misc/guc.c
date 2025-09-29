@@ -2658,7 +2658,7 @@ static struct config_int ConfigureNamesInt[] =
 			NULL
 		},
 		&find_writer_proc_retry_time,
-		5, 1, 500,
+		5, 1, 5000,
 		NULL, NULL, NULL
 	},
 
