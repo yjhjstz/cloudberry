@@ -4361,6 +4361,14 @@ CTranslatorDXLToPlStmt::TranslateDXLAppend(
 		GPOS_ASSERT(nullptr != child_plan && "child plan cannot be NULL");
 
 		append->appendplans = gpdb::LAppend(append->appendplans, child_plan);
+
+		if (child_plan->parallel_safe)
+		{
+			ULONG parallel_workers = ExtractParallelWorkersFromDXL(child_dxlnode);
+			plan->parallel_aware = true; // enable_parallel_append
+			plan->parallel_safe = true;  // Also mark as parallel safe
+			plan->parallel = (int) parallel_workers;  // Set parallel worker count
+		}
 	}
 
 	CDXLNode *project_list_dxlnode = (*append_dxlnode)[EdxlappendIndexProjList];
