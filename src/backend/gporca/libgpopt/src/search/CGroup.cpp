@@ -618,15 +618,7 @@ CGroup::Insert(CGroupExpression *pgexpr)
 			GPOS_ASSERT(gpos::ulong_max == m_ulCTEProducerId);
 			m_ulCTEProducerId = CLogicalCTEProducer::PopConvert(pop)->UlCTEId();
 			// Mark direct child groups of the CTE producer to disallow parallel scan
-			// (minimal change, no recursion)
-			for (ULONG i = 0; i < pgexpr->Arity(); i++)
-			{
-				CGroup *childGrp = (*pgexpr)[i];
-				if (childGrp)
-				{
-					childGrp->SetDisallowParallelScan();
-				}
-			}
+			SetDisallowParallelScanRecursive();
 		}
 
 		// Const table get never benefits from parallel scan; mark group
