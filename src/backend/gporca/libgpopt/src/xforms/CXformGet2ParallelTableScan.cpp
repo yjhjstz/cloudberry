@@ -113,6 +113,17 @@ CXformGet2ParallelTableScan::FHasParallelIncompatibleOps(CExpressionHandle &expr
 				return true;
 			}
 
+			if (COperator::EopLogicalUnion == eopid ||
+				COperator::EopLogicalUnionAll == eopid ||
+				COperator::EopLogicalIntersect == eopid ||
+				COperator::EopLogicalIntersectAll == eopid ||
+				COperator::EopLogicalDifference == eopid ||
+				COperator::EopLogicalDifferenceAll == eopid)
+			{
+				// Set operations are not supported in parallel plans
+				return true;
+			}
+
 			pgexpr = gp.PgexprNext(pgexpr);
 		}
 	}
