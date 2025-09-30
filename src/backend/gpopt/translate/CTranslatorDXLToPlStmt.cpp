@@ -7366,8 +7366,8 @@ CTranslatorDXLToPlStmt::IsIndexForOrderBy(
 //
 //	@doc:
 //		Extract parallel workers count from DXL node tree recursively
-//		Returns unified parallel degree from max_parallel_workers_per_gather GUC
-//		if parallel scan is found, otherwise returns 1.
+//		Returns the actual parallel workers from CDXLPhysicalParallelTableScan 
+//		if found, otherwise returns 1.
 //
 //---------------------------------------------------------------------------
 ULONG
@@ -7378,57 +7378,27 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 		return 1;
 	}
 
-	// Check if this subtree contains any parallel scan
-	bool has_parallel_scan = ContainsParallelScanInDXL(dxlnode);
-	if (has_parallel_scan)
-	{
-		// Return unified parallel degree from GUC
-
-		if (enable_parallel && max_parallel_workers_per_gather > 0)
-		{
-			return (ULONG)max_parallel_workers_per_gather;
-		}
-		else if (enable_parallel)
-		{
-			return 2; // Default fallback
-		}
-	}
-
-	return 1;
-}
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CTranslatorDXLToPlStmt::ContainsParallelScanInDXL
-//
-//	@doc:
-//		Check if DXL node tree contains any parallel table scan
-//
-//---------------------------------------------------------------------------
-bool
-CTranslatorDXLToPlStmt::ContainsParallelScanInDXL(const CDXLNode *dxlnode)
-{
-	if (nullptr == dxlnode)
-	{
-		return false;
-	}
-
 	CDXLOperator *dxlop = dxlnode->GetOperator();
 	if (EdxlopPhysicalParallelTableScan == dxlop->GetDXLOperator())
 	{
-		return true;
+		// Directly get parallel workers from the DXL parallel table scan operator
+		CDXLPhysicalParallelTableScan *parallel_scan_dxlop = 
+			CDXLPhysicalParallelTableScan::Cast(dxlop);
+		return parallel_scan_dxlop->UlParallelWorkers();
 	}
 
-	// Recursively check child nodes
+	// Recursively check child nodes and return the maximum parallel workers found
+	ULONG max_parallel_workers = 1;
 	for (ULONG ul = 0; ul < dxlnode->Arity(); ul++)
 	{
-		if (ContainsParallelScanInDXL((*dxlnode)[ul]))
+		ULONG child_parallel_workers = ExtractParallelWorkersFromDXL((*dxlnode)[ul]);
+		if (child_parallel_workers > max_parallel_workers)
 		{
-			return true;
+			max_parallel_workers = child_parallel_workers;
 		}
 	}
 
-	return false;
+	return max_parallel_workers;
 }
 
 // EOF
