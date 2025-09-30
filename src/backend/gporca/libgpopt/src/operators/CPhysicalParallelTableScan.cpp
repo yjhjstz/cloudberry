@@ -20,6 +20,8 @@
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/base/CEnfdDistribution.h"
+#include "gpopt/base/COptimizationContext.h"
+#include "gpopt/base/CRewindabilitySpec.h"
 #include "gpopt/metadata/CName.h"
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -236,6 +238,41 @@ CPhysicalParallelTableScan::EpetDistribution(CExpressionHandle & /*exprhdl*/,
 	// Motion enforcement will be needed on the output
 	//GPOS_TRACE(GPOS_WSZ_LIT("  No compatible distribution found - motion required"));
 	return CEnfdProp::EpetRequired;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelTableScan::FValidContext
+//
+//	@doc:
+//		Check if optimization contexts is valid;
+//		Reject if parent requires REWINDABLE (e.g., for NL Join inner child)
+//		because ParallelTableScan derives NONE (not rewindable)
+//
+//---------------------------------------------------------------------------
+BOOL
+CPhysicalParallelTableScan::FValidContext(CMemoryPool *,
+										  COptimizationContext *poc,
+										  COptimizationContextArray *) const
+{
+	GPOS_ASSERT(nullptr != poc);
+
+	CReqdPropPlan *prpp = poc->Prpp();
+	CRewindabilitySpec *prsRequired = prpp->Per()->PrsRequired();
+
+	//GPOS_TRACE_FORMAT("CPhysicalParallelTableScan::FValidContext %d", prsRequired->IsOriginNLJoin());
+
+	// If parent requires REWINDABLE or higher, reject
+	// ParallelTableScan can only provide ErtNone
+	if (prsRequired->IsOriginNLJoin())
+	{
+		// Parent requires rewindability (e.g., NL Join inner child)
+		// but ParallelTableScan cannot provide it
+		// Reject this plan to avoid the assertion failure later
+		return false;
+	}
+
+	return true;
 }
 
 // EOF

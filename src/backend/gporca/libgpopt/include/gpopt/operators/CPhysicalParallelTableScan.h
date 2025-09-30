@@ -129,6 +129,11 @@ public:
 		CExpressionHandle &exprhdl,
 		const CEnfdDistribution *ped) const override;
 
+	// check if optimization contexts is valid
+	// Reject if parent requires REWINDABLE (e.g., for NL Join inner child)
+	BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
+					   COptimizationContextArray *pdrgpocChild) const override;
+
 };	// class CPhysicalParallelTableScan
 
 }  // namespace gpopt
