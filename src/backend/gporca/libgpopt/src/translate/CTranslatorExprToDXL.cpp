@@ -4638,6 +4638,7 @@ CTranslatorExprToDXL::PdxlnResultFromNLJoinOuter(
 		case EdxlopPhysicalDynamicIndexScan:
 		case EdxlopPhysicalDynamicBitmapTableScan:
 		case EdxlopPhysicalResult:
+		case EdxlopPhysicalParallelTableScan:
 		{
 			// if the scalar join condition is a constant TRUE, just translate the child, no need to create an AND expression
 			if (CTranslatorExprToDXLUtils::FScalarConstTrue(m_pmda,
