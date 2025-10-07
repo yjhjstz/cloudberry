@@ -129,6 +129,11 @@ public:
 		CExpressionHandle &exprhdl,
 		const CEnfdDistribution *ped) const override;
 
+	// return rewindability property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetRewindability(
+		CExpressionHandle &exprhdl,
+		const CEnfdRewindability *per) const override;
+
 	// check if optimization contexts is valid
 	// Reject if parent requires REWINDABLE (e.g., for NL Join inner child)
 	BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,

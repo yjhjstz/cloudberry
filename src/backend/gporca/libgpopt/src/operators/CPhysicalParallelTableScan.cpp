@@ -20,8 +20,10 @@
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/base/CEnfdDistribution.h"
+#include "gpopt/base/CEnfdRewindability.h"
 #include "gpopt/base/COptimizationContext.h"
 #include "gpopt/base/CRewindabilitySpec.h"
+#include "gpopt/base/CDrvdPropPlan.h"
 #include "gpopt/metadata/CName.h"
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -242,6 +244,35 @@ CPhysicalParallelTableScan::EpetDistribution(CExpressionHandle & /*exprhdl*/,
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CPhysicalParallelTableScan::EpetRewindability
+//
+//	@doc:
+//		Return rewindability property enforcing type for this operator
+//
+//---------------------------------------------------------------------------
+CEnfdProp::EPropEnforcingType
+CPhysicalParallelTableScan::EpetRewindability(CExpressionHandle &exprhdl,
+											  const CEnfdRewindability *per) const
+{
+	GPOS_ASSERT(nullptr != per);
+
+	// Get derived rewindability from this operator
+	CRewindabilitySpec *prs = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Prs();
+
+	// Check if our derived rewindability satisfies the requirement
+	if (per->FCompatible(prs))
+	{
+		// Our derived rewindability (ErtNone) satisfies the requirement
+		return CEnfdProp::EpetUnnecessary;
+	}
+
+	// Cannot satisfy the rewindability requirement
+	// GPORCA will need to add an enforcer (e.g., Spool)
+	return CEnfdProp::EpetRequired;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CPhysicalParallelTableScan::FValidContext
 //
 //	@doc:
@@ -259,8 +290,6 @@ CPhysicalParallelTableScan::FValidContext(CMemoryPool *,
 
 	CReqdPropPlan *prpp = poc->Prpp();
 	CRewindabilitySpec *prsRequired = prpp->Per()->PrsRequired();
-
-	//GPOS_TRACE_FORMAT("CPhysicalParallelTableScan::FValidContext %d", prsRequired->IsOriginNLJoin());
 
 	// If parent requires REWINDABLE or higher, reject
 	// ParallelTableScan can only provide ErtNone

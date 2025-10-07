@@ -254,21 +254,12 @@ CXformGet2ParallelTableScan::Transform(CXformContext *pxfctxt, CXformResult *pxf
 	pdrgpcrOutput->AddRef();
 
 	// Use unified parallel degree from GUC parameter
-	ULONG ulParallelWorkers = 1;
-	if (gpdb::IsParallelModeOK())
+	ULONG ulParallelWorkers = 2;
+	// Use max_parallel_workers_per_gather as the unified parallel degree for all tables
+	// This ensures consistent parallelism across all table scans
+	if (max_parallel_workers_per_gather > 0)
 	{
-		// Use max_parallel_workers_per_gather as the unified parallel degree for all tables
-		// This ensures consistent parallelism across all table scans
-		if (max_parallel_workers_per_gather > 0)
-		{
-			ulParallelWorkers = (ULONG)max_parallel_workers_per_gather;
-		}
-		else
-		{
-			// If GUC is not set or is 0, use default value of 2
-			// This matches PostgreSQL's default behavior
-			ulParallelWorkers = 2;
-		}
+		ulParallelWorkers = (ULONG)max_parallel_workers_per_gather;
 	}
 
 	// create alternative expression
