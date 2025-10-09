@@ -171,47 +171,14 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 	{
 		return CXform::ExfpNone;
 	}
-#if 0
-	if (nullptr != exprhdl.Pgexpr())
-	{
-		CGroupExpression *pgexprOrigin = exprhdl.Pgexpr();
 
-		while (nullptr != pgexprOrigin)
-		{
-			// Check for CTE related transformations
-			CXform::EXformId exfid = pgexprOrigin->ExfidOrigin();
-			if (CXform::ExfImplementCTEProducer == exfid ||
-				CXform::ExfCTEAnchor2Sequence == exfid)
-			{
-				return CXform::ExfpNone;
-			}
-
-			// COperator::EOperatorId eopid = pgexprOrigin->Pop()->Eopid();
-			// if (COperator::EopLogicalCTEProducer == eopid ||
-			// 	COperator::EopPhysicalCTEProducer == eopid) {
-			// 	return CXform::ExfpNone;
-			// }
-
-			if (CXform::ExfInvalid == exfid)
-			{
-				break;
-			}
-
-			pgexprOrigin = pgexprOrigin->PgexprOrigin();
-		}
-	}
-#endif
 	CLogicalGet *popGet = CLogicalGet::PopConvert(exprhdl.Pop());
 	CTableDescriptor *ptabdesc = popGet->Ptabdesc();
 
-	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
-	{
-		return CXform::ExfpNone;
-	}
-
 	// Don't use parallel scan for replicated tables
 	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrReplicated ||
-		ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly)
+		ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly ||
+		COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
 	{
 		//FIXME: Should we consider replicated tables.
 		return CXform::ExfpNone;
