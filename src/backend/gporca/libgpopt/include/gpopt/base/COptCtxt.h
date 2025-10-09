@@ -104,10 +104,6 @@ private:
 	// does this plan have a direct dispatchable filter
 	CExpressionArray *m_direct_dispatchable_filters;
 
-	// does the query contain VALUES scan (CLogicalConstTableGet)
-	// VALUES scans are not parallel-safe and should disable parallel table scans
-	BOOL m_has_values_scan;
-
 	// mappings of dynamic scan -> partition indexes (after static elimination)
 	// this is mainetained here to avoid dependencies on optimization order
 	// between dynamic scans/partition selectors and remove the assumption
@@ -185,12 +181,6 @@ public:
 	}
 
 	void
-	SetHasValuesScan()
-	{
-		m_has_values_scan = true;
-	}
-
-	void
 	AddDirectDispatchableFilterCandidate(CExpression *filter_expression)
 	{
 		filter_expression->AddRef();
@@ -213,12 +203,6 @@ public:
 	HasReplicatedTables() const
 	{
 		return m_has_replicated_tables;
-	}
-
-	BOOL
-	HasValuesScan() const
-	{
-		return m_has_values_scan;
 	}
 
 	CExpressionArray *

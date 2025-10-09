@@ -2514,9 +2514,18 @@ CCostModelGPDB::GetWorkerStartupCost(const CCostModelGPDB * /* pcmgpdb */, ULONG
 		return 0.0;
 	}
 
-	// Use PostgreSQL's parallel_setup_cost GUC parameter
-	// This cost is typically applied once for setting up all workers
-	return CDouble(parallel_setup_cost);
+	// ORCA's cost units are much smaller than PostgreSQL's cost model
+	// PostgreSQL's parallel_setup_cost default is 1000, but ORCA's costs are:
+	//   - InitScanFactor: 431.0
+	//   - HJHashTableInitCostFactor: 500.0
+	//   - DefaultCost: 100.0
+	//
+	// Use a conversion factor to map parallel_setup_cost to ORCA's scale.
+	// With default parallel_setup_cost=1000, this gives 10.0, which is
+	// reasonable compared to InitScanFactor (431.0) - about 2.3% overhead
+	const double POSTGRES_TO_ORCA_COST_CONVERSION = 0.01;
+
+	return CDouble(parallel_setup_cost * POSTGRES_TO_ORCA_COST_CONVERSION);
 }
 
 
