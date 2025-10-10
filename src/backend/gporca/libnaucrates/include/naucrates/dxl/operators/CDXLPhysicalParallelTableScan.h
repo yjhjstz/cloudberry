@@ -1,4 +1,5 @@
-/*
+/*-------------------------------------------------------------------------
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,15 +16,14 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ *
+ * CDXLPhysicalParallelTableScan.h
+ *
+ * IDENTIFICATION
+ *	  src/backend/gporca/libnaucrates/include/naucrates/dxl/operators/CDXLPhysicalParallelTableScan.h
+ *
+ *-------------------------------------------------------------------------
  */
-
-//---------------------------------------------------------------------------
-//	@filename:
-//		CDXLPhysicalParallelTableScan.h
-//
-//	@doc:
-//		Class for representing DXL parallel table scan operators.
-//---------------------------------------------------------------------------
 
 #ifndef GPDXL_CDXLPhysicalParallelTableScan_H
 #define GPDXL_CDXLPhysicalParallelTableScan_H
