@@ -46,7 +46,6 @@ extern int max_parallel_workers_per_gather;
 // Forward declarations for gpdbwrappers functions
 namespace gpdb {
 	bool IsParallelModeOK(void);
-	bool IsParallelPlansEnabled(void);
 }
 
 using namespace gpopt;

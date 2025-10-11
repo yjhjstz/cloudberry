@@ -344,11 +344,16 @@ CTranslatorDXLToPlStmt::TranslateDXLOperatorToPlan(
 					   dxlnode->GetOperator()->GetOpNameStr()->GetBuffer());
 		}
 		case EdxlopPhysicalTableScan:
-		case EdxlopPhysicalParallelTableScan:
 		case EdxlopPhysicalForeignScan:
 		{
 			plan = TranslateDXLTblScan(dxlnode, output_context,
 									   ctxt_translation_prev_siblings);
+			break;
+		}
+		case EdxlopPhysicalParallelTableScan:
+		{
+			plan = TranslateDXLParallelTblScan(dxlnode, output_context,
+											   ctxt_translation_prev_siblings);
 			break;
 		}
 		case EdxlopPhysicalIndexScan:
@@ -622,20 +627,6 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 	// translate table descriptor into a range table entry
 	CDXLPhysicalTableScan *phy_tbl_scan_dxlop =
 		CDXLPhysicalTableScan::Cast(tbl_scan_dxlnode->GetOperator());
-	
-	// Check if this is a parallel table scan
-	bool is_parallel_scan = (phy_tbl_scan_dxlop->GetDXLOperator() == EdxlopPhysicalParallelTableScan);
-	CDXLPhysicalParallelTableScan *phy_parallel_tbl_scan_dxlop = nullptr;
-	ULONG parallel_workers = 1;
-	
-	if (is_parallel_scan)
-	{
-		phy_parallel_tbl_scan_dxlop = CDXLPhysicalParallelTableScan::Cast(tbl_scan_dxlnode->GetOperator());
-		parallel_workers = phy_parallel_tbl_scan_dxlop->UlParallelWorkers();
-		
-		// Note: parallel_workers will be set by Motion node creation in createplan.c
-		// Do not set parallel_workers here to avoid affecting receiving slices
-	}
 
 	// translation context for column mappings in the base relation
 	CDXLTranslateContextBaseTable base_table_context(m_mp);
@@ -694,17 +685,6 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 		plan = &(seq_scan->plan);
 		plan_return = (Plan *) seq_scan;
 
-		// Set parallel_aware flag if this is a parallel table scan
-		if (is_parallel_scan)
-		{
-			plan->parallel_aware = true;
-			plan->parallel_safe = true;  // Also mark as parallel safe
-			plan->parallel = (int) parallel_workers;  // Set parallel worker count
-			
-			// Note: Flow will be created later by PostgreSQL's plan processing
-			// We just need to ensure the parallel fields are set correctly
-		}
-
 		plan->targetlist = targetlist;
 
 		// List to hold the quals which contain both security quals and query
@@ -742,12 +722,116 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CTranslatorDXLToPlStmt::TranslateDXLParallelTblScan
+//
+//	@doc:
+//		Translates a DXL parallel table scan node into a parallel SeqScan node
+Plan *
+CTranslatorDXLToPlStmt::TranslateDXLParallelTblScan(
+	const CDXLNode *tbl_scan_dxlnode, CDXLTranslateContext *output_context,
+	CDXLTranslationContextArray * /*ctxt_translation_prev_siblings*/)
+{
+	// translate table descriptor into a range table entry
+	CDXLPhysicalParallelTableScan *phy_parallel_tbl_scan_dxlop =
+		CDXLPhysicalParallelTableScan::Cast(tbl_scan_dxlnode->GetOperator());
+
+	ULONG parallel_workers = phy_parallel_tbl_scan_dxlop->UlParallelWorkers();
+
+	// translation context for column mappings in the base relation
+	CDXLTranslateContextBaseTable base_table_context(m_mp);
+
+	const CDXLTableDescr *dxl_table_descr =
+		phy_parallel_tbl_scan_dxlop->GetDXLTableDescr();
+	const IMDRelation *md_rel =
+		m_md_accessor->RetrieveRel(dxl_table_descr->MDId());
+
+	// Lock any table we are to scan, since it may not have been properly locked
+	// by the parser (e.g in case of generated scans for partitioned tables)
+	OID oidRel = CMDIdGPDB::CastMdid(md_rel->MDId())->Oid();
+	GPOS_ASSERT(dxl_table_descr->LockMode() != -1);
+	gpdb::GPDBLockRelationOid(oidRel, dxl_table_descr->LockMode());
+
+	Index index = ProcessDXLTblDescr(dxl_table_descr, &base_table_context);
+
+	// a table scan node must have 2 children: projection list and filter
+	GPOS_ASSERT(2 == tbl_scan_dxlnode->Arity());
+
+	// translate proj list and filter
+	CDXLNode *project_list_dxlnode = (*tbl_scan_dxlnode)[EdxltsIndexProjList];
+	CDXLNode *filter_dxlnode = (*tbl_scan_dxlnode)[EdxltsIndexFilter];
+
+	List *targetlist = NIL;
+
+	// List to hold the quals after translating filter_dxlnode node.
+	List *query_quals = NIL;
+
+	TranslateProjListAndFilter(
+		project_list_dxlnode, filter_dxlnode,
+		&base_table_context,  // translate context for the base table
+		nullptr,			  // translate_ctxt_left and pdxltrctxRight,
+		&targetlist, &query_quals, output_context);
+
+	Plan *plan = nullptr;
+	Plan *plan_return = nullptr;
+
+	// Parallel table scans are always sequential scans (not foreign scans)
+	SeqScan *seq_scan = MakeNode(SeqScan);
+	seq_scan->scanrelid = index;
+	plan = &(seq_scan->plan);
+	plan_return = (Plan *) seq_scan;
+
+	// Set parallel execution flags
+	plan->parallel_aware = true;
+	plan->parallel_safe = true;
+	plan->parallel = (int) parallel_workers;
+
+	plan->targetlist = targetlist;
+
+	// List to hold the quals which contain both security quals and query
+	// quals.
+	List *security_query_quals = NIL;
+
+	// Fetching the RTE of the relation from the rewritten parse tree
+	// based on the oidRel and adding the security quals of the RTE in
+	// the security_query_quals list.
+	AddSecurityQuals(oidRel, &security_query_quals, &index);
+
+	// The security quals should always be executed first when
+	// compared to other quals. So appending query quals to the
+	// security_query_quals list after the security quals.
+	security_query_quals =
+		gpdb::ListConcat(security_query_quals, query_quals);
+	plan->qual = security_query_quals;
+
+	if (md_rel->IsNonBlockTable())
+	{
+		CheckSafeTargetListForAOTables(plan->targetlist);
+	}
+
+	plan->plan_node_id = m_dxl_to_plstmt_context->GetNextPlanId();
+
+	// translate operator costs
+	TranslatePlanCosts(tbl_scan_dxlnode, plan);
+
+	// Adjust row count to per-worker statistics
+	if (parallel_workers > 1)
+	{
+		plan->plan_rows = plan->plan_rows / parallel_workers;
+	}
+
+	SetParamIds(plan);
+
+	return plan_return;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CTranslatorDXLToPlStmt::SetIndexVarAttnoWalker
 //
 //	@doc:
 //		Walker to set index var attno's,
 //		attnos of index vars are set to their relative positions in index keys,
-//		skip any outer references while walking the expression tree
 //
 //---------------------------------------------------------------------------
 BOOL
@@ -6225,15 +6309,6 @@ CTranslatorDXLToPlStmt::TranslatePlanCosts(const CDXLNode *dxlnode, Plan *plan)
 	PlanSlice *current_slice = m_dxl_to_plstmt_context->GetCurrentSlice();
 	double total_rows = CostFromStr(costs->GetRowsOutStr());
 	double rows_per_segment = total_rows / current_slice->numsegments;
-	
-	// For parallel table scans, further divide by parallel workers
-	// since each worker processes a subset of the segment's data
-	// Use ExtractParallelWorkersFromDXL to get parallel workers directly from DXL node
-	ULONG parallel_workers = ExtractParallelWorkersFromDXL(dxlnode);
-	if (plan->parallel_safe && parallel_workers > 1)
-	{
-		rows_per_segment = rows_per_segment / parallel_workers;
-	}
 	
 	plan->plan_rows = ceil(rows_per_segment);
 }
