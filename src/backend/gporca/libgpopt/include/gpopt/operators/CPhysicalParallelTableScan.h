@@ -103,14 +103,6 @@ public:
 		return dynamic_cast<CPhysicalParallelTableScan *>(pop);
 	}
 
-	// statistics derivation during costing
-	IStatistics *
-	PstatsDerive(CMemoryPool *mp,		   // mp
-				 CExpressionHandle &exprhdl,  // exprhdl
-				 CReqdPropPlan *prpplan,	   // prpplan
-				 IStatisticsArray *stats_ctxt   //stats_ctxt
-	) const override;
-
 	CRewindabilitySpec *
 	PrsDerive(CMemoryPool *mp,
 			  CExpressionHandle &  // exprhdl

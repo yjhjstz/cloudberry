@@ -168,41 +168,6 @@ CPhysicalParallelTableScan::OsPrint(IOstream &os) const
 	return os;
 }
 
-//---------------------------------------------------------------------------
-//	@function:
-//		CPhysicalParallelTableScan::PstatsDerive
-//
-//	@doc:
-//		Derive statistics for parallel table scan
-//
-//---------------------------------------------------------------------------
-IStatistics *
-CPhysicalParallelTableScan::PstatsDerive(CMemoryPool *mp,
-										  CExpressionHandle &exprhdl,
-										  CReqdPropPlan *prpplan,
-										  IStatisticsArray *stats_ctxt) const
-{
-	// First get the base table statistics (same as regular table scan)
-	IStatistics *base_stats = CPhysicalTableScan::PstatsDerive(mp, exprhdl, prpplan, stats_ctxt);
-	
-	if (nullptr == base_stats || m_ulParallelWorkers <= 1)
-	{
-		return base_stats;
-	}
-
-	// For parallel scan, adjust row count per worker
-	// Each worker processes roughly 1/parallel_workers of the data
-	CDouble dRows = base_stats->Rows();
-	CDouble dAdjustedRows = dRows / CDouble(m_ulParallelWorkers);
-	
-	// Create new statistics with adjusted row count
-	IStatistics *parallel_stats = base_stats->ScaleStats(mp, dAdjustedRows / dRows);
-	
-	// Release base stats since we created a new one
-	base_stats->Release();
-	
-	return parallel_stats;
-}
 
 //---------------------------------------------------------------------------
 //	@function:
