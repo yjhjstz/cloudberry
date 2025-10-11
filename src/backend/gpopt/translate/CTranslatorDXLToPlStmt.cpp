@@ -2718,6 +2718,16 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 			return nullptr;
 	}
 
+	// Adjust row count for parallel execution in the sending slice
+	// The Motion node receives rows from all parallel workers, so we need to
+	// account for the fact that each worker processes a fraction of the rows.
+	// TranslatePlanCosts() already divided by numsegments, but if we have
+	// parallel workers, each segment is further subdivided among workers.
+	if (sendslice->parallel_workers > 1)
+	{
+		plan->plan_rows = plan->plan_rows / sendslice->parallel_workers;
+	}
+
 	SetParamIds(plan);
 
 	return (Plan *) motion;
