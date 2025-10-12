@@ -79,9 +79,9 @@ CPhysicalParallelTableScan::CPhysicalParallelTableScan(CMemoryPool *mp,
 	  m_pdsWorkerDistribution(nullptr)
 {
 	GPOS_ASSERT(ulParallelWorkers > 0);
-
+	GPOS_ASSERT(nullptr != m_pds);
 	// Create worker-level distribution based on table's segment distribution
-	if (ulParallelWorkers > 1 && nullptr != m_pds)
+	if (ulParallelWorkers > 0 && nullptr != m_pds)
 	{
 		// Create worker-level random distribution using the table's distribution as base
 		// The base CPhysicalScan already sets up m_pds from the table descriptor

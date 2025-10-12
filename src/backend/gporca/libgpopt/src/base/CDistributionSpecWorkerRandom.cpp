@@ -45,18 +45,16 @@ using namespace gpopt;
 //
 //	@doc:
 //		Ctor
+//		Note: This constructor should only be called from PdsCreateWorkerRandom
+//		factory method, which ensures pdsSegmentBase is properly initialized
 //
 //---------------------------------------------------------------------------
 CDistributionSpecWorkerRandom::CDistributionSpecWorkerRandom(ULONG ulWorkers, CDistributionSpec *pdsSegmentBase)
 	: m_ulWorkers(ulWorkers), m_pdsSegmentBase(pdsSegmentBase)
 {
 	GPOS_ASSERT(ulWorkers > 0);
-
-	if (nullptr == m_pdsSegmentBase)
-	{
-		// Use regular random distribution as base if not specified
-		m_pdsSegmentBase = GPOS_NEW(COptCtxt::PoctxtFromTLS()->Pmp()) CDistributionSpecRandom();
-	}
+	GPOS_ASSERT(nullptr != pdsSegmentBase &&
+				"pdsSegmentBase must be non-null. Use PdsCreateWorkerRandom factory method.");
 
 	m_pdsSegmentBase->AddRef();
 
@@ -95,7 +93,15 @@ CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(CMemoryPool *mp, ULONG ulWo
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(ulWorkers > 0);
 
-	return GPOS_NEW(mp) CDistributionSpecWorkerRandom(ulWorkers, pdsBase);
+	// If no base distribution provided, create a default random distribution
+	// using the provided memory pool (not TLS pool)
+	CDistributionSpec *pdsSegmentBase = pdsBase;
+	if (nullptr == pdsSegmentBase)
+	{
+		pdsSegmentBase = GPOS_NEW(mp) CDistributionSpecRandom();
+	}
+
+	return GPOS_NEW(mp) CDistributionSpecWorkerRandom(ulWorkers, pdsSegmentBase);
 }
 
 //---------------------------------------------------------------------------
@@ -254,8 +260,9 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 				return;
 			}
 
+			// Use factory method to ensure proper memory pool usage
 			CDistributionSpecWorkerRandom *random_dist_spec =
-				GPOS_NEW(mp) CDistributionSpecWorkerRandom(m_ulWorkers, m_pdsSegmentBase);
+				PdsCreateWorkerRandom(mp, m_ulWorkers, m_pdsSegmentBase);
 
 			if (fDuplicateHazard)
 			{
