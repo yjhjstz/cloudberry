@@ -319,6 +319,9 @@ jobs:
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
+              },
+              {"test":"ic-orca-parallel",
+               "make_configs":["src/test/regress:installcheck-orca-parallel"]
               }
             ]
           }'
