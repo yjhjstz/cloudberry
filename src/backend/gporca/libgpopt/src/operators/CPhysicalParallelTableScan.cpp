@@ -207,19 +207,15 @@ CPhysicalParallelTableScan::EpetDistribution(CExpressionHandle & /*exprhdl*/,
 {
 	GPOS_ASSERT(nullptr != ped);
 
-	//GPOS_TRACE(GPOS_WSZ_LIT("CPhysicalParallelTableScan::EpetDistribution - Checking distribution enforcement"));
-
 	// First check if worker-level distribution can satisfy the requirement
 	// This is the primary distribution for parallel scans
 	if (nullptr != m_pdsWorkerDistribution && ped->FCompatible(m_pdsWorkerDistribution))
 	{
-		//GPOS_TRACE(GPOS_WSZ_LIT("  Worker distribution is compatible - no motion needed"));
 		return CEnfdProp::EpetUnnecessary;
 	}
 
 	// Neither distribution satisfies the requirement
 	// Motion enforcement will be needed on the output
-	//GPOS_TRACE(GPOS_WSZ_LIT("  No compatible distribution found - motion required"));
 	return CEnfdProp::EpetRequired;
 }
 

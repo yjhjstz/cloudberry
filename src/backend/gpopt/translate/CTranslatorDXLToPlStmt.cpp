@@ -2469,8 +2469,6 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 	const IntPtrArray *input_segids_array = motion_dxlop->GetInputSegIdsArray();
 	PlanSlice *recvslice = m_dxl_to_plstmt_context->GetCurrentSlice();
 
-	//GPOS_ASSERT(recvslice->parallel_workers <= 1);
-
 	// create motion node
 	Motion *motion = MakeNode(Motion);
 
@@ -2535,28 +2533,19 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 	ULONG child_parallel_workers = ExtractParallelWorkersFromDXL(child_dxlnode);
 	if (child_parallel_workers > 1)
 	{
-		// Use unified parallel degree instead of per-table parallel degree
-		if (enable_parallel)
-		{
-			ULONG unified_parallel_workers = (max_parallel_workers_per_gather > 0)
-				? (ULONG)max_parallel_workers_per_gather
-				: 2; // Default fallback
+		// Determine parallel workers based on enable_parallel and gang type
+		bool supports_parallel = (sendslice->gangType == GANGTYPE_PRIMARY_READER ||
+		                          sendslice->gangType == GANGTYPE_PRIMARY_WRITER);
 
-			// Only set parallel_workers for gang types that support parallel execution
-			// SINGLETON_READER, ENTRYDB_READER, UNALLOCATED should always be single-segment
-			if (sendslice->gangType == GANGTYPE_PRIMARY_READER ||
-				sendslice->gangType == GANGTYPE_PRIMARY_WRITER)
-			{
-				sendslice->parallel_workers = unified_parallel_workers;
-			}
-			else
-			{
-				sendslice->parallel_workers = 1;
-			}
+		if (enable_parallel && supports_parallel)
+		{
+			sendslice->parallel_workers = child_parallel_workers;
 		}
 		else
 		{
-			sendslice->parallel_workers = 1;
+			// Disable parallel for: non-PRIMARY gang types
+			// (SINGLETON_READER, ENTRYDB_READER, UNALLOCATED)
+			sendslice->parallel_workers = 0;
 		}
 	}
 

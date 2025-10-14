@@ -92,13 +92,6 @@ public:
 		return m_pdsSegmentBase;
 	}
 
-	// Check if this is worker-level distribution (always true for this class)
-	BOOL
-	FWorkerLevel() const
-	{
-		return true;
-	}
-
 	// does this distribution match the given one
 	BOOL Matches(const CDistributionSpec *pds) const override;
 
