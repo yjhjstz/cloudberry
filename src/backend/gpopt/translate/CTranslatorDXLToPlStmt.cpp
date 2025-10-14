@@ -2714,7 +2714,7 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 	// parallel workers, each segment is further subdivided among workers.
 	if (sendslice->parallel_workers > 1)
 	{
-		plan->plan_rows = plan->plan_rows / sendslice->parallel_workers;
+		plan->plan_rows = ceil(plan->plan_rows / sendslice->parallel_workers);
 	}
 
 	SetParamIds(plan);
@@ -7431,9 +7431,10 @@ CTranslatorDXLToPlStmt::IsIndexForOrderBy(
 //		CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL
 //
 //	@doc:
-//		Extract parallel workers count from DXL node tree recursively
-//		Returns the actual parallel workers from CDXLPhysicalParallelTableScan 
-//		if found, otherwise returns 1.
+//		Extract parallel workers count from DXL node tree recursively.
+//		Since parallel degree is uniform across all parallel scans in a query,
+//		returns the first parallel degree found from any CDXLPhysicalParallelTableScan,
+//		or 1 if no parallel scan exists.
 //
 //---------------------------------------------------------------------------
 ULONG
@@ -7441,30 +7442,30 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 {
 	if (nullptr == dxlnode)
 	{
-		return 1;
+		return 0;
 	}
 
 	CDXLOperator *dxlop = dxlnode->GetOperator();
 	if (EdxlopPhysicalParallelTableScan == dxlop->GetDXLOperator())
 	{
-		// Directly get parallel workers from the DXL parallel table scan operator
-		CDXLPhysicalParallelTableScan *parallel_scan_dxlop = 
+		// Return parallel workers from the parallel table scan operator
+		// All parallel scans in the query share the same parallel degree
+		CDXLPhysicalParallelTableScan *parallel_scan_dxlop =
 			CDXLPhysicalParallelTableScan::Cast(dxlop);
 		return parallel_scan_dxlop->UlParallelWorkers();
 	}
 
-	// Recursively check child nodes and return the maximum parallel workers found
-	ULONG max_parallel_workers = 1;
+	// Recursively check child nodes, return early when first parallel scan is found
 	for (ULONG ul = 0; ul < dxlnode->Arity(); ul++)
 	{
 		ULONG child_parallel_workers = ExtractParallelWorkersFromDXL((*dxlnode)[ul]);
-		if (child_parallel_workers > max_parallel_workers)
+		if (child_parallel_workers > 1)
 		{
-			max_parallel_workers = child_parallel_workers;
+			return child_parallel_workers;
 		}
 	}
 
-	return max_parallel_workers;
+	return 0;
 }
 
 // EOF
