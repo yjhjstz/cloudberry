@@ -2555,6 +2555,19 @@ gpdb::GetForeignServerId(Oid reloid)
 	return 0;
 }
 
+int16
+gpdb::GetAppendOnlySegmentFilesCount(Relation rel)
+{
+	GP_WRAP_START;
+	{
+		FormData_pg_appendonly aoFormData;
+		GetAppendOnlyEntry(rel, &aoFormData);
+		return aoFormData.segfilecount;
+	}
+	GP_WRAP_END;
+	return -1;
+}
+
 // Locks on partition leafs and indexes are held during optimizer (after
 // parse-analyze stage). ORCA need this function to lock relation. Here
 // we do not need to consider lock-upgrade issue, reasons are:

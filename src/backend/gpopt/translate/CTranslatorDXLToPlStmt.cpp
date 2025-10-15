@@ -7442,7 +7442,7 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 {
 	if (nullptr == dxlnode)
 	{
-		return 0;
+		return 1;
 	}
 
 	CDXLOperator *dxlop = dxlnode->GetOperator();
@@ -7453,6 +7453,34 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 		CDXLPhysicalParallelTableScan *parallel_scan_dxlop =
 			CDXLPhysicalParallelTableScan::Cast(dxlop);
 		return parallel_scan_dxlop->UlParallelWorkers();
+	}
+	else if (EdxlopPhysicalTableScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalDynamicTableScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalIndexScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalIndexOnlyScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalBitmapTableScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalDynamicBitmapTableScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalForeignScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalDynamicForeignScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalDynamicIndexScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalDynamicIndexOnlyScan == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalValuesScan == dxlop->GetDXLOperator())
+	{
+		// Non-parallel scans (table, index, bitmap, foreign, values)
+		// These are leaf nodes in terms of parallel worker extraction
+		// Return 1 to indicate no parallel workers
+		return 1;
+	}
+	else if (EdxlopPhysicalMotionGather == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalMotionBroadcast == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalMotionRedistribute == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalMotionRandom == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalMotionRoutedDistribute == dxlop->GetDXLOperator())
+	{
+		// Motion node creates a slice boundary - do not recurse into child
+		// The child's parallel workers belong to the sending slice, not receiving slice
+		// Return 0 to indicate the receiving slice (current slice) has no parallel workers
+		return 1;
 	}
 
 	// Recursively check child nodes, return early when first parallel scan is found
@@ -7465,7 +7493,7 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 		}
 	}
 
-	return 0;
+	return 1;
 }
 
 // EOF

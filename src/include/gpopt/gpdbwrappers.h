@@ -774,6 +774,8 @@ List *GetRelChildIndexes(Oid reloid);
 
 Oid GetForeignServerId(Oid reloid);
 
+int16 GetAppendOnlySegmentFilesCount(Relation rel);
+
 void GPDBLockRelationOid(Oid reloid, int lockmode);
 
 char *GetRelFdwName(Oid reloid);

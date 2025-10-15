@@ -29,6 +29,7 @@
 
 #include "gpos/base.h"
 
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/hints/CHintUtils.h"
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -195,6 +196,27 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 	{
 		//FIXME: Should we consider replicated tables.
 		return CXform::ExfpNone;
+	}
+
+	// For AO/AOCO tables, check segfilecount early to avoid useless transformation
+	CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
+	const IMDRelation *pmdrel = md_accessor->RetrieveRel(ptabdesc->MDId());
+	IMDRelation::Erelstoragetype storage_type = pmdrel->RetrieveRelStorageType();
+
+	// Check if this is an AO/AOCO table
+	if (storage_type == IMDRelation::ErelstorageAppendOnlyRows ||
+		storage_type == IMDRelation::ErelstorageAppendOnlyCols)
+	{
+		INT seg_file_count = pmdrel->SegFileCount();
+		// Only reject if segfilecount is explicitly known to be 0 or 1
+		// -1 means unknown (e.g., from DXL deserialization), so allow parallel in that case
+		if (seg_file_count >= 0 && seg_file_count <= 1)
+		{
+			// If segfilecount is 0 or 1, parallel execution is pointless
+			// Reject parallel scan early in promise phase
+			//GPOS_TRACE_FORMAT("CXformGet2ParallelTableScan rejected for table %ls: AO/AOCO table has segfilecount=%d (needs >1 for parallel scan)", ptabdesc->Name().Pstr()->GetBuffer(), seg_file_count);
+			return CXform::ExfpNone;
+		}
 	}
 
 	// High promise for parallel scan when enabled
