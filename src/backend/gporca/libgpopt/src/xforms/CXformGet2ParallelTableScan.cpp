@@ -112,11 +112,9 @@ CXformGet2ParallelTableScan::FHasParallelIncompatibleOps(CExpressionHandle &expr
 				// ConstTableGet is not supported in parallel plans
 				return true;
 			}
-			if (COperator::EopLogicalDynamicGet == eopid ||
-				COperator::EopLogicalDynamicIndexGet == eopid ||
-				COperator::EopLogicalTVF == eopid)
+			if (COperator::EopLogicalTVF == eopid)
 			{
-				// DynamicGet is not supported in parallel plans
+				// Table-Valued Function is not supported in parallel plans
 				return true;
 			}
 
@@ -211,7 +209,8 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 		{
 			// If segfilecount is 0 or 1, parallel execution is pointless
 			// Reject parallel scan early in promise phase
-			//GPOS_TRACE_FORMAT("CXformGet2ParallelTableScan rejected for table %ls: AO/AOCO table has segfilecount=%d (needs >1 for parallel scan)", ptabdesc->Name().Pstr()->GetBuffer(), seg_file_count);
+			GPOS_TRACE_FORMAT("CXformGet2ParallelTableScan rejected for table %ls: AO/AOCO table has segfilecount=%d (needs >1 for parallel scan)",
+							ptabdesc->Name().Pstr()->GetBuffer(), seg_file_count);
 			return CXform::ExfpNone;
 		}
 	}
