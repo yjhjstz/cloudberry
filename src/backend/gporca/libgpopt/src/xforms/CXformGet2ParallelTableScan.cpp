@@ -114,9 +114,6 @@ CXformGet2ParallelTableScan::FHasParallelIncompatibleOps(CExpressionHandle &expr
 			}
 			if (COperator::EopLogicalDynamicGet == eopid ||
 				COperator::EopLogicalDynamicIndexGet == eopid ||
-				COperator::EopLogicalIndexOnlyGet == eopid ||
-				COperator::EopLogicalIndexGet == eopid ||
-				COperator::EopLogicalBitmapTableGet == eopid ||
 				COperator::EopLogicalTVF == eopid)
 			{
 				// DynamicGet is not supported in parallel plans
