@@ -264,7 +264,7 @@ static void CopyDecimalBuffer(PaxColumn *column,
       // it has been detoasted in OrcWriter::PrepareWriteTuple, except numeric
       // type with short header should be detoasted to 4B header
       if (unlikely(VARATT_IS_SHORT(vl))) {
-        numeric = VarlenaShortTo4B(vl);
+        numeric = (Numeric) VarlenaShortTo4B(vl);
         should_free = true;
       } else {  // direct cast
         numeric = (Numeric)(buffer);
