@@ -107,23 +107,6 @@ CXformGet2ParallelTableScan::FHasParallelIncompatibleOps(CExpressionHandle &expr
 				return true;
 			}
 
-			if (COperator::EopLogicalConstTableGet == eopid)
-			{
-				// ConstTableGet is not supported in parallel plans
-				return true;
-			}
-			if (COperator::EopLogicalTVF == eopid)
-			{
-				// Table-Valued Function is not supported in parallel plans
-				return true;
-			}
-
-			if (COperator::EopLogicalForeignGet == eopid)
-			{
-				// ForeignScan is not supported in parallel plans
-				return true;
-			}
-
 			if (COperator::EopLogicalUnion == eopid ||
 				COperator::EopLogicalUnionAll == eopid ||
 				COperator::EopLogicalIntersect == eopid ||
