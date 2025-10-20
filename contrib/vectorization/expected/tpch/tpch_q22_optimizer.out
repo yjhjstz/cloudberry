@@ -62,15 +62,13 @@ order by
                                        ->  Vec Seq Scan on customer
                                              Filter: (SUBSTRING(c_phone FROM 1 FOR 2) = ANY ('{13,31,23,29,30,18,17}'::text[]))
                                  ->  Vec Hash
-                                       ->  Vec Finalize Vec HashAggregate
+                                       ->  Vec HashAggregate
                                              Group Key: orders.o_custkey
                                              ->  Vec Redistribute Motion 3:3  (slice5; segments: 3)
                                                    Hash Key: orders.o_custkey
-                                                   ->  Vec Streaming Vec Partial Vec HashAggregate
-                                                         Group Key: orders.o_custkey
-                                                         ->  Vec Seq Scan on orders
+                                                   ->  Vec Seq Scan on orders
  Optimizer: GPORCA
-(31 rows)
+(29 rows)
 
 select
 	cntrycode,
