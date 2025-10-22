@@ -105,6 +105,9 @@ OBJS        = CExpression.o \
               CPhysicalInnerIndexNLJoin.o \
               CPhysicalInnerNLJoin.o \
               CPhysicalJoin.o \
+              CPhysicalParallelHashJoin.o \
+              CPhysicalParallelInnerHashJoin.o \
+              CPhysicalParallelLeftOuterHashJoin.o \
               CPhysicalLeftAntiSemiHashJoin.o \
               CPhysicalLeftAntiSemiHashJoinNotIn.o \
               CPhysicalLeftAntiSemiNLJoin.o \
@@ -117,8 +120,10 @@ OBJS        = CExpression.o \
               CPhysicalLimit.o \
               CPhysicalMotion.o \
               CPhysicalMotionBroadcast.o \
+              CPhysicalMotionBroadcastWorkers.o \
               CPhysicalMotionGather.o \
               CPhysicalMotionHashDistribute.o \
+              CPhysicalMotionHashDistributeWorkers.o \
               CPhysicalMotionRandom.o \
               CPhysicalMotionRoutedDistribute.o \
               CPhysicalDynamicForeignScan.o \
