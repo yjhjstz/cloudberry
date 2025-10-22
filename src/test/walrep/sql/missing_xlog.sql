@@ -145,7 +145,9 @@ select wait_for_replication_error('walread', 0, 500);
 select sync_error from gp_stat_replication where gp_segment_id = 0;
 
 -- do full recovery for the first mirror
+-- start_ignore
 select pg_ctl((select datadir from gp_segment_configuration c where c.role='m' and c.content=0), 'stop', NULL);
+-- end_ignore
 -- wait for mirror is marked down
 -- the status of the mirror is not marked as 'd' immediately
 -- even if we run gp_request_fts_probe_scan() or pg_sleep()
