@@ -258,6 +258,11 @@ private:
 							CDistributionSpecArray *pdrgpdsBaseTables,
 							ULONG *pulNonGatherMotions, BOOL *pfDML);
 
+	CDXLNode *PdxlnParallelHashJoin(CExpression *pexprHJ,
+									CColRefArray *colref_array,
+									CDistributionSpecArray *pdrgpdsBaseTables,
+									ULONG *pulNonGatherMotions, BOOL *pfDML);
+
 	CDXLNode *PdxlnCorrelatedNLJoin(CExpression *pexprNLJ,
 									CColRefArray *colref_array,
 									CDistributionSpecArray *pdrgpdsBaseTables,

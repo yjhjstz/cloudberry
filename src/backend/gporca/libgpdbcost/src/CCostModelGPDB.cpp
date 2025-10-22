@@ -29,6 +29,7 @@
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalParallelTableScan.h"
+#include "gpopt/operators/CPhysicalParallelHashJoin.h"
 #include "gpopt/operators/CPhysicalMotion.h"
 #include "gpopt/operators/CPhysicalMotionBroadcast.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
@@ -903,7 +904,8 @@ CCostModelGPDB::CostHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				COperator::EopPhysicalLeftAntiSemiHashJoinNotIn == op_id ||
 				COperator::EopPhysicalLeftOuterHashJoin == op_id ||
 				COperator::EopPhysicalRightOuterHashJoin == op_id ||
-				COperator::EopPhysicalFullHashJoin == op_id);
+				COperator::EopPhysicalFullHashJoin == op_id ||
+				COperator::EopPhysicalParallelInnerHashJoin == op_id);
 #endif	// GPOS_DEBUG
 
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
@@ -1150,6 +1152,225 @@ CCostModelGPDB::CostHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			{
 				// If user specified skew multiplier is 0
 				// Cap the skew to avoid gather motions
+				skew_ratio = CDouble(std::min(dPenalizeHJSkewUpperLimit.Get(),
+											  skew_ratio.Get()));
+			}
+
+			columns->Release();
+		}
+	}
+
+	return costChild + CCost(costLocal.Get() * skew_ratio);
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CCostModelGPDB::CostParallelHashJoin
+//
+//	@doc:
+//		Cost of parallel hash join
+//
+//---------------------------------------------------------------------------
+CCost
+CCostModelGPDB::CostParallelHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									 const CCostModelGPDB *pcmgpdb,
+									 const SCostingInfo *pci)
+{
+	GPOS_ASSERT(nullptr != pcmgpdb);
+	GPOS_ASSERT(nullptr != pci);
+
+	COperator *pop = exprhdl.Pop();
+	GPOS_ASSERT(COperator::EopPhysicalParallelInnerHashJoin == pop->Eopid());
+
+	// Get the parallel hash join operator to extract worker count
+	CPhysicalParallelHashJoin *popParallelHashJoin =
+		CPhysicalParallelHashJoin::PopConvert(pop);
+	ULONG ulWorkers = popParallelHashJoin->UlParallelWorkers();
+
+	// If only 1 worker, fallback to regular hash join cost
+	if (ulWorkers <= 1)
+	{
+		return CostHashJoin(mp, exprhdl, pcmgpdb, pci);
+	}
+
+	// Get base parameters (same as regular hash join)
+	const DOUBLE num_rows_outer = pci->PdRows()[0];
+	const DOUBLE dWidthOuter = pci->GetWidth()[0];
+	const DOUBLE dRowsInner = pci->PdRows()[1];
+	const DOUBLE dWidthInner = pci->GetWidth()[1];
+
+	const CDouble dHJHashTableInitCostFactor =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHJHashTableInitCostFactor)
+			->Get();
+	const CDouble dHJHashTableColumnCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHJHashTableColumnCostUnit)
+			->Get();
+	const CDouble dHJHashTableWidthCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHJHashTableWidthCostUnit)
+			->Get();
+	const CDouble dJoinFeedingTupColumnCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpJoinFeedingTupColumnCostUnit)
+			->Get();
+	const CDouble dJoinFeedingTupWidthCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpJoinFeedingTupWidthCostUnit)
+			->Get();
+	const CDouble dHJHashingTupWidthCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHJHashingTupWidthCostUnit)
+			->Get();
+	const CDouble dJoinOutputTupCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpJoinOutputTupCostUnit)
+			->Get();
+	const CDouble dHJSpillingMemThreshold =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHJSpillingMemThreshold)
+			->Get();
+	const CDouble dHJFeedingTupColumnSpillingCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(
+				CCostModelParamsGPDB::EcpHJFeedingTupColumnSpillingCostUnit)
+			->Get();
+	const CDouble dHJFeedingTupWidthSpillingCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(
+				CCostModelParamsGPDB::EcpHJFeedingTupWidthSpillingCostUnit)
+			->Get();
+	const CDouble dHJHashingTupWidthSpillingCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(
+				CCostModelParamsGPDB::EcpHJHashingTupWidthSpillingCostUnit)
+			->Get();
+	const CDouble dPenalizeHJSkewUpperLimit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpPenalizeHJSkewUpperLimit)
+			->Get();
+
+	// Get the number of columns used in join condition
+	CExpression *pexprJoinCond = exprhdl.PexprScalarRepChild(2);
+	CColRefSet *pcrsUsed = pexprJoinCond->DeriveUsedColumns();
+	const ULONG ulColsUsed = pcrsUsed->Size();
+
+	// Calculate base hash join cost (same formula as regular hash join)
+	CDouble dBaseHashJoinCost(0.0);
+
+	// Inner tuples fit in memory
+	if (dRowsInner * dWidthInner <= dHJSpillingMemThreshold)
+	{
+		dBaseHashJoinCost =
+			// cost of building hash table
+			dRowsInner * (ulColsUsed * dHJHashTableColumnCostUnit +
+						  dWidthInner * dHJHashTableWidthCostUnit) +
+			// cost of feeding outer tuples
+			ulColsUsed * num_rows_outer * dJoinFeedingTupColumnCostUnit +
+			dWidthOuter * num_rows_outer * dJoinFeedingTupWidthCostUnit +
+			// cost of matching inner tuples
+			dWidthInner * dRowsInner * dHJHashingTupWidthCostUnit +
+			// cost of output tuples
+			pci->Rows() * pci->Width() * dJoinOutputTupCostUnit;
+	}
+	else
+	{
+		// Inner tuples spill
+		dBaseHashJoinCost =
+			dHJHashTableInitCostFactor +
+			dRowsInner * (ulColsUsed * dHJHashTableColumnCostUnit +
+						  dWidthInner * dHJHashTableWidthCostUnit) +
+			ulColsUsed * num_rows_outer * dHJFeedingTupColumnSpillingCostUnit +
+			dWidthOuter * num_rows_outer * dHJFeedingTupWidthSpillingCostUnit +
+			dWidthInner * dRowsInner * dHJHashingTupWidthSpillingCostUnit +
+			pci->Rows() * pci->Width() * dJoinOutputTupCostUnit;
+	}
+
+	// Calculate parallel efficiency (decreases with more workers)
+	CDouble dParallelEfficiency = CalculateParallelEfficiency(ulWorkers);
+
+	// Parallel hash join cost = base cost / (workers * efficiency)
+	CDouble dParallelHashJoinCost = dBaseHashJoinCost / (ulWorkers * dParallelEfficiency);
+
+	// Apply rebinds and worker startup
+	CCost costLocal(pci->NumRebinds() * (dParallelHashJoinCost));
+
+	// Get cost of children
+	CCost costChild =
+		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
+
+	// Calculate skew ratio (same logic as regular hash join)
+	COptimizerConfig *optimizer_config =
+		COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
+
+	CDouble skew_ratio = 1;
+	ULONG arity = exprhdl.Arity();
+
+	if (GPOS_FTRACE(EopttraceDiscardRedistributeHashJoin))
+	{
+		for (ULONG ul = 0; ul < arity - 1; ul++)
+		{
+			COperator *popChild = exprhdl.Pop(ul);
+			if (nullptr != popChild &&
+				COperator::EopPhysicalMotionHashDistribute == popChild->Eopid())
+			{
+				return CCost(GPOS_FP_ABS_MAX);
+			}
+		}
+	}
+
+	// Check for skewed redistribute child (same logic as regular hash join)
+	if (!GPOS_FTRACE(EopttracePenalizeSkewedHashJoin))
+	{
+		for (ULONG ul = 0; ul < arity - 1; ++ul)
+		{
+			COperator *popChild = exprhdl.Pop(ul);
+			if (nullptr == popChild ||
+				COperator::EopPhysicalMotionHashDistribute != popChild->Eopid())
+			{
+				continue;
+			}
+
+			CPhysicalMotion *motion = CPhysicalMotion::PopConvert(popChild);
+			CColRefSet *columns = motion->Pds()->PcrsUsed(mp);
+			GPOS_ASSERT(columns->Size() > 0);
+
+			CDouble ndv = 1.0;
+			CDouble nullFreq = 1.0;
+			CColRefSetIter iter(*columns);
+			while (iter.Advance())
+			{
+				CColRef *colref = iter.Pcr();
+				ndv = ndv * pci->Pcstats(ul)->GetNDVs(colref);
+				nullFreq = nullFreq * pci->Pcstats(ul)->GetNullFreq(colref);
+			}
+
+			if (ndv < pcmgpdb->UlHosts() && (ndv >= 1))
+			{
+				CDouble sk = pcmgpdb->UlHosts() / ndv;
+				skew_ratio = CDouble(std::max(sk.Get(), skew_ratio.Get()));
+			}
+
+			if (nullFreq > .05)
+			{
+				CDouble skewed_percent = nullFreq + (1.0 / pcmgpdb->UlHosts());
+				CDouble expected_percent_if_uniform = 1.0 / pcmgpdb->UlHosts();
+				CDouble sk = skewed_percent / expected_percent_if_uniform;
+				skew_ratio = CDouble(std::max(sk.Get(), skew_ratio.Get()));
+			}
+
+			ULONG skew_factor = optimizer_config->GetHint()->UlSkewFactor();
+			if (skew_factor > 0)
+			{
+				IStatistics *pcstats = pci->Pcstats(ul)->Pstats();
+				skew_factor = pow(1.0307, (skew_factor - 1));
+				CDouble sk1 =
+					skew_factor * CPhysical::GetSkew(pcstats, motion->Pds());
+				skew_ratio = CDouble(std::max(sk1.Get(), skew_ratio.Get()));
+			}
+			else
+			{
 				skew_ratio = CDouble(std::min(dPenalizeHJSkewUpperLimit.Get(),
 											  skew_ratio.Get()));
 			}
@@ -2712,6 +2933,11 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalFullHashJoin:
 		{
 			return CostHashJoin(m_mp, exprhdl, this, pci);
+		}
+
+		case COperator::EopPhysicalParallelInnerHashJoin:
+		{
+			return CostParallelHashJoin(m_mp, exprhdl, this, pci);
 		}
 
 		case COperator::EopPhysicalInnerIndexNLJoin:

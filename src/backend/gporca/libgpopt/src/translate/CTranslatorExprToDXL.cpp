@@ -45,6 +45,7 @@
 #include "gpopt/operators/CPhysicalHashAgg.h"
 #include "gpopt/operators/CPhysicalHashAggDeduplicate.h"
 #include "gpopt/operators/CPhysicalHashJoin.h"
+#include "gpopt/operators/CPhysicalParallelHashJoin.h"
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalInnerIndexNLJoin.h"
@@ -114,6 +115,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalForeignScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalGatherMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalHashJoin.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelHashJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexOnlyScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalLimit.h"
@@ -446,6 +448,11 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 		case COperator::EopPhysicalRightOuterHashJoin:
 		case COperator::EopPhysicalFullHashJoin:
 			dxlnode = CTranslatorExprToDXL::PdxlnHashJoin(
+				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
+				pfDML);
+			break;
+		case COperator::EopPhysicalParallelInnerHashJoin:
+			dxlnode = CTranslatorExprToDXL::PdxlnParallelHashJoin(
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
 			break;
@@ -5159,9 +5166,153 @@ CTranslatorExprToDXL::PdxlnHashJoin(CExpression *pexprHJ,
 		pdrgpexprRemainingPredicates->Release();
 	}
 
-	// construct a hash join node
+	// construct a regular hash join node
 	CDXLPhysicalHashJoin *pdxlopHJ =
 		GPOS_NEW(m_mp) CDXLPhysicalHashJoin(m_mp, join_type);
+
+	// construct projection list from required columns
+	GPOS_ASSERT(nullptr != pexprHJ->Prpp());
+	CColRefSet *pcrsOutput = pexprHJ->Prpp()->PcrsRequired();
+	CDXLNode *proj_list_dxlnode = PdxlnProjList(pcrsOutput, colref_array);
+
+	CDXLNode *pdxlnHJ = GPOS_NEW(m_mp) CDXLNode(m_mp, pdxlopHJ);
+	CDXLPhysicalProperties *dxl_properties = GetProperties(pexprHJ);
+	pdxlnHJ->SetProperties(dxl_properties);
+
+	// construct an empty plan filter
+	CDXLNode *filter_dxlnode = PdxlnFilter(nullptr);
+
+	// add children
+	pdxlnHJ->AddChild(proj_list_dxlnode);
+	pdxlnHJ->AddChild(filter_dxlnode);
+	pdxlnHJ->AddChild(dxlnode_join_filter);
+	pdxlnHJ->AddChild(pdxlnHashCondList);
+	pdxlnHJ->AddChild(pdxlnOuterChild);
+	pdxlnHJ->AddChild(pdxlnInnerChild);
+
+	// cleanup
+	pdrgpexprPredicates->Release();
+
+#ifdef GPOS_DEBUG
+	pdxlopHJ->AssertValid(pdxlnHJ, false /* validate_children */);
+#endif
+
+	return pdxlnHJ;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CTranslatorExprToDXL::PdxlnParallelHashJoin
+//
+//	@doc:
+//		Create a DXL parallel hash join node from an optimizer parallel hash
+//		join expression.
+//
+//---------------------------------------------------------------------------
+CDXLNode *
+CTranslatorExprToDXL::PdxlnParallelHashJoin(
+	CExpression *pexprHJ, CColRefArray *colref_array,
+	CDistributionSpecArray *pdrgpdsBaseTables, ULONG *pulNonGatherMotions,
+	BOOL *pfDML)
+{
+	GPOS_ASSERT(nullptr != pexprHJ);
+	GPOS_ASSERT(3 == pexprHJ->Arity());
+
+	// extract components
+	CPhysicalParallelHashJoin *popParallelHJ =
+		CPhysicalParallelHashJoin::PopConvert(pexprHJ->Pop());
+	CExpression *pexprOuterChild = (*pexprHJ)[0];
+	CExpression *pexprInnerChild = (*pexprHJ)[1];
+	CExpression *pexprScalar = (*pexprHJ)[2];
+
+	EdxlJoinType join_type = EdxljtHashJoin(popParallelHJ);
+	GPOS_ASSERT(popParallelHJ->PdrgpexprOuterKeys()->Size() ==
+				popParallelHJ->PdrgpexprInnerKeys()->Size());
+
+	// translate relational child expression
+	CDXLNode *pdxlnOuterChild = CreateDXLNode(
+		pexprOuterChild, nullptr /*colref_array*/, pdrgpdsBaseTables,
+		pulNonGatherMotions, pfDML, false /*fRemap*/, false /*fRoot*/);
+	CDXLNode *pdxlnInnerChild = CreateDXLNode(
+		pexprInnerChild, nullptr /*colref_array*/, pdrgpdsBaseTables,
+		pulNonGatherMotions, pfDML, false /*fRemap*/, false /*fRoot*/);
+
+	// construct hash condition
+	CDXLNode *pdxlnHashCondList = GPOS_NEW(m_mp)
+		CDXLNode(m_mp, GPOS_NEW(m_mp) CDXLScalarHashCondList(m_mp));
+
+#ifdef GPOS_DEBUG
+	ULONG ulHashJoinPreds = 0;
+#endif
+
+	CExpressionArray *pdrgpexprPredicates =
+		CPredicateUtils::PdrgpexprConjuncts(m_mp, pexprScalar);
+	CExpressionArray *pdrgpexprRemainingPredicates =
+		GPOS_NEW(m_mp) CExpressionArray(m_mp);
+	const ULONG size = pdrgpexprPredicates->Size();
+	for (ULONG ul = 0; ul < size; ul++)
+	{
+		CExpression *pexprPred = (*pdrgpexprPredicates)[ul];
+		if (CPhysicalJoin::FHashJoinCompatible(pexprPred, pexprOuterChild,
+											   pexprInnerChild))
+		{
+			CExpression *pexprPredOuter;
+			CExpression *pexprPredInner;
+			IMDId *mdid_scop;
+			CPhysicalJoin::AlignJoinKeyOuterInner(
+				pexprPred, pexprOuterChild, pexprInnerChild, &pexprPredOuter,
+				&pexprPredInner, &mdid_scop);
+
+			pexprPredOuter->AddRef();
+			pexprPredInner->AddRef();
+			// create hash join predicate based on conjunct type
+			if (CPredicateUtils::IsEqualityOp(pexprPred))
+			{
+				pexprPred = CUtils::PexprScalarCmp(m_mp, pexprPredOuter,
+												   pexprPredInner, mdid_scop);
+			}
+			else
+			{
+				GPOS_ASSERT(CPredicateUtils::FINDF(pexprPred));
+				pexprPred = CUtils::PexprINDF(m_mp, pexprPredOuter,
+											  pexprPredInner, mdid_scop);
+			}
+
+			CDXLNode *pdxlnPred = PdxlnScalar(pexprPred);
+			pdxlnHashCondList->AddChild(pdxlnPred);
+			pexprPred->Release();
+#ifdef GPOS_DEBUG
+			ulHashJoinPreds++;
+#endif	// GPOS_DEBUG
+		}
+		else
+		{
+			pexprPred->AddRef();
+			pdrgpexprRemainingPredicates->Append(pexprPred);
+		}
+	}
+	GPOS_ASSERT(popParallelHJ->PdrgpexprOuterKeys()->Size() ==
+				ulHashJoinPreds);
+
+	CDXLNode *dxlnode_join_filter = GPOS_NEW(m_mp)
+		CDXLNode(m_mp, GPOS_NEW(m_mp) CDXLScalarJoinFilter(m_mp));
+	if (0 < pdrgpexprRemainingPredicates->Size())
+	{
+		CExpression *pexprJoinCond = CPredicateUtils::PexprConjunction(
+			m_mp, pdrgpexprRemainingPredicates);
+		CDXLNode *pdxlnJoinCond = PdxlnScalar(pexprJoinCond);
+		dxlnode_join_filter->AddChild(pdxlnJoinCond);
+		pexprJoinCond->Release();
+	}
+	else
+	{
+		pdrgpexprRemainingPredicates->Release();
+	}
+
+	// construct a parallel hash join node
+	ULONG ulParallelWorkers = popParallelHJ->UlParallelWorkers();
+	CDXLPhysicalHashJoin *pdxlopHJ = GPOS_NEW(m_mp)
+		CDXLPhysicalParallelHashJoin(m_mp, join_type, ulParallelWorkers);
 
 	// construct projection list from required columns
 	GPOS_ASSERT(nullptr != pexprHJ->Prpp());

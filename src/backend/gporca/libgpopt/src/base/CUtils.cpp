@@ -48,6 +48,7 @@
 #include "gpopt/operators/CPhysicalCTEProducer.h"
 #include "gpopt/operators/CPhysicalMotionRandom.h"
 #include "gpopt/operators/CPhysicalNLJoin.h"
+#include "gpopt/operators/CPhysicalParallelHashJoin.h"
 #include "gpopt/operators/CPredicateUtils.h"
 #include "gpopt/operators/CScalarArray.h"
 #include "gpopt/operators/CScalarArrayCoerceExpr.h"
@@ -1121,6 +1122,21 @@ CUtils::FHashJoin(COperator *pop)
 	}
 
 	return (nullptr != popHJN);
+}
+
+// check if a given operator is a parallel hash join
+BOOL
+CUtils::FParallelHashJoin(COperator *pop)
+{
+	GPOS_ASSERT(nullptr != pop);
+
+	CPhysicalParallelHashJoin *popPHJN = nullptr;
+	if (pop->FPhysical())
+	{
+		popPHJN = dynamic_cast<CPhysicalParallelHashJoin *>(pop);
+	}
+
+	return (nullptr != popPHJN);
 }
 
 // check if a given operator is a correlated nested loops join

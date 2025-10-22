@@ -225,6 +225,9 @@ public:
 		EopPhysicalRightOuterHashJoin,
 		EopPhysicalFullHashJoin,
 
+		// Parallel hash joins
+		EopPhysicalParallelInnerHashJoin,
+
 		EopPhysicalMotionGather,
 		EopPhysicalMotionBroadcast,
 		EopPhysicalMotionHashDistribute,

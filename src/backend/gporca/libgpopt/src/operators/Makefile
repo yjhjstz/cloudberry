@@ -105,6 +105,8 @@ OBJS        = CExpression.o \
               CPhysicalInnerIndexNLJoin.o \
               CPhysicalInnerNLJoin.o \
               CPhysicalJoin.o \
+              CPhysicalParallelHashJoin.o \
+              CPhysicalParallelInnerHashJoin.o \
               CPhysicalLeftAntiSemiHashJoin.o \
               CPhysicalLeftAntiSemiHashJoinNotIn.o \
               CPhysicalLeftAntiSemiNLJoin.o \

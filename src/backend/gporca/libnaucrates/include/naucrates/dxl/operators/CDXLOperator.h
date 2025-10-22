@@ -135,6 +135,7 @@ enum Edxlopid
 	EdxlopPhysicalConstTable,
 	EdxlopPhysicalNLJoin,
 	EdxlopPhysicalHashJoin,
+	EdxlopPhysicalParallelHashJoin,
 	EdxlopPhysicalMergeJoin,
 	EdxlopPhysicalMotionGather,
 	EdxlopPhysicalMotionBroadcast,
