@@ -208,18 +208,16 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
 
-	// ========== Defensive Check: Reject Replicated Distributions ==========
-	// Parallel hash join does not support replicated tables
-	// (Should be filtered by Xform, but check here as a safeguard)
-	if (CDistributionSpec::EdtReplicated == pdsOuter->Edt() ||
-		CDistributionSpec::EdtStrictReplicated == pdsOuter->Edt() ||
-		CDistributionSpec::EdtReplicated == pdsInner->Edt() ||
-		CDistributionSpec::EdtStrictReplicated == pdsInner->Edt())
-	{
-		GPOS_RAISE(CException::ExmaInvalid, CException::ExmiInvalid,
-				   GPOS_WSZ_LIT("Parallel Hash Join does not support "
-								"replicated distributions"));
-	}
+	// ========== Defensive Check: Assert No Replicated Distributions ==========
+	// Parallel hash join does not support replicated tables.
+	// CXformGet2ParallelTableScan filters these out (see CXformGet2ParallelTableScan.cpp:170-177),
+	// so encountering them here indicates an internal consistency error.
+	GPOS_ASSERT(CDistributionSpec::EdtReplicated != pdsOuter->Edt() &&
+				CDistributionSpec::EdtStrictReplicated != pdsOuter->Edt() &&
+				CDistributionSpec::EdtReplicated != pdsInner->Edt() &&
+				CDistributionSpec::EdtStrictReplicated != pdsInner->Edt() &&
+				"Parallel Hash Join received replicated distribution - "
+				"should have been filtered by CXformGet2ParallelTableScan");
 
 	// ========== Priority 1: Handle WorkerRandom Distributions ==========
 
@@ -308,14 +306,10 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
 CPhysicalParallelHashJoin::PrsDerive(CMemoryPool *mp,
-									 CExpressionHandle &  // exprhdl
+									 CExpressionHandle &exprhdl
 ) const
 {
-	// Parallel hash join is NOT rewindable
-	// Reason: Parallel execution with shared hash table cannot support
-	//         rewinding to arbitrary positions
-	return GPOS_NEW(mp) CRewindabilitySpec(CRewindabilitySpec::ErtNone,
-										   CRewindabilitySpec::EmhtNoMotion);
+	return CPhysicalJoin::PrsDerive(mp, exprhdl);
 }
 
 //---------------------------------------------------------------------------
@@ -365,7 +359,6 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 	//   → Segment base Hashed(b) satisfies Hashed(b) requirement!
 	//   → No Motion needed (workers will share the hash table)
 	//
-	// See doc section 8.2: "Inner 节点必须使用 PdsSegmentBase"
 	if (CDistributionSpec::EdtWorkerRandom != pdsRequired->Edt() &&
 		CDistributionSpec::EdtWorkerRandom == pdsDerived->Edt())
 	{
