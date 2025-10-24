@@ -88,13 +88,18 @@ CPhysicalParallelHashJoin::~CPhysicalParallelHashJoin()
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp,
-									   CExpressionHandle &exprhdl,
-									   CDistributionSpec *pdsRequired,
-									   ULONG child_index,
-									   CDrvdPropArray *pdrgpdpCtxt,
-									   ULONG ulOptReq) const
+CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp GPOS_UNUSED,
+									   CExpressionHandle &exprhdl GPOS_UNUSED,
+									   CDistributionSpec *pdsRequired GPOS_UNUSED,
+									   ULONG child_index GPOS_UNUSED,
+									   CDrvdPropArray *pdrgpdpCtxt GPOS_UNUSED,
+									   ULONG ulOptReq GPOS_UNUSED) const
 {
+	GPOS_RAISE(
+		CException::ExmaInvalid, CException::ExmiInvalid,
+		GPOS_WSZ_LIT("PdsRequired should not be called for CPhysicalParallelHashJoin"));
+	return nullptr;
+#if 0
 	GPOS_ASSERT(child_index < 2);
 
 	// Inner child (child_index == 1)
@@ -104,7 +109,7 @@ CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp,
 		CDistributionSpec *pdsOuter =
 			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
 
-		// 🚨 Key constraint: Inner must use PdsSegmentBase, NOT WorkerRandom
+		// Key constraint: Inner must use PdsSegmentBase, NOT WorkerRandom
 		// Reason: All workers must see the complete segment data to build
 		//         a shared hash table. If inner uses WorkerRandom, each worker
 		//         would only scan a subset, leading to missing join matches.
@@ -162,6 +167,7 @@ CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp,
 	// Fallback: delegate to base class
 	return CPhysicalHashJoin::PdsRequired(mp, exprhdl, pdsRequired,
 										  child_index, pdrgpdpCtxt, ulOptReq);
+#endif
 }
 
 //---------------------------------------------------------------------------
