@@ -91,6 +91,10 @@ github:
           - RPM Install Test Apache Cloudberry
           - ic-good-opt-off
           - ic-good-opt-on
+          - pax-ic-good-opt-off
+          - pax-ic-good-opt-on
+          - pax-ic-isolation2-opt-off
+          - pax-ic-isolation2-opt-on
           - ic-expandshrink
           - ic-singlenode
           - ic-resgroup-v2
@@ -101,11 +105,6 @@ github:
           - ic-isolation2-crash
           - ic-parallel-retrieve-cursor
           - Generate Apache Cloudberry Build Report
-          - prepare-test-matrix
-          - build
-          - rpm-install-test
-          - test
-          - report
 
       # Pull request review requirements
       required_pull_request_reviews:
