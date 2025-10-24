@@ -31,6 +31,25 @@
 
 using namespace gpopt;
 
+CPartitionPropagationSpec *
+CPhysicalParallelInnerHashJoin::PppsRequired(CMemoryPool *mp,
+												 CExpressionHandle &exprhdl,
+												 CPartitionPropagationSpec *pppsRequired,
+												 ULONG child_index,
+												 CDrvdPropArray *pdrgpdpCtxt,
+												 ULONG ulOptReq) const
+{
+	return PppsRequiredForJoins(mp, exprhdl, pppsRequired, child_index,
+								 pdrgpdpCtxt, ulOptReq);
+}
+
+CPartitionPropagationSpec *
+CPhysicalParallelInnerHashJoin::PppsDerive(CMemoryPool *mp,
+												 CExpressionHandle &exprhdl) const
+{
+	return PppsDeriveForJoins(mp, exprhdl);
+}
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalParallelInnerHashJoin::CPhysicalParallelInnerHashJoin

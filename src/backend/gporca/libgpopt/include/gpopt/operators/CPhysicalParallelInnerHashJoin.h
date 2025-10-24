@@ -73,6 +73,15 @@ public:
 		return "CPhysicalParallelInnerHashJoin";
 	}
 
+	// partition propagation
+	CPartitionPropagationSpec *PppsRequired(
+		CMemoryPool *mp, CExpressionHandle &exprhdl,
+		CPartitionPropagationSpec *pppsRequired, ULONG child_index,
+		CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq) const override;
+
+	CPartitionPropagationSpec *PppsDerive(
+		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
+
 	// conversion function
 	static CPhysicalParallelInnerHashJoin *
 	PopConvert(COperator *pop)
