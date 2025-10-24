@@ -394,7 +394,9 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 //		CPhysicalParallelHashJoin::FValidContext
 //
 //	@doc:
-//		Check if optimization context is valid
+//		Check if optimization context is valid;
+//		Reject if parent requires REWINDABLE (e.g., for NL Join inner child)
+//		because ParallelHashJoin derives NONE (not rewindable)
 //
 //---------------------------------------------------------------------------
 BOOL
@@ -402,27 +404,22 @@ CPhysicalParallelHashJoin::FValidContext(
 	CMemoryPool *mp, COptimizationContext *poc,
 	COptimizationContextArray *pdrgpocChild) const
 {
-	GPOS_ASSERT(nullptr != pdrgpocChild);
-	GPOS_ASSERT(2 == pdrgpocChild->Size());
+	GPOS_ASSERT(nullptr != poc);
 
-	// Parallel hash join is non-rewindable, so it cannot be used as
-	// the inner child of a nested loop join
-	COptimizationContext *pocChild = (*pdrgpocChild)[0];
-	CCostContext *pccBest = pocChild->PccBest();
-	GPOS_ASSERT(nullptr != pccBest);
+	// Check if parent requires rewindability
+	CReqdPropPlan *prpp = poc->Prpp();
+	CRewindabilitySpec *prsRequired = prpp->Per()->PrsRequired();
 
-	// Get required rewindability
-	CRewindabilitySpec *prs = CDrvdPropPlan::Pdpplan(pccBest->Pdpplan())->Prs();
-
-	// If rewindability is required, reject this context
-	if (CRewindabilitySpec::ErtNone != prs->Ert())
+	// Parallel hash join is non-rewindable (derives ErtNone)
+	// If parent requires REWINDABLE (e.g., NL Join inner child), reject
+	if (prsRequired->IsOriginNLJoin())
 	{
-		// Context is invalid - parent requires rewindability
-		// but parallel hash join is non-rewindable
+		// Parent requires rewindability but ParallelHashJoin cannot provide it
+		// Reject this plan - ORCA will try alternatives or add Spool enforcer
 		return false;
 	}
 
-	// Otherwise, use base class validation
+	// Parent doesn't require rewindability, delegate to base class
 	return CPhysicalHashJoin::FValidContext(mp, poc, pdrgpocChild);
 }
 
