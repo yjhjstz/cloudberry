@@ -138,7 +138,28 @@ CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp,
 	}
 
 	// Outer child (child_index == 0)
-	// Delegate to base class implementation
+	// For parallel hash join, we want the outer child to deliver WorkerRandom
+	// distribution to enable parallel probe phase
+	if (0 == child_index)
+	{
+		// If the required distribution from parent is already satisfied by
+		// WorkerRandom, we can propagate a WorkerRandom requirement
+		// Otherwise, we need to create a WorkerRandom requirement based on
+		// the outer join keys
+
+		// Create a hashed distribution on outer join keys as the segment base
+		CDistributionSpecHashed *pdsHashedOuter =
+			PdshashedRequired(mp, child_index, ulOptReq);
+
+		// Wrap it in WorkerRandom distribution
+		CDistributionSpecWorkerRandom *pdsWorkerRandom =
+			GPOS_NEW(mp) CDistributionSpecWorkerRandom(m_ulParallelWorkers,
+													   pdsHashedOuter);
+
+		return pdsWorkerRandom;
+	}
+
+	// Fallback: delegate to base class
 	return CPhysicalHashJoin::PdsRequired(mp, exprhdl, pdsRequired,
 										  child_index, pdrgpdpCtxt, ulOptReq);
 }
@@ -172,7 +193,11 @@ CPhysicalParallelHashJoin::PrsRequired(CMemoryPool *mp,
 //		CPhysicalParallelHashJoin::PdsDerive
 //
 //	@doc:
-//		Derive distribution
+//		Derive distribution for parallel hash join
+//
+//		Strategy (two-tier priority):
+//		1. Handle WorkerRandom distributions (parallel-specific)
+//		2. Fall back to traditional hash join logic (from CPhysicalHashJoin)
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
@@ -183,8 +208,9 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
 
-	// Defensive programming: Check for replicated distributions
-	// (Should be filtered by Xform, but check here as well)
+	// ========== Defensive Check: Reject Replicated Distributions ==========
+	// Parallel hash join does not support replicated tables
+	// (Should be filtered by Xform, but check here as a safeguard)
 	if (CDistributionSpec::EdtReplicated == pdsOuter->Edt() ||
 		CDistributionSpec::EdtStrictReplicated == pdsOuter->Edt() ||
 		CDistributionSpec::EdtReplicated == pdsInner->Edt() ||
@@ -195,7 +221,9 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 								"replicated distributions"));
 	}
 
-	// Case 1: Both children are WorkerRandom
+	// ========== Priority 1: Handle WorkerRandom Distributions ==========
+
+	// Case 1: Both children are WorkerRandom (optimal parallel scenario)
 	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt() &&
 		CDistributionSpec::EdtWorkerRandom == pdsInner->Edt())
 	{
@@ -205,56 +233,67 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 			CDistributionSpecWorkerRandom::PdsConvert(pdsInner);
 
 		// Verify worker count matches
-		if (pdsWorkerOuter->UlWorkers() != pdsWorkerInner->UlWorkers())
+		if (pdsWorkerOuter->UlWorkers() == pdsWorkerInner->UlWorkers())
 		{
-			// Worker count mismatch - fall back to outer distribution
-			// This allows enforcement to add Motion if needed
-			pdsOuter->AddRef();
-			return pdsOuter;
-		}
+			// Verify segment-level base distributions are compatible
+			CDistributionSpec *pdsBaseOuter = pdsWorkerOuter->PdsSegmentBase();
+			CDistributionSpec *pdsBaseInner = pdsWorkerInner->PdsSegmentBase();
 
-		// Verify segment-level base distributions are compatible
-		CDistributionSpec *pdsBaseOuter = pdsWorkerOuter->PdsSegmentBase();
-		CDistributionSpec *pdsBaseInner = pdsWorkerInner->PdsSegmentBase();
-
-		if (nullptr != pdsBaseOuter && nullptr != pdsBaseInner)
-		{
-			// If both bases are hashed, check if they cover join keys
-			if (CDistributionSpec::EdtHashed == pdsBaseOuter->Edt() &&
-				CDistributionSpec::EdtHashed == pdsBaseInner->Edt())
+			if (nullptr != pdsBaseOuter && nullptr != pdsBaseInner)
 			{
-				CDistributionSpecHashed *pdsHashedOuter =
-					CDistributionSpecHashed::PdsConvert(pdsBaseOuter);
-				CDistributionSpecHashed *pdsHashedInner =
-					CDistributionSpecHashed::PdsConvert(pdsBaseInner);
-
-				// Check segment-level co-location
-				if (pdsHashedOuter->IsCoveredBy(PdrgpexprOuterKeys()) &&
-					pdsHashedInner->IsCoveredBy(PdrgpexprInnerKeys()))
+				// If both bases are hashed, check if they cover join keys
+				if (CDistributionSpec::EdtHashed == pdsBaseOuter->Edt() &&
+					CDistributionSpec::EdtHashed == pdsBaseInner->Edt())
 				{
-					// Compatible! Return outer's WorkerRandom distribution
+					CDistributionSpecHashed *pdsHashedOuter =
+						CDistributionSpecHashed::PdsConvert(pdsBaseOuter);
+					CDistributionSpecHashed *pdsHashedInner =
+						CDistributionSpecHashed::PdsConvert(pdsBaseInner);
+
+					// Check segment-level co-location
+					if (pdsHashedOuter->IsCoveredBy(PdrgpexprOuterKeys()) &&
+						pdsHashedInner->IsCoveredBy(PdrgpexprInnerKeys()))
+					{
+						// Perfect match! Return outer's WorkerRandom distribution
+						pdsOuter->AddRef();
+						return pdsOuter;
+					}
+				}
+				// If both bases are Random, they're compatible
+				else if (CDistributionSpec::EdtRandom == pdsBaseOuter->Edt() &&
+						 CDistributionSpec::EdtRandom == pdsBaseInner->Edt())
+				{
 					pdsOuter->AddRef();
 					return pdsOuter;
 				}
 			}
 		}
 
-		// Base distributions not compatible - fall back to outer distribution
-		// This allows enforcement to add Motion if needed
+		// Worker count mismatch or base incompatible - fall back to outer
+		// Enforcement will add Motion if needed
 		pdsOuter->AddRef();
 		return pdsOuter;
 	}
 
-	// Case 2: Outer is WorkerRandom, Inner is not
+	// Case 2: Only outer is WorkerRandom
 	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt())
 	{
-		// Return outer's distribution (inner will be matched)
+		// Return outer's distribution
+		// Inner will be redistributed to match (handled by PdsRequired)
 		pdsOuter->AddRef();
 		return pdsOuter;
 	}
 
-	// Case 3: Default behavior - pass through outer distribution
-	// (This handles cases where outer is Hashed, Random, etc.)
+	// ========== Priority 2: Traditional Distributions ==========
+	// For non-WorkerRandom distributions, pass through outer distribution
+	// The enforcement mechanism will handle any required redistributions
+
+	// Note: CPhysicalHashJoin::PdsDeriveFromHashedChildren() and other
+	// helper methods are private, so we cannot reuse them directly here.
+	// Instead, we rely on the enforcement mechanism to handle traditional
+	// distributions through Motion nodes if needed.
+
+	// Default: Pass through outer distribution
 	pdsOuter->AddRef();
 	return pdsOuter;
 }
@@ -287,6 +326,13 @@ CPhysicalParallelHashJoin::PrsDerive(CMemoryPool *mp,
 //		Return the enforcing type for distribution property based on this
 //		operator
 //
+//		Key scenarios handled:
+//		1. Direct match: Required WorkerRandom[N] == Derived WorkerRandom[N]
+//		2. Segment base match: Required Hashed(a) matches our WorkerRandom's
+//		   segment base Hashed(a) - critical for being used as inner child
+//		   of another hash join (see doc section 8.2)
+//		3. Mismatch: Motion required to enforce required distribution
+//
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
 CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
@@ -301,14 +347,25 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 	CDistributionSpec *pdsRequired = ped->PdsRequired();
 
 	// Case 1: Our derived distribution directly satisfies the requirement
+	// Examples:
+	//   - Required: WorkerRandom[2] base:Hashed(a)
+	//     Derived:  WorkerRandom[2] base:Hashed(a) → Match!
 	if (ped->FCompatible(pdsDerived))
 	{
 		return CEnfdProp::EpetUnnecessary;
 	}
 
-	// Case 2: If required is NOT WorkerRandom, but our derived IS WorkerRandom
-	// Check if the segment-level base distribution can satisfy the requirement
-	// (This handles the case where we're used as inner child of another HashJoin)
+	// Case 2: Required is traditional (Hashed), but we deliver WorkerRandom
+	// Check if our segment-level base distribution can satisfy the requirement
+	//
+	// Critical scenario: We're used as inner child of another hash join
+	// Example:
+	//   - Required: Hashed(b) (from outer hash join's inner requirement)
+	//   - Derived:  WorkerRandom[2] base:Hashed(b)
+	//   → Segment base Hashed(b) satisfies Hashed(b) requirement!
+	//   → No Motion needed (workers will share the hash table)
+	//
+	// See doc section 8.2: "Inner 节点必须使用 PdsSegmentBase"
 	if (CDistributionSpec::EdtWorkerRandom != pdsRequired->Edt() &&
 		CDistributionSpec::EdtWorkerRandom == pdsDerived->Edt())
 	{
@@ -319,12 +376,16 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 		if (nullptr != pdsSegmentBase && ped->FCompatible(pdsSegmentBase))
 		{
 			// Segment-level base distribution satisfies the requirement
+			// This avoids unnecessary Motion for worker-level parallelism
 			return CEnfdProp::EpetUnnecessary;
 		}
 	}
 
-	// No distribution satisfies the requirement
+	// Case 3: No distribution satisfies the requirement
 	// Motion enforcement will be needed on the output
+	// Examples:
+	//   - Required: WorkerRandom[4], Derived: WorkerRandom[2] (worker mismatch)
+	//   - Required: Hashed(c), Derived: WorkerRandom[2] base:Hashed(a) (key mismatch)
 	return CEnfdProp::EpetRequired;
 }
 
