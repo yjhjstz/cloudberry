@@ -1784,7 +1784,7 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHashJoin(
 	// set parallel execution properties
 	plan->parallel_aware = true;
 	plan->parallel_safe = true;
-	plan->parallel = parallel_workers;
+	// join parallel degree inherits from probe (left) child; set after child translation
 
 	// set join type
 	join->jointype =
@@ -1811,6 +1811,8 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHashJoin(
 	Plan *left_plan =
 		TranslateDXLOperatorToPlan(left_tree_dxlnode, &left_dxl_translate_ctxt,
 								   ctxt_translation_prev_siblings);
+	// inherit parallel degree for join from left (probe) child
+	plan->parallel = left_plan->parallel;
 
 	// the right side of the join is the one where the hash phase is done
 	CDXLTranslationContextArray *translation_context_arr_with_siblings =
