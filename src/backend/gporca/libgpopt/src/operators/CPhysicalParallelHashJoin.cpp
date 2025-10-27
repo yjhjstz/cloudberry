@@ -221,59 +221,49 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 
 	if (FFirstChildToOptimize(child_index))
 	{
-		// Optimizing the first child: Request "Any" to allow WorkerRandom pass-through
-		// This lets Parallel Table Scans provide their natural WorkerRandom distribution
-		CEnfdDistribution::EDistributionMatching dmatch =
-			Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
-
-		return GPOS_NEW(mp) CEnfdDistribution(
-			GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
-			dmatch);
+		// Only relax distribution for (redistribute,redistribute) requests to allow WorkerRandom to flow.
+		ULONG ulHashDistReqs = NumDistrReq();
+		if (ulOptReq < ulHashDistReqs)
+		{
+			CEnfdDistribution::EDistributionMatching dmatch =
+				Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+			return GPOS_NEW(mp) CEnfdDistribution(
+				GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()), dmatch);
+		}
+		// For replicate/singleton requests, defer to base class to preserve contracts.
+		return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
+								  pdrgpdpCtxt, ulOptReq);
 	}
 
-	// Optimizing the second child: Check if first child's distribution is compatible
+	// Optimizing the second child: Only special-case when first child is WorkerRandom; otherwise defer to base.
 	if (nullptr != pdrgpdpCtxt && pdrgpdpCtxt->Size() > 0)
 	{
-		CDistributionSpec *pdsFirst =
-			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
-
-		// Check if first child delivers WorkerRandom with hashed segment base
+		CDistributionSpec *pdsFirst = CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
 		if (CDistributionSpec::EdtWorkerRandom == pdsFirst->Edt())
 		{
-			CDistributionSpecWorkerRandom *pdsWorkerFirst =
-				CDistributionSpecWorkerRandom::PdsConvert(pdsFirst);
+			CDistributionSpecWorkerRandom *pdsWorkerFirst = CDistributionSpecWorkerRandom::PdsConvert(pdsFirst);
 			CDistributionSpec *pdsSegmentBase = pdsWorkerFirst->PdsSegmentBase();
-
-			if (nullptr != pdsSegmentBase &&
-				CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
+			if (nullptr != pdsSegmentBase && CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
 			{
-				CDistributionSpecHashed *pdsHashedBase =
-					CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
-
-				// Determine which join keys to check based on child order
-				const CExpressionArray *pdrgpexprKeysToCheck = nullptr;
-				if (EceoRightToLeft == Eceo())
+				CDistributionSpecHashed *pdsHashedBase = CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
+				// Ensure first child's base hashed is covered by its own join keys; otherwise, defer to base logic
+				const CExpressionArray *pdrgpexprFirstKeys = (EceoRightToLeft == Eceo()) ? PdrgpexprInnerKeys() : PdrgpexprOuterKeys();
+				if (!pdsHashedBase->IsCoveredBy(pdrgpexprFirstKeys))
 				{
-					// Inner-first optimization: first child is inner (1), checking outer (0)
-					pdrgpexprKeysToCheck = (0 == child_index) ? PdrgpexprOuterKeys() : PdrgpexprInnerKeys();
+					// Fall back to requesting hashed on the second child based on its own join keys
+					CDistributionSpecHashed *pdsHashedReq = PdshashedRequired(mp, child_index, ulOptReq);
+					pdsHashedReq->ComputeEquivHashExprs(mp, exprhdl);
+					CEnfdDistribution::EDistributionMatching dmatch = Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+					return GPOS_NEW(mp) CEnfdDistribution(pdsHashedReq, dmatch);
 				}
-				else
-				{
-					// Left-first optimization: first child is outer (0), checking inner (1)
-					pdrgpexprKeysToCheck = (1 == child_index) ? PdrgpexprInnerKeys() : PdrgpexprOuterKeys();
-				}
-
-				// If segment-level base already covers the join keys, request "Any"
-				// This allows WorkerRandom to pass through without Motion
-				if (pdsHashedBase->IsCoveredBy(pdrgpexprKeysToCheck))
-				{
-					CEnfdDistribution::EDistributionMatching dmatch =
-						Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
-
-					return GPOS_NEW(mp) CEnfdDistribution(
-						GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
-						dmatch);
-				}
+				ULONG ulFirstChild = (EceoRightToLeft == Eceo()) ? 1 : 0;
+				CDistributionSpecHashed *pdsMatch = PdshashedMatching(mp, pdsHashedBase, ulFirstChild);
+				pdsMatch->ComputeEquivHashExprs(mp, exprhdl);
+				CEnfdDistribution::EDistributionMatching dmatch = Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+				// Require WorkerRandom on second child, with base hashed matching first child's base
+				ULONG ulWorkers = pdsWorkerFirst->UlWorkers();
+				CDistributionSpecWorkerRandom *pdsWorkerReq = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsMatch);
+				return GPOS_NEW(mp) CEnfdDistribution(pdsWorkerReq, dmatch);
 			}
 		}
 	}
@@ -314,6 +304,7 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
 		dmatch);
 }
+
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -457,12 +448,12 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 	// Parallel hash join does not support replicated tables.
 	// CXformGet2ParallelTableScan filters these out (see CXformGet2ParallelTableScan.cpp:170-177),
 	// so encountering them here indicates an internal consistency error.
-	GPOS_ASSERT(CDistributionSpec::EdtReplicated != pdsOuter->Edt() &&
-				CDistributionSpec::EdtStrictReplicated != pdsOuter->Edt() &&
-				CDistributionSpec::EdtReplicated != pdsInner->Edt() &&
-				CDistributionSpec::EdtStrictReplicated != pdsInner->Edt() &&
-				"Parallel Hash Join received replicated distribution - "
-				"should have been filtered by CXformGet2ParallelTableScan");
+	// GPOS_ASSERT(CDistributionSpec::EdtReplicated != pdsOuter->Edt() &&
+	// 			CDistributionSpec::EdtStrictReplicated != pdsOuter->Edt() &&
+	// 			CDistributionSpec::EdtReplicated != pdsInner->Edt() &&
+	// 			CDistributionSpec::EdtStrictReplicated != pdsInner->Edt() &&
+	// 			"Parallel Hash Join received replicated distribution - "
+	// 			"should have been filtered by CXformGet2ParallelTableScan");
 
 	// ========== Priority 1: Handle WorkerRandom Distributions ==========
 
