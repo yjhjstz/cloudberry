@@ -95,7 +95,7 @@ SELECT unnest(ARRAY[1, 2]) FROM few WHERE false;
  ProjectSet
    Output: unnest('{1,2}'::integer[])
    ->  Result
-         Output: NULL::integer, NULL::tid, NULL::xid, NULL::cid, NULL::xid, NULL::cid, NULL::oid, NULL::integer, NULL::oid
+         Output: NULL::integer, NULL::tid, NULL::oid, NULL::integer, NULL::oid
          One-Time Filter: false
  Optimizer: GPORCA
 (6 rows)
@@ -119,7 +119,7 @@ SELECT * FROM few f1,
          ->  ProjectSet
                Output: unnest('{1,2}'::integer[])
                ->  Result
-                     Output: NULL::integer, NULL::tid, NULL::xid, NULL::cid, NULL::xid, NULL::cid, NULL::oid, NULL::integer, NULL::oid
+                     Output: NULL::integer, NULL::tid, NULL::oid, NULL::integer, NULL::oid
                      One-Time Filter: false
          ->  Seq Scan on public.few f1
                Output: id, dataa, datab
