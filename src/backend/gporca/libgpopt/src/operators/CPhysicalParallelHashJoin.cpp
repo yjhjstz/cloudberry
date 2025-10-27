@@ -212,15 +212,30 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	GPOS_ASSERT(2 > child_index);
 	GPOS_ASSERT(ulOptReq < UlDistrRequests());
 
-	// For redistribution requests (most common case), check if we can avoid Motion
-	// by recognizing existing co-located WorkerRandom distributions
-	// We check if this is a redistribute request by checking against UlDistrRequests
-	// Redistribute requests come before replicate/singleton requests
+	// Strategy: Check if we can avoid Motion by leveraging existing distributions
+	//
+	// Case 1: Optimizing the SECOND child (first child already optimized)
+	//         Check if first child's WorkerRandom distribution can match join requirements
+	//
+	// Case 2: Optimizing the FIRST child
+	//         Request "Any" distribution to allow WorkerRandom from child scans
+	//         The second child will then be required to match
 
-	if (!FFirstChildToOptimize(child_index) && nullptr != pdrgpdpCtxt &&
-		pdrgpdpCtxt->Size() > 0)
+	if (FFirstChildToOptimize(child_index))
 	{
-		// We're optimizing the second child after the first
+		// Optimizing the first child: Request "Any" to allow WorkerRandom pass-through
+		// This lets Parallel Table Scans provide their natural WorkerRandom distribution
+		CEnfdDistribution::EDistributionMatching dmatch =
+			Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+
+		return GPOS_NEW(mp) CEnfdDistribution(
+			GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
+			dmatch);
+	}
+
+	// Optimizing the second child: Check if first child's distribution is compatible
+	if (nullptr != pdrgpdpCtxt && pdrgpdpCtxt->Size() > 0)
+	{
 		CDistributionSpec *pdsFirst =
 			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
 
@@ -265,13 +280,41 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		}
 	}
 
-	// Fall back to base class behavior for other cases:
-	// - Replicate requests
-	// - Singleton requests
-	// - First child optimization
-	// - Non-WorkerRandom distributions
-	return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
-								  pdrgpdpCtxt, ulOptReq);
+	// For remaining cases (second child with non-WorkerRandom first child,
+	// or replicate/singleton requests), use standard hash join logic
+	//
+	// However, we cannot blindly call base class because if we returned EdtAny
+	// for the first child, base class's PdsRequiredSingleton() will assert.
+	//
+	// Solution: Only call base class if first child is singleton/replicated,
+	// otherwise handle redistribute ourselves
+
+	if (!FFirstChildToOptimize(child_index) && nullptr != pdrgpdpCtxt &&
+		pdrgpdpCtxt->Size() > 0)
+	{
+		CDistributionSpec *pdsFirst =
+			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
+
+		// Check if first child is singleton or replicated
+		// In these cases, it's safe to call base class
+		if (CDistributionSpec::EdtSingleton == pdsFirst->Edt() ||
+			CDistributionSpec::EdtStrictSingleton == pdsFirst->Edt() ||
+			CDistributionSpec::EdtReplicated == pdsFirst->Edt() ||
+			CDistributionSpec::EdtStrictReplicated == pdsFirst->Edt())
+		{
+			return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
+										  pdrgpdpCtxt, ulOptReq);
+		}
+	}
+
+	// For all other cases, use default behavior: request any distribution
+	// This allows the optimizer to choose the best option
+	CEnfdDistribution::EDistributionMatching dmatch =
+		Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+
+	return GPOS_NEW(mp) CEnfdDistribution(
+		GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
+		dmatch);
 }
 
 //---------------------------------------------------------------------------
