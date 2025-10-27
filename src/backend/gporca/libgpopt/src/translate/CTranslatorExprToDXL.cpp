@@ -5310,9 +5310,10 @@ CTranslatorExprToDXL::PdxlnParallelHashJoin(
 	}
 
 	// construct a parallel hash join node
-	ULONG ulParallelWorkers = popParallelHJ->UlParallelWorkers();
+	ULONG ulProbeWorkers = popParallelHJ->UlProbeWorkers();
+	ULONG ulBuildWorkers = popParallelHJ->UlBuildWorkers();
 	CDXLPhysicalHashJoin *pdxlopHJ = GPOS_NEW(m_mp)
-		CDXLPhysicalParallelHashJoin(m_mp, join_type, ulParallelWorkers);
+		CDXLPhysicalParallelHashJoin(m_mp, join_type, ulProbeWorkers, ulBuildWorkers);
 
 	// construct projection list from required columns
 	GPOS_ASSERT(nullptr != pexprHJ->Prpp());

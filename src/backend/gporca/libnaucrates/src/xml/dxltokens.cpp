@@ -423,6 +423,8 @@ CDXLTokens::Init(CMemoryPool *mp)
 
 		{EdxltokenParamId, GPOS_WSZ_LIT("ParamId")},
 		{EdxltokenParallelWorkers, GPOS_WSZ_LIT("ParallelWorkers")},
+		{EdxltokenParallelProbeWorkers, GPOS_WSZ_LIT("ParallelProbeWorkers")},
+		{EdxltokenParallelBuildWorkers, GPOS_WSZ_LIT("ParallelBuildWorkers")},
 
 		{EdxltokenCtidColName, GPOS_WSZ_LIT("ctid")},
 		{EdxltokenOidColName, GPOS_WSZ_LIT("oid")},

@@ -43,10 +43,13 @@ using namespace gpdxl;
 //
 //---------------------------------------------------------------------------
 CDXLPhysicalParallelHashJoin::CDXLPhysicalParallelHashJoin(
-	CMemoryPool *mp, EdxlJoinType join_type, ULONG parallel_workers)
-	: CDXLPhysicalHashJoin(mp, join_type), m_parallel_workers(parallel_workers)
+	CMemoryPool *mp, EdxlJoinType join_type, ULONG probe_workers, ULONG build_workers)
+	: CDXLPhysicalHashJoin(mp, join_type),
+	  m_probe_workers(probe_workers),
+	  m_build_workers(build_workers)
 {
-	GPOS_ASSERT(parallel_workers > 0);
+	GPOS_ASSERT(probe_workers > 0 && "Probe workers must be greater than 0");
+	GPOS_ASSERT(build_workers > 0 && "Build workers must be greater than 0");
 }
 
 //---------------------------------------------------------------------------
@@ -97,8 +100,11 @@ CDXLPhysicalParallelHashJoin::SerializeToDXL(CXMLSerializer *xml_serializer,
 	xml_serializer->AddAttribute(CDXLTokens::GetDXLTokenStr(EdxltokenJoinType),
 								 GetJoinTypeNameStr());
 	xml_serializer->AddAttribute(
-		CDXLTokens::GetDXLTokenStr(EdxltokenParallelWorkers),
-		m_parallel_workers);
+		CDXLTokens::GetDXLTokenStr(EdxltokenParallelProbeWorkers),
+		m_probe_workers);
+	xml_serializer->AddAttribute(
+		CDXLTokens::GetDXLTokenStr(EdxltokenParallelBuildWorkers),
+		m_build_workers);
 
 	// serialize properties
 	node->SerializePropertiesToDXL(xml_serializer);
@@ -128,7 +134,7 @@ CDXLPhysicalParallelHashJoin::AssertValid(const CDXLNode *node,
 
 	GPOS_ASSERT(EdxlhjIndexSentinel == node->Arity());
 	GPOS_ASSERT(EdxljtSentinel > GetJoinType());
-	GPOS_ASSERT(m_parallel_workers > 0);
+	GPOS_ASSERT(m_probe_workers > 0 && m_build_workers > 0);
 
 	CDXLNode *join_filter = (*node)[EdxlhjIndexJoinFilter];
 	CDXLNode *hash_clauses = (*node)[EdxlhjIndexHashCondList];

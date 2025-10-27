@@ -45,25 +45,29 @@ namespace gpdxl
 class CDXLPhysicalParallelHashJoin : public CDXLPhysicalHashJoin
 {
 private:
-	// number of parallel workers
-	ULONG m_parallel_workers;
+	// per-side workers
+	ULONG m_probe_workers;
+	ULONG m_build_workers;
 
 public:
 	CDXLPhysicalParallelHashJoin(const CDXLPhysicalParallelHashJoin &) = delete;
 
 	// ctor
 	CDXLPhysicalParallelHashJoin(CMemoryPool *mp, EdxlJoinType join_type,
-								 ULONG parallel_workers);
+								 ULONG probe_workers, ULONG build_workers);
 
 	// accessors
 	Edxlopid GetDXLOperator() const override;
 	const CWStringConst *GetOpNameStr() const override;
 
-	// number of parallel workers
-	ULONG
-	ParallelWorkers() const
-	{
-		return m_parallel_workers;
+	// per-side workers accessors
+	ULONG ProbeWorkers() const {
+		GPOS_ASSERT(m_probe_workers > 0);
+		return m_probe_workers;
+	}
+	ULONG BuildWorkers() const {
+		GPOS_ASSERT(m_build_workers > 0);
+		return m_build_workers;
 	}
 
 	// serialize operator in DXL format

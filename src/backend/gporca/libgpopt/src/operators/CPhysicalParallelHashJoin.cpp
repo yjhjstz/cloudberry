@@ -35,9 +35,8 @@
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
-
-// Use gpdbwrappers for parallel workers setting
-extern int max_parallel_workers_per_gather;
+#include "gpopt/operators/CPhysicalParallelTableScan.h"
+#include "gpopt/search/CGroupProxy.h"
 
 using namespace gpopt;
 
@@ -55,16 +54,12 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 	BOOL is_null_aware, CXform::EXformId origin_xform)
 	: CPhysicalHashJoin(mp, pdrgpexprOuterKeys, pdrgpexprInnerKeys,
 						hash_opfamilies, is_null_aware, origin_xform),
-	  m_ulParallelWorkers(2)  // default value
+	  m_ulProbeWorkers(0),
+	  m_ulBuildWorkers(0),
+	  m_fWorkersExtracted(false)  // Workers will be extracted lazily
 {
-	// Read parallel workers degree from GUC setting
-	// Priority: GUC max_parallel_workers_per_gather > default (2)
-	if (max_parallel_workers_per_gather > 0)
-	{
-		m_ulParallelWorkers = (ULONG)max_parallel_workers_per_gather; // FIXME:
-	}
-
-	GPOS_ASSERT(m_ulParallelWorkers > 0);
+	// m_ulProbeWorkers and m_ulBuildWorkers will be extracted from child distributions in PdsDerive()
+	// They must be extracted successfully, otherwise UlProbeWorkers()/UlBuildWorkers() will assert
 }
 
 //---------------------------------------------------------------------------
@@ -77,6 +72,117 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 //---------------------------------------------------------------------------
 CPhysicalParallelHashJoin::~CPhysicalParallelHashJoin()
 {
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelHashJoin::UlExtractWorkersFromGroup
+//
+//	@doc:
+//		Extract worker count from a child group by scanning for parallel operators
+//		This handles cases where Motion nodes hide WorkerRandom distributions
+//
+//---------------------------------------------------------------------------
+ULONG
+CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
+{
+	GPOS_ASSERT(nullptr != pgroup && "Child group is null - parallel hash join requires valid child groups");
+
+	// Scan through all physical expressions in the child group
+	CGroupProxy gpChild(pgroup);
+	CGroupExpression *pgexprChild = gpChild.PgexprFirst();
+
+	while (nullptr != pgexprChild)
+	{
+		COperator *popChild = pgexprChild->Pop();
+
+		// Check for parallel table scan
+		if (COperator::EopPhysicalParallelTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelTableScan *popScan =
+				CPhysicalParallelTableScan::PopConvert(popChild);
+			return popScan->UlParallelWorkers();
+		}
+
+		// Check for parallel hash join (recursive parallel execution)
+		if (CUtils::FParallelHashJoin(popChild))
+		{
+			CPhysicalParallelHashJoin *popJoin =
+				CPhysicalParallelHashJoin::PopConvert(popChild);
+			// For nested parallel joins, use probe workers
+			return popJoin->UlProbeWorkers();
+		}
+
+		pgexprChild = gpChild.PgexprNext(pgexprChild);
+	}
+
+	// No parallel operators found in child group
+	// This should not happen if CXformInnerJoin2ParallelHashJoin::FChildrenHaveParallelTableScans()
+	// correctly filtered out non-parallel children
+	GPOS_ASSERT(!"No parallel operators found in child group - parallel hash join transformation should not have been applied");
+	return 0;  // Unreachable, but satisfies compiler
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelHashJoin::ExtractWorkersIfNeeded
+//
+//	@doc:
+//		Extract probe/build workers from child distributions (lazy initialization)
+//		Called by PdsDerive() on first invocation
+//
+//		Strategy:
+//		1. Try to extract from derived distribution (EdtWorkerRandom)
+//		2. If distribution is not WorkerRandom (e.g., Motion with EdtHashed),
+//		   scan the child group to find parallel operators and extract their
+//		   worker counts - this "penetrates" through Motion nodes
+//
+//---------------------------------------------------------------------------
+void
+CPhysicalParallelHashJoin::ExtractWorkersIfNeeded(
+	CExpressionHandle &exprhdl) const
+{
+	if (m_fWorkersExtracted)
+	{
+		// Already extracted
+		return;
+	}
+
+	// Extract probe workers from left (outer) child's distribution
+	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
+	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt())
+	{
+		// Direct extraction: child has WorkerRandom distribution
+		CDistributionSpecWorkerRandom *pdsWorkerOuter =
+			CDistributionSpecWorkerRandom::PdsConvert(pdsOuter);
+		m_ulProbeWorkers = pdsWorkerOuter->UlWorkers();
+	}
+	else
+	{
+		// Child's distribution is not WorkerRandom (e.g., Motion with EdtHashed)
+		// Penetrate through to find actual parallel operators in the child group
+		CGroup *pgroupOuter = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](0);
+		m_ulProbeWorkers = UlExtractWorkersFromGroup(pgroupOuter);
+	}
+
+	// Extract build workers from right (inner) child's distribution
+	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
+	if (CDistributionSpec::EdtWorkerRandom == pdsInner->Edt())
+	{
+		// Direct extraction: child has WorkerRandom distribution
+		CDistributionSpecWorkerRandom *pdsWorkerInner =
+			CDistributionSpecWorkerRandom::PdsConvert(pdsInner);
+		m_ulBuildWorkers = pdsWorkerInner->UlWorkers();
+	}
+	else
+	{
+		// Child's distribution is not WorkerRandom (e.g., Motion with EdtHashed)
+		// Penetrate through to find actual parallel operators in the child group
+		CGroup *pgroupInner = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](1);
+		m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
+	}
+
+	m_fWorkersExtracted = true;
 }
 
 //---------------------------------------------------------------------------
@@ -158,7 +264,7 @@ CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp GPOS_UNUSED,
 
 		// Wrap it in WorkerRandom distribution
 		CDistributionSpecWorkerRandom *pdsWorkerRandom =
-			GPOS_NEW(mp) CDistributionSpecWorkerRandom(m_ulParallelWorkers,
+			GPOS_NEW(mp) CDistributionSpecWorkerRandom(UlProbeWorkers(),
 													   pdsHashedOuter);
 
 		return pdsWorkerRandom;
@@ -210,6 +316,9 @@ CDistributionSpec *
 CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 									 CExpressionHandle &exprhdl) const
 {
+	// Extract workers from child distributions on first call
+	ExtractWorkersIfNeeded(exprhdl);
+
 	// Get distributions from children
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();

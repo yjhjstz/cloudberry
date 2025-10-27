@@ -44,8 +44,18 @@ namespace gpopt
 class CPhysicalParallelHashJoin : public CPhysicalHashJoin
 {
 private:
-	// number of parallel workers
-	ULONG m_ulParallelWorkers;
+	// per-side parallel degrees (lazily extracted from child distributions)
+	mutable ULONG m_ulProbeWorkers;
+	mutable ULONG m_ulBuildWorkers;
+	mutable BOOL m_fWorkersExtracted;  // flag to ensure extraction happens once
+
+	// Extract worker count from a child group by scanning for parallel operators
+	// This handles cases where Motion nodes hide WorkerRandom distributions
+	ULONG UlExtractWorkersFromGroup(CGroup *pgroup) const;
+
+	// Extract workers from child distributions (lazy initialization)
+	// Called by PdsDerive on first invocation
+	void ExtractWorkersIfNeeded(CExpressionHandle &exprhdl) const;
 
 public:
 	CPhysicalParallelHashJoin(const CPhysicalParallelHashJoin &) = delete;
@@ -60,11 +70,14 @@ public:
 	// dtor
 	~CPhysicalParallelHashJoin() override;
 
-	// parallel workers accessor
-	ULONG
-	UlParallelWorkers() const
-	{
-		return m_ulParallelWorkers;
+	// parallel workers accessors
+	ULONG UlProbeWorkers() const {
+		GPOS_ASSERT(m_ulProbeWorkers > 0 && "Probe workers not extracted - check ExtractWorkersIfNeeded");
+		return m_ulProbeWorkers;
+	}
+	ULONG UlBuildWorkers() const {
+		GPOS_ASSERT(m_ulBuildWorkers > 0 && "Build workers not extracted - check ExtractWorkersIfNeeded");
+		return m_ulBuildWorkers;
 	}
 
 	//-------------------------------------------------------------------------------------

@@ -377,6 +377,8 @@ enum Edxltoken
 
 	EdxltokenParamId,
 	EdxltokenParallelWorkers,
+	EdxltokenParallelProbeWorkers,
+	EdxltokenParallelBuildWorkers,
 
 	EdxltokenCtidColName,
 	EdxltokenOidColName,
