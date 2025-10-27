@@ -54,7 +54,7 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 	BOOL is_null_aware, CXform::EXformId origin_xform)
 	: CPhysicalHashJoin(mp, pdrgpexprOuterKeys, pdrgpexprInnerKeys,
 						hash_opfamilies, is_null_aware, origin_xform),
-	  m_ulProbeWorkers(0),
+	  m_ulProbeWorkers(2),
 	  m_ulBuildWorkers(0),
 	  m_fWorkersExtracted(false)  // Workers will be extracted lazily
 {
