@@ -162,10 +162,10 @@ CXformInnerJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
 
 	// Only generate parallel hash join if children already have parallel table scans
 	// This ensures coordination with CXformGet2ParallelTableScan
-	if (!FChildrenHaveParallelTableScans(exprhdl))
-	{
-		return CXform::ExfpNone;
-	}
+	// if (!FChildrenHaveParallelTableScans(exprhdl))
+	// {
+	// 	return CXform::ExfpNone;
+	// }
 
 	// Use the same logic as regular hash join transformation
 	return CXformUtils::ExfpLogicalJoin2PhysicalJoin(exprhdl);

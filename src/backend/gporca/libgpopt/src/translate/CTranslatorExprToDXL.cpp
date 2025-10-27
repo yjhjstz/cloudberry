@@ -5032,6 +5032,7 @@ CTranslatorExprToDXL::EdxljtHashJoin(CPhysicalHashJoin *popHJ)
 
 	switch (popHJ->Eopid())
 	{
+		case COperator::EopPhysicalParallelInnerHashJoin:
 		case COperator::EopPhysicalInnerHashJoin:
 			return EdxljtInner;
 
