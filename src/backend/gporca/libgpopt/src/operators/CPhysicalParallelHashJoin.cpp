@@ -649,15 +649,54 @@ CPhysicalParallelHashJoin::FValidContext(
 	CRewindabilitySpec *prsRequired = prpp->Per()->PrsRequired();
 
 	// Parallel hash join is non-rewindable (derives ErtNone)
-	// If parent requires REWINDABLE (e.g., NL Join inner child), reject
+	// If parent requires REWINDABLE (e.g., NL join inner child), reject early.
 	if (prsRequired->IsOriginNLJoin())
 	{
-		// Parent requires rewindability but ParallelHashJoin cannot provide it
-		// Reject this plan - ORCA will try alternatives or add Spool enforcer
+		// Parent requires rewindability but ParallelHashJoin cannot provide it.
+		// Reject this plan so the optimizer can choose alternatives or add Spool.
 		return false;
 	}
 
-	// Parent doesn't require rewindability, delegate to base class
+	// Lightweight pruning based on children required distributions (when available).
+	// Do NOT attempt to inspect derived child properties here. We only reject
+	// obviously incompatible contexts to reduce search:
+	//   - Disallow singleton/replicated requirements for either child (parallel hash
+	//     join expects segment-distributed inputs).
+	//   - The outer/probe side should allow parallelism: its required distribution
+	//     must be Either Any or WorkerRandom. If it is explicitly constrained to a
+	//     non-parallel distribution, prune this context.
+	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
+	{
+		CEnfdDistribution *pedOuter = (*pdrgpocChild)[0]->Prpp()->Ped();
+		CEnfdDistribution *pedInner = (*pdrgpocChild)[1]->Prpp()->Ped();
+		CDistributionSpec *pdsOuterReq = pedOuter->PdsRequired();
+		CDistributionSpec *pdsInnerReq = pedInner->PdsRequired();
+
+		const CDistributionSpec::EDistributionType dtOuter = pdsOuterReq->Edt();
+		const CDistributionSpec::EDistributionType dtInner = pdsInnerReq->Edt();
+
+		// Reject singleton or replicated requirements on either child
+		if (dtOuter == CDistributionSpec::EdtSingleton ||
+			dtOuter == CDistributionSpec::EdtStrictSingleton ||
+			dtOuter == CDistributionSpec::EdtReplicated ||
+			dtOuter == CDistributionSpec::EdtStrictReplicated ||
+			dtInner == CDistributionSpec::EdtSingleton ||
+			dtInner == CDistributionSpec::EdtStrictSingleton ||
+			dtInner == CDistributionSpec::EdtReplicated ||
+			dtInner == CDistributionSpec::EdtStrictReplicated)
+		{
+			return false;
+		}
+
+		// Outer/probe side must allow parallelism: require Any or WorkerRandom.
+		if (dtOuter != CDistributionSpec::EdtAny &&
+			dtOuter != CDistributionSpec::EdtWorkerRandom)
+		{
+			return false;
+		}
+	}
+
+	// Delegate to base class for remaining checks
 	return CPhysicalHashJoin::FValidContext(mp, poc, pdrgpocChild);
 }
 

@@ -45,9 +45,6 @@ using namespace gpos;
 //---------------------------------------------------------------------------
 class CXformInnerJoin2ParallelHashJoin : public CXformImplementation
 {
-private:
-	// check if child groups contain physical parallel table scans
-	static BOOL FChildrenHaveParallelTableScans(CExpressionHandle &exprhdl);
 
 public:
 	CXformInnerJoin2ParallelHashJoin(const CXformInnerJoin2ParallelHashJoin &) =
