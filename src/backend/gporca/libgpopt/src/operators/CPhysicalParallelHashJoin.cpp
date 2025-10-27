@@ -60,8 +60,6 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 {
 	// m_ulProbeWorkers and m_ulBuildWorkers will be extracted from child distributions in PdsDerive()
 	// They must be extracted successfully, otherwise UlProbeWorkers()/UlBuildWorkers() will assert
-	m_ulProbeWorkers = 2;
-	m_ulBuildWorkers = 2;
 }
 
 //---------------------------------------------------------------------------

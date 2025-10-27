@@ -48,6 +48,7 @@ using namespace gpdbcost;
 
 // Forward declare PostgreSQL GUC variables
 extern double parallel_setup_cost;
+extern int max_parallel_workers_per_gather;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -1183,11 +1184,11 @@ CCostModelGPDB::CostParallelHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl
 	GPOS_ASSERT(COperator::EopPhysicalParallelInnerHashJoin == pop->Eopid());
 
 	// Get the parallel hash join operator to extract worker count
-	CPhysicalParallelHashJoin *popParallelHashJoin =
-		CPhysicalParallelHashJoin::PopConvert(pop);
+	// CPhysicalParallelHashJoin *popParallelHashJoin =
+	// 	CPhysicalParallelHashJoin::PopConvert(pop);
 
 	// Use probe workers for cost estimation (probe phase dominates parallel benefit)
-	ULONG ulWorkers = popParallelHashJoin->UlProbeWorkers();
+	ULONG ulWorkers = max_parallel_workers_per_gather;
 
 	// If only 1 worker, fallback to regular hash join cost
 	if (ulWorkers <= 1)
