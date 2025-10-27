@@ -114,6 +114,11 @@ public:
 	// Enforced Properties
 	//-------------------------------------------------------------------------------------
 
+	// compute required distribution of the n-th child - overridden to preserve WorkerRandom
+	CEnfdDistribution *Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
+						   CReqdPropPlan *prppInput, ULONG child_index,
+						   CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq);
+
 	// return distribution property enforcing type for this operator
 	CEnfdProp::EPropEnforcingType EpetDistribution(
 		CExpressionHandle &exprhdl,

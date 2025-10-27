@@ -71,10 +71,18 @@ CXformInnerJoin2ParallelHashJoin::FChildrenHaveParallelTableScans(
 	// We check children 0 (outer) and 1 (inner)
 	GPOS_ASSERT(exprhdl.Arity() >= 2);
 
+	// Check if handle is attached to a group expression
+	// If not, this xform is being evaluated on a standalone expression (not in Memo yet)
+	// In that case, we cannot check for existing physical operators
+	if (nullptr == exprhdl.Pgexpr())
+	{
+		return false;
+	}
+
 	// Check both outer and inner children for existing parallel table scans
 	for (ULONG ulChild = 0; ulChild < 2; ulChild++)
 	{
-		CGroup *pgroupChild = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](ulChild);
+		CGroup *pgroupChild = (*exprhdl.Pgexpr())[ulChild];
 		if (nullptr == pgroupChild)
 		{
 			continue;

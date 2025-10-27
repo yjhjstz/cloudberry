@@ -187,6 +187,93 @@ CPhysicalParallelHashJoin::ExtractWorkersIfNeeded(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CPhysicalParallelHashJoin::Ped
+//
+//	@doc:
+//		Compute enforced distribution property for the n-th child.
+//		Overridden to preserve WorkerRandom distributions and avoid unnecessary
+//		redistribute motion nodes that would collapse worker-level parallelism.
+//
+//		Key Strategy:
+//		- When both children deliver WorkerRandom with compatible segment-level
+//		  hashed distributions, we request "any" distribution (EdtAny) which
+//		  allows the existing WorkerRandom distributions to pass through
+//		- This prevents ORCA from inserting redistribute Motion nodes that
+//		  would collapse workers from 6→3
+//
+//---------------------------------------------------------------------------
+CEnfdDistribution *
+CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							   CReqdPropPlan *prppInput, ULONG child_index,
+							   CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq)
+{
+	GPOS_ASSERT(2 > child_index);
+	GPOS_ASSERT(ulOptReq < UlDistrRequests());
+
+	// For redistribution requests (most common case), check if we can avoid Motion
+	// by recognizing existing co-located WorkerRandom distributions
+	// We check if this is a redistribute request by checking against UlDistrRequests
+	// Redistribute requests come before replicate/singleton requests
+
+	if (!FFirstChildToOptimize(child_index) && nullptr != pdrgpdpCtxt &&
+		pdrgpdpCtxt->Size() > 0)
+	{
+		// We're optimizing the second child after the first
+		CDistributionSpec *pdsFirst =
+			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
+
+		// Check if first child delivers WorkerRandom with hashed segment base
+		if (CDistributionSpec::EdtWorkerRandom == pdsFirst->Edt())
+		{
+			CDistributionSpecWorkerRandom *pdsWorkerFirst =
+				CDistributionSpecWorkerRandom::PdsConvert(pdsFirst);
+			CDistributionSpec *pdsSegmentBase = pdsWorkerFirst->PdsSegmentBase();
+
+			if (nullptr != pdsSegmentBase &&
+				CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
+			{
+				CDistributionSpecHashed *pdsHashedBase =
+					CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
+
+				// Determine which join keys to check based on child order
+				const CExpressionArray *pdrgpexprKeysToCheck = nullptr;
+				if (EceoRightToLeft == Eceo())
+				{
+					// Inner-first optimization: first child is inner (1), checking outer (0)
+					pdrgpexprKeysToCheck = (0 == child_index) ? PdrgpexprOuterKeys() : PdrgpexprInnerKeys();
+				}
+				else
+				{
+					// Left-first optimization: first child is outer (0), checking inner (1)
+					pdrgpexprKeysToCheck = (1 == child_index) ? PdrgpexprInnerKeys() : PdrgpexprOuterKeys();
+				}
+
+				// If segment-level base already covers the join keys, request "Any"
+				// This allows WorkerRandom to pass through without Motion
+				if (pdsHashedBase->IsCoveredBy(pdrgpexprKeysToCheck))
+				{
+					CEnfdDistribution::EDistributionMatching dmatch =
+						Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+
+					return GPOS_NEW(mp) CEnfdDistribution(
+						GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
+						dmatch);
+				}
+			}
+		}
+	}
+
+	// Fall back to base class behavior for other cases:
+	// - Replicate requests
+	// - Singleton requests
+	// - First child optimization
+	// - Non-WorkerRandom distributions
+	return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
+								  pdrgpdpCtxt, ulOptReq);
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CPhysicalParallelHashJoin::PdsRequired
 //
 //	@doc:
