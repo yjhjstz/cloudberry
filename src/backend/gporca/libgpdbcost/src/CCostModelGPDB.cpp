@@ -1188,7 +1188,7 @@ CCostModelGPDB::CostParallelHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl
 		CPhysicalParallelHashJoin::PopConvert(pop);
 
 	// Use probe workers for cost estimation (probe phase dominates parallel benefit)
-	ULONG ulWorkers = popParallelHashJoin->UlProbeWorkers();
+	ULONG ulWorkers = popParallelHashJoin->UlProbeWorkers(exprhdl);
 
 	// If only 1 worker, fallback to regular hash join cost
 	if (ulWorkers <= 1)

@@ -54,7 +54,7 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 	BOOL is_null_aware, CXform::EXformId origin_xform)
 	: CPhysicalHashJoin(mp, pdrgpexprOuterKeys, pdrgpexprInnerKeys,
 						hash_opfamilies, is_null_aware, origin_xform),
-	  m_ulProbeWorkers(2),
+	  m_ulProbeWorkers(0),
 	  m_ulBuildWorkers(0),
 	  m_fWorkersExtracted(false)  // Workers will be extracted lazily
 {
@@ -148,39 +148,18 @@ CPhysicalParallelHashJoin::ExtractWorkersIfNeeded(
 		return;
 	}
 
-	// Extract probe workers from left (outer) child's distribution
-	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
-	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt())
-	{
-		// Direct extraction: child has WorkerRandom distribution
-		CDistributionSpecWorkerRandom *pdsWorkerOuter =
-			CDistributionSpecWorkerRandom::PdsConvert(pdsOuter);
-		m_ulProbeWorkers = pdsWorkerOuter->UlWorkers();
-	}
-	else
-	{
-		// Child's distribution is not WorkerRandom (e.g., Motion with EdtHashed)
-		// Penetrate through to find actual parallel operators in the child group
-		CGroup *pgroupOuter = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](0);
-		m_ulProbeWorkers = UlExtractWorkersFromGroup(pgroupOuter);
-	}
+	// Extract workers by scanning child groups for parallel operators
+	// This approach works in all contexts (including lower bound calculation)
+	// because it only relies on CGroupExpression, not on Pdpplan() which
+	// requires child optimization contexts to be complete
+	GPOS_ASSERT(nullptr != exprhdl.Pgexpr() &&
+		"ExtractWorkersIfNeeded requires group expression to access child groups");
 
-	// Extract build workers from right (inner) child's distribution
-	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
-	if (CDistributionSpec::EdtWorkerRandom == pdsInner->Edt())
-	{
-		// Direct extraction: child has WorkerRandom distribution
-		CDistributionSpecWorkerRandom *pdsWorkerInner =
-			CDistributionSpecWorkerRandom::PdsConvert(pdsInner);
-		m_ulBuildWorkers = pdsWorkerInner->UlWorkers();
-	}
-	else
-	{
-		// Child's distribution is not WorkerRandom (e.g., Motion with EdtHashed)
-		// Penetrate through to find actual parallel operators in the child group
-		CGroup *pgroupInner = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](1);
-		m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
-	}
+	CGroup *pgroupOuter = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](0);
+	m_ulProbeWorkers = UlExtractWorkersFromGroup(pgroupOuter);
+
+	CGroup *pgroupInner = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](1);
+	m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
 
 	m_fWorkersExtracted = true;
 }
@@ -559,6 +538,10 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 {
 	GPOS_ASSERT(nullptr != ped);
 
+	// if (exprhdl.Pdpplan(1)->Pds()->Edt() != CDistributionSpec::EdtWorkerRandom)
+	// {
+	// 	return CEnfdProp::EpetProhibited;
+	// }
 	// Get our derived distribution (returned by PdsDerive)
 	CDistributionSpec *pdsDerived = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pds();
 

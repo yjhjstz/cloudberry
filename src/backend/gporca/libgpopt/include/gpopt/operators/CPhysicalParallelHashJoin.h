@@ -70,6 +70,12 @@ public:
 	// dtor
 	~CPhysicalParallelHashJoin() override;
 
+	ULONG UlProbeWorkers(CExpressionHandle &exprhdl) {
+		ExtractWorkersIfNeeded(exprhdl);
+		m_fWorkersExtracted = false;  // reset for next use
+		return UlProbeWorkers();
+	}
+
 	// parallel workers accessors
 	ULONG UlProbeWorkers() const {
 		GPOS_ASSERT(m_ulProbeWorkers > 0 && "Probe workers not extracted - check ExtractWorkersIfNeeded");
