@@ -444,17 +444,6 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
 
-	// ========== Defensive Check: Assert No Replicated Distributions ==========
-	// Parallel hash join does not support replicated tables.
-	// CXformGet2ParallelTableScan filters these out (see CXformGet2ParallelTableScan.cpp:170-177),
-	// so encountering them here indicates an internal consistency error.
-	// GPOS_ASSERT(CDistributionSpec::EdtReplicated != pdsOuter->Edt() &&
-	// 			CDistributionSpec::EdtStrictReplicated != pdsOuter->Edt() &&
-	// 			CDistributionSpec::EdtReplicated != pdsInner->Edt() &&
-	// 			CDistributionSpec::EdtStrictReplicated != pdsInner->Edt() &&
-	// 			"Parallel Hash Join received replicated distribution - "
-	// 			"should have been filtered by CXformGet2ParallelTableScan");
-
 	// ========== Priority 1: Handle WorkerRandom Distributions ==========
 
 	// Case 1: Both children are WorkerRandom (optimal parallel scenario)
