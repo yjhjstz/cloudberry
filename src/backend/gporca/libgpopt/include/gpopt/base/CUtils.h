@@ -562,6 +562,9 @@ public:
 	// check if a given operator is a physical scan
 	static BOOL FPhysicalScan(COperator *pop);
 
+	// check if a given operator is a physical parallel scan
+	static BOOL FPhysicalParallelScan(COperator *pop);
+
 	// check if a given operator is a physical agg
 	static BOOL FPhysicalAgg(COperator *pop);
 

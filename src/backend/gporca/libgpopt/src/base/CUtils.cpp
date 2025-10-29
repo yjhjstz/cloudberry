@@ -1178,7 +1178,7 @@ CUtils::FPhysicalJoin(COperator *pop)
 	return FHashJoin(pop) || FNLJoin(pop);
 }
 
-// check if a given operator is a physical agg
+// check if a given operator is a physical scan
 BOOL
 CUtils::FPhysicalScan(COperator *pop)
 {
@@ -1193,6 +1193,15 @@ CUtils::FPhysicalScan(COperator *pop)
 	}
 
 	return (nullptr != popScan);
+}
+
+// check if a given operator is a physical parallel scan
+BOOL
+CUtils::FPhysicalParallelScan(COperator *pop)
+{
+	GPOS_ASSERT(nullptr != pop);
+
+	return (COperator::EopPhysicalParallelTableScan == pop->Eopid());
 }
 
 // check if a given operator is a physical agg

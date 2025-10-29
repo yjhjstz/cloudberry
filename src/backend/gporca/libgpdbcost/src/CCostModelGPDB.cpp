@@ -344,12 +344,33 @@ CCostModelGPDB::CostChildren(CMemoryPool *mp, CExpressionHandle &exprhdl,
 					dScanRows = pci->Rows();
 				}
 			}
-			//FIXME:
+
+			// Add scan output cost (processing tuples after scan)
+			// For parallel scans, divide output rows by worker count since
+			// each worker independently processes a fraction of the data
 			if (CUtils::FPhysicalScan(scanOp))
 			{
+				DOUBLE dOutputRows = dScanRows;
+
+				// Special handling for parallel table scan
+				// Each worker processes only a fraction of the rows independently
+				// so the output cost should also be divided by worker count
+				if (CUtils::FPhysicalParallelScan(scanOp))
+				{
+					CPhysicalParallelTableScan *popParallelScan =
+						CPhysicalParallelTableScan::PopConvert(scanOp);
+					ULONG ulWorkers = popParallelScan->UlParallelWorkers();
+
+					if (ulWorkers > 1)
+					{
+						// Each worker handles a fraction of the output
+						dOutputRows = dScanRows / ulWorkers;
+					}
+				}
+
 				// Note: We assume that width and rebinds are the same for scan, partition selector and filter
 				dCostChild = dCostChild +
-							 CostScanOutput(mp, dScanRows, pci->GetWidth()[ul],
+							 CostScanOutput(mp, dOutputRows, pci->GetWidth()[ul],
 											pci->PdRebinds()[ul], pcp)
 								 .Get();
 			}
