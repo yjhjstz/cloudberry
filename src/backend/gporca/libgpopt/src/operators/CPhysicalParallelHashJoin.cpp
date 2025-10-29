@@ -538,10 +538,10 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 {
 	GPOS_ASSERT(nullptr != ped);
 
-	// if (exprhdl.Pdpplan(1)->Pds()->Edt() != CDistributionSpec::EdtWorkerRandom)
-	// {
-	// 	return CEnfdProp::EpetProhibited;
-	// }
+	if (exprhdl.Pdpplan(1)->Pds()->Edt() != CDistributionSpec::EdtWorkerRandom)
+	{
+		return CEnfdProp::EpetProhibited;
+	}
 	// Get our derived distribution (returned by PdsDerive)
 	CDistributionSpec *pdsDerived = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pds();
 
