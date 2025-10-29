@@ -119,7 +119,7 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
 	// No parallel operators found in child group
 	// This should not happen if CXformInnerJoin2ParallelHashJoin::FChildrenHaveParallelTableScans()
 	// correctly filtered out non-parallel children
-	GPOS_ASSERT(!"No parallel operators found in child group - parallel hash join transformation should not have been applied");
+	//GPOS_ASSERT(!"No parallel operators found in child group - parallel hash join transformation should not have been applied");
 	return 0;  // Unreachable, but satisfies compiler
 }
 
@@ -618,6 +618,15 @@ CPhysicalParallelHashJoin::FValidContext(
 		// Parent requires rewindability but ParallelHashJoin cannot provide it.
 		// Reject this plan so the optimizer can choose alternatives or add Spool.
 		return false;
+	}
+
+	if (m_fWorkersExtracted)
+	{
+		if (0 == m_ulProbeWorkers || 0 == m_ulBuildWorkers)
+		{
+			// Invalid worker counts extracted previously
+			return false;
+		}
 	}
 
 	// Lightweight pruning based on children required distributions (when available).

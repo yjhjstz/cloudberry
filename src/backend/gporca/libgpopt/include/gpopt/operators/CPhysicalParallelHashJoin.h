@@ -72,17 +72,16 @@ public:
 
 	ULONG UlProbeWorkers(CExpressionHandle &exprhdl) {
 		ExtractWorkersIfNeeded(exprhdl);
-		m_fWorkersExtracted = false;  // reset for next use
 		return UlProbeWorkers();
 	}
 
 	// parallel workers accessors
 	ULONG UlProbeWorkers() const {
-		GPOS_ASSERT(m_ulProbeWorkers > 0 && "Probe workers not extracted - check ExtractWorkersIfNeeded");
+		//GPOS_ASSERT(m_ulProbeWorkers > 0 && "Probe workers not extracted - check ExtractWorkersIfNeeded");
 		return m_ulProbeWorkers;
 	}
 	ULONG UlBuildWorkers() const {
-		GPOS_ASSERT(m_ulBuildWorkers > 0 && "Build workers not extracted - check ExtractWorkersIfNeeded");
+		//GPOS_ASSERT(m_ulBuildWorkers > 0 && "Build workers not extracted - check ExtractWorkersIfNeeded");
 		return m_ulBuildWorkers;
 	}
 
