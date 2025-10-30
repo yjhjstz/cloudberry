@@ -116,9 +116,6 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
 		pgexprChild = gpChild.PgexprNext(pgexprChild);
 	}
 
-	// No parallel operators found in child group
-	// This should not happen if CXformInnerJoin2ParallelHashJoin::FChildrenHaveParallelTableScans()
-	// correctly filtered out non-parallel children
 	//GPOS_ASSERT(!"No parallel operators found in child group - parallel hash join transformation should not have been applied");
 	return 0;  // Unreachable, but satisfies compiler
 }
@@ -538,10 +535,12 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 {
 	GPOS_ASSERT(nullptr != ped);
 
-	if (exprhdl.Pdpplan(1)->Pds()->Edt() != CDistributionSpec::EdtWorkerRandom)
-	{
-		return CEnfdProp::EpetProhibited;
-	}
+	// Note: We do NOT reject plans where inner child is not WorkerRandom here.
+	// The base distribution matching logic (lines 570-583) can handle cases where
+	// inner child has regular HASHED distribution but our derived WorkerRandom's
+	// base distribution satisfies the parent's HASHED requirement.
+	// Rejecting too early would prevent valid plans from being considered.
+
 	// Get our derived distribution (returned by PdsDerive)
 	CDistributionSpec *pdsDerived = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pds();
 
@@ -578,7 +577,7 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 		{
 			// Segment-level base distribution satisfies the requirement
 			// This avoids unnecessary Motion for worker-level parallelism
-			return CEnfdProp::EpetUnnecessary;
+			return CEnfdProp::EpetRequired;
 		}
 	}
 
@@ -602,7 +601,8 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 //---------------------------------------------------------------------------
 BOOL
 CPhysicalParallelHashJoin::FValidContext(
-	CMemoryPool *mp, COptimizationContext *poc,
+	CMemoryPool *,  // mp
+	COptimizationContext *poc,
 	COptimizationContextArray *pdrgpocChild) const
 {
 	GPOS_ASSERT(nullptr != poc);
@@ -666,10 +666,28 @@ CPhysicalParallelHashJoin::FValidContext(
 		{
 			return false;
 		}
+
+		// Inner/build side validation:
+		// - We allow Any, WorkerRandom, or Hashed distributions
+		// - Hashed is allowed because parallel hash join can work when:
+		//   1. Both children have compatible segment-level hashed distributions
+		//   2. Workers share the hash table built from segment-local data
+		// - We only reject obviously incompatible distributions
+		//
+		// Note: We do NOT require inner to be WorkerRandom. The EpetDistribution()
+		// logic (lines 541-593) handles cases where inner has HASHED distribution
+		// and our derived WorkerRandom's base distribution satisfies parent requirements.
+		if (dtInner != CDistributionSpec::EdtAny &&
+			dtInner != CDistributionSpec::EdtWorkerRandom &&
+			dtInner != CDistributionSpec::EdtHashed)
+		{
+			// Inner child requires a distribution incompatible with parallel hash join
+			// (e.g., coordinator-only distribution, universal distribution, etc.)
+			return false;
+		}
 	}
 
-	// Delegate to base class for remaining checks
-	return CPhysicalHashJoin::FValidContext(mp, poc, pdrgpocChild);
+	return true;
 }
 
 // EOF
