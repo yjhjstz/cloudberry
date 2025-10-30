@@ -101,7 +101,7 @@ _PG_init(void)
 							"The local cache capacity in MB of GopherMeta process.",
 							"Guc value the best-configuration set 30 percent of disk.",
 							&gopher_local_capacity_mb,
-							10240,
+							1024000,
 							1024, INT_MAX,
 							PGC_SIGHUP,
 							GUC_UNIT_MB,
