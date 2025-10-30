@@ -8484,7 +8484,7 @@ InitCopyFile(PgFdwModifyState *fmstate)
 		}
 	}
 
-	pstate->filename = psprintf("cbcopy_helper --no-compression --seg-id %d --host %s --port %s",
+	pstate->filename = psprintf("cbcopy_helper --direction send --no-compression --seg-id %d --host %s --port %s",
 								GpIdentity.segindex, hosts.data, ports.data);
 	pfree(ports.data);
 	pfree(hosts.data);
@@ -9407,9 +9407,9 @@ cbdb_fdw_copy_from(PG_FUNCTION_ARGS)
 			cp = palloc(sizeof(CopyFromContext));
 
 			if (strlen(clientNumbers) > 0)
-				filename = psprintf("cbcopy_helper --no-compression --listen --seg-id <SEGID> --cmd-id %s --client-numbers %s --data-port-range 1024-65535", cmdid, clientNumbers);
+				filename = psprintf("cbcopy_helper --direction receive --no-compression --listen --seg-id <SEGID> --cmd-id %s --client-numbers %s --data-port-range 1024-65535", cmdid, clientNumbers);
 			else
-				filename = psprintf("cbcopy_helper --no-compression --listen --seg-id <SEGID> --cmd-id %s --data-port-range 1024-65535", cmdid);
+				filename = psprintf("cbcopy_helper --direction receive --no-compression --listen --seg-id <SEGID> --cmd-id %s --data-port-range 1024-65535", cmdid);
 			rel = table_open(relid, AccessShareLock);
 			nattrs = rel->rd_att->natts;
 

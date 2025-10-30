@@ -36,14 +36,14 @@ include $(top_srcdir)/contrib/contrib-global.mk
 endif
 
 # compile cbcopy
-all: cbcopy
-cbcopy:
-	$(MAKE) -f Makefile.cbcopy cbcopy
-.PHONY: cbcopy
+# all: cbcopy
+# cbcopy:
+# 	$(MAKE) -f Makefile.cbcopy cbcopy
+# .PHONY: cbcopy
 
-install: install-cbcopy
-install-cbcopy:
-	$(MAKE) -f Makefile.cbcopy install-cbcopy
+# install: install-cbcopy
+# install-cbcopy:
+# 	$(MAKE) -f Makefile.cbcopy install-cbcopy
 
 export PG_PORT=5432
 installcheck: install prep_cloudberry

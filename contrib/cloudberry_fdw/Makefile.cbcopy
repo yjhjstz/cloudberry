@@ -39,10 +39,6 @@ ensure-cbcopy:
 	@if [ ! -d "$(CB_COPY_DIR)" ]; then \
 		echo "cbcopy not found, cloning..."; \
 		git clone https://github.com/cloudberry-contrib/cbcopy.git $(CB_COPY_DIR); \
-		cd $(CB_COPY_DIR) && git checkout tags/v1.0.7 -b v1.0.7; \
-	else \
-		echo "cbcopy already exists, ensuring correct version..."; \
-		cd $(CB_COPY_DIR) && git fetch --tags && git checkout v1.0.7; \
 	fi
 
 # Only install Go if both system and local Go are missing

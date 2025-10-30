@@ -19,6 +19,7 @@ SUBDIRS = \
 		btree_gin	\
 		btree_gist	\
 		citext		\
+		cloudberry_fdw \
 		dblink		\
 		dict_int	\
 		dict_xsyn	\
