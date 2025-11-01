@@ -544,9 +544,6 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 	// Get our derived distribution (returned by PdsDerive)
 	CDistributionSpec *pdsDerived = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pds();
 
-	// Get the required distribution
-	CDistributionSpec *pdsRequired = ped->PdsRequired();
-
 	// Case 1: Our derived distribution directly satisfies the requirement
 	// Examples:
 	//   - Required: WorkerRandom[2] base:Hashed(a)
@@ -555,7 +552,7 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 	{
 		return CEnfdProp::EpetUnnecessary;
 	}
-
+#if 0
 	// Case 2: Required is traditional (Hashed), but we deliver WorkerRandom
 	// Check if our segment-level base distribution can satisfy the requirement
 	//
@@ -577,10 +574,10 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 		{
 			// Segment-level base distribution satisfies the requirement
 			// This avoids unnecessary Motion for worker-level parallelism
-			return CEnfdProp::EpetRequired;
+			return CEnfdProp::EpetRequired; //FIXME
 		}
 	}
-
+#endif
 	// Case 3: No distribution satisfies the requirement
 	// Motion enforcement will be needed on the output
 	// Examples:

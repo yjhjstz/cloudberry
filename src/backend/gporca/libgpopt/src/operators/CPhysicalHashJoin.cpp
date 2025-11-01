@@ -299,7 +299,8 @@ CPhysicalHashJoin::PdsMatch(CMemoryPool *mp, CDistributionSpec *pds,
 			// Regular HashJoin cannot handle WorkerRandom distributions.
 			// Return NonSingleton so that FValidContext() will reject this context later.
 			// ORCA will then explore alternatives: ParallelHashJoin or Motion nodes.
-			return GPOS_NEW(mp) CDistributionSpecNonSingleton();
+			GPOS_ASSERT(false &&
+					 "Regular HashJoin cannot handle WorkerRandom distributions");
 
 		default:
 			GPOS_ASSERT(CDistributionSpec::EdtStrictReplicated == pds->Edt() ||
