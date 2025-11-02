@@ -74,10 +74,6 @@ public:
 	//-------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------
 
-	// prune contexts where any child delivers parallel WorkerRandom
-	BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
-					  COptimizationContextArray *pdrgpocChild) const override;
-
 	// return true if operator is a correlated NL Join
 	virtual BOOL
 	FCorrelated() const
