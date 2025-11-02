@@ -15,6 +15,7 @@
 
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CRewindabilitySpec.h"
+#include "gpopt/base/CDistributionSpec.h"
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CPhysicalCorrelatedInLeftSemiNLJoin.h"
 #include "gpopt/operators/CPhysicalCorrelatedInnerNLJoin.h"
@@ -200,6 +201,41 @@ CPhysicalNLJoin::EpetOrder(CExpressionHandle &exprhdl,
 	}
 
 	return CEnfdProp::EpetRequired;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalNLJoin::FValidContext
+//
+//	@doc:
+//		Disallow Nested Loop when any child delivers WorkerRandom (parallel workers).
+//		This preserves overall parallelism but avoids NL duplication issues.
+//
+//---------------------------------------------------------------------------
+BOOL
+CPhysicalNLJoin::FValidContext(CMemoryPool *, COptimizationContext *poc,
+							   COptimizationContextArray *pdrgpocChild) const
+{
+	GPOS_ASSERT(nullptr != pdrgpocChild);
+	GPOS_ASSERT(2 == pdrgpocChild->Size());
+
+	// If either child best plan derives WorkerRandom, reject this context
+	for (ULONG i = 0; i < 2; i++)
+	{
+		COptimizationContext *pocChild = (*pdrgpocChild)[i];
+		CCostContext *pccBest = pocChild->PccBest();
+		if (nullptr == pccBest)
+		{
+			continue;
+		}
+		CDrvdPropPlan *pdpplanChild = pccBest->Pdpplan();
+		if (pdpplanChild->Pds()->Edt() == CDistributionSpec::EdtWorkerRandom)
+		{
+			return false;
+		}
+	}
+
+	return CPhysicalJoin::FValidContext(nullptr, poc, pdrgpocChild);
 }
 
 
