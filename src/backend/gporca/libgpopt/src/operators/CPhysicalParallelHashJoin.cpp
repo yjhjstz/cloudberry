@@ -120,6 +120,7 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
 	return 0;  // Unreachable, but satisfies compiler
 }
 
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalParallelHashJoin::ExtractWorkersIfNeeded
@@ -623,6 +624,30 @@ CPhysicalParallelHashJoin::FValidContext(
 		{
 			// Invalid worker counts extracted previously
 			return false;
+		}
+	}
+
+	// Reject if direct child is a Nested Loop Join (non-recursive check)
+	// NL Join is inherently sequential and cannot execute in parallel
+	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
+	{
+		for (ULONG ulChild = 0; ulChild < 2; ulChild++)
+		{
+			COptimizationContext *pocChild = (*pdrgpocChild)[ulChild];
+			if (nullptr != pocChild)
+			{
+				CGroupExpression *pgexprChild = pocChild->PgexprBest();
+				if (nullptr != pgexprChild)
+				{
+					COperator *popChild = pgexprChild->Pop();
+					// Check if the best child expression is an NL Join
+					if (CUtils::FNLJoin(popChild))
+					{
+						// Direct child is NLJoin - incompatible with parallel execution
+						return false;
+					}
+				}
+			}
 		}
 	}
 
