@@ -187,6 +187,10 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	GPOS_ASSERT(2 > child_index);
 	GPOS_ASSERT(ulOptReq < UlDistrRequests());
 
+	CEnfdDistribution::EDistributionMatching dmatch =
+		Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
+	CDistributionSpec *const pdsInput = prppInput->Ped()->PdsRequired();
+
 	// Strategy: Check if we can avoid Motion by leveraging existing distributions
 	//
 	// Case 1: Optimizing the SECOND child (first child already optimized)
@@ -202,10 +206,16 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		ULONG ulHashDistReqs = NumDistrReq();
 		if (ulOptReq < ulHashDistReqs)
 		{
-			CEnfdDistribution::EDistributionMatching dmatch =
-				Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
-			return GPOS_NEW(mp) CEnfdDistribution(
-				GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()), dmatch);
+			CDistributionSpec *pds = PdsRequiredRedistribute(
+				mp, exprhdl, pdsInput, child_index, pdrgpdpCtxt, ulOptReq);
+			if (CDistributionSpec::EdtHashed == pds->Edt())
+			{
+				CDistributionSpecHashed *pdsHashed =
+					CDistributionSpecHashed::PdsConvert(pds);
+				pdsHashed->ComputeEquivHashExprs(mp, exprhdl);
+			}
+			CDistributionSpecWorkerRandom *pdsWorkerReq = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, 2, pds);
+			return GPOS_NEW(mp) CEnfdDistribution(pdsWorkerReq, dmatch);
 		}
 		// For replicate/singleton requests, defer to base class to preserve contracts.
 		return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
@@ -231,13 +241,11 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 					// Fall back to requesting hashed on the second child based on its own join keys
 					CDistributionSpecHashed *pdsHashedReq = PdshashedRequired(mp, child_index, ulOptReq);
 					pdsHashedReq->ComputeEquivHashExprs(mp, exprhdl);
-					CEnfdDistribution::EDistributionMatching dmatch = Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
 					return GPOS_NEW(mp) CEnfdDistribution(pdsHashedReq, dmatch);
 				}
 				ULONG ulFirstChild = (EceoRightToLeft == Eceo()) ? 1 : 0;
 				CDistributionSpecHashed *pdsMatch = PdshashedMatching(mp, pdsHashedBase, ulFirstChild);
 				pdsMatch->ComputeEquivHashExprs(mp, exprhdl);
-				CEnfdDistribution::EDistributionMatching dmatch = Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
 				// Require WorkerRandom on second child, with base hashed matching first child's base
 				CDistributionSpecWorkerRandom *pdsWorkerReq = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsMatch);
 				return GPOS_NEW(mp) CEnfdDistribution(pdsWorkerReq, dmatch);
@@ -287,9 +295,6 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 
 	// For all other cases, use default behavior: request any distribution
 	// This allows the optimizer to choose the best option
-	CEnfdDistribution::EDistributionMatching dmatch =
-		Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
-
 	return GPOS_NEW(mp) CEnfdDistribution(
 		GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
 		dmatch);
