@@ -78,6 +78,7 @@ extern "C" {
 #include "naucrates/dxl/operators/CDXLPhysicalMergeJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalNLJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalPartitionSelector.h"
+#include "naucrates/dxl/operators/CDXLPhysicalRandomMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRedistributeMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalResult.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRoutedDistributeMotion.h"
@@ -2946,6 +2947,21 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 			TranslateHashExprList(hash_expr_list_dxlnode, &child_context,
 								  &hash_expr_list, &hash_expr_opfamilies,
 								  output_context);
+		}
+		else if (EdxlopPhysicalMotionRandom == motion_dxlop->GetDXLOperator())
+		{
+			// For Random Motion, check if hash expr list is present
+			// (only for WorkerRandom with Hashed base)
+			ULONG arity = motion_dxlnode->Arity();
+			if (arity == EdxlrandommIndexSentinel)
+			{
+				CDXLNode *hash_expr_list_dxlnode =
+					(*motion_dxlnode)[EdxlrandommIndexHashExprList];
+
+				TranslateHashExprList(hash_expr_list_dxlnode, &child_context,
+									  &hash_expr_list, &hash_expr_opfamilies,
+									  output_context);
+			}
 		}
 		numHashExprs = gpdb::ListLength(hash_expr_list);
 

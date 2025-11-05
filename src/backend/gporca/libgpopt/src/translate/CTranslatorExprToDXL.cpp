@@ -24,6 +24,8 @@
 #include "gpopt/base/CCastUtils.h"
 #include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CConstraintInterval.h"
+#include "gpopt/base/CDistributionSpecHashed.h"
+#include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/cost/ICostModel.h"
@@ -5483,6 +5485,34 @@ CTranslatorExprToDXL::PdxlnMotion(CExpression *pexprMotion,
 	}
 
 	pdxlnMotion->AddChild(child_dxlnode);
+
+	// For Random Motion with WorkerRandom[Hashed] distribution,
+	// add hash expr list from the segment base distribution
+	if (COperator::EopPhysicalMotionRandom == pexprMotion->Pop()->Eopid())
+	{
+		CPhysicalMotionRandom *popRandom =
+			CPhysicalMotionRandom::PopConvert(pexprMotion->Pop());
+		CDistributionSpec *pds = popRandom->Pds();
+
+		// Check if this is WorkerRandom distribution with Hashed base
+		if (pds->Edt() == CDistributionSpec::EdtWorkerRandom)
+		{
+			CDistributionSpecWorkerRandom *pdsWorker =
+				CDistributionSpecWorkerRandom::PdsConvert(pds);
+			CDistributionSpec *pdsBase = pdsWorker->PdsSegmentBase();
+
+			// If base distribution is Hashed, add hash expr list
+			if (nullptr != pdsBase &&
+				CDistributionSpec::EdtHashed == pdsBase->Edt())
+			{
+				CDistributionSpecHashed *pdsHashed =
+					CDistributionSpecHashed::PdsConvert(pdsBase);
+				CDXLNode *hash_expr_list =
+					PdxlnHashExprList(pdsHashed->Pdrgpexpr(), pdsHashed->Opfamilies());
+				pdxlnMotion->AddChild(hash_expr_list);
+			}
+		}
+	}
 
 #ifdef GPOS_DEBUG
 	motion->AssertValid(pdxlnMotion, false /* validate_children */);

@@ -117,7 +117,12 @@ CDXLPhysicalRandomMotion::AssertValid(const CDXLNode *dxlnode,
 	GPOS_ASSERT(m_output_segids_array != nullptr);
 	GPOS_ASSERT(0 < m_output_segids_array->Size());
 
-	GPOS_ASSERT(EdxlrandommIndexSentinel == dxlnode->Arity());
+	// Hash expr list is optional, so arity can be either:
+	// - EdxlrandommIndexChild + 1 (without hash expr list)
+	// - EdxlrandommIndexSentinel (with hash expr list)
+	ULONG arity = dxlnode->Arity();
+	GPOS_ASSERT(arity == EdxlrandommIndexChild + 1 ||
+				arity == EdxlrandommIndexSentinel);
 
 	CDXLNode *child_dxlnode = (*dxlnode)[EdxlrandommIndexChild];
 	GPOS_ASSERT(EdxloptypePhysical ==
