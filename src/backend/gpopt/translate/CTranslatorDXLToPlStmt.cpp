@@ -2002,6 +2002,8 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHashJoin(
 	if (plan->parallel > 1)
 	{
 		plan->plan_rows = ceil(plan->plan_rows / plan->parallel);
+		hashjoin->batch0_barrier = true;
+		hashjoin->outer_motionhazard = true;
 	}
 
 	// cleanup
@@ -2865,6 +2867,7 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 		if (supports_parallel)
 		{
 			sendslice->parallel_workers = child_parallel_workers;
+			//plan->parallel_safe = true;
 		}
 		else
 		{
