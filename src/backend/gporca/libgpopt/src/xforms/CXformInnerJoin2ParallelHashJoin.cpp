@@ -86,14 +86,15 @@ CXformInnerJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
 	{
 		return CXform::ExfpNone;
 	}
-#if 0
-	// Check for parallel-incompatible operations that would conflict with parallel joins
-	if (CXformUtils::FHasParallelIncompatibleOps(exprhdl))
+
+	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
 	{
 		return CXform::ExfpNone;
 	}
-#endif
-	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
+
+	// Check if the query has any parallel operators
+	// Parallel hash join is only beneficial when parallel table scans exist
+	if (!COptCtxt::PoctxtFromTLS()->HasParallelOperators())
 	{
 		return CXform::ExfpNone;
 	}

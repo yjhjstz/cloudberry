@@ -180,11 +180,14 @@ CXformGet2ParallelTableScan::Transform(CXformContext *pxfctxt, CXformResult *pxf
 		ulParallelWorkers = (ULONG)max_parallel_workers_per_gather;
 	}
 
+	// Mark that we have parallel operators in the query
+	COptCtxt::PoctxtFromTLS()->SetHasParallelOperators();
+
 	// create alternative expression
 	CExpression *pexprAlt = GPOS_NEW(mp) CExpression(
 		mp,
 		GPOS_NEW(mp) CPhysicalParallelTableScan(mp, pname, ptabdesc, pdrgpcrOutput, ulParallelWorkers));
-	
+
 	// add alternative to transformation result
 	pxfres->Add(pexprAlt);
 }

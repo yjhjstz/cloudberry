@@ -40,6 +40,9 @@
 
 using namespace gpopt;
 
+// GUC variable from PostgreSQL
+extern int max_parallel_workers_per_gather;
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalParallelHashJoin::CPhysicalParallelHashJoin
@@ -157,6 +160,12 @@ CPhysicalParallelHashJoin::UlExtractRequestedWorkers(
 	}
 
 	GPOS_ASSERT(ulWorkers > 0);
+	// Fall back to GUC setting
+	if (max_parallel_workers_per_gather > 0)
+	{
+		return (ULONG)max_parallel_workers_per_gather;
+	}
+
 	// Default fallback
 	return 2;
 }
