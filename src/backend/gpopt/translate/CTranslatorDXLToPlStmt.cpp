@@ -2716,7 +2716,7 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHash(
 	// set parallel execution properties
 	plan->parallel_aware = true;
 	plan->parallel_safe = true;
-	//plan->parallel = parallel_workers;
+	hash->sync_barrier = true;
 
 	// translate dxl node
 	CDXLTranslateContext dxl_translate_ctxt(
