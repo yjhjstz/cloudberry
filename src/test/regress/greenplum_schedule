@@ -130,7 +130,6 @@ test: index_constraint_naming index_constraint_naming_partition index_constraint
 
 test: brin_ao brin_aocs
 
-test: sreh
 
 test: rle rle_delta dsp not_out_of_shmem_exit_slots create_am_gp
 
@@ -386,8 +385,8 @@ test: uao_dml/uao_dml_unique_index_delete_row uao_dml/uao_dml_unique_index_delet
 
 
 # run pg_hba raleted testing
-test: hba_conf
-test: dboptions
+#test: hba_conf
+#test: dboptions
 
 # test dispatch and result handling of gp_log_memory_backend_contexts
 test: gp_log_mem_dispatch

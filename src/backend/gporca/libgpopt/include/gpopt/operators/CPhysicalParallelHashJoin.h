@@ -53,6 +53,10 @@ private:
 	// This handles cases where Motion nodes hide WorkerRandom distributions
 	ULONG UlExtractWorkersFromGroup(CGroup *pgroup) const;
 
+	// Extract requested worker count for distribution requirement
+	// Used when requesting WorkerRandom for first child before optimization
+	ULONG UlExtractRequestedWorkers(CExpressionHandle &exprhdl, ULONG child_index) const;
+
 	// Extract workers from child distributions (lazy initialization)
 	// Called by PdsDerive on first invocation
 	void ExtractWorkersIfNeeded(CExpressionHandle &exprhdl) const;

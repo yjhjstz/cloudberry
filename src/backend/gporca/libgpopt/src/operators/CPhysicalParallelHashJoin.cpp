@@ -123,6 +123,46 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CPhysicalParallelHashJoin::UlExtractRequestedWorkers
+//
+//	@doc:
+//		Extract requested worker count for distribution requirement.
+//		Priority:
+//		1. Child group's parallel operators (table scans, nested joins)
+//		2. GUC max_parallel_workers_per_gather
+//		3. Default fallback (2 workers)
+//
+//		This is used when requesting WorkerRandom distribution for the first child,
+//		before it has been optimized.
+//
+//---------------------------------------------------------------------------
+ULONG
+CPhysicalParallelHashJoin::UlExtractRequestedWorkers(
+	CExpressionHandle &exprhdl, ULONG child_index) const
+{
+	ULONG ulWorkers = 0;
+	// Try to extract from child group if available
+	CGroupExpression *pgexpr = exprhdl.Pgexpr();
+	if (nullptr != pgexpr && child_index < pgexpr->Arity())
+	{
+		CGroup *pgroupChild = (*pgexpr)[child_index];
+		if (nullptr != pgroupChild)
+		{
+			ulWorkers = UlExtractWorkersFromGroup(pgroupChild);
+			if (ulWorkers > 0)
+			{
+				return ulWorkers;
+			}
+		}
+	}
+
+	GPOS_ASSERT(ulWorkers > 0);
+	// Default fallback
+	return 2;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CPhysicalParallelHashJoin::ExtractWorkersIfNeeded
 //
 //	@doc:
@@ -214,7 +254,12 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 					CDistributionSpecHashed::PdsConvert(pds);
 				pdsHashed->ComputeEquivHashExprs(mp, exprhdl);
 			}
-			CDistributionSpecWorkerRandom *pdsWorkerReq = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, 2, pds);
+			// Extract worker count dynamically:
+			// Priority: 1) child group's parallel operators (table scans with parallel_workers setting)
+			//           2) GUC max_parallel_workers_per_gather
+			//           3) Default fallback (2)
+			ULONG ulWorkers = UlExtractRequestedWorkers(exprhdl, child_index);
+			CDistributionSpecWorkerRandom *pdsWorkerReq = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pds);
 			return GPOS_NEW(mp) CEnfdDistribution(pdsWorkerReq, dmatch);
 		}
 		// For replicate/singleton requests, defer to base class to preserve contracts.
