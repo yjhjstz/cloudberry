@@ -79,17 +79,24 @@ CPhysicalParallelHashJoin::~CPhysicalParallelHashJoin()
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalParallelHashJoin::UlExtractWorkersFromGroup
+//		CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal
 //
 //	@doc:
-//		Extract worker count from a child group by scanning for parallel operators
-//		This handles cases where Motion nodes hide WorkerRandom distributions
+//		Internal recursive function to extract worker count from a child group
+//		Uses visited set to avoid infinite loops from circular references
 //
 //---------------------------------------------------------------------------
 ULONG
-CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
+CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal(
+	CGroup *pgroup, CBitSet *visited_groups) const
 {
-	GPOS_ASSERT(nullptr != pgroup && "Child group is null - parallel hash join requires valid child groups");
+	if (nullptr == pgroup || visited_groups->Get(pgroup->Id()))
+	{
+		return 0;  // Already visited or null - avoid infinite recursion
+	}
+
+	// Mark this group as visited
+	visited_groups->ExchangeSet(pgroup->Id());
 
 	// Scan through all physical expressions in the child group
 	CGroupProxy gpChild(pgroup);
@@ -99,7 +106,7 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
 	{
 		COperator *popChild = pgexprChild->Pop();
 
-		// Check for parallel table scan
+		// Check for parallel table scan - this is the source of worker count
 		if (COperator::EopPhysicalParallelTableScan == popChild->Eopid())
 		{
 			CPhysicalParallelTableScan *popScan =
@@ -107,20 +114,47 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
 			return popScan->UlParallelWorkers();
 		}
 
-		// Check for parallel hash join (recursive parallel execution)
-		if (CUtils::FParallelHashJoin(popChild))
+		// Recursively check all children (Motion nodes, joins, etc.)
+		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
 		{
-			CPhysicalParallelHashJoin *popJoin =
-				CPhysicalParallelHashJoin::PopConvert(popChild);
-			// For nested parallel joins, use probe workers
-			return popJoin->UlProbeWorkers();
+			ULONG ulChildWorkers = UlExtractWorkersFromGroupInternal(
+				(*pgexprChild)[ul], visited_groups);
+			if (ulChildWorkers > 0)
+			{
+				return ulChildWorkers;
+			}
 		}
 
 		pgexprChild = gpChild.PgexprNext(pgexprChild);
 	}
 
-	//GPOS_ASSERT(!"No parallel operators found in child group - parallel hash join transformation should not have been applied");
-	return 0;  // Unreachable, but satisfies compiler
+	return 0;  // No parallel operators found
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelHashJoin::UlExtractWorkersFromGroup
+//
+//	@doc:
+//		Extract worker count from a child group by scanning for parallel operators
+//		This handles cases where Motion nodes hide parallel scans
+//
+//---------------------------------------------------------------------------
+ULONG
+CPhysicalParallelHashJoin::UlExtractWorkersFromGroup(CGroup *pgroup) const
+{
+	if (nullptr == pgroup)
+	{
+		return 0;
+	}
+
+	// Create visited set to track groups and avoid infinite recursion
+	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
+	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
+	ULONG ulWorkers = UlExtractWorkersFromGroupInternal(pgroup, visited);
+	visited->Release();
+
+	return ulWorkers;
 }
 
 
@@ -160,7 +194,7 @@ CPhysicalParallelHashJoin::UlExtractRequestedWorkers(
 	}
 
 	GPOS_ASSERT(ulWorkers > 0);
-	// Fall back to GUC setting
+	// Fall back to GUC setting if no parallel operators found in child
 	if (max_parallel_workers_per_gather > 0)
 	{
 		return (ULONG)max_parallel_workers_per_gather;

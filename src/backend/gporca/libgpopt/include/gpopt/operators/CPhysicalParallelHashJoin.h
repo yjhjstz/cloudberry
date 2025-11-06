@@ -53,6 +53,9 @@ private:
 	// This handles cases where Motion nodes hide WorkerRandom distributions
 	ULONG UlExtractWorkersFromGroup(CGroup *pgroup) const;
 
+	// Internal recursive function with visited set to avoid infinite loops
+	ULONG UlExtractWorkersFromGroupInternal(CGroup *pgroup, CBitSet *visited_groups) const;
+
 	// Extract requested worker count for distribution requirement
 	// Used when requesting WorkerRandom for first child before optimization
 	ULONG UlExtractRequestedWorkers(CExpressionHandle &exprhdl, ULONG child_index) const;
