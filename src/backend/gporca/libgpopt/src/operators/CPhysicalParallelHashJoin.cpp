@@ -193,7 +193,7 @@ CPhysicalParallelHashJoin::UlExtractRequestedWorkers(
 		}
 	}
 
-	GPOS_ASSERT(ulWorkers > 0);
+	//GPOS_ASSERT(ulWorkers > 0);
 	// Fall back to GUC setting if no parallel operators found in child
 	if (max_parallel_workers_per_gather > 0)
 	{
