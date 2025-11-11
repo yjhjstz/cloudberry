@@ -1785,8 +1785,8 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHashJoin(
 	plan->plan_node_id = m_dxl_to_plstmt_context->GetNextPlanId();
 
 	// set parallel execution properties
-	plan->parallel_aware = true;
-	plan->parallel_safe = true;
+	// plan->parallel_aware = true;
+	// plan->parallel_safe = true;
 	// join parallel degree inherits from probe (left) child; set after child translation
 
 	// set join type
@@ -1814,9 +1814,23 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHashJoin(
 	Plan *left_plan =
 		TranslateDXLOperatorToPlan(left_tree_dxlnode, &left_dxl_translate_ctxt,
 								   ctxt_translation_prev_siblings);
-	// inherit parallel degree for join from left (probe) child
-	// This value will be used for both plan->parallel and row count adjustment
-	plan->parallel = left_plan->parallel;
+
+	// Use recvslice's parallel_workers to determine parallel degree
+	// This correctly handles Motion nodes which create slice boundaries:
+	// - If Motion collects data from N workers to M segments, recvslice->parallel_workers reflects M
+	// - This ensures we don't use Parallel Hash Join/Hash when data is at segment level
+	PlanSlice *recvslice = m_dxl_to_plstmt_context->GetCurrentSlice();
+	if (recvslice->parallel_workers > 1)
+	{
+		plan->parallel = recvslice->parallel_workers;
+		plan->parallel_aware = true;
+		plan->parallel_safe = true;
+	}
+	else
+	{
+		// No parallel execution in this slice (either no workers or Motion collected data)
+		plan->parallel = 0;
+	}
 
 	// the right side of the join is the one where the hash phase is done
 	CDXLTranslationContextArray *translation_context_arr_with_siblings =
@@ -2714,9 +2728,9 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHash(
 	plan->plan_node_id = m_dxl_to_plstmt_context->GetNextPlanId();
 
 	// set parallel execution properties
-	plan->parallel_aware = true;
-	plan->parallel_safe = true;
-	hash->sync_barrier = true;
+	// plan->parallel_aware = true;
+	// plan->parallel_safe = true;
+	// hash->sync_barrier = true;
 
 	// translate dxl node
 	CDXLTranslateContext dxl_translate_ctxt(
@@ -2725,7 +2739,23 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHash(
 	Plan *left_plan = TranslateDXLOperatorToPlan(
 		dxlnode, &dxl_translate_ctxt, ctxt_translation_prev_siblings);
 
-	plan->parallel = left_plan->parallel;
+	// Check recvslice's parallel_workers to determine if we should use parallel Hash
+	// If Motion collected data to segment level, recvslice->parallel_workers will be <= 1
+	PlanSlice *recvslice = m_dxl_to_plstmt_context->GetCurrentSlice();
+	if (recvslice->parallel_workers > 1)
+	{
+		// Recvslice has parallel workers - use Parallel Hash
+		plan->parallel = recvslice->parallel_workers;
+		plan->parallel_aware = true;
+		plan->parallel_safe = true;
+		hash->sync_barrier = true;
+	}
+	else
+	{
+		// No parallel workers in recvslice (Motion collected data or no parallelism)
+		// Reset to regular Hash
+		plan->parallel = 0;
+	}
 
 	GPOS_ASSERT(0 < dxlnode->Arity());
 

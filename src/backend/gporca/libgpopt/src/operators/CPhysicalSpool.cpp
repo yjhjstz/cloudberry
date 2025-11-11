@@ -170,12 +170,12 @@ CPhysicalSpool::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	if (exprhdl.HasOuterRefs(0))
 	{
 		return GPOS_NEW(mp) CRewindabilitySpec(
-			CRewindabilitySpec::ErtRescannable, motion_hazard);
+			CRewindabilitySpec::ErtRescannable, motion_hazard, prsRequired->IsOriginNLJoin());
 	}
 	else
 	{
 		return GPOS_NEW(mp)
-			CRewindabilitySpec(CRewindabilitySpec::ErtNone, motion_hazard);
+			CRewindabilitySpec(CRewindabilitySpec::ErtNone, motion_hazard, prsRequired->IsOriginNLJoin());
 	}
 }
 

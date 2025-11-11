@@ -78,7 +78,7 @@ public:
 	~CPhysicalParallelHashJoin() override;
 
 	ULONG UlProbeWorkers(CExpressionHandle &exprhdl) {
-		ExtractWorkersIfNeeded(exprhdl);
+		ExtractWorkersIfNeeded(exprhdl); //FIXME: m_fWorkersExtracted
 		return UlProbeWorkers();
 	}
 

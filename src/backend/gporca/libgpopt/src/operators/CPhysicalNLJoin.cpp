@@ -94,7 +94,7 @@ CPhysicalNLJoin::PosRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 //
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
-CPhysicalNLJoin::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+CPhysicalNLJoin::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl GPOS_UNUSED,
 							 CRewindabilitySpec *prsRequired, ULONG child_index,
 							 CDrvdPropArray *pdrgpdpCtxt,
 							 ULONG	// ulOptReq
@@ -113,7 +113,7 @@ CPhysicalNLJoin::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			// we should not force materialize inner child, as we use index
 			// on inner relation and reference variables from outer relation.
 			return GPOS_NEW(mp) CRewindabilitySpec(
-				CRewindabilitySpec::ErtRewindable, prsRequired->Emht(), false);
+				CRewindabilitySpec::ErtRewindable, prsRequired->Emht(), true);
 		}
 
 		CRewindabilitySpec *prsOuter =
