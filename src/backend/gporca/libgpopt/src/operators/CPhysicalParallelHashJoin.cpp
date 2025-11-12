@@ -520,8 +520,9 @@ CDistributionSpec *
 CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 									 CExpressionHandle &exprhdl) const
 {
-	// Extract workers from child distributions on first call
-	ExtractWorkersIfNeeded(exprhdl);
+	// Note: Worker extraction has been moved to FValidContext()
+	// where we have guaranteed access to child groups via optimization contexts.
+	// This avoids the issue where exprhdl.Pgexpr() might be null in some contexts.
 
 	// Get distributions from children
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
@@ -725,11 +726,37 @@ CPhysicalParallelHashJoin::FValidContext(
 		return false;
 	}
 
+	// Extract workers from child groups if not already extracted
+	// This is the correct place to extract workers because:
+	// 1. FValidContext is called during optimization context validation
+	// 2. We have access to child optimization contexts (pdrgpocChild)
+	// 3. We can directly access child groups via pocChild->Pgroup()
+	// 4. If extraction fails, we can reject this optimization context early
+	if (!m_fWorkersExtracted && nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
+	{
+		COptimizationContext *pocOuter = (*pdrgpocChild)[0];
+		COptimizationContext *pocInner = (*pdrgpocChild)[1];
+
+		if (nullptr != pocOuter && nullptr != pocInner)
+		{
+			CGroup *pgroupOuter = pocOuter->Pgroup();
+			CGroup *pgroupInner = pocInner->Pgroup();
+
+			if (nullptr != pgroupOuter && nullptr != pgroupInner)
+			{
+				m_ulProbeWorkers = UlExtractWorkersFromGroup(pgroupOuter);
+				m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
+				m_fWorkersExtracted = true;
+			}
+		}
+	}
+
+	// Validate extracted worker counts
 	if (m_fWorkersExtracted)
 	{
 		if (0 == m_ulProbeWorkers || 0 == m_ulBuildWorkers)
 		{
-			// Invalid worker counts extracted previously
+			// Invalid worker counts extracted - reject this optimization context
 			return false;
 		}
 	}
