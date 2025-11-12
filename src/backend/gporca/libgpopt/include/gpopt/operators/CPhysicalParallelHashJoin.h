@@ -44,10 +44,9 @@ namespace gpopt
 class CPhysicalParallelHashJoin : public CPhysicalHashJoin
 {
 private:
-	// per-side parallel degrees (lazily extracted from child distributions)
+	// per-side parallel degrees (extracted in FValidContext from child groups)
 	mutable ULONG m_ulProbeWorkers;
 	mutable ULONG m_ulBuildWorkers;
-	mutable BOOL m_fWorkersExtracted;  // flag to ensure extraction happens once
 
 	// Extract worker count from a child group by scanning for parallel operators
 	// This handles cases where Motion nodes hide WorkerRandom distributions
@@ -78,7 +77,7 @@ public:
 	~CPhysicalParallelHashJoin() override;
 
 	ULONG UlProbeWorkers(CExpressionHandle &exprhdl) {
-		ExtractWorkersIfNeeded(exprhdl); //FIXME: m_fWorkersExtracted
+		ExtractWorkersIfNeeded(exprhdl);
 		return UlProbeWorkers();
 	}
 

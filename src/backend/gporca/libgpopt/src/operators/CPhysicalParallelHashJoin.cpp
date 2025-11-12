@@ -58,11 +58,10 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 	: CPhysicalHashJoin(mp, pdrgpexprOuterKeys, pdrgpexprInnerKeys,
 						hash_opfamilies, is_null_aware, origin_xform),
 	  m_ulProbeWorkers(0),
-	  m_ulBuildWorkers(0),
-	  m_fWorkersExtracted(false)  // Workers will be extracted lazily
+	  m_ulBuildWorkers(0)
 {
-	// m_ulProbeWorkers and m_ulBuildWorkers will be extracted from child distributions in PdsDerive()
-	// They must be extracted successfully, otherwise UlProbeWorkers()/UlBuildWorkers() will assert
+	// m_ulProbeWorkers and m_ulBuildWorkers will be extracted in FValidContext()
+	// from child groups when optimization contexts are available
 }
 
 //---------------------------------------------------------------------------
@@ -209,30 +208,16 @@ CPhysicalParallelHashJoin::UlExtractRequestedWorkers(
 //		CPhysicalParallelHashJoin::ExtractWorkersIfNeeded
 //
 //	@doc:
-//		Extract probe/build workers from child distributions (lazy initialization)
-//		Called by PdsDerive() on first invocation
-//
-//		Strategy:
-//		1. Try to extract from derived distribution (EdtWorkerRandom)
-//		2. If distribution is not WorkerRandom (e.g., Motion with EdtHashed),
-//		   scan the child group to find parallel operators and extract their
-//		   worker counts - this "penetrates" through Motion nodes
+//		Extract probe/build workers from child distributions
+//		This is a legacy function kept for compatibility but no longer used
+//		Worker extraction now happens in FValidContext()
 //
 //---------------------------------------------------------------------------
 void
 CPhysicalParallelHashJoin::ExtractWorkersIfNeeded(
 	CExpressionHandle &exprhdl) const
 {
-	if (m_fWorkersExtracted)
-	{
-		// Already extracted
-		return;
-	}
-
 	// Extract workers by scanning child groups for parallel operators
-	// This approach works in all contexts (including lower bound calculation)
-	// because it only relies on CGroupExpression, not on Pdpplan() which
-	// requires child optimization contexts to be complete
 	GPOS_ASSERT(nullptr != exprhdl.Pgexpr() &&
 		"ExtractWorkersIfNeeded requires group expression to access child groups");
 
@@ -241,8 +226,6 @@ CPhysicalParallelHashJoin::ExtractWorkersIfNeeded(
 
 	CGroup *pgroupInner = exprhdl.Pgexpr()->Pdrgpgroup()->operator[](1);
 	m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
-
-	m_fWorkersExtracted = true;
 }
 
 //---------------------------------------------------------------------------
@@ -409,75 +392,6 @@ CPhysicalParallelHashJoin::PdsRequired(CMemoryPool *mp GPOS_UNUSED,
 		CException::ExmaInvalid, CException::ExmiInvalid,
 		GPOS_WSZ_LIT("PdsRequired should not be called for CPhysicalParallelHashJoin"));
 	return nullptr;
-#if 0
-	GPOS_ASSERT(child_index < 2);
-
-	// Inner child (child_index == 1)
-	if (1 == child_index)
-	{
-		// Get the distribution delivered by the outer child
-		CDistributionSpec *pdsOuter =
-			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
-
-		// Key constraint: Inner must use PdsSegmentBase, NOT WorkerRandom
-		// Reason: All workers must see the complete segment data to build
-		//         a shared hash table. If inner uses WorkerRandom, each worker
-		//         would only scan a subset, leading to missing join matches.
-		if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt())
-		{
-			CDistributionSpecWorkerRandom *pdsWorkerOuter =
-				CDistributionSpecWorkerRandom::PdsConvert(pdsOuter);
-
-			// Extract the segment-level base distribution
-			CDistributionSpec *pdsSegmentBase =
-				pdsWorkerOuter->PdsSegmentBase();
-
-			if (nullptr != pdsSegmentBase &&
-				CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
-			{
-				CDistributionSpecHashed *pdsHashedBase =
-					CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
-
-				// Check if the base distribution covers inner join keys
-				if (pdsHashedBase->IsCoveredBy(PdrgpexprInnerKeys()))
-				{
-					// Return the segment-level hashed distribution
-					pdsSegmentBase->AddRef();
-					return pdsSegmentBase;
-				}
-			}
-		}
-
-		// Otherwise, require hashed distribution on inner join keys
-		return PdshashedRequired(mp, child_index, ulOptReq);
-	}
-
-	// Outer child (child_index == 0)
-	// For parallel hash join, we want the outer child to deliver WorkerRandom
-	// distribution to enable parallel probe phase
-	if (0 == child_index)
-	{
-		// If the required distribution from parent is already satisfied by
-		// WorkerRandom, we can propagate a WorkerRandom requirement
-		// Otherwise, we need to create a WorkerRandom requirement based on
-		// the outer join keys
-
-		// Create a hashed distribution on outer join keys as the segment base
-		CDistributionSpecHashed *pdsHashedOuter =
-			PdshashedRequired(mp, child_index, ulOptReq);
-
-		// Wrap it in WorkerRandom distribution
-		CDistributionSpecWorkerRandom *pdsWorkerRandom =
-			GPOS_NEW(mp) CDistributionSpecWorkerRandom(UlProbeWorkers(),
-													   pdsHashedOuter);
-
-		return pdsWorkerRandom;
-	}
-
-	// Fallback: delegate to base class
-	return CPhysicalHashJoin::PdsRequired(mp, exprhdl, pdsRequired,
-										  child_index, pdrgpdpCtxt, ulOptReq);
-#endif
 }
 
 //---------------------------------------------------------------------------
@@ -661,33 +575,8 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 	{
 		return CEnfdProp::EpetUnnecessary;
 	}
-#if 0
-	// Case 2: Required is traditional (Hashed), but we deliver WorkerRandom
-	// Check if our segment-level base distribution can satisfy the requirement
-	//
-	// Critical scenario: We're used as inner child of another hash join
-	// Example:
-	//   - Required: Hashed(b) (from outer hash join's inner requirement)
-	//   - Derived:  WorkerRandom[2] base:Hashed(b)
-	//   → Segment base Hashed(b) satisfies Hashed(b) requirement!
-	//   → No Motion needed (workers will share the hash table)
-	//
-	if (CDistributionSpec::EdtWorkerRandom != pdsRequired->Edt() &&
-		CDistributionSpec::EdtWorkerRandom == pdsDerived->Edt())
-	{
-		CDistributionSpecWorkerRandom *pdsWorkerDerived =
-			CDistributionSpecWorkerRandom::PdsConvert(pdsDerived);
 
-		CDistributionSpec *pdsSegmentBase = pdsWorkerDerived->PdsSegmentBase();
-		if (nullptr != pdsSegmentBase && ped->FCompatible(pdsSegmentBase))
-		{
-			// Segment-level base distribution satisfies the requirement
-			// This avoids unnecessary Motion for worker-level parallelism
-			return CEnfdProp::EpetRequired; //FIXME
-		}
-	}
-#endif
-	// Case 3: No distribution satisfies the requirement
+	// Case 2: No distribution satisfies the requirement
 	// Motion enforcement will be needed on the output
 	// Examples:
 	//   - Required: WorkerRandom[4], Derived: WorkerRandom[2] (worker mismatch)
@@ -732,28 +621,27 @@ CPhysicalParallelHashJoin::FValidContext(
 	// 2. We have access to child optimization contexts (pdrgpocChild)
 	// 3. We can directly access child groups via pocChild->Pgroup()
 	// 4. If extraction fails, we can reject this optimization context early
-	if (!m_fWorkersExtracted && nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
+	if (0 == m_ulProbeWorkers || 0 == m_ulBuildWorkers)
 	{
-		COptimizationContext *pocOuter = (*pdrgpocChild)[0];
-		COptimizationContext *pocInner = (*pdrgpocChild)[1];
-
-		if (nullptr != pocOuter && nullptr != pocInner)
+		if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
 		{
-			CGroup *pgroupOuter = pocOuter->Pgroup();
-			CGroup *pgroupInner = pocInner->Pgroup();
+			COptimizationContext *pocOuter = (*pdrgpocChild)[0];
+			COptimizationContext *pocInner = (*pdrgpocChild)[1];
 
-			if (nullptr != pgroupOuter && nullptr != pgroupInner)
+			if (nullptr != pocOuter && nullptr != pocInner)
 			{
-				m_ulProbeWorkers = UlExtractWorkersFromGroup(pgroupOuter);
-				m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
-				m_fWorkersExtracted = true;
+				CGroup *pgroupOuter = pocOuter->Pgroup();
+				CGroup *pgroupInner = pocInner->Pgroup();
+
+				if (nullptr != pgroupOuter && nullptr != pgroupInner)
+				{
+					m_ulProbeWorkers = UlExtractWorkersFromGroup(pgroupOuter);
+					m_ulBuildWorkers = UlExtractWorkersFromGroup(pgroupInner);
+				}
 			}
 		}
-	}
 
-	// Validate extracted worker counts
-	if (m_fWorkersExtracted)
-	{
+		// Validate extracted worker counts
 		if (0 == m_ulProbeWorkers || 0 == m_ulBuildWorkers)
 		{
 			// Invalid worker counts extracted - reject this optimization context
