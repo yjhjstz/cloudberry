@@ -7851,6 +7851,13 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 			CDXLPhysicalParallelTableScan::Cast(dxlop);
 		return parallel_scan_dxlop->UlParallelWorkers();
 	}
+	else if (EdxlopPhysicalParallelHashJoin == dxlop->GetDXLOperator())
+	{
+		// Parallel Hash Join operator - return its parallel workers
+		CDXLPhysicalParallelHashJoin *parallel_hashjoin_dxlop =
+			CDXLPhysicalParallelHashJoin::Cast(dxlop);
+		return parallel_hashjoin_dxlop->ProbeWorkers();
+	}
 	else if (EdxlopPhysicalTableScan == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalDynamicTableScan == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalIndexScan == dxlop->GetDXLOperator() ||
