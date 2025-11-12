@@ -31,7 +31,7 @@ order by
                Group Key: l_returnflag, l_linestatus
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: l_returnflag, l_linestatus
-                     ->  Vec Partial Vec HashAggregate
+                     ->  Vec Streaming Vec Partial Vec HashAggregate
                            Group Key: l_returnflag, l_linestatus
                            ->  Vec Seq Scan on lineitem
                                  Filter: (l_shipdate <= 'Mon Aug 17 00:00:00 1998'::timestamp without time zone)

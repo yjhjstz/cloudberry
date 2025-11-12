@@ -40,7 +40,7 @@ SELECT c, sum(a), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY c HAVI
                      Filter: (avg(pagg_tab.d) < '15'::numeric)
                      ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                            Hash Key: pagg_tab.c
-                           ->  Vec Partial Vec HashAggregate
+                           ->  Vec Streaming Vec Partial Vec HashAggregate
                                  Group Key: pagg_tab.c
                                  ->  Vec Seq Scan on pagg_tab_p1 pagg_tab
                ->  Vec Finalize Vec HashAggregate
@@ -48,7 +48,7 @@ SELECT c, sum(a), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY c HAVI
                      Filter: (avg(pagg_tab_1.d) < '15'::numeric)
                      ->  Vec Redistribute Motion 3:3  (slice3; segments: 3)
                            Hash Key: pagg_tab_1.c
-                           ->  Vec Partial Vec HashAggregate
+                           ->  Vec Streaming Vec Partial Vec HashAggregate
                                  Group Key: pagg_tab_1.c
                                  ->  Vec Seq Scan on pagg_tab_p2 pagg_tab_1
                ->  Vec Finalize Vec GroupAggregate
@@ -58,7 +58,7 @@ SELECT c, sum(a), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY c HAVI
                            Sort Key: pagg_tab_2.c
                            ->  Vec Redistribute Motion 3:3  (slice4; segments: 3)
                                  Hash Key: pagg_tab_2.c
-                                 ->  Vec Partial Vec HashAggregate
+                                 ->  Vec Streaming Vec Partial Vec HashAggregate
                                        Group Key: pagg_tab_2.c
                                        ->  Vec Seq Scan on pagg_tab_p3 pagg_tab_2
  Optimizer: Postgres query optimizer

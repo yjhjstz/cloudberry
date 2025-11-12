@@ -31,7 +31,7 @@ order by
                Group Key: orders.o_orderpriority
                ->  Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: orders.o_orderpriority
-                     ->  Partial HashAggregate
+                     ->  Streaming Partial HashAggregate
                            Group Key: orders.o_orderpriority
                            ->  HashAggregate
                                  Group Key: (RowIdExpr)

@@ -41,7 +41,7 @@ order by
                              Group Key: lineitem_1.l_suppkey
                              ->  Vec Redistribute Motion 3:3  (slice5; segments: 3)
                                    Hash Key: lineitem_1.l_suppkey
-                                   ->  Vec Partial Vec HashAggregate
+                                   ->  Vec Streaming Vec Partial Vec HashAggregate
                                          Group Key: lineitem_1.l_suppkey
                                          ->  Vec Seq Scan on lineitem lineitem_1
                                                Filter: ((l_shipdate >= '08-01-1997'::date) AND (l_shipdate < 'Mon Jun 01 00:00:00 1998'::timestamp without time zone))
@@ -57,7 +57,7 @@ order by
                                  Filter: (sum((lineitem.l_extendedprice * ('1'::numeric(15,2) - lineitem.l_discount))) = $0)
                                  ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                                        Hash Key: lineitem.l_suppkey
-                                       ->  Vec Partial Vec HashAggregate
+                                       ->  Vec Streaming Vec Partial Vec HashAggregate
                                              Group Key: lineitem.l_suppkey
                                              ->  Vec Seq Scan on lineitem
                                                    Filter: ((l_shipdate >= '08-01-1997'::date) AND (l_shipdate < 'Mon Jun 01 00:00:00 1998'::timestamp without time zone))

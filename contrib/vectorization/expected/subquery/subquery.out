@@ -19,7 +19,7 @@ explain select cnt + 1 from (select count(*) as cnt from subquery_tbl group by v
                Filter: (count(*) > 0)
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)  (cost=464.50..494.50 rows=1000 width=12)
                      Hash Key: subquery_tbl.v
-                     ->  Vec Partial Vec HashAggregate  (cost=464.50..474.50 rows=1000 width=12)
+                     ->  Vec Streaming Vec Partial Vec HashAggregate  (cost=464.50..474.50 rows=1000 width=12)
                            Group Key: subquery_tbl.v
                            ->  Vec Seq Scan on subquery_tbl  (cost=0.00..321.00 rows=28700 width=4)
  Optimizer: Postgres query optimizer

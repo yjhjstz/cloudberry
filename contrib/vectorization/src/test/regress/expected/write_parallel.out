@@ -25,7 +25,7 @@ HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sur
    Group Key: (length((stringu1)::text))
    ->  Redistribute Motion 3:3  (slice1; segments: 3)
          Hash Key: (length((stringu1)::text))
-         ->  HashAggregate
+         ->  Streaming HashAggregate
                Group Key: length((stringu1)::text)
                ->  Seq Scan on tenk1
  Optimizer: Postgres query optimizer
@@ -44,7 +44,7 @@ HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sur
    Group Key: (length((stringu1)::text))
    ->  Redistribute Motion 3:3  (slice1; segments: 3)
          Hash Key: (length((stringu1)::text))
-         ->  HashAggregate
+         ->  Streaming HashAggregate
                Group Key: length((stringu1)::text)
                ->  Seq Scan on tenk1
  Optimizer: Postgres query optimizer
@@ -63,7 +63,7 @@ HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sur
    Group Key: (length((stringu1)::text))
    ->  Redistribute Motion 3:3  (slice1; segments: 3)
          Hash Key: (length((stringu1)::text))
-         ->  HashAggregate
+         ->  Streaming HashAggregate
                Group Key: length((stringu1)::text)
                ->  Seq Scan on tenk1
  Optimizer: Postgres query optimizer
@@ -85,7 +85,7 @@ HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sur
    Group Key: (length((stringu1)::text))
    ->  Redistribute Motion 3:3  (slice1; segments: 3)
          Hash Key: (length((stringu1)::text))
-         ->  HashAggregate
+         ->  Streaming HashAggregate
                Group Key: length((stringu1)::text)
                ->  Seq Scan on tenk1
  Optimizer: Postgres query optimizer

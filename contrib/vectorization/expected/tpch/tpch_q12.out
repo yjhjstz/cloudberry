@@ -38,7 +38,7 @@ order by
                Group Key: lineitem.l_shipmode
                ->  Vec Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: lineitem.l_shipmode
-                     ->  Vec Partial Vec HashAggregate
+                     ->  Vec Streaming Vec Partial Vec HashAggregate
                            Group Key: lineitem.l_shipmode
                            ->  Vec Hash Join
                                  Hash Cond: (orders.o_orderkey = lineitem.l_orderkey)

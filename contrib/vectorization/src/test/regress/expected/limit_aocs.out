@@ -590,7 +590,7 @@ select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
                                  ->  Redistribute Motion 3:3  (slice2; segments: 3)
                                        Output: thousand, (PARTIAL sum(tenthous))
                                        Hash Key: thousand
-                                       ->  Partial HashAggregate
+                                       ->  Streaming Partial HashAggregate
                                              Output: thousand, PARTIAL sum(tenthous)
                                              Group Key: tenk1.thousand
                                              ->  Seq Scan on public.tenk1
