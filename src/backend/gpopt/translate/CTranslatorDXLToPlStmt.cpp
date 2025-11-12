@@ -7829,7 +7829,7 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 		// Parallel Hash Join operator - return its parallel workers
 		CDXLPhysicalParallelHashJoin *parallel_hashjoin_dxlop =
 			CDXLPhysicalParallelHashJoin::Cast(dxlop);
-		return parallel_hashjoin_dxlop->ProbeWorkers();
+		return parallel_hashjoin_dxlop->BuildWorkers();
 	}
 	else if (EdxlopPhysicalTableScan == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalDynamicTableScan == dxlop->GetDXLOperator() ||

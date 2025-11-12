@@ -452,7 +452,7 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 			CDistributionSpecWorkerRandom::PdsConvert(pdsInner);
 
 		// Verify worker count matches
-		if (pdsWorkerOuter->UlWorkers() == pdsWorkerInner->UlWorkers())
+		//if (pdsWorkerOuter->UlWorkers() == pdsWorkerInner->UlWorkers())
 		{
 			// Verify segment-level base distributions are compatible
 			CDistributionSpec *pdsBaseOuter = pdsWorkerOuter->PdsSegmentBase();
