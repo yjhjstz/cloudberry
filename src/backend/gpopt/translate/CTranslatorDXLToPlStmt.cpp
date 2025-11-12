@@ -1483,9 +1483,6 @@ CTranslatorDXLToPlStmt::TranslateDXLLimit(
 
 	plan->lefttree = left_plan;
 
-	// inherit parallel degree from child plan
-	plan->parallel = left_plan->parallel;
-
 	if (nullptr != limit_count_dxlnode && limit_count_dxlnode->Arity() > 0)
 	{
 		CMappingColIdVarPlStmt colid_var_mapping(m_mp, nullptr, child_contexts,
@@ -3040,9 +3037,6 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 
 	plan->lefttree = child_plan;
 
-	// inherit parallel degree from child plan
-	plan->parallel = child_plan->parallel;
-
 	// translate properties of the specific type of motion operator
 
 	switch (motion_dxlop->GetDXLOperator())
@@ -3454,9 +3448,6 @@ CTranslatorDXLToPlStmt::TranslateDXLAgg(
 
 	plan->lefttree = child_plan;
 
-	// inherit parallel degree from child plan
-	plan->parallel = child_plan->parallel;
-
 	// translate aggregation strategy
 	switch (dxl_phy_agg_dxlop->GetAggStrategy())
 	{
@@ -3730,9 +3721,6 @@ CTranslatorDXLToPlStmt::TranslateDXLWindowAgg(
 
 	plan->lefttree = child_plan;
 
-	// inherit parallel degree from child plan
-	plan->parallel = child_plan->parallel;
-
 	// translate partition columns
 	const ULongPtrArray *part_by_cols_array =
 		window_dxlop->GetPartByColsArray();
@@ -3957,9 +3945,6 @@ CTranslatorDXLToPlStmt::TranslateDXLWindowHashAgg(
 
 	plan->lefttree = child_plan;
 
-	// inherit parallel degree from child plan
-	plan->parallel = child_plan->parallel;
-
 	// translate partition columns
 	const ULongPtrArray *part_by_cols_array =
 		window_dxlop->GetPartByColsArray();
@@ -4154,9 +4139,6 @@ CTranslatorDXLToPlStmt::TranslateDXLSort(
 							   output_context);
 
 	plan->lefttree = child_plan;
-
-	// inherit parallel degree from child plan
-	plan->parallel = child_plan->parallel;
 
 	// translate sorting columns
 
@@ -4609,9 +4591,6 @@ CTranslatorDXLToPlStmt::TranslateDXLResult(
 	if (nullptr == project_set_parent_plan)
 	{
 		result->plan.lefttree = child_plan;
-		// inherit parallel degree from child plan (if child exists)
-		if (child_plan != nullptr)
-			result->plan.parallel = child_plan->parallel;
 		child_contexts->Release();
 		return (Plan *) result;
 	}
@@ -4637,9 +4616,6 @@ CTranslatorDXLToPlStmt::TranslateDXLResult(
 
 	// Attaching the child plan
 	project_set_child_plan->lefttree = child_plan;
-	// inherit parallel degree from child plan (if child exists)
-	if (child_plan != nullptr)
-		project_set_child_plan->parallel = child_plan->parallel;
 
 	// cleanup
 	child_contexts->Release();
@@ -4956,9 +4932,6 @@ CTranslatorDXLToPlStmt::TranslateDXLMaterialize(
 							   output_context);
 
 	plan->lefttree = child_plan;
-
-	// inherit parallel degree from child plan
-	plan->parallel = child_plan->parallel;
 
 	SetParamIds(plan);
 
