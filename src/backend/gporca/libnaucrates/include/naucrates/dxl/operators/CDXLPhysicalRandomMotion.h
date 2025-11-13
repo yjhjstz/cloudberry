@@ -27,7 +27,6 @@ enum Edxlrandomm
 	EdxlrandommIndexFilter,
 	EdxlrandommIndexSortColList,
 	EdxlrandommIndexChild,
-	EdxlrandommIndexHashExprList,  // Optional: only present for WorkerRandom(Hashed)
 	EdxlrandommIndexSentinel
 };
 

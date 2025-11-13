@@ -34,6 +34,7 @@
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CPhysicalMotionHashDistribute.h"
+#include "gpopt/operators/CPhysicalMotionHashDistributeWorkers.h"
 #include "gpopt/operators/CPhysicalMotionRandom.h"
 #include "naucrates/traceflags/traceflags.h"
 
@@ -250,7 +251,6 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 		}
 
 		case CDistributionSpec::EdtRandom:
-		case CDistributionSpec::EdtWorkerRandom:
 		{
 			// Required: Random/WorkerRandom distribution -> Generate Random Motion
 			if (GPOS_FTRACE(EopttraceDisableMotionRandom))
@@ -271,6 +271,21 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 
 			pexprMotion = GPOS_NEW(mp) CExpression(
 				mp, GPOS_NEW(mp) CPhysicalMotionRandom(mp, random_dist_spec), pexpr);
+			break;
+		}
+		case CDistributionSpec::EdtWorkerRandom:
+		{
+			// Use factory method to ensure proper memory pool usage
+			CDistributionSpecWorkerRandom *random_dist_spec =
+				PdsCreateWorkerRandom(mp, m_ulWorkers, m_pdsSegmentBase);
+
+			if (fDuplicateHazard)
+			{
+				random_dist_spec->MarkDuplicateSensitive();
+			}
+
+			pexprMotion = GPOS_NEW(mp) CExpression(
+				mp, GPOS_NEW(mp) CPhysicalMotionHashDistributeWorkers(mp, random_dist_spec), pexpr);
 			break;
 		}
 

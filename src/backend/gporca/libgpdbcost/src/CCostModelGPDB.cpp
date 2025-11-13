@@ -11,6 +11,7 @@
 
 #include "gpdbcost/CCostModelGPDB.h"
 
+#include <filesystem>
 #include <limits>
 #include <cmath>
 
@@ -1711,7 +1712,8 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				COperator::EopPhysicalMotionBroadcast == op_id ||
 				COperator::EopPhysicalMotionHashDistribute == op_id ||
 				COperator::EopPhysicalMotionRandom == op_id ||
-				COperator::EopPhysicalMotionRoutedDistribute == op_id);
+				COperator::EopPhysicalMotionRoutedDistribute == op_id ||
+				COperator::EopPhysicalMotionHashDistributeWorkers == op_id);
 
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
 	const DOUBLE dWidthOuter = pci->GetWidth()[0];
@@ -1745,7 +1747,8 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	}
 	else if (COperator::EopPhysicalMotionHashDistribute == op_id ||
 			 COperator::EopPhysicalMotionRandom == op_id ||
-			 COperator::EopPhysicalMotionRoutedDistribute == op_id)
+			 COperator::EopPhysicalMotionRoutedDistribute == op_id ||
+			 COperator::EopPhysicalMotionHashDistributeWorkers == op_id)
 	{
 		dSendCostUnit =
 			pcmgpdb->GetCostModelParams()
@@ -2975,6 +2978,7 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalMotionHashDistribute:
 		case COperator::EopPhysicalMotionRandom:
 		case COperator::EopPhysicalMotionRoutedDistribute:
+		case COperator::EopPhysicalMotionHashDistributeWorkers:
 		{
 			return CostMotion(m_mp, exprhdl, this, pci);
 		}
