@@ -343,7 +343,7 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	//
 	// Solution: Only call base class if first child is singleton/replicated,
 	// otherwise handle redistribute ourselves
-
+#if 0
 	if (!FFirstChildToOptimize(child_index) && nullptr != pdrgpdpCtxt &&
 		pdrgpdpCtxt->Size() > 0)
 	{
@@ -361,12 +361,11 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 										  pdrgpdpCtxt, ulOptReq);
 		}
 	}
-
+#endif
 	// For all other cases, use default behavior: request any distribution
 	// This allows the optimizer to choose the best option
-	return GPOS_NEW(mp) CEnfdDistribution(
-		GPOS_NEW(mp) CDistributionSpecAny(this->Eopid()),
-		dmatch);
+	return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
+										  pdrgpdpCtxt, ulOptReq);
 }
 
 
