@@ -80,6 +80,7 @@ extern "C" {
 #include "naucrates/dxl/operators/CDXLPhysicalPartitionSelector.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRandomMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRedistributeMotion.h"
+#include "naucrates/dxl/operators/CDXLPhysicalHashDistributeWorkersMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalResult.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRoutedDistributeMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalSort.h"
@@ -404,6 +405,7 @@ CTranslatorDXLToPlStmt::TranslateDXLOperatorToPlan(
 		}
 		case EdxlopPhysicalMotionRedistribute:
 		case EdxlopPhysicalMotionRandom:
+		case EdxlopPhysicalMotionHashDistributeWorkers:
 		{
 			plan = TranslateDXLDuplicateSensitiveMotion(
 				dxlnode, output_context, ctxt_translation_prev_siblings);
@@ -2962,7 +2964,9 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 	if (motion_dxlop->GetDXLOperator() == EdxlopPhysicalMotionRedistribute ||
 		motion_dxlop->GetDXLOperator() ==
 			EdxlopPhysicalMotionRoutedDistribute ||
-		motion_dxlop->GetDXLOperator() == EdxlopPhysicalMotionRandom)
+		motion_dxlop->GetDXLOperator() == EdxlopPhysicalMotionRandom ||
+		motion_dxlop->GetDXLOperator() ==
+			EdxlopPhysicalMotionHashDistributeWorkers)
 	{
 		// translate hash expr list
 		List *hash_expr_list = NIL;
@@ -2992,6 +2996,17 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 									  &hash_expr_list, &hash_expr_opfamilies,
 									  output_context);
 			}
+		}
+		else if (EdxlopPhysicalMotionHashDistributeWorkers ==
+				 motion_dxlop->GetDXLOperator())
+		{
+			// For Worker-level hash distribute, hash expr list is REQUIRED
+			CDXLNode *hash_expr_list_dxlnode =
+				(*motion_dxlnode)[EdxlhashworkersIndexHashExprList];
+
+			TranslateHashExprList(hash_expr_list_dxlnode, &child_context,
+								  &hash_expr_list, &hash_expr_opfamilies,
+								  output_context);
 		}
 		numHashExprs = gpdb::ListLength(hash_expr_list);
 
@@ -3048,6 +3063,7 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 		}
 		case EdxlopPhysicalMotionRedistribute:
 		case EdxlopPhysicalMotionRandom:
+		case EdxlopPhysicalMotionHashDistributeWorkers:
 		{
 			motion->motionType = MOTIONTYPE_HASH;
 			motion->numHashSegments =
@@ -7852,7 +7868,8 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 			 EdxlopPhysicalMotionBroadcast == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalMotionRedistribute == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalMotionRandom == dxlop->GetDXLOperator() ||
-			 EdxlopPhysicalMotionRoutedDistribute == dxlop->GetDXLOperator())
+			 EdxlopPhysicalMotionRoutedDistribute == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalMotionHashDistributeWorkers == dxlop->GetDXLOperator())
 	{
 		// Motion node creates a slice boundary - do not recurse into child
 		// The child's parallel workers belong to the sending slice, not receiving slice

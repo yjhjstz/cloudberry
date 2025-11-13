@@ -47,6 +47,7 @@
 #include "naucrates/dxl/parser/CParseHandlerForeignScan.h"
 #include "naucrates/dxl/parser/CParseHandlerGatherMotion.h"
 #include "naucrates/dxl/parser/CParseHandlerGroupingColList.h"
+#include "naucrates/dxl/parser/CParseHandlerHashDistributeWorkersMotion.h"
 #include "naucrates/dxl/parser/CParseHandlerHashExpr.h"
 #include "naucrates/dxl/parser/CParseHandlerHashExprList.h"
 #include "naucrates/dxl/parser/CParseHandlerHashJoin.h"

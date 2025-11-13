@@ -233,6 +233,7 @@ public:
 		EopPhysicalMotionHashDistribute,
 		EopPhysicalMotionRoutedDistribute,
 		EopPhysicalMotionRandom,
+		EopPhysicalMotionHashDistributeWorkers,
 
 		EopPhysicalHashAgg,
 		EopPhysicalHashAggDeduplicate,

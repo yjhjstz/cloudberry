@@ -173,6 +173,10 @@ public:
 	static CDXLPhysical *MakeDXLRandomMotion(
 		CDXLMemoryManager *dxl_memory_manager, const Attributes &attrs);
 
+	// create a worker-level hash distribute motion operator
+	static CDXLPhysical *MakeDXLHashDistributeWorkersMotion(
+		CDXLMemoryManager *dxl_memory_manager, const Attributes &attrs);
+
 	// create an append operator
 	static CDXLPhysical *MakeDXLAppend(CDXLMemoryManager *dxl_memory_manager,
 									   const Attributes &attrs);

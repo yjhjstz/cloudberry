@@ -55,6 +55,7 @@
 #include "gpopt/operators/CPhysicalLimit.h"
 #include "gpopt/operators/CPhysicalMotionGather.h"
 #include "gpopt/operators/CPhysicalMotionHashDistribute.h"
+#include "gpopt/operators/CPhysicalMotionHashDistributeWorkers.h"
 #include "gpopt/operators/CPhysicalMotionRandom.h"
 #include "gpopt/operators/CPhysicalMotionRoutedDistribute.h"
 #include "gpopt/operators/CPhysicalNLJoin.h"
@@ -127,6 +128,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalPartitionSelector.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRandomMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRedistributeMotion.h"
+#include "naucrates/dxl/operators/CDXLPhysicalHashDistributeWorkersMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalResult.h"
 #include "naucrates/dxl/operators/CDXLPhysicalRoutedDistributeMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalSequence.h"
@@ -5421,6 +5423,16 @@ CTranslatorExprToDXL::PdxlnMotion(CExpression *pexprMotion,
 				CDXLPhysicalRandomMotion(m_mp, fDuplicateHazardMotion);
 			break;
 
+		case COperator::EopPhysicalMotionHashDistributeWorkers:
+		{
+			CPhysicalMotionHashDistributeWorkers *popWorkers =
+				CPhysicalMotionHashDistributeWorkers::PopConvert(
+					pexprMotion->Pop());
+			motion = GPOS_NEW(m_mp) CDXLPhysicalHashDistributeWorkersMotion(
+				m_mp, popWorkers->NumWorkers());
+			break;
+		}
+
 		case COperator::EopPhysicalMotionRoutedDistribute:
 		{
 			CPhysicalMotionRoutedDistribute *popMotion =
@@ -5481,6 +5493,23 @@ CTranslatorExprToDXL::PdxlnMotion(CExpression *pexprMotion,
 			CDistributionSpecHashed::PdsConvert(popHashDistribute->Pds());
 		CDXLNode *hash_expr_list =
 			PdxlnHashExprList(pdsHashed->Pdrgpexpr(), pdsHashed->Opfamilies());
+		pdxlnMotion->AddChild(hash_expr_list);
+	}
+
+	// For worker-level hash distribute motion, add hash expr list BEFORE child
+	// This is different from other motions - hash expr list comes before child
+	if (COperator::EopPhysicalMotionHashDistributeWorkers ==
+		pexprMotion->Pop()->Eopid())
+	{
+		CPhysicalMotionHashDistributeWorkers *popWorkers =
+			CPhysicalMotionHashDistributeWorkers::PopConvert(pexprMotion->Pop());
+		CExpressionArray *hash_exprs = popWorkers->GetHashExpressions();
+		IMdIdArray *opfamilies = popWorkers->GetHashOpfamilies();
+
+		GPOS_ASSERT(nullptr != hash_exprs);
+		GPOS_ASSERT(nullptr != opfamilies);
+
+		CDXLNode *hash_expr_list = PdxlnHashExprList(hash_exprs, opfamilies);
 		pdxlnMotion->AddChild(hash_expr_list);
 	}
 
@@ -8542,6 +8571,7 @@ CTranslatorExprToDXL::FNeedsMaterializeUnderResult(CDXLNode *proj_list_dxlnode,
 				EdxlopPhysicalMotionBroadcast,
 				EdxlopPhysicalMotionRedistribute,
 				EdxlopPhysicalMotionRandom,
+				EdxlopPhysicalMotionHashDistributeWorkers
 			};
 
 			fMotionHazard = CTranslatorExprToDXLUtils::FMotionHazard(

@@ -44,6 +44,7 @@ OBJS        = CParseHandlerAgg.o \
               CParseHandlerHashExpr.o \
               CParseHandlerHashExprList.o \
               CParseHandlerHashJoin.o \
+              CParseHandlerHashDistributeWorkersMotion.o \
               CParseHandlerHint.o \
               CParseHandlerIndexCondList.o \
               CParseHandlerIndexDescr.o \

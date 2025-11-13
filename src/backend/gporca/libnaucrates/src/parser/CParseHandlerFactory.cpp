@@ -107,6 +107,8 @@ CParseHandlerFactory::Init(CMemoryPool *mp)
 		{EdxltokenPhysicalRoutedDistributeMotion,
 		 &CreateRoutedMotionParseHandler},
 		{EdxltokenPhysicalRandomMotion, &CreateRandomMotionParseHandler},
+		{EdxltokenPhysicalHashDistributeWorkersMotion,
+		 &CreateHashDistributeWorkersMotionParseHandler},
 		{EdxltokenPhysicalResult, &CreateResultParseHandler},
 		{EdxltokenPhysicalLimit, &CreateLimitParseHandler},
 		{EdxltokenPhysicalSort, &CreateSortParseHandler},
@@ -1059,6 +1061,16 @@ CParseHandlerFactory::CreateRandomMotionParseHandler(
 {
 	return GPOS_NEW(mp)
 		CParseHandlerRandomMotion(mp, parse_handler_mgr, parse_handler_root);
+}
+
+// creates a parse handler for parsing a worker-level hash distribute motion operator
+CParseHandlerBase *
+CParseHandlerFactory::CreateHashDistributeWorkersMotionParseHandler(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+{
+	return GPOS_NEW(mp) CParseHandlerHashDistributeWorkersMotion(
+		mp, parse_handler_mgr, parse_handler_root);
 }
 
 // creates a parse handler for parsing a group by operator

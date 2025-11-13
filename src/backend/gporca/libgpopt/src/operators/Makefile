@@ -121,6 +121,7 @@ OBJS        = CExpression.o \
               CPhysicalMotionBroadcast.o \
               CPhysicalMotionGather.o \
               CPhysicalMotionHashDistribute.o \
+              CPhysicalMotionHashDistributeWorkers.o \
               CPhysicalMotionRandom.o \
               CPhysicalMotionRoutedDistribute.o \
               CPhysicalDynamicForeignScan.o \

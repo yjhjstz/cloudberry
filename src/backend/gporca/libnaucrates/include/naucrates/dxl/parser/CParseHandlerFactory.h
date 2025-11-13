@@ -492,6 +492,11 @@ private:
 		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
 		CParseHandlerBase *parse_handler_root);
 
+	// construct a worker-level hash distribute motion parse handler
+	static CParseHandlerBase *CreateHashDistributeWorkersMotionParseHandler(
+		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+		CParseHandlerBase *parse_handler_root);
+
 	// construct a physical aggregate parse handler
 	static CParseHandlerBase *CreateAggParseHandler(
 		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
