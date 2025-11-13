@@ -320,6 +320,7 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				return GPOS_NEW(mp) CEnfdDistribution(
 					CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsMatch), dmatch);
 			}
+		#if 0
 			// Handle random distribution case
 			else if (nullptr != pdsSegmentBase &&
 					 (CDistributionSpec::EdtRandom == pdsSegmentBase->Edt() ||
@@ -332,6 +333,7 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				return GPOS_NEW(mp) CEnfdDistribution(
 					CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsHashedReq), dmatch);
 			}
+		#endif
 		}
 	}
 
