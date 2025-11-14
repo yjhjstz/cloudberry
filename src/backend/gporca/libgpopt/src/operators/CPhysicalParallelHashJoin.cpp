@@ -192,7 +192,6 @@ CPhysicalParallelHashJoin::UlExtractRequestedWorkers(
 		}
 	}
 
-	//GPOS_ASSERT(ulWorkers > 0);
 	// Fall back to GUC setting if no parallel operators found in child
 	if (max_parallel_workers_per_gather > 0)
 	{
@@ -410,33 +409,6 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		}
 	}
 
-	// For remaining cases (second child with non-WorkerRandom first child,
-	// or replicate/singleton requests), use standard hash join logic
-	//
-	// However, we cannot blindly call base class because if we returned EdtAny
-	// for the first child, base class's PdsRequiredSingleton() will assert.
-	//
-	// Solution: Only call base class if first child is singleton/replicated,
-	// otherwise handle redistribute ourselves
-#if 0
-	if (!FFirstChildToOptimize(child_index) && nullptr != pdrgpdpCtxt &&
-		pdrgpdpCtxt->Size() > 0)
-	{
-		CDistributionSpec *pdsFirst =
-			CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
-
-		// Check if first child is singleton or replicated
-		// In these cases, it's safe to call base class
-		if (CDistributionSpec::EdtSingleton == pdsFirst->Edt() ||
-			CDistributionSpec::EdtStrictSingleton == pdsFirst->Edt() ||
-			CDistributionSpec::EdtReplicated == pdsFirst->Edt() ||
-			CDistributionSpec::EdtStrictReplicated == pdsFirst->Edt())
-		{
-			return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
-										  pdrgpdpCtxt, ulOptReq);
-		}
-	}
-#endif
 	// For all other cases, use default behavior: request any distribution
 	// This allows the optimizer to choose the best option
 	return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
@@ -503,13 +475,9 @@ CPhysicalParallelHashJoin::PrsRequired(CMemoryPool *mp,
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
+CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *mp,
 									 CExpressionHandle &exprhdl) const
 {
-	// Note: Worker extraction has been moved to FValidContext()
-	// where we have guaranteed access to child groups via optimization contexts.
-	// This avoids the issue where exprhdl.Pgexpr() might be null in some contexts.
-
 	// Get distributions from children
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
@@ -578,18 +546,17 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *,  // mp
 	}
 
 	// ========== Priority 2: Traditional Distributions ==========
-	// For non-WorkerRandom distributions, pass through outer distribution
-	// The enforcement mechanism will handle any required redistributions
-
-	// Note: CPhysicalHashJoin::PdsDeriveFromHashedChildren() and other
-	// helper methods are private, so we cannot reuse them directly here.
-	// Instead, we rely on the enforcement mechanism to handle traditional
-	// distributions through Motion nodes if needed.
-
-	// Default: Pass through outer distribution
-	// This handles singleton, replicated, and other compatible cases
-	pdsOuter->AddRef();
-	return pdsOuter;
+	// For non-WorkerRandom cases (e.g., from Motion nodes), use parent class logic
+	// which correctly handles:
+	// 1. Replicated/Universal outer → return inner distribution
+	// 2. Cleanup of incomplete Hashed distribution specs
+	// 3. Right outer join distribution swap
+	//
+	// Note: We don't need to handle Replicated in the WorkerRandom branch above
+	// because CXformGet2ParallelTableScan explicitly rejects replicated tables
+	// (see CXformGet2ParallelTableScan.cpp:97-104), so WorkerRandom base distributions
+	// can only be Hashed or Random, never Replicated/MasterOnly.
+	return CPhysicalJoin::PdsDerive(mp, exprhdl);
 }
 
 //---------------------------------------------------------------------------
