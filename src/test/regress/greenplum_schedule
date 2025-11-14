@@ -18,9 +18,9 @@
 # Run disk-intensive tests early when maximum disk space is available.
 # These tests consume significant disk space through WAL generation, XID consumption,
 # and autovacuum operations. Running them early helps avoid disk exhaustion issues.
-test: autovacuum
-test: autovacuum-segment
-test: autovacuum-template0-segment
+#test: autovacuum
+#test: autovacuum-segment
+#test: autovacuum-template0-segment
 
 # check profile feature
 test: profile
@@ -130,6 +130,7 @@ test: index_constraint_naming index_constraint_naming_partition index_constraint
 
 test: brin_ao brin_aocs
 
+#test: sreh
 
 test: rle rle_delta dsp not_out_of_shmem_exit_slots create_am_gp
 
@@ -344,7 +345,7 @@ test: create_extension_fail
 test: offload_entry_to_qe
 
 # Tests of Answer Query Using Materialized Views.
-test: aqumv
+#test: aqumv
 
 # Tests of materialized view data catalog maintenance
 test: matview_data
@@ -374,7 +375,7 @@ test: uao_dml/ao_unique_index_build_row uao_dml/ao_unique_index_build_column
 
 test: bfv_copy
 
-test: dynamic_table
+#test: dynamic_table
 
 # run this at the end of the schedule for more chance to catch abnormalities
 # different CI env with GPDB

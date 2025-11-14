@@ -230,6 +230,74 @@ CPhysicalParallelHashJoin::ExtractWorkersIfNeeded(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CPhysicalParallelHashJoin::PdsRequiredRedistribute
+//
+//	@doc:
+//		Compute required redistribute distribution spec for the n-th child
+//		Wraps base class redistribution logic with WorkerRandom to preserve
+//		worker-level parallelism
+//
+//---------------------------------------------------------------------------
+CDistributionSpec *
+CPhysicalParallelHashJoin::PdsRequiredRedistributeParallel(
+	CMemoryPool *mp, CExpressionHandle &exprhdl, CDistributionSpec *pdsInput GPOS_UNUSED,
+	ULONG child_index, CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq) const
+{
+	if (FFirstChildToOptimize(child_index))
+	{
+		// require first child to provide a hashed distribution,
+		return PdshashedRequired(mp, child_index, ulOptReq);
+	}
+	// Second child: match the first child's base distribution
+	GPOS_ASSERT(nullptr != pdrgpdpCtxt && pdrgpdpCtxt->Size() > 0);
+
+	CDistributionSpec *pdsFirst =
+		CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
+
+	CDistributionSpec *pdsBaseFirst = pdsFirst;
+	CDistributionSpec *pdsInputForMatch = nullptr;
+
+	if (CDistributionSpec::EdtWorkerRandom == pdsFirst->Edt())
+	{
+		CDistributionSpecWorkerRandom *pdsWorkerFirst =
+			CDistributionSpecWorkerRandom::PdsConvert(pdsFirst);
+		pdsBaseFirst = pdsWorkerFirst->PdsSegmentBase();
+
+		// If first child is WorkerRandom with hashed base, use PdsMatch directly
+		if (nullptr != pdsBaseFirst &&
+			CDistributionSpec::EdtHashed == pdsBaseFirst->Edt())
+		{
+			CDistributionSpecHashed *pdsHashedBase =
+				CDistributionSpecHashed::PdsConvert(pdsBaseFirst);
+
+			CDistributionSpecHashed *pdsHashed = pdsHashedBase->Copy(mp);
+			pdsHashed->ComputeEquivHashExprs(mp, exprhdl);
+			pdsInputForMatch = pdsHashed;
+		}
+	}
+	else
+	{
+		pdsInputForMatch = pdsBaseFirst;
+	}
+	// find the index of the first child
+	ULONG ulFirstChild = 0;
+	if (EceoRightToLeft == Eceo())
+	{
+		ulFirstChild = 1;
+	}
+
+	// return a matching distribution request for the second child
+	CDistributionSpec *pdsMatch = PdsMatch(mp, pdsInputForMatch, ulFirstChild);
+	if (pdsBaseFirst->Edt() == CDistributionSpec::EdtHashed)
+	{
+		// if the input spec was created as a copy, release it
+		pdsInputForMatch->Release();
+	}
+	return pdsMatch;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CPhysicalParallelHashJoin::Ped
 //
 //	@doc:
@@ -304,14 +372,19 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			if (nullptr != pdsSegmentBase && CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
 			{
 				CDistributionSpecHashed *pdsHashedBase = CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
-				// Ensure first child's base hashed is covered by its own join keys; otherwise, defer to base logic
+				// Ensure first child's base hashed is covered by its own join keys
 				const CExpressionArray *pdrgpexprFirstKeys = (EceoRightToLeft == Eceo()) ? PdrgpexprInnerKeys() : PdrgpexprOuterKeys();
 				if (!pdsHashedBase->IsCoveredBy(pdrgpexprFirstKeys))
 				{
-					// Fall back to requesting hashed on the second child based on its own join keys
-					CDistributionSpecHashed *pdsHashedReq = PdshashedRequired(mp, child_index, ulOptReq);
-					pdsHashedReq->ComputeEquivHashExprs(mp, exprhdl);
-					return GPOS_NEW(mp) CEnfdDistribution(pdsHashedReq, dmatch);
+					// First child's base is not covered by join keys
+					// Use PdsRequiredRedistributeParallel to get proper matching distribution for second child
+					CDistributionSpec *pds = PdsRequiredRedistributeParallel(
+						mp, exprhdl, pdsInput, child_index, pdrgpdpCtxt, ulOptReq);
+					if (CDistributionSpec::EdtHashed == pds->Edt())
+					{
+						CDistributionSpecHashed::PdsConvert(pds)->ComputeEquivHashExprs(mp, exprhdl);
+					}
+					return GPOS_NEW(mp) CEnfdDistribution(pds, dmatch);
 				}
 				ULONG ulFirstChild = (EceoRightToLeft == Eceo()) ? 1 : 0;
 				CDistributionSpecHashed *pdsMatch = PdshashedMatching(mp, pdsHashedBase, ulFirstChild);

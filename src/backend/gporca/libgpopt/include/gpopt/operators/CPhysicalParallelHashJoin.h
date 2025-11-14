@@ -63,6 +63,15 @@ private:
 	// Called by PdsDerive on first invocation
 	void ExtractWorkersIfNeeded(CExpressionHandle &exprhdl) const;
 
+	// Compute required redistribute distribution spec for the n-th child
+	// Wraps base class redistribution logic with WorkerRandom
+	CDistributionSpec *PdsRequiredRedistributeParallel(CMemoryPool *mp,
+											   CExpressionHandle &exprhdl,
+											   CDistributionSpec *pdsInput,
+											   ULONG child_index,
+											   CDrvdPropArray *pdrgpdpCtxt,
+											   ULONG ulOptReq) const;
+
 public:
 	CPhysicalParallelHashJoin(const CPhysicalParallelHashJoin &) = delete;
 

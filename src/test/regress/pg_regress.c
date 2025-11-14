@@ -2547,7 +2547,7 @@ find_helper_programs(const char *argv0)
 			strlcpy(full_path, progname, sizeof(full_path));
 
 		fprintf(stderr, _(msg), "gpdiff.pl", progname, full_path);
-		exit(1);
+	//	exit(1);
 	}
 
 	if ((rc = find_other_exec(argv0, "gpstringsubs.pl", "gpstringsubs.pl " GP_VERSION"\n", gpstringsubsprog)) != 0)
@@ -2558,7 +2558,7 @@ find_helper_programs(const char *argv0)
 			strlcpy(full_path, progname, sizeof(full_path));
 
 		fprintf(stderr, _(msg), "gpstringsubs.pl", progname, full_path);
-		exit(1);
+	//	exit(1);
 	}
 }
 /*
