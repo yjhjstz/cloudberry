@@ -143,6 +143,7 @@ enum Edxlopid
 	EdxlopPhysicalMotionRoutedDistribute,
 	EdxlopPhysicalMotionRandom,
 	EdxlopPhysicalMotionHashDistributeWorkers,
+	EdxlopPhysicalMotionBroadcastWorkers,
 	EdxlopPhysicalLimit,
 	EdxlopPhysicalAgg,
 	EdxlopPhysicalSort,

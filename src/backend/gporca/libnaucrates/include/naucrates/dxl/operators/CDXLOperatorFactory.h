@@ -161,6 +161,10 @@ public:
 	static CDXLPhysical *MakeDXLBroadcastMotion(
 		CDXLMemoryManager *dxl_memory_manager, const Attributes &attrs);
 
+	// create a broadcast workers motion operator
+	static CDXLPhysical *MakeDXLBroadcastWorkersMotion(
+		CDXLMemoryManager *dxl_memory_manager, const Attributes &attrs);
+
 	// create a redistribute motion operator
 	static CDXLPhysical *MakeDXLRedistributeMotion(
 		CDXLMemoryManager *dxl_memory_manager, const Attributes &attrs);

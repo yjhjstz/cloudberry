@@ -32,6 +32,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAppend.h"
 #include "naucrates/dxl/operators/CDXLPhysicalBroadcastMotion.h"
+#include "naucrates/dxl/operators/CDXLPhysicalBroadcastWorkersMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalGatherMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalHashJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalLimit.h"
@@ -271,6 +272,29 @@ CDXLOperatorFactory::MakeDXLBroadcastMotion(
 		GPOS_NEW(mp) CDXLPhysicalBroadcastMotion(mp);
 	SetSegmentInfo(dxl_memory_manager, dxl_op, attrs,
 				   EdxltokenPhysicalBroadcastMotion);
+
+	return dxl_op;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CDXLOperatorFactory::MakeDXLBroadcastWorkersMotion
+//
+//	@doc:
+//		Construct a broadcast workers motion operator
+//
+//---------------------------------------------------------------------------
+CDXLPhysical *
+CDXLOperatorFactory::MakeDXLBroadcastWorkersMotion(
+	CDXLMemoryManager *dxl_memory_manager, const Attributes &attrs)
+{
+	// get the memory pool from the memory manager
+	CMemoryPool *mp = dxl_memory_manager->Pmp();
+
+	CDXLPhysicalBroadcastWorkersMotion *dxl_op =
+		GPOS_NEW(mp) CDXLPhysicalBroadcastWorkersMotion(mp);
+	SetSegmentInfo(dxl_memory_manager, dxl_op, attrs,
+				   EdxltokenPhysicalBroadcastWorkersMotion);
 
 	return dxl_op;
 }

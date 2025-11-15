@@ -54,6 +54,7 @@ OBJS        = CDXLColDescr.o \
               CDXLPhysicalAssert.o \
               CDXLPhysicalBitmapTableScan.o \
               CDXLPhysicalBroadcastMotion.o \
+              CDXLPhysicalBroadcastWorkersMotion.o \
               CDXLPhysicalCTAS.o \
               CDXLPhysicalCTEConsumer.o \
               CDXLPhysicalCTEProducer.o \

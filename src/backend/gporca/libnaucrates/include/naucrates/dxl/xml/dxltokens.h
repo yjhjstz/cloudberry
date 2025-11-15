@@ -113,6 +113,7 @@ enum Edxltoken
 	EdxltokenPhysicalRoutedDistributeMotion,
 	EdxltokenPhysicalRandomMotion,
 	EdxltokenPhysicalHashDistributeWorkersMotion,
+	EdxltokenPhysicalBroadcastWorkersMotion,
 	EdxltokenPhysicalSort,
 	EdxltokenPhysicalLimit,
 	EdxltokenPhysicalResult,

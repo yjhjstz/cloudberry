@@ -102,6 +102,8 @@ CParseHandlerFactory::Init(CMemoryPool *mp)
 		{EdxltokenPhysicalMergeJoin, &CreateMergeJoinParseHandler},
 		{EdxltokenPhysicalGatherMotion, &CreateGatherMotionParseHandler},
 		{EdxltokenPhysicalBroadcastMotion, &CreateBroadcastMotionParseHandler},
+		{EdxltokenPhysicalBroadcastWorkersMotion,
+		 &CreateBroadcastWorkersMotionParseHandler},
 		{EdxltokenPhysicalRedistributeMotion,
 		 &CreateRedistributeMotionParseHandler},
 		{EdxltokenPhysicalRoutedDistributeMotion,
@@ -1031,6 +1033,16 @@ CParseHandlerFactory::CreateBroadcastMotionParseHandler(
 {
 	return GPOS_NEW(mp)
 		CParseHandlerBroadcastMotion(mp, parse_handler_mgr, parse_handler_root);
+}
+
+// creates a parse handler for parsing a broadcast workers motion operator
+CParseHandlerBase *
+CParseHandlerFactory::CreateBroadcastWorkersMotionParseHandler(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+{
+	return GPOS_NEW(mp) CParseHandlerBroadcastWorkersMotion(
+		mp, parse_handler_mgr, parse_handler_root);
 }
 
 // creates a parse handler for parsing a redistribute motion operator

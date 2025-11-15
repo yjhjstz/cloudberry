@@ -477,6 +477,11 @@ private:
 		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
 		CParseHandlerBase *parse_handler_root);
 
+	// construct a broadcast workers motion parse handler
+	static CParseHandlerBase *CreateBroadcastWorkersMotionParseHandler(
+		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+		CParseHandlerBase *parse_handler_root);
+
 	// construct a redistribute motion parse handler
 	static CParseHandlerBase *CreateRedistributeMotionParseHandler(
 		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,

@@ -17,6 +17,7 @@
 #include "naucrates/dxl/parser/CParseHandlerArray.h"
 #include "naucrates/dxl/parser/CParseHandlerAssert.h"
 #include "naucrates/dxl/parser/CParseHandlerBroadcastMotion.h"
+#include "naucrates/dxl/parser/CParseHandlerBroadcastWorkersMotion.h"
 #include "naucrates/dxl/parser/CParseHandlerCTEConfig.h"
 #include "naucrates/dxl/parser/CParseHandlerCTEList.h"
 #include "naucrates/dxl/parser/CParseHandlerColDescr.h"

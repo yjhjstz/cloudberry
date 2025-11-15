@@ -105,6 +105,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalAssert.h"
 #include "naucrates/dxl/operators/CDXLPhysicalBitmapTableScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalBroadcastMotion.h"
+#include "naucrates/dxl/operators/CDXLPhysicalBroadcastWorkersMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalCTAS.h"
 #include "naucrates/dxl/operators/CDXLPhysicalCTEConsumer.h"
 #include "naucrates/dxl/operators/CDXLPhysicalCTEProducer.h"
@@ -460,6 +461,7 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 			break;
 		case COperator::EopPhysicalMotionGather:
 		case COperator::EopPhysicalMotionBroadcast:
+		case COperator::EopPhysicalMotionBroadcastWorkers:
 		case COperator::EopPhysicalMotionHashDistribute:
 		case COperator::EopPhysicalMotionRoutedDistribute:
 		case COperator::EopPhysicalMotionRandom:
@@ -5386,6 +5388,10 @@ CTranslatorExprToDXL::PdxlnMotion(CExpression *pexprMotion,
 			motion = GPOS_NEW(m_mp) CDXLPhysicalBroadcastMotion(m_mp);
 			break;
 
+		case COperator::EopPhysicalMotionBroadcastWorkers:
+			motion = GPOS_NEW(m_mp) CDXLPhysicalBroadcastWorkersMotion(m_mp);
+			break;
+
 		case COperator::EopPhysicalMotionHashDistribute:
 			// If child is tainted-replicated, then we cannot use a result hash
 			// filter node because the values on each segment are not guaranteed
@@ -8348,6 +8354,7 @@ CTranslatorExprToDXL::GetOutputSegIdsArray(CExpression *pexprMotion)
 			break;
 		}
 		case COperator::EopPhysicalMotionBroadcast:
+		case COperator::EopPhysicalMotionBroadcastWorkers:
 		case COperator::EopPhysicalMotionHashDistribute:
 		case COperator::EopPhysicalMotionRoutedDistribute:
 		case COperator::EopPhysicalMotionRandom:

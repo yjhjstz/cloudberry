@@ -396,6 +396,7 @@ CTranslatorDXLToPlStmt::TranslateDXLOperatorToPlan(
 		}
 		case EdxlopPhysicalMotionGather:
 		case EdxlopPhysicalMotionBroadcast:
+		case EdxlopPhysicalMotionBroadcastWorkers:
 		case EdxlopPhysicalMotionRoutedDistribute:
 		{
 			plan = TranslateDXLMotion(dxlnode, output_context,
@@ -3058,6 +3059,11 @@ CTranslatorDXLToPlStmt::TranslateDXLMotion(
 		case EdxlopPhysicalMotionBroadcast:
 		{
 			motion->motionType = MOTIONTYPE_BROADCAST;
+			break;
+		}
+		case EdxlopPhysicalMotionBroadcastWorkers:
+		{
+			motion->motionType = MOTIONTYPE_BROADCAST_WORKERS;
 			break;
 		}
 		case EdxlopPhysicalMotionRoutedDistribute:
@@ -7850,6 +7856,7 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 	}
 	else if (EdxlopPhysicalMotionGather == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalMotionBroadcast == dxlop->GetDXLOperator() ||
+			 EdxlopPhysicalMotionBroadcastWorkers == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalMotionRedistribute == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalMotionRandom == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalMotionRoutedDistribute == dxlop->GetDXLOperator() ||

@@ -134,6 +134,8 @@ CDXLTokens::Init(CMemoryPool *mp)
 		{EdxltokenPhysicalRandomMotion, GPOS_WSZ_LIT("RandomMotion")},
 		{EdxltokenPhysicalHashDistributeWorkersMotion,
 		 GPOS_WSZ_LIT("HashDistributeWorkersMotion")},
+		{EdxltokenPhysicalBroadcastWorkersMotion,
+		 GPOS_WSZ_LIT("BroadcastWorkersMotion")},
 		{EdxltokenPhysicalLimit, GPOS_WSZ_LIT("Limit")},
 		{EdxltokenPhysicalSort, GPOS_WSZ_LIT("Sort")},
 		{EdxltokenPhysicalAggregate, GPOS_WSZ_LIT("Aggregate")},

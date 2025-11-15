@@ -16,6 +16,7 @@ OBJS        = CParseHandlerAgg.o \
               CParseHandlerAssert.o \
               CParseHandlerBase.o \
               CParseHandlerBroadcastMotion.o \
+              CParseHandlerBroadcastWorkersMotion.o \
               CParseHandlerCTEConfig.o \
               CParseHandlerCTEList.o \
               CParseHandlerColDescr.o \

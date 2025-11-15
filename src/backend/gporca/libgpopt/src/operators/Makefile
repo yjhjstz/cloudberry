@@ -119,6 +119,7 @@ OBJS        = CExpression.o \
               CPhysicalLimit.o \
               CPhysicalMotion.o \
               CPhysicalMotionBroadcast.o \
+              CPhysicalMotionBroadcastWorkers.o \
               CPhysicalMotionGather.o \
               CPhysicalMotionHashDistribute.o \
               CPhysicalMotionHashDistributeWorkers.o \
