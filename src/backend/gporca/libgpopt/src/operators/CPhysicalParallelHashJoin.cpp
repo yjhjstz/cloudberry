@@ -33,6 +33,8 @@
 #include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecReplicated.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
+#include "gpopt/base/CDistributionSpecNonSingleton.h"
+#include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
@@ -334,6 +336,80 @@ CPhysicalParallelHashJoin::PdsRequiredRedistributeParallel(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers
+//
+//	@doc:
+//		Create (hashed/non-singleton, broadcast workers) optimization request
+//		Similar to PdsRequiredReplicate but uses ReplicatedWorkers distribution
+//
+//---------------------------------------------------------------------------
+CDistributionSpec *
+CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
+	CMemoryPool *mp, CExpressionHandle &exprhdl, CDistributionSpec *pdsInput,
+	ULONG child_index, CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq) const
+{
+	EChildExecOrder eceo = Eceo();
+	GPOS_ASSERT(EceoRightToLeft == eceo);  // ParallelHashJoin always RightToLeft
+
+	if (1 == child_index)
+	{
+		// Require inner child (build side) to be replicated to workers
+		// Extract worker count from GUC or child group
+		ULONG ulWorkers = UlExtractRequestedWorkers(exprhdl, child_index);
+		return CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulWorkers, 0);
+	}
+
+	GPOS_ASSERT(0 == child_index);
+
+	// Outer child (probe side): require a matching distribution
+	CDistributionSpec *pdsInner =
+		CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
+	GPOS_ASSERT(nullptr != pdsInner);
+
+	// If inner child is ReplicatedWorkers, require outer to be non-singleton
+	// wrapped in WorkerRandom to enable parallel execution
+	if (CDistributionSpec::EdtReplicatedWorkers == pdsInner->Edt())
+	{
+		CDistributionSpecReplicatedWorkers *pdsReplicatedInner =
+			CDistributionSpecReplicatedWorkers::PdsConvert(pdsInner);
+		ULONG ulWorkers = pdsReplicatedInner->UlWorkers();
+
+		// Check if input has hashed requirement that we can pass through
+		if (ulOptReq == NumDistrReq() &&  // First BroadcastWorkers request
+			CDistributionSpec::EdtHashed == pdsInput->Edt())
+		{
+			// Try to create hashed distribution for outer child
+			// We cannot call private PdshashedPassThru, so create manually
+			CDistributionSpecHashed *pdsHashedInput =
+				CDistributionSpecHashed::PdsConvert(pdsInput);
+
+			// Create matching hashed distribution for outer child
+			// This is similar to what PdshashedPassThru does
+			CDistributionSpecHashed *pdshashedOuter =
+				PdshashedMatching(mp, pdsHashedInput, 0 /* outer child */);
+			if (nullptr != pdshashedOuter)
+			{
+				// Wrap in WorkerRandom to preserve parallel execution
+				return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
+					mp, ulWorkers, pdshashedOuter);
+			}
+		}
+
+		// Otherwise, require outer to deliver non-singleton distribution
+		// wrapped in WorkerRandom
+		CDistributionSpecNonSingleton *pdsNonSingleton =
+			GPOS_NEW(mp) CDistributionSpecNonSingleton();
+		return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
+			mp, ulWorkers, pdsNonSingleton);
+	}
+
+	// Fallback: should not reach here if inner child is properly optimized
+	// Return non-singleton for safety
+	return GPOS_NEW(mp) CDistributionSpecNonSingleton();
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CPhysicalParallelHashJoin::Ped
 //
 //	@doc:
@@ -532,9 +608,20 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *mp,
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
 
-	// ========== Priority 1: Handle WorkerRandom Distributions ==========
+	// ========== Priority 1: Handle Parallel-specific Distributions ==========
 
-	// Case 1: Both children are WorkerRandom (optimal parallel scenario)
+	// Case 1: Inner child is ReplicatedWorkers (BroadcastWorkers scenario)
+	// This means the inner table is small and replicated to all workers
+	// Join output distribution follows the outer child's distribution
+	if (CDistributionSpec::EdtReplicatedWorkers == pdsInner->Edt())
+	{
+		// Inner is replicated to workers, outer's distribution is preserved
+		// Join result follows outer's distribution (similar to segment-level broadcast)
+		pdsOuter->AddRef();
+		return pdsOuter;
+	}
+
+	// Case 2: Both children are WorkerRandom (HashDistributeWorkers scenario)
 	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt() &&
 		CDistributionSpec::EdtWorkerRandom == pdsInner->Edt())
 	{

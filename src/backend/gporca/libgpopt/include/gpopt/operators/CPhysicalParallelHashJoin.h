@@ -72,6 +72,15 @@ private:
 											   CDrvdPropArray *pdrgpdpCtxt,
 											   ULONG ulOptReq) const;
 
+	// Compute required replicate workers distribution spec for the n-th child
+	// Similar to PdsRequiredReplicate but uses ReplicatedWorkers
+	CDistributionSpec *PdsRequiredReplicateWorkers(CMemoryPool *mp,
+												   CExpressionHandle &exprhdl,
+												   CDistributionSpec *pdsInput,
+												   ULONG child_index,
+												   CDrvdPropArray *pdrgpdpCtxt,
+												   ULONG ulOptReq) const;
+
 public:
 	CPhysicalParallelHashJoin(const CPhysicalParallelHashJoin &) = delete;
 
