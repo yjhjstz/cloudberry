@@ -31,6 +31,8 @@
 
 #include "gpopt/base/CDistributionSpecAny.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
+#include "gpopt/base/CDistributionSpecReplicated.h"
+#include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
@@ -304,12 +306,10 @@ CPhysicalParallelHashJoin::PdsRequiredRedistributeParallel(
 //		Overridden to preserve WorkerRandom distributions and avoid unnecessary
 //		redistribute motion nodes that would collapse worker-level parallelism.
 //
-//		Key Strategy:
-//		- When both children deliver WorkerRandom with compatible segment-level
-//		  hashed distributions, we request "any" distribution (EdtAny) which
-//		  allows the existing WorkerRandom distributions to pass through
-//		- This prevents ORCA from inserting redistribute Motion nodes that
-//		  would collapse workers from 6→3
+//		Request structure (similar to CPhysicalHashJoin::Ped):
+//		- Req(1 to N): (redistribute, redistribute) wrapped in WorkerRandom
+//		- Req(N+1, N+2): (hashed/non-singleton, replicate) - base class handles
+//		- Req(N+3): (singleton, singleton) - base class handles
 //
 //---------------------------------------------------------------------------
 CEnfdDistribution *
@@ -324,95 +324,110 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		Edm(prppInput, child_index, pdrgpdpCtxt, ulOptReq);
 	CDistributionSpec *const pdsInput = prppInput->Ped()->PdsRequired();
 
-	// Strategy: Check if we can avoid Motion by leveraging existing distributions
-	//
-	// Case 1: Optimizing the SECOND child (first child already optimized)
-	//         Check if first child's WorkerRandom distribution can match join requirements
-	//
-	// Case 2: Optimizing the FIRST child
-	//         Request "Any" distribution to allow WorkerRandom from child scans
-	//         The second child will then be required to match
+	const ULONG ulHashDistributeRequests = NumDistrReq();
 
-	if (FFirstChildToOptimize(child_index))
+	if (ulOptReq < ulHashDistributeRequests)
 	{
-		// For redistribute requests, require first child to be hashed on join keys
-		ULONG ulHashDistReqs = NumDistrReq();
-		if (ulOptReq < ulHashDistReqs)
+		// requests 1 .. N are (redistribute, redistribute)
+		// ParallelHashJoin wraps these in WorkerRandom to preserve parallelism
+		CDistributionSpec *pds = nullptr;
+
+		if (FFirstChildToOptimize(child_index))
 		{
-			CDistributionSpec *pds = PdsRequiredRedistribute(
+			// First child: request hashed distribution on join keys
+			pds = PdsRequiredRedistribute(
 				mp, exprhdl, pdsInput, child_index, pdrgpdpCtxt, ulOptReq);
-			// Compute equivalent hash expressions if needed (for hashed distributions)
+
 			if (CDistributionSpec::EdtHashed == pds->Edt())
 			{
 				CDistributionSpecHashed::PdsConvert(pds)->ComputeEquivHashExprs(mp, exprhdl);
 			}
-			// Extract worker count dynamically:
-			// Priority: 1) child group's parallel operators (table scans with parallel_workers setting)
-			//           2) GUC max_parallel_workers_per_gather
-			//           3) Default fallback (2)
+
+			// Extract worker count dynamically from child group
 			ULONG ulWorkers = UlExtractRequestedWorkers(exprhdl, child_index);
+
+			// Wrap hashed distribution in WorkerRandom
 			return GPOS_NEW(mp) CEnfdDistribution(
 				CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pds), dmatch);
 		}
-		// For replicate/singleton requests, defer to base class to preserve contracts.
-		return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
-								  pdrgpdpCtxt, ulOptReq);
-	}
 
-	// Optimizing the second child: Only special-case when first child is WorkerRandom; otherwise defer to base.
-	if (nullptr != pdrgpdpCtxt && pdrgpdpCtxt->Size() > 0)
-	{
-		CDistributionSpec *pdsFirst = CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
-		if (CDistributionSpec::EdtWorkerRandom == pdsFirst->Edt())
+		// Second child: match first child's distribution
+		// If first child is WorkerRandom, preserve it by matching its base
+		if (nullptr != pdrgpdpCtxt && pdrgpdpCtxt->Size() > 0)
 		{
-			CDistributionSpecWorkerRandom *pdsWorkerFirst = CDistributionSpecWorkerRandom::PdsConvert(pdsFirst);
-			CDistributionSpec *pdsSegmentBase = pdsWorkerFirst->PdsSegmentBase();
-			ULONG ulWorkers = pdsWorkerFirst->UlWorkers();
-			if (nullptr != pdsSegmentBase && CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
+			CDistributionSpec *pdsFirst = CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
+
+			if (CDistributionSpec::EdtWorkerRandom == pdsFirst->Edt())
 			{
-				CDistributionSpecHashed *pdsHashedBase = CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
-				// Ensure first child's base hashed is covered by its own join keys
-				const CExpressionArray *pdrgpexprFirstKeys = (EceoRightToLeft == Eceo()) ? PdrgpexprInnerKeys() : PdrgpexprOuterKeys();
-				if (!pdsHashedBase->IsCoveredBy(pdrgpexprFirstKeys))
+				CDistributionSpecWorkerRandom *pdsWorkerFirst =
+					CDistributionSpecWorkerRandom::PdsConvert(pdsFirst);
+				CDistributionSpec *pdsSegmentBase = pdsWorkerFirst->PdsSegmentBase();
+				ULONG ulWorkers = pdsWorkerFirst->UlWorkers();
+
+				if (nullptr != pdsSegmentBase &&
+					CDistributionSpec::EdtHashed == pdsSegmentBase->Edt())
 				{
-					// First child's base is not covered by join keys
-					// Use PdsRequiredRedistributeParallel to get proper matching distribution for second child
-					CDistributionSpec *pds = PdsRequiredRedistributeParallel(
-						mp, exprhdl, pdsInput, child_index, pdrgpdpCtxt, ulOptReq);
-					if (CDistributionSpec::EdtHashed == pds->Edt())
+					CDistributionSpecHashed *pdsHashedBase =
+						CDistributionSpecHashed::PdsConvert(pdsSegmentBase);
+
+					// Check if first child's base is covered by its join keys
+					const CExpressionArray *pdrgpexprFirstKeys =
+						(EceoRightToLeft == Eceo()) ? PdrgpexprInnerKeys() : PdrgpexprOuterKeys();
+
+					if (!pdsHashedBase->IsCoveredBy(pdrgpexprFirstKeys))
 					{
-						CDistributionSpecHashed::PdsConvert(pds)->ComputeEquivHashExprs(mp, exprhdl);
+						// Base not covered - use PdsRequiredRedistributeParallel
+						pds = PdsRequiredRedistributeParallel(
+							mp, exprhdl, pdsInput, child_index, pdrgpdpCtxt, ulOptReq);
+
+						if (CDistributionSpec::EdtHashed == pds->Edt())
+						{
+							CDistributionSpecHashed::PdsConvert(pds)->ComputeEquivHashExprs(mp, exprhdl);
+						}
+						return GPOS_NEW(mp) CEnfdDistribution(pds, dmatch);
 					}
-					return GPOS_NEW(mp) CEnfdDistribution(pds, dmatch);
+
+					// Base is covered - create matching hashed distribution
+					ULONG ulFirstChild = (EceoRightToLeft == Eceo()) ? 1 : 0;
+					CDistributionSpecHashed *pdsMatch =
+						PdshashedMatching(mp, pdsHashedBase, ulFirstChild);
+					pdsMatch->ComputeEquivHashExprs(mp, exprhdl);
+
+					// Wrap in WorkerRandom to match first child
+					return GPOS_NEW(mp) CEnfdDistribution(
+						CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
+							mp, ulWorkers, pdsMatch), dmatch);
 				}
-				ULONG ulFirstChild = (EceoRightToLeft == Eceo()) ? 1 : 0;
-				CDistributionSpecHashed *pdsMatch = PdshashedMatching(mp, pdsHashedBase, ulFirstChild);
-				pdsMatch->ComputeEquivHashExprs(mp, exprhdl);
-				// Require WorkerRandom on second child, with base hashed matching first child's base
-				return GPOS_NEW(mp) CEnfdDistribution(
-					CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsMatch), dmatch);
 			}
-		#if 0
-			// Handle random distribution case
-			else if (nullptr != pdsSegmentBase &&
-					 (CDistributionSpec::EdtRandom == pdsSegmentBase->Edt() ||
-					  CDistributionSpec::EdtStrictRandom == pdsSegmentBase->Edt()))
-			{
-				// For random distributed tables, we need to redistribute by join keys
-				// Request WorkerRandom on the second child with hashed base matching join keys
-				CDistributionSpecHashed *pdsHashedReq = PdshashedRequired(mp, child_index, ulOptReq);
-				pdsHashedReq->ComputeEquivHashExprs(mp, exprhdl);
-				return GPOS_NEW(mp) CEnfdDistribution(
-					CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsHashedReq), dmatch);
-			}
-		#endif
 		}
+
+		// Default: use base class logic for non-WorkerRandom first child
+		pds = PdsRequiredRedistribute(
+			mp, exprhdl, pdsInput, child_index, pdrgpdpCtxt, ulOptReq);
+
+		if (CDistributionSpec::EdtHashed == pds->Edt())
+		{
+			CDistributionSpecHashed::PdsConvert(pds)->ComputeEquivHashExprs(mp, exprhdl);
+		}
+		return GPOS_NEW(mp) CEnfdDistribution(pds, dmatch);
 	}
 
-	// For all other cases, use default behavior: request any distribution
-	// This allows the optimizer to choose the best option
+	if (ulOptReq == ulHashDistributeRequests ||
+		ulOptReq == ulHashDistributeRequests + 1)
+	{
+		// requests N+1, N+2 are (hashed/non-singleton, replicate)
+		// For parallel hash join, we don't wrap these in WorkerRandom
+		// because replication is inherently incompatible with worker-level parallelism
+		return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
+									  pdrgpdpCtxt, ulOptReq);
+	}
+
+	GPOS_ASSERT(ulOptReq == ulHashDistributeRequests + 2);
+
+	// request N+3 is (singleton, singleton)
+	// Singleton execution is incompatible with parallelism
 	return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
-										  pdrgpdpCtxt, ulOptReq);
+								  pdrgpdpCtxt, ulOptReq);
 }
 
 
