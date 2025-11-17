@@ -148,6 +148,7 @@ enum Edxlopid
 	EdxlopPhysicalAgg,
 	EdxlopPhysicalSort,
 	EdxlopPhysicalAppend,
+	EdxlopPhysicalParallelAppend,
 	EdxlopPhysicalMaterialize,
 	EdxlopPhysicalDynamicForeignScan,
 	EdxlopPhysicalSequence,

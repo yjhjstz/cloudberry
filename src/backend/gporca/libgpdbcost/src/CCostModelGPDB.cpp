@@ -2644,7 +2644,9 @@ CCostModelGPDB::CostScan(CMemoryPool *,	 // mp
 				COperator::EopPhysicalDynamicTableScan == op_id ||
 				COperator::EopPhysicalForeignScan == op_id ||
 				COperator::EopPhysicalDynamicForeignScan == op_id ||
-				COperator::EopPhysicalParallelTableScan == op_id);
+				COperator::EopPhysicalParallelTableScan == op_id ||
+				COperator::EopPhysicalAppendTableScan == op_id ||
+				COperator::EopPhysicalParallelAppendTableScan == op_id);
 
 	const CDouble dInitScan =
 		pcmgpdb->GetCostModelParams()
@@ -2667,6 +2669,7 @@ CCostModelGPDB::CostScan(CMemoryPool *,	 // mp
 		case COperator::EopPhysicalForeignScan:
 		case COperator::EopPhysicalDynamicForeignScan:
 		case COperator::EopPhysicalParallelTableScan:
+		case COperator::EopPhysicalAppendTableScan:
 			// table scan cost considers only retrieving tuple cost,
 			// since we scan the entire table here, the cost is correlated with table rows and table width,
 			// since Scan's parent operator may be a filter that will be pushed into Scan node in GPDB plan,
@@ -2674,6 +2677,10 @@ CCostModelGPDB::CostScan(CMemoryPool *,	 // mp
 			return CCost(
 				pci->NumRebinds() *
 				(dInitScan + pci->Rows() * dTableWidth * dTableScanCostUnit));
+		case COperator::EopPhysicalParallelAppendTableScan:
+			return CCost(
+				pci->NumRebinds() *
+					(dInitScan + pci->Rows() * dTableWidth * dTableScanCostUnit) - 10);
 		default:
 			GPOS_ASSERT(!"invalid index scan");
 			return CCost(0);
@@ -2868,11 +2875,14 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalDynamicTableScan:
 		case COperator::EopPhysicalForeignScan:
 		case COperator::EopPhysicalDynamicForeignScan:
+		case COperator::EopPhysicalAppendTableScan:
+		case COperator::EopPhysicalParallelAppendTableScan:
 		{
 			return CostScan(m_mp, exprhdl, this, pci);
 		}
 
 		case COperator::EopPhysicalParallelTableScan:
+		//case COperator::EopPhysicalParallelAppendTableScan:
 		{
 			return CostParallelTableScan(m_mp, exprhdl, this, pci);
 		}
