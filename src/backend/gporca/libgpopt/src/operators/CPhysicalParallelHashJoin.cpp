@@ -80,6 +80,41 @@ CPhysicalParallelHashJoin::~CPhysicalParallelHashJoin()
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CPhysicalParallelHashJoin::CreateOptRequests
+//
+//	@doc:
+//		Create optimization requests for parallel hash join
+//		Only creates parallel-specific requests (no segment-level broadcast or singleton)
+//
+//		Request Structure:
+//		  Req 0 .. N-1:    HashDistributeWorkers (redistribute with WorkerRandom)
+//		  Req N, N+1:      BroadcastWorkers (replicate inner to workers)
+//
+//		Rationale for excluding base class non-parallel requests:
+//		  - Segment-level Broadcast: Inefficient for parallel execution, use BroadcastWorkers instead
+//		  - Singleton: Contradicts parallel execution semantics (0 workers vs ≥2 workers)
+//		  - If data is small enough for singleton/broadcast, use CPhysicalHashJoin instead
+//
+//---------------------------------------------------------------------------
+void
+CPhysicalParallelHashJoin::CreateOptRequests(CMemoryPool *mp)
+{
+	// First create redistribute requests (same as base class)
+	CreateHashRedistributeRequests(mp);
+
+	ULONG ulHashDistReqs = NumDistrReq();  // Number of hash redistribute requests
+
+	// Only add BroadcastWorkers requests (2 requests)
+	// Do NOT add segment-level broadcast or singleton - they contradict parallel execution
+	//
+	// Total = ulHashDistReqs + 2 (BroadcastWorkers only)
+	ULONG ulTotalReqs = ulHashDistReqs + 2;
+
+	SetDistrRequests(ulTotalReqs);
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal
 //
 //	@doc:
