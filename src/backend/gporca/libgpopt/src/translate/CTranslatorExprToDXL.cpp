@@ -8548,6 +8548,7 @@ CTranslatorExprToDXL::FNeedsMaterializeUnderResult(CDXLNode *proj_list_dxlnode,
 			// motions which can impose a hazard
 			gpdxl::Edxlopid rgeopid[] = {
 				EdxlopPhysicalMotionBroadcast,
+				EdxlopPhysicalMotionBroadcastWorkers,
 				EdxlopPhysicalMotionRedistribute,
 				EdxlopPhysicalMotionRandom,
 				EdxlopPhysicalMotionHashDistributeWorkers

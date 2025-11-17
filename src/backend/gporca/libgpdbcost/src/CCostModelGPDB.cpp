@@ -1713,7 +1713,8 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				COperator::EopPhysicalMotionHashDistribute == op_id ||
 				COperator::EopPhysicalMotionRandom == op_id ||
 				COperator::EopPhysicalMotionRoutedDistribute == op_id ||
-				COperator::EopPhysicalMotionHashDistributeWorkers == op_id);
+				COperator::EopPhysicalMotionHashDistributeWorkers == op_id ||
+				COperator::EopPhysicalMotionBroadcastWorkers == op_id);
 
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
 	const DOUBLE dWidthOuter = pci->GetWidth()[0];
@@ -1730,7 +1731,8 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	CDouble recvCost(0);
 
 	CCost costLocal(0);
-	if (COperator::EopPhysicalMotionBroadcast == op_id)
+	if (COperator::EopPhysicalMotionBroadcast == op_id ||
+		COperator::EopPhysicalMotionBroadcastWorkers == op_id)
 	{
 		// broadcast cost is amplified by the number of segments
 		dSendCostUnit =
@@ -1800,7 +1802,7 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			  (num_rows_outer * dWidthOuter * dSendCostUnit + recvCost));
 
 
-	if (COperator::EopPhysicalMotionBroadcast == op_id)
+	if (COperator::EopPhysicalMotionBroadcast == op_id) //FIXME
 	{
 		CPhysicalMotionBroadcast *physical_broadcast =
 			CPhysicalMotionBroadcast::PopConvert(exprhdl.Pop());
@@ -2979,6 +2981,7 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalMotionRandom:
 		case COperator::EopPhysicalMotionRoutedDistribute:
 		case COperator::EopPhysicalMotionHashDistributeWorkers:
+		case COperator::EopPhysicalMotionBroadcastWorkers:
 		{
 			return CostMotion(m_mp, exprhdl, this, pci);
 		}

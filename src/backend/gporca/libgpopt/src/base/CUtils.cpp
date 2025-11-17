@@ -4126,7 +4126,8 @@ CUtils::FDuplicateHazardDistributionSpec(CDistributionSpec *pds)
 	CDistributionSpec::EDistributionType edt = pds->Edt();
 
 	return CDistributionSpec::EdtStrictReplicated == edt ||
-		   CDistributionSpec::EdtUniversal == edt;
+		   CDistributionSpec::EdtUniversal == edt ||
+		   CDistributionSpec::EdtReplicatedWorkers == edt;
 }
 
 // Check if duplicate values can be generated when executing the given Motion expression,
