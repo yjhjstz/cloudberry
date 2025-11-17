@@ -119,6 +119,7 @@ enum Edxltoken
 	EdxltokenPhysicalResult,
 	EdxltokenPhysicalAggregate,
 	EdxltokenPhysicalAppend,
+	EdxltokenPhysicalParallelAppend,
 	EdxltokenPhysicalMaterialize,
 	EdxltokenPhysicalDynamicForeignScan,
 	EdxltokenPhysicalSequence,

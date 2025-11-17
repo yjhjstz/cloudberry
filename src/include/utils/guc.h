@@ -516,6 +516,7 @@ extern bool optimizer_enable_motion_hash_distribute_workers;
 extern bool optimizer_enable_motion_broadcast_workers;
 extern bool optimizer_enable_sort;
 extern bool optimizer_enable_materialize;
+extern bool optimizer_enable_parallel_append;
 extern bool optimizer_enable_partition_propagation;
 extern bool optimizer_enable_partition_selection;
 extern bool optimizer_enable_outerjoin_rewrite;

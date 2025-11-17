@@ -43,6 +43,7 @@
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CPhysicalParallelTableScan.h"
 #include "gpopt/search/CGroupProxy.h"
+#include "gpopt/operators/CPhysicalParallelAppendTableScan.h"
 
 using namespace gpopt;
 
@@ -124,6 +125,13 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal(
 		if (CUtils::FPhysicalMotion(popChild))
 		{
 			return 0;
+		}
+
+		if (COperator::EopPhysicalParallelAppendTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelAppendTableScan *popScan =
+				CPhysicalParallelAppendTableScan::PopConvert(popChild);
+			return popScan->UlParallelWorkers();
 		}
 
 		// Recursively check all children (Motion nodes, joins, etc.)
