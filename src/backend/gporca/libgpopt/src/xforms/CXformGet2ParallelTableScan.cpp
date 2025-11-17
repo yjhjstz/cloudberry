@@ -103,6 +103,7 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
+#if 0
 	// For AO/AOCO tables, check segfilecount early to avoid useless transformation
 	CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
 	const IMDRelation *pmdrel = md_accessor->RetrieveRel(ptabdesc->MDId());
@@ -124,7 +125,7 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 			return CXform::ExfpNone;
 		}
 	}
-
+#endif
 	// High promise for parallel scan when enabled
 	// All tables will use the same parallel degree from max_parallel_workers_per_gather
 	return CXform::ExfpHigh;
