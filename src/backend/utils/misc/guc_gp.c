@@ -333,6 +333,7 @@ bool		optimizer_enable_motion_hash_distribute_workers;
 bool		optimizer_enable_motion_broadcast_workers;
 bool		optimizer_enable_sort;
 bool		optimizer_enable_materialize;
+bool		optimizer_enable_parallel_append;
 bool		optimizer_enable_partition_propagation;
 bool		optimizer_enable_partition_selection;
 bool		optimizer_enable_outerjoin_rewrite;
@@ -2273,6 +2274,16 @@ struct config_bool ConfigureNamesBool_gp[] =
 		},
 		&optimizer_enable_materialize,
 		true,
+		NULL, NULL, NULL
+	},
+	{
+		{"optimizer_enable_parallel_append", PGC_USERSET, DEVELOPER_OPTIONS,
+		 gettext_noop("Enable parallel append for seq/bitmap/index scan in partition table."),
+		 NULL,
+		 GUC_NOT_IN_SAMPLE
+		},
+		&optimizer_enable_parallel_append,
+		false,
 		NULL, NULL, NULL
 	},
 	{
