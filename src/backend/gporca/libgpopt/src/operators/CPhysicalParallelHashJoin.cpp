@@ -394,18 +394,11 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 					mp, ulWorkers, pdshashedOuter);
 			}
 		}
-
-		// Otherwise, require outer to deliver non-singleton distribution
-		// wrapped in WorkerRandom
-		CDistributionSpecNonSingleton *pdsNonSingleton =
-			GPOS_NEW(mp) CDistributionSpecNonSingleton();
-		return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
-			mp, ulWorkers, pdsNonSingleton);
 	}
 
 	// Fallback: should not reach here if inner child is properly optimized
 	// Return non-singleton for safety
-	return GPOS_NEW(mp) CDistributionSpecNonSingleton();
+	return GPOS_NEW(mp) CDistributionSpecAny(this->Eopid());
 }
 
 //---------------------------------------------------------------------------
@@ -907,6 +900,7 @@ CPhysicalParallelHashJoin::FValidContext(
 		// and our derived WorkerRandom's base distribution satisfies parent requirements.
 		if (dtInner != CDistributionSpec::EdtAny &&
 			dtInner != CDistributionSpec::EdtWorkerRandom &&
+			dtInner != CDistributionSpec::EdtReplicatedWorkers &&
 			dtInner != CDistributionSpec::EdtHashed)
 		{
 			// Inner child requires a distribution incompatible with parallel hash join

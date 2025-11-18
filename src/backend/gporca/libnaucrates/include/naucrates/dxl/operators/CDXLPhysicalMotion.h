@@ -85,7 +85,8 @@ public:
 			EdxlopPhysicalMotionRedistribute == dxl_op->GetDXLOperator() ||
 			EdxlopPhysicalMotionRoutedDistribute == dxl_op->GetDXLOperator() ||
 			EdxlopPhysicalMotionRandom == dxl_op->GetDXLOperator() ||
-			EdxlopPhysicalMotionHashDistributeWorkers == dxl_op->GetDXLOperator());
+			EdxlopPhysicalMotionHashDistributeWorkers == dxl_op->GetDXLOperator() ||
+			EdxlopPhysicalMotionBroadcastWorkers == dxl_op->GetDXLOperator());
 
 		return dynamic_cast<CDXLPhysicalMotion *>(dxl_op);
 	}
