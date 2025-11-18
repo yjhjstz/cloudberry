@@ -526,11 +526,19 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	if (ulOptReq == ulHashDistributeRequests ||
 		ulOptReq == ulHashDistributeRequests + 1)
 	{
-		// requests N+1, N+2 are (hashed/non-singleton, replicate)
-		// For parallel hash join, we don't wrap these in WorkerRandom
-		// because replication is inherently incompatible with worker-level parallelism
-		return CPhysicalHashJoin::Ped(mp, exprhdl, prppInput, child_index,
-									  pdrgpdpCtxt, ulOptReq);
+		// requests N, N+1 are BroadcastWorkers requests
+		// Use PdsRequiredReplicateWorkers to generate EdtReplicatedWorkers (worker-level)
+		// instead of EdtReplicated (segment-level) from base class
+		CDistributionSpec *pds =
+			PdsRequiredReplicateWorkers(mp, exprhdl, pdsInput, child_index,
+										pdrgpdpCtxt, ulOptReq);
+
+		if (CDistributionSpec::EdtHashed == pds->Edt())
+		{
+			CDistributionSpecHashed::PdsConvert(pds)->ComputeEquivHashExprs(mp, exprhdl);
+		}
+
+		return GPOS_NEW(mp) CEnfdDistribution(pds, dmatch);
 	}
 
 	GPOS_ASSERT(ulOptReq == ulHashDistributeRequests + 2);

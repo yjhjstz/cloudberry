@@ -39,7 +39,6 @@ CDistributionSpecReplicatedWorkers::CDistributionSpecReplicatedWorkers(
 	: m_ulWorkers(ulWorkers), m_ulNumSegments(ulNumSegments)
 {
 	GPOS_ASSERT(ulWorkers > 0);
-	GPOS_ASSERT(ulNumSegments > 0);
 }
 
 //---------------------------------------------------------------------------
@@ -68,7 +67,6 @@ CDistributionSpecReplicatedWorkers::PdsCreate(CMemoryPool *mp, ULONG ulWorkers,
 {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(ulWorkers > 0);
-	GPOS_ASSERT(ulNumSegments > 0);
 
 	return GPOS_NEW(mp) CDistributionSpecReplicatedWorkers(ulWorkers, ulNumSegments);
 }
