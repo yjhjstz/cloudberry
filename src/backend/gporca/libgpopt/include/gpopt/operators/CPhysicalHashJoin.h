@@ -86,6 +86,7 @@ private:
 		CDistributionSpec *pdsInput, ULONG child_index,
 		CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq, CReqdPropPlan *prppInput);
 
+protected:
 	// create a child hashed distribution request based on input hashed distribution,
 	// return NULL if no such request can be created
 	static CDistributionSpecHashed *PdshashedPassThru(
@@ -97,7 +98,6 @@ private:
 	BOOL FNullableHashKey(ULONG ulKey, CColRefSet *pcrsNotNullInner,
 						  BOOL fInner) const;
 
-protected:
 	// helper for computing a hashed distribution matching the given distribution
 	CDistributionSpecHashed *PdshashedMatching(
 		CMemoryPool *mp, CDistributionSpecHashed *pdshashed,

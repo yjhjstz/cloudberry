@@ -34,6 +34,7 @@
 #include "gpopt/base/CDistributionSpecReplicated.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CDistributionSpecNonSingleton.h"
+#include "gpopt/base/CDistributionSpecNonReplicated.h"
 #include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COptCtxt.h"
@@ -66,6 +67,8 @@ CPhysicalParallelHashJoin::CPhysicalParallelHashJoin(
 {
 	// m_ulProbeWorkers and m_ulBuildWorkers will be extracted in FValidContext()
 	// from child groups when optimization contexts are available
+	ULONG ulDistrReqs = 1 + NumDistrReq();
+	SetDistrRequests(ulDistrReqs);
 }
 
 //---------------------------------------------------------------------------
@@ -366,33 +369,31 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 		CDrvdPropPlan::Pdpplan((*pdrgpdpCtxt)[0])->Pds();
 	GPOS_ASSERT(nullptr != pdsInner);
 
-	// If inner child is ReplicatedWorkers, require outer to be non-singleton
-	// wrapped in WorkerRandom to enable parallel execution
-	if (CDistributionSpec::EdtReplicatedWorkers == pdsInner->Edt())
+	if (CDistributionSpec::EdtUniversal == pdsInner->Edt())
 	{
-		CDistributionSpecReplicatedWorkers *pdsReplicatedInner =
-			CDistributionSpecReplicatedWorkers::PdsConvert(pdsInner);
-		ULONG ulWorkers = pdsReplicatedInner->UlWorkers();
+		return GPOS_NEW(mp) CDistributionSpecNonReplicated();
+	}
+	// Inner child must be ReplicatedWorkers for BroadcastWorkers requests
+	GPOS_ASSERT(CDistributionSpec::EdtReplicatedWorkers == pdsInner->Edt() &&
+				"Inner must be ReplicatedWorkers for BroadcastWorkers requests");
 
-		// Check if input has hashed requirement that we can pass through
-		if (ulOptReq == NumDistrReq() &&  // First BroadcastWorkers request
-			CDistributionSpec::EdtHashed == pdsInput->Edt())
+	CDistributionSpecReplicatedWorkers *pdsReplicatedInner =
+		CDistributionSpecReplicatedWorkers::PdsConvert(pdsInner);
+	ULONG ulWorkers = pdsReplicatedInner->UlWorkers();
+
+	// First BroadcastWorkers request (H): Try to pass through hashed if available
+	if (ulOptReq == NumDistrReq() &&
+		CDistributionSpec::EdtHashed == pdsInput->Edt())
+	{
+		// Try to pass through hashed requirement to outer child
+		CDistributionSpecHashed *pdshashedOuter = PdshashedPassThru(
+			mp, exprhdl, CDistributionSpecHashed::PdsConvert(pdsInput),
+			child_index, pdrgpdpCtxt, ulOptReq);
+		if (nullptr != pdshashedOuter)
 		{
-			// Try to create hashed distribution for outer child
-			// We cannot call private PdshashedPassThru, so create manually
-			CDistributionSpecHashed *pdsHashedInput =
-				CDistributionSpecHashed::PdsConvert(pdsInput);
-
-			// Create matching hashed distribution for outer child
-			// This is similar to what PdshashedPassThru does
-			CDistributionSpecHashed *pdshashedOuter =
-				PdshashedMatching(mp, pdsHashedInput, 0 /* outer child */);
-			if (nullptr != pdshashedOuter)
-			{
-				// Wrap in WorkerRandom to preserve parallel execution
-				return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
-					mp, ulWorkers, pdshashedOuter);
-			}
+			// Wrap in WorkerRandom to preserve parallel execution
+			return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
+				mp, ulWorkers, pdshashedOuter);
 		}
 	}
 
