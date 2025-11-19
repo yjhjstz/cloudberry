@@ -250,6 +250,9 @@ enum EOptTraceFlag
 	// Use the all key exclude the non-fixed key in AGG pds
 	EopttraceAggRRSExcludeNonFixedKey = 103053,
 
+	// disable parallel hash join alternatives
+	EopttraceDisableParallelHashJoin = 103054,
+
 	///////////////////////////////////////////////////////
 	///////////////////// statistics flags ////////////////
 	//////////////////////////////////////////////////////

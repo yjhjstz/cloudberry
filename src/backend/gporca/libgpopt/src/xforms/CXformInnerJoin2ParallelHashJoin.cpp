@@ -122,7 +122,7 @@ CXformInnerJoin2ParallelHashJoin::Transform(CXformContext *pxfctxt,
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
 	// Only generate parallel hash join if not explicitly disabled
-	if (!GPOS_FTRACE(EopttraceDisableInnerHashJoin))
+	if (!GPOS_FTRACE(EopttraceDisableParallelHashJoin))
 	{
 		CXformUtils::ImplementHashJoin<CPhysicalParallelInnerHashJoin>(
 			pxfctxt, pxfres, pexpr);
