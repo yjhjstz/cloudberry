@@ -1802,7 +1802,7 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			  (num_rows_outer * dWidthOuter * dSendCostUnit + recvCost));
 
 
-	if (COperator::EopPhysicalMotionBroadcast == op_id) //FIXME
+	if (COperator::EopPhysicalMotionBroadcast == op_id)
 	{
 		CPhysicalMotionBroadcast *physical_broadcast =
 			CPhysicalMotionBroadcast::PopConvert(exprhdl.Pop());
@@ -1822,7 +1822,22 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			costLocal = CCost(ulPenalizationFactor);
 		}
 	}
+	else if (COperator::EopPhysicalMotionBroadcastWorkers == op_id)
+	{
+		COptimizerConfig *optimizer_config =
+			COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
+		ULONG broadcast_threshold =
+			optimizer_config->GetHint()->UlBroadcastThreshold();
 
+		// if the broadcast threshold is 0, don't penalize
+		// also, if the replicated distribution is set to ignore the broadcast
+		// threshold (e.g. it's under a LASJ not-in) don't penalize
+		if (broadcast_threshold > 0 && num_rows_outer > broadcast_threshold)
+		{
+			DOUBLE ulPenalizationFactor = 100000000000000.0;
+			costLocal = CCost(ulPenalizationFactor);
+		}
+	}
 
 	CCost costChild =
 		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
