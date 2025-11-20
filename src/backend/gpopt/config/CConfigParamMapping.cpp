@@ -117,6 +117,16 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Disable motion random nodes in optimizer.")},
 
+	{EopttraceDisableMotionHashDistributeWorkers,
+	 &optimizer_enable_motion_hash_distribute_workers,
+	 true,	// m_negate_param
+	 GPOS_WSZ_LIT("Disable motion hash-distribute-workers nodes in optimizer.")},
+
+	{EopttraceDisableMotionBroadcastWorkers,
+	 &optimizer_enable_motion_broadcast_workers,
+	 true,	// m_negate_param
+	 GPOS_WSZ_LIT("Disable motion broadcast-workers nodes in optimizer.")},
+
 	{EopttraceDisableMotionRountedDistribute,
 	 &optimizer_enable_motion_redistribute,
 	 true,	// m_negate_param

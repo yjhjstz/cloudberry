@@ -422,6 +422,8 @@
 		"optimizer_enable_motion_broadcast",
 		"optimizer_enable_motion_gather",
 		"optimizer_enable_motion_redistribute",
+		"optimizer_enable_motion_hash_distribute_workers",
+		"optimizer_enable_motion_broadcast_workers",
 		"optimizer_enable_motions",
 		"optimizer_enable_motions_masteronly_queries",
 		"optimizer_enable_multiple_distinct_aggs",

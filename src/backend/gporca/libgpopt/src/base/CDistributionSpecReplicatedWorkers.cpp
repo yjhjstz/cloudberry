@@ -150,11 +150,12 @@ CDistributionSpecReplicatedWorkers::AppendEnforcers(
 	GPOS_ASSERT(this == prpp->Ped()->PdsRequired() &&
 				"required plan properties don't match enforced distribution spec");
 
-	if (GPOS_FTRACE(EopttraceDisableMotionBroadcast))
+	if (GPOS_FTRACE(EopttraceDisableMotionBroadcastWorkers))
 	{
-		// broadcast Motion is disabled
+		// broadcast-workers Motion is disabled
 		return;
 	}
+
 	// Add reference to input expression
 	pexpr->AddRef();
 

@@ -124,6 +124,12 @@ enum EOptTraceFlag
 	// Disable MotionHashRoutedDistribute nodes
 	EopttraceDisableMotionRountedDistribute = 103008,
 
+	// Disable MotionHashDistributeWorkers nodes (parallel worker hash distribution)
+	EopttraceDisableMotionHashDistributeWorkers = 103055,
+
+	// Disable MotionBroadcastWorkers nodes (parallel worker broadcast)
+	EopttraceDisableMotionBroadcastWorkers = 103056,
+
 	// Disable Sort nodes
 	EopttraceDisableSort = 103009,
 

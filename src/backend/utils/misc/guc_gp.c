@@ -329,6 +329,8 @@ bool		optimizer_enable_motions;
 bool		optimizer_enable_motion_broadcast;
 bool		optimizer_enable_motion_gather;
 bool		optimizer_enable_motion_redistribute;
+bool		optimizer_enable_motion_hash_distribute_workers;
+bool		optimizer_enable_motion_broadcast_workers;
 bool		optimizer_enable_sort;
 bool		optimizer_enable_materialize;
 bool		optimizer_enable_partition_propagation;
@@ -2228,6 +2230,26 @@ struct config_bool ConfigureNamesBool_gp[] =
 			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
 		},
 		&optimizer_enable_motion_redistribute,
+		true,
+		NULL, NULL, NULL
+	},
+	{
+		{"optimizer_enable_motion_hash_distribute_workers", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Enable plans with Motion HashDistributeWorkers operators in the optimizer."),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&optimizer_enable_motion_hash_distribute_workers,
+		true,
+		NULL, NULL, NULL
+	},
+	{
+		{"optimizer_enable_motion_broadcast_workers", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Enable plans with Motion BroadcastWorkers operators in the optimizer."),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&optimizer_enable_motion_broadcast_workers,
 		true,
 		NULL, NULL, NULL
 	},

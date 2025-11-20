@@ -280,6 +280,12 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 			// Check base distribution type to select appropriate motion operator
 			if (CDistributionSpec::EdtHashed == m_pdsSegmentBase->Edt())
 			{
+				if (GPOS_FTRACE(EopttraceDisableMotionHashDistributeWorkers))
+				{
+					// Hash-distribute-workers Motion is disabled
+					pexpr->Release();
+					return;
+				}
 				// Base is Hashed: use hash-based worker distribution (more efficient)
 				random_dist_spec = PdsCreateWorkerRandom(mp, m_ulWorkers, m_pdsSegmentBase);
 
