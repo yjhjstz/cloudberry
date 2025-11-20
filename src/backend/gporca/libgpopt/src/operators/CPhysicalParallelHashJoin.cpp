@@ -400,9 +400,9 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 
 	// Fallback: should not reach here if inner child is properly optimized
 	// Return non-singleton for safety
-	return GPOS_NEW(mp) CDistributionSpecAny(this->Eopid());
-	// return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
-	// 	mp, ulWorkers, GPOS_NEW(mp) CDistributionSpecRandom());
+	//return GPOS_NEW(mp) CDistributionSpecAny(this->Eopid());
+	return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
+      mp, ulWorkers, GPOS_NEW(mp) CDistributionSpecNonSingleton());
 }
 
 //---------------------------------------------------------------------------
@@ -912,7 +912,7 @@ CPhysicalParallelHashJoin::FValidContext(
 			return false;
 		}
 	}
-
+#if 0
 	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
 	{
 		COptimizationContext *pocOuter = (*pdrgpocChild)[0];
@@ -973,7 +973,7 @@ CPhysicalParallelHashJoin::FValidContext(
 			}
 		}
 	}
-
+#endif
 	return true;
 }
 
