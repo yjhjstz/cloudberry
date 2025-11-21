@@ -115,13 +115,6 @@ CDistributionSpecReplicatedWorkers::FSatisfies(const CDistributionSpec *pds) con
 		return true;
 	}
 
-	// ReplicatedWorkers can satisfy regular Replicated if workers and segments match
-	if (EdtReplicated == pds->Edt())
-	{
-		// TODO: Add more sophisticated matching logic if needed
-		return true;
-	}
-
 	return false;
 }
 
