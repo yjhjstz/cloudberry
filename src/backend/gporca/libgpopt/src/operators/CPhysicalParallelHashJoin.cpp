@@ -360,7 +360,7 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 		// Require inner child (build side) to be replicated to workers
 		// Extract worker count from GUC or child group
 		ULONG ulWorkers = UlExtractRequestedWorkers(exprhdl, child_index);
-		return CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulWorkers, 0);
+		return CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulWorkers);
 	}
 
 	GPOS_ASSERT(0 == child_index);

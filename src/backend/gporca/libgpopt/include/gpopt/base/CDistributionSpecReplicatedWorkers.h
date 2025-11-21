@@ -52,15 +52,12 @@ private:
 	// Number of parallel workers per segment
 	ULONG m_ulWorkers;
 
-	// Total number of segments
-	ULONG m_ulNumSegments;
-
 	// Private copy ctor
 	CDistributionSpecReplicatedWorkers(const CDistributionSpecReplicatedWorkers &);
 
 public:
 	// Ctor
-	CDistributionSpecReplicatedWorkers(ULONG ulWorkers, ULONG ulNumSegments);
+	CDistributionSpecReplicatedWorkers(ULONG ulWorkers);
 
 	// Dtor
 	~CDistributionSpecReplicatedWorkers() override;
@@ -77,13 +74,6 @@ public:
 	UlWorkers() const
 	{
 		return m_ulWorkers;
-	}
-
-	// Accessor: number of segments
-	ULONG
-	UlNumSegments() const
-	{
-		return m_ulNumSegments;
 	}
 
 	// Does this distribution match the given one?
@@ -108,8 +98,8 @@ public:
 	IOstream &OsPrint(IOstream &os) const override;
 
 	// Factory method
-	static CDistributionSpecReplicatedWorkers *PdsCreate(
-		CMemoryPool *mp, ULONG ulWorkers, ULONG ulNumSegments);
+	static CDistributionSpecReplicatedWorkers *PdsCreate(CMemoryPool *mp,
+														  ULONG ulWorkers);
 
 	// Conversion function
 	static CDistributionSpecReplicatedWorkers *

@@ -35,8 +35,8 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers::CDistributionSpecReplicatedWorkers(
-	ULONG ulWorkers, ULONG ulNumSegments)
-	: m_ulWorkers(ulWorkers), m_ulNumSegments(ulNumSegments)
+	ULONG ulWorkers)
+	: m_ulWorkers(ulWorkers)
 {
 	GPOS_ASSERT(ulWorkers > 0);
 }
@@ -62,13 +62,12 @@ CDistributionSpecReplicatedWorkers::~CDistributionSpecReplicatedWorkers()
 //
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers *
-CDistributionSpecReplicatedWorkers::PdsCreate(CMemoryPool *mp, ULONG ulWorkers,
-											  ULONG ulNumSegments)
+CDistributionSpecReplicatedWorkers::PdsCreate(CMemoryPool *mp, ULONG ulWorkers)
 {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(ulWorkers > 0);
 
-	return GPOS_NEW(mp) CDistributionSpecReplicatedWorkers(ulWorkers, ulNumSegments);
+	return GPOS_NEW(mp) CDistributionSpecReplicatedWorkers(ulWorkers);
 }
 
 //---------------------------------------------------------------------------
@@ -90,8 +89,7 @@ CDistributionSpecReplicatedWorkers::Matches(const CDistributionSpec *pds) const
 	const CDistributionSpecReplicatedWorkers *pdsReplicatedWorkers =
 		CDistributionSpecReplicatedWorkers::PdsConvert(pds);
 
-	return (m_ulWorkers == pdsReplicatedWorkers->m_ulWorkers &&
-			m_ulNumSegments == pdsReplicatedWorkers->m_ulNumSegments);
+	return m_ulWorkers == pdsReplicatedWorkers->m_ulWorkers;
 }
 
 //---------------------------------------------------------------------------
@@ -161,7 +159,7 @@ CDistributionSpecReplicatedWorkers::AppendEnforcers(
 
 	// Create Broadcast Workers Motion
 	CDistributionSpecReplicatedWorkers *pdsReplicatedWorkers =
-		PdsCreate(mp, m_ulWorkers, m_ulNumSegments);
+		PdsCreate(mp, m_ulWorkers);
 
 	CExpression *pexprMotion = GPOS_NEW(mp) CExpression(
 		mp, GPOS_NEW(mp) CPhysicalMotionBroadcastWorkers(mp, pdsReplicatedWorkers),
@@ -181,8 +179,7 @@ CDistributionSpecReplicatedWorkers::AppendEnforcers(
 IOstream &
 CDistributionSpecReplicatedWorkers::OsPrint(IOstream &os) const
 {
-	os << "REPLICATED_WORKERS(workers=" << m_ulWorkers
-	   << ", segments=" << m_ulNumSegments << ")";
+	os << "REPLICATED_WORKERS(workers=" << m_ulWorkers << ")";
 	return os;
 }
 
