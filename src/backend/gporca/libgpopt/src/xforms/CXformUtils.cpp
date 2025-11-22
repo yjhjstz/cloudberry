@@ -145,8 +145,6 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 			// Check for set operations (incompatible with parallel execution)
 			if (COperator::EopLogicalUnion == eopid ||
 				COperator::EopLogicalUnionAll == eopid ||
-				COperator::EopLogicalIntersect == eopid ||
-				COperator::EopLogicalIntersectAll == eopid ||
 				COperator::EopLogicalDifference == eopid ||
 				COperator::EopLogicalDifferenceAll == eopid)
 			{
