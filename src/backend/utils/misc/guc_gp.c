@@ -2359,7 +2359,7 @@ struct config_bool ConfigureNamesBool_gp[] =
 		{"optimizer_enable_parallel_hashjoin", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Enables the optimizer's use of parallel hash join plans."),
 			NULL,
-			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+			GUC_EXPLAIN
 		},
 		&optimizer_enable_parallel_hashjoin,
 		true,
