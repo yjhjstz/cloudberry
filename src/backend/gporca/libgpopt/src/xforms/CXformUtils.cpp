@@ -153,12 +153,13 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 
 			// Check for correlated joins (incompatible with worker-level parallel execution)
 			// Correlated joins have outer references that workers cannot handle correctly
-			if (COperator::EopLogicalInnerCorrelatedApply == eopid ||
+			if ((COperator::EopLogicalInnerCorrelatedApply == eopid ||
 				COperator::EopLogicalLeftOuterCorrelatedApply == eopid ||
 				COperator::EopLogicalLeftSemiCorrelatedApply == eopid ||
 				COperator::EopLogicalLeftSemiCorrelatedApplyIn == eopid ||
 				COperator::EopLogicalLeftAntiSemiCorrelatedApply == eopid ||
-				COperator::EopLogicalLeftAntiSemiCorrelatedApplyNotIn == eopid)
+				COperator::EopLogicalLeftAntiSemiCorrelatedApplyNotIn == eopid) &&
+				!GPOS_FTRACE(EopttraceDisableParallelHashJoin))
 			{
 				return true;
 			}
