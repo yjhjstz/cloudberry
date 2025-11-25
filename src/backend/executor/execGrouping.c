@@ -298,6 +298,13 @@ ResetTupleHashTable(TupleHashTable hashtable)
 	tuplehash_reset(hashtable->hashtab);
 }
 
+void
+DestroyTupleHashTable(TupleHashTable hashtable)
+{
+	tuplehash_destroy(hashtable->hashtab);
+}
+
+
 /*
  * Find or create a hashtable entry for the tuple group containing the
  * given tuple.  The tuple must be the same type as the hashtable entries.
