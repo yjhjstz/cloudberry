@@ -151,6 +151,7 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 				return true;
 			}
 
+#if 0
 			// Check for correlated joins (incompatible with worker-level parallel execution)
 			// Correlated joins have outer references that workers cannot handle correctly
 			if ((COperator::EopLogicalInnerCorrelatedApply == eopid ||
@@ -163,7 +164,7 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 			{
 				return true;
 			}
-
+#endif
 			pgexpr = gp.PgexprNext(pgexpr);
 		}
 	}
