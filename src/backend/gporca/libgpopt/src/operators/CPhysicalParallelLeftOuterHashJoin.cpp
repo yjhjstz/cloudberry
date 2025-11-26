@@ -35,6 +35,8 @@
 
 using namespace gpopt;
 
+// GUC variable from PostgreSQL
+extern int max_parallel_workers_per_gather;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -87,37 +89,52 @@ CPhysicalParallelLeftOuterHashJoin::PdsDerive(
 	CExpressionHandle &exprhdl
 ) const
 {
-	// Get left (probe) child's distribution
-	CDistributionSpec *pdsLeft = exprhdl.Pdpplan(0 /*child_index*/)->Pds();
+	// Get distributions from children
+	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0)->Pds();
+	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1)->Pds();
 
-	GPOS_ASSERT(nullptr != pdsLeft);
+	// ========== Priority 1: Handle Parallel-specific Distributions ==========
 
-	// Left Outer Join output distribution is always based on left child
-	// This ensures all left table rows are preserved
-
-	if (CDistributionSpec::EdtWorkerRandom == pdsLeft->Edt())
+	// Case 1: Inner child is ReplicatedWorkers (BroadcastWorkers scenario)
+	// This means the inner table is small and replicated to all workers
+	// Join output distribution follows the outer child's distribution
+	if (CDistributionSpec::EdtReplicatedWorkers == pdsInner->Edt())
 	{
-		// Left child already has WorkerRandom distribution
-		// Pass it through
-		pdsLeft->AddRef();
-		return pdsLeft;
+		// Inner is replicated to workers, outer's distribution is preserved
+		// Left Outer Join result follows outer's distribution
+		pdsOuter->AddRef();
+		return pdsOuter;
 	}
 
-	// If left child is not WorkerRandom, derive from segment distribution
-	// This handles Motion nodes that hide WorkerRandom
-	if (CDistributionSpec::EdtHashed == pdsLeft->Edt() ||
-		CDistributionSpec::EdtStrictRandom == pdsLeft->Edt())
+	// Case 2: Both children are WorkerRandom (HashDistributeWorkers scenario)
+	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt() &&
+		CDistributionSpec::EdtWorkerRandom == pdsInner->Edt())
 	{
-		// Create WorkerRandom distribution based on left child
-		ULONG ulWorkers = UlProbeWorkers();
-		GPOS_ASSERT(ulWorkers > 0);
-		pdsLeft->AddRef();
-		return GPOS_NEW(mp) CDistributionSpecWorkerRandom(ulWorkers, pdsLeft);
+		// For Left Outer Join, output distribution ALWAYS follows outer (probe) child
+		// This ensures all left table rows are preserved in the output
+		pdsOuter->AddRef();
+		return pdsOuter;
 	}
 
-	// Fallback: pass through left child's distribution
-	pdsLeft->AddRef();
-	return pdsLeft;
+	// Case 3: Only outer is WorkerRandom
+	if (CDistributionSpec::EdtWorkerRandom == pdsOuter->Edt())
+	{
+		// Return outer's WorkerRandom distribution
+		// Inner will be redistributed to match (handled by PdsRequired)
+		pdsOuter->AddRef();
+		return pdsOuter;
+	}
+
+	// ========== Priority 2: Traditional Distributions ==========
+	// For non-WorkerRandom cases (e.g., from Motion nodes), use PdsDeriveForOuterJoin
+	// which correctly handles:
+	// 1. Hashed children matching logic (PdsDeriveFromHashedChildren)
+	// 2. Replicated/Universal outer → return inner distribution
+	// 3. Incomplete hashed spec cleanup
+	// 4. Right outer join distribution swap
+	//
+	// This is the same logic as CPhysicalLeftOuterHashJoin::PdsDerive
+	return PdsDeriveForOuterJoin(mp, exprhdl);
 }
 
 // EOF
