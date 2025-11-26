@@ -1834,7 +1834,7 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		// threshold (e.g. it's under a LASJ not-in) don't penalize
 		if (broadcast_threshold > 0 && num_rows_outer > broadcast_threshold)
 		{
-			DOUBLE ulPenalizationFactor = 100000000000000.0;
+			DOUBLE ulPenalizationFactor = 200000000000000.0;
 			costLocal = CCost(ulPenalizationFactor);
 		}
 	}
