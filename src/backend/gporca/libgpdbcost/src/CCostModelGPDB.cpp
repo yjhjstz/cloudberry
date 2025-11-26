@@ -928,7 +928,8 @@ CCostModelGPDB::CostHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				COperator::EopPhysicalLeftOuterHashJoin == op_id ||
 				COperator::EopPhysicalRightOuterHashJoin == op_id ||
 				COperator::EopPhysicalFullHashJoin == op_id ||
-				COperator::EopPhysicalParallelInnerHashJoin == op_id);
+				COperator::EopPhysicalParallelInnerHashJoin == op_id ||
+				COperator::EopPhysicalParallelLeftOuterHashJoin == op_id);
 #endif	// GPOS_DEBUG
 
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
@@ -1203,7 +1204,8 @@ CCostModelGPDB::CostParallelHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl
 	GPOS_ASSERT(nullptr != pci);
 
 	COperator *pop = exprhdl.Pop();
-	GPOS_ASSERT(COperator::EopPhysicalParallelInnerHashJoin == pop->Eopid());
+	// Support both parallel inner join and parallel left outer join
+	GPOS_ASSERT(CUtils::FParallelHashJoin(pop));
 
 	// Get the parallel hash join operator to extract worker count
 	CPhysicalParallelHashJoin *popParallelHashJoin =
@@ -2980,6 +2982,7 @@ CCostModelGPDB::Cost(
 		}
 
 		case COperator::EopPhysicalParallelInnerHashJoin:
+		case COperator::EopPhysicalParallelLeftOuterHashJoin:
 		{
 			return CostParallelHashJoin(m_mp, exprhdl, this, pci);
 		}

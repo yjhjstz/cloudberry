@@ -65,6 +65,7 @@
 #include "gpopt/xforms/CXformImplementInnerCorrelatedApply.h"
 #include "gpopt/xforms/CXformImplementInnerJoin.h"
 #include "gpopt/xforms/CXformInnerJoin2ParallelHashJoin.h"
+#include "gpopt/xforms/CXformLeftOuterJoin2ParallelHashJoin.h"
 #include "gpopt/xforms/CXformImplementLeftAntiSemiCorrelatedApply.h"
 #include "gpopt/xforms/CXformImplementLeftAntiSemiCorrelatedApplyNotIn.h"
 #include "gpopt/xforms/CXformImplementLeftOuterCorrelatedApply.h"

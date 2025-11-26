@@ -19,24 +19,21 @@
 
 //---------------------------------------------------------------------------
 //	@filename:
-//		CXformInnerJoin2ParallelHashJoin.cpp
+//		CXformLeftOuterJoin2ParallelHashJoin.cpp
 //
 //	@doc:
-//		Transform inner join to parallel hash join
+//		Transform left outer join to parallel hash join
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformInnerJoin2ParallelHashJoin.h"
+#include "gpopt/xforms/CXformLeftOuterJoin2ParallelHashJoin.h"
 
 #include "gpos/base.h"
 
 #include "gpopt/base/CUtils.h"
-#include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalLeftOuterJoin.h"
 #include "gpopt/operators/CPatternLeaf.h"
-#include "gpopt/operators/CPhysicalParallelInnerHashJoin.h"
-#include "gpopt/operators/CPhysicalParallelTableScan.h"
+#include "gpopt/operators/CPhysicalParallelLeftOuterHashJoin.h"
 #include "gpopt/xforms/CXformUtils.h"
-#include "gpopt/search/CGroupProxy.h"
-#include "gpopt/search/CMemo.h"
 
 // Forward declarations for gpdbwrappers functions
 namespace gpdb {
@@ -48,17 +45,17 @@ using namespace gpopt;
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CXformInnerJoin2ParallelHashJoin::CXformInnerJoin2ParallelHashJoin
+//		CXformLeftOuterJoin2ParallelHashJoin::CXformLeftOuterJoin2ParallelHashJoin
 //
 //	@doc:
-//		ctor
+//		Ctor
 //
 //---------------------------------------------------------------------------
-CXformInnerJoin2ParallelHashJoin::CXformInnerJoin2ParallelHashJoin(
+CXformLeftOuterJoin2ParallelHashJoin::CXformLeftOuterJoin2ParallelHashJoin(
 	CMemoryPool *mp)
 	:  // pattern
 	  CXformImplementation(GPOS_NEW(mp) CExpression(
-		  mp, GPOS_NEW(mp) CLogicalInnerJoin(mp),
+		  mp, GPOS_NEW(mp) CLogicalLeftOuterJoin(mp),
 		  GPOS_NEW(mp)
 			  CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // left child
 		  GPOS_NEW(mp)
@@ -72,14 +69,14 @@ CXformInnerJoin2ParallelHashJoin::CXformInnerJoin2ParallelHashJoin(
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CXformInnerJoin2ParallelHashJoin::Exfp
+//		CXformLeftOuterJoin2ParallelHashJoin::Exfp
 //
 //	@doc:
-//		Compute xform promise for a given expression handle;
+//		Compute xform promise for a given expression handle
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformInnerJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
+CXformLeftOuterJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
 {
 	// Check if parallel execution is enabled
 	// Uses gpdb::IsParallelModeOK() which checks max_parallel_workers_per_gather > 0
@@ -107,16 +104,16 @@ CXformInnerJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CXformInnerJoin2ParallelHashJoin::Transform
+//		CXformLeftOuterJoin2ParallelHashJoin::Transform
 //
 //	@doc:
-//		actual transformation
+//		Actual transformation
 //
 //---------------------------------------------------------------------------
 void
-CXformInnerJoin2ParallelHashJoin::Transform(CXformContext *pxfctxt,
-											 CXformResult *pxfres,
-											 CExpression *pexpr) const
+CXformLeftOuterJoin2ParallelHashJoin::Transform(CXformContext *pxfctxt,
+												CXformResult *pxfres,
+												CExpression *pexpr) const
 {
 	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
@@ -125,7 +122,7 @@ CXformInnerJoin2ParallelHashJoin::Transform(CXformContext *pxfctxt,
 	// Only generate parallel hash join if not explicitly disabled
 	if (!GPOS_FTRACE(EopttraceDisableParallelHashJoin))
 	{
-		CXformUtils::ImplementHashJoin<CPhysicalParallelInnerHashJoin>(
+		CXformUtils::ImplementHashJoin<CPhysicalParallelLeftOuterHashJoin>(
 			pxfctxt, pxfres, pexpr);
 	}
 }

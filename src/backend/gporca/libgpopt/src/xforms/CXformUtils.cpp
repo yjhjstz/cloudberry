@@ -144,27 +144,11 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 
 			// Check for set operations (incompatible with parallel execution)
 			if (COperator::EopLogicalUnion == eopid ||
-				COperator::EopLogicalUnionAll == eopid ||
-				COperator::EopLogicalDifference == eopid ||
-				COperator::EopLogicalDifferenceAll == eopid)
+				COperator::EopLogicalUnionAll == eopid)
 			{
 				return true;
 			}
 
-#if 0
-			// Check for correlated joins (incompatible with worker-level parallel execution)
-			// Correlated joins have outer references that workers cannot handle correctly
-			if ((COperator::EopLogicalInnerCorrelatedApply == eopid ||
-				COperator::EopLogicalLeftOuterCorrelatedApply == eopid ||
-				COperator::EopLogicalLeftSemiCorrelatedApply == eopid ||
-				COperator::EopLogicalLeftSemiCorrelatedApplyIn == eopid ||
-				COperator::EopLogicalLeftAntiSemiCorrelatedApply == eopid ||
-				COperator::EopLogicalLeftAntiSemiCorrelatedApplyNotIn == eopid) &&
-				!GPOS_FTRACE(EopttraceDisableParallelHashJoin))
-			{
-				return true;
-			}
-#endif
 			pgexpr = gp.PgexprNext(pgexpr);
 		}
 	}

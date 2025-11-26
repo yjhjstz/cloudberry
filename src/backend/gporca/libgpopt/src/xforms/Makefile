@@ -74,6 +74,7 @@ OBJS        = CDecorrelator.o \
               CXformInnerApplyWithOuterKey2InnerJoin.o \
               CXformImplementInnerJoin.o \
               CXformInnerJoin2ParallelHashJoin.o \
+              CXformLeftOuterJoin2ParallelHashJoin.o \
               CXformInsert2DML.o \
               CXformIntersect2Join.o \
               CXformIntersectAll2LeftSemiJoin.o \
