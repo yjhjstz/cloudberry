@@ -20,6 +20,7 @@ set(pax_comm_src
     comm/bitmap.cc
     comm/bloomfilter.cc
     comm/byte_buffer.cc
+    comm/fast_io.cc
     comm/guc.cc
     comm/paxc_wrappers.cc
     comm/pax_memory.cc
@@ -108,7 +109,7 @@ set(pax_vec_src ${pax_vec_src}
 endif()
 
 set(pax_target_include ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR} ${UUID_INCLUDE_DIRS})
-set(pax_target_link_libs ${UUID_LINK_LIBRARIES} orc::orc protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB)
+set(pax_target_link_libs ${UUID_LINK_LIBRARIES} orc::orc protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB uring)
 if (PAX_USE_LZ4)
   list(APPEND pax_target_link_libs LZ4::lz4_static)
 endif()
@@ -142,7 +143,7 @@ protobuf_generate(
 
 target_include_directories(paxformat PUBLIC ${pax_target_include} ${CMAKE_CURRENT_BINARY_DIR})
 target_link_directories(paxformat PUBLIC ${pax_target_link_directories})
-target_link_libraries(paxformat PUBLIC ${pax_target_link_libs})  
+target_link_libraries(paxformat PUBLIC ${pax_target_link_libs})
    
 set_target_properties(paxformat PROPERTIES
   OUTPUT_NAME paxformat)

@@ -30,6 +30,7 @@ set(pax_comm_src
     comm/bitmap.cc
     comm/bloomfilter.cc
     comm/byte_buffer.cc
+    comm/fast_io.cc
     comm/guc.cc
     comm/paxc_wrappers.cc
     comm/pax_memory.cc
@@ -169,7 +170,7 @@ endif()
 set(pax_target_src  ${pax_PROTO_SOURCES} ${pax_storage_src} ${pax_clustering_src} ${pax_exceptions_src}
   ${pax_access_src} ${pax_comm_src} ${pax_catalog_src} ${pax_vec_src})
 set(pax_target_include ${pax_target_include} ${CMAKE_CURRENT_SOURCE_DIR} ${CBDB_INCLUDE_DIR})
-set(pax_target_link_libs ${pax_target_link_libs} orc::orc protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB tabulate::tabulate postgres)
+set(pax_target_link_libs ${pax_target_link_libs} orc::orc protobuf::libprotobuf zstd::libzstd_static ZLIB::ZLIB tabulate::tabulate postgres uring)
 if (PAX_USE_LZ4)
   list(APPEND pax_target_link_libs LZ4::lz4_static)
 endif()
