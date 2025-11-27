@@ -30,6 +30,7 @@
 #include "gpos/base.h"
 
 #include "gpopt/base/CUtils.h"
+#include "gpopt/hints/CHintUtils.h"
 #include "gpopt/operators/CLogicalLeftOuterJoin.h"
 #include "gpopt/operators/CPatternLeaf.h"
 #include "gpopt/operators/CPhysicalParallelLeftOuterHashJoin.h"
@@ -95,6 +96,20 @@ CXformLeftOuterJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
 	if (!COptCtxt::PoctxtFromTLS()->HasParallelOperators())
 	{
 		return CXform::ExfpNone;
+	}
+
+	// Check plan hints
+	CPlanHint *plan_hint = COptCtxt::PoctxtFromTLS()->GetOptimizerConfig()->GetPlanHint();
+	if (plan_hint != nullptr)
+	{
+		// If Leading hint exists, disable parallel left outer hash join
+		// because it may cause nested joins to be converted to right outer joins,
+		// leading to excessive Gather Motion nodes (since parallel right outer hash join
+		// is not yet implemented)
+		if (plan_hint->HasJoinHints())
+		{
+			return CXform::ExfpNone;
+		}
 	}
 
 	// Use the same logic as regular hash join transformation
