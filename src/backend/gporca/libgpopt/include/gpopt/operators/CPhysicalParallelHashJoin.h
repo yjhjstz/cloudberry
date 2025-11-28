@@ -94,7 +94,7 @@ public:
 	// dtor
 	~CPhysicalParallelHashJoin() override;
 
-	void CreateOptRequests(CMemoryPool *mp) override;
+	//void CreateOptRequests(CMemoryPool *mp) override;
 
 	ULONG UlProbeWorkers(CExpressionHandle &exprhdl) {
 		ExtractWorkersIfNeeded(exprhdl);

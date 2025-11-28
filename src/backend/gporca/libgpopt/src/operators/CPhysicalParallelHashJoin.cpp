@@ -84,6 +84,7 @@ CPhysicalParallelHashJoin::~CPhysicalParallelHashJoin()
 {
 }
 
+#if 0
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalParallelHashJoin::CreateOptRequests
@@ -118,6 +119,7 @@ CPhysicalParallelHashJoin::CreateOptRequests(CMemoryPool *mp)
 
 	SetDistrRequests(ulTotalReqs);
 }
+#endif
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -400,7 +402,6 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 
 	// Fallback: should not reach here if inner child is properly optimized
 	// Return non-singleton for safety
-	//return GPOS_NEW(mp) CDistributionSpecAny(this->Eopid());
 	return CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
       mp, ulWorkers, GPOS_NEW(mp) CDistributionSpecNonSingleton());
 }
@@ -739,12 +740,6 @@ CPhysicalParallelHashJoin::EpetDistribution(CExpressionHandle &exprhdl,
 {
 	GPOS_ASSERT(nullptr != ped);
 
-	// Note: We do NOT reject plans where inner child is not WorkerRandom here.
-	// The base distribution matching logic (lines 570-583) can handle cases where
-	// inner child has regular HASHED distribution but our derived WorkerRandom's
-	// base distribution satisfies the parent's HASHED requirement.
-	// Rejecting too early would prevent valid plans from being considered.
-
 	// Get our derived distribution (returned by PdsDerive)
 	CDistributionSpec *pdsDerived = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Pds();
 
@@ -912,68 +907,7 @@ CPhysicalParallelHashJoin::FValidContext(
 			return false;
 		}
 	}
-#if 0
-	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
-	{
-		COptimizationContext *pocOuter = (*pdrgpocChild)[0];
-		COptimizationContext *pocInner = (*pdrgpocChild)[1];
 
-		if (nullptr != pocOuter && nullptr != pocInner)
-		{
-			CCostContext *pccOuter = pocOuter->PccBest();
-			CCostContext *pccInner = pocInner->PccBest();
-
-			if (nullptr != pccOuter && nullptr != pccInner)
-			{
-				CDrvdPropPlan *pdpplanOuter = pccOuter->Pdpplan();
-				CDrvdPropPlan *pdpplanInner = pccInner->Pdpplan();
-
-				if (nullptr != pdpplanOuter && nullptr != pdpplanInner)
-				{
-					CDistributionSpec *pdsOuterDerived = pdpplanOuter->Pds();
-					CDistributionSpec *pdsInnerDerived = pdpplanInner->Pds();
-
-					// Case 1: Build side is ReplicatedWorkers (BroadcastWorkers)
-					// Probe side must be WorkerRandom for compatible execution
-					if (CDistributionSpec::EdtReplicatedWorkers == pdsInnerDerived->Edt())
-					{
-						if (CDistributionSpec::EdtWorkerRandom != pdsOuterDerived->Edt())
-						{
-							// Distribution mismatch: build side has worker-level broadcast
-							// but probe side does not have worker-level distribution
-							return false;
-						}
-					}
-
-					// Case 2: Both sides should be WorkerRandom for redistribute scenario
-					// If one side is WorkerRandom, the other must also be WorkerRandom
-					// if (CDistributionSpec::EdtWorkerRandom == pdsInnerDerived->Edt())
-					// {
-					// 	if (CDistributionSpec::EdtWorkerRandom != pdsOuterDerived->Edt())
-					// 	{
-					// 		// Distribution mismatch: build side is WorkerRandom
-					// 		// but probe side is not
-					// 		return false;
-					// 	}
-					// }
-
-					// Case 3: Probe side is WorkerRandom but build side is not worker-level
-					// This is also invalid for parallel execution
-					// if (CDistributionSpec::EdtWorkerRandom == pdsOuterDerived->Edt())
-					// {
-					// 	if (CDistributionSpec::EdtWorkerRandom != pdsInnerDerived->Edt() &&
-					// 		CDistributionSpec::EdtReplicatedWorkers != pdsInnerDerived->Edt())
-					// 	{
-					// 		// Distribution mismatch: probe side is WorkerRandom
-					// 		// but build side is neither WorkerRandom nor ReplicatedWorkers
-					// 		return false;
-					// 	}
-					// }
-				}
-			}
-		}
-	}
-#endif
 	return true;
 }
 
