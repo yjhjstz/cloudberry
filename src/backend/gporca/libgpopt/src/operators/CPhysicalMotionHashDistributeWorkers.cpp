@@ -106,8 +106,24 @@ CPhysicalMotionHashDistributeWorkers::PcrsRequired(
 {
 	GPOS_ASSERT(0 == child_index);
 
-	return PcrsChildReqd(mp, exprhdl, pcrsRequired, child_index,
-						 gpos::ulong_max);
+	// Get hash key columns from the base segment distribution
+	CDistributionSpec *pdsBase = m_pdsWorkerRandom->PdsSegmentBase();
+	CColRefSet *pcrs = GPOS_NEW(mp) CColRefSet(mp, *pcrsRequired);
+
+	if (nullptr != pdsBase && CDistributionSpec::EdtHashed == pdsBase->Edt())
+	{
+		CDistributionSpecHashed *pdsHashed =
+			CDistributionSpecHashed::PdsConvert(pdsBase);
+		CColRefSet *pcrsHashKeys = pdsHashed->PcrsUsed(mp);
+		pcrs->Union(pcrsHashKeys);
+		pcrsHashKeys->Release();
+	}
+
+	CColRefSet *pcrsChildReqd =
+		PcrsChildReqd(mp, exprhdl, pcrs, child_index, gpos::ulong_max);
+	pcrs->Release();
+
+	return pcrsChildReqd;
 }
 
 CPartitionPropagationSpec *
@@ -230,6 +246,18 @@ IOstream &
 CPhysicalMotionHashDistributeWorkers::OsPrint(IOstream &os) const
 {
 	os << SzId() << " (workers: " << NumWorkers() << ")";
+
+	// choose a prefix big enough to avoid overlapping at least the simpler
+	// expression trees
+	CDistributionSpec *pdsBase = m_pdsWorkerRandom->PdsSegmentBase();
+
+	if (nullptr != pdsBase && CDistributionSpec::EdtHashed == pdsBase->Edt())
+	{
+		CDistributionSpecHashed *pdsHashed =
+			CDistributionSpecHashed::PdsConvert(pdsBase);
+		return pdsHashed->OsPrintWithPrefix(
+		os, "                                        ");
+	}
 	return os;
 }
 
