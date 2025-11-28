@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>cbdb.cn</groupId>
+    <groupId>cloud.elastic</groupId>
     <artifactId>dlagent</artifactId>
     <version>1.0.0</version>
 
@@ -282,7 +282,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>cn.cbdb.dlagent.service.ServiceApplication</mainClass>
+                    <mainClass>cloud.elastic.dlagent.service.ServiceApplication</mainClass>
                 </configuration>
                 <executions>
                     <execution>

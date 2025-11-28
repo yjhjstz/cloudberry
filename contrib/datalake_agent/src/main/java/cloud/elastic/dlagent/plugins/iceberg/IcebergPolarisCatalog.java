@@ -1,0 +1,121 @@
+package cloud.elastic.dlagent.plugins.iceberg;
+
+import java.io.UncheckedIOException;
+import java.util.Map;
+
+import cloud.elastic.dlagent.plugins.iceberg.utilities.IcebergUtilities;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.rest.RESTCatalog;
+import org.apache.iceberg.rest.auth.OAuth2Properties;
+import org.apache.iceberg.exceptions.NoSuchTableException;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import cloud.elastic.dlagent.plugins.hudi.utilities.FilePathUtils;
+import org.apache.iceberg.CatalogUtil;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Implementation of IcebergCatalog for tables handled by Iceberg's Catalogs API.
+ */
+public class IcebergPolarisCatalog implements IcebergCatalog {
+
+    private static final Logger LOG = LoggerFactory.getLogger(IcebergPolarisCatalog.class);
+
+    private RESTCatalog restCatalog;
+    private IcebergUtilities icebergUtilities;
+    private Configuration configuration;
+
+    public IcebergPolarisCatalog(String warehouse, IcebergUtilities icebergUtilities, Configuration configuration) {
+        this.icebergUtilities = icebergUtilities;
+        this.configuration = configuration;
+        this.restCatalog = new RESTCatalog();
+
+        String catalogName = icebergUtilities.extractWarehouseFromTableName(warehouse);
+        String clientId = FilePathUtils.unescapeString(configuration.get("client_id","root"));
+        String clientSecret = FilePathUtils.unescapeString(configuration.get("client_secret","secret"));
+        String scope = FilePathUtils.unescapeString(configuration.get("scope","PRINCIPAL_ROLE:ALL"));
+        String polarisServerUrl = FilePathUtils.unescapeString(configuration.get("polaris_server_url", "http://127.0.0.1:8181/api/catalog"));
+        String realm = FilePathUtils.unescapeString(configuration.get("polaris_server_realm", "POLARIS"));
+        String credential = clientId + ":" + clientSecret;
+
+        ImmutableMap.Builder<String, String> propertiesBuilder =
+            ImmutableMap.<String, String>builder()
+                .put(CatalogProperties.URI, polarisServerUrl)
+                .put(OAuth2Properties.CREDENTIAL, credential)
+                .put(OAuth2Properties.SCOPE, scope)
+                .put("header.Polaris-Realm", realm)
+                .put(CatalogProperties.WAREHOUSE_LOCATION, catalogName);
+        Map<String, String> props = propertiesBuilder.build();
+
+        LOG.info("Polaris catalog properties: {}", props);
+
+        CatalogUtil.configureHadoopConf(restCatalog, this.configuration);
+        restCatalog.initialize("polaris", props);
+    }
+
+    @Override
+    public Table createTable(
+            TableIdentifier identifier,
+            Schema schema,
+            PartitionSpec spec,
+            String location,
+            Map<String, String> tableProps) throws Exception {
+        TableIdentifier tableId = icebergUtilities.getIcebergTableIdentifier(identifier.toString());
+        return restCatalog.createTable(tableId, schema);
+    }
+
+    @Override
+    public Table loadTable(String tableName) throws Exception {
+        TableIdentifier tableId = icebergUtilities.getIcebergTableIdentifier(tableName);
+        return loadTable(tableId, null, null);
+    }
+
+    @Override
+    public Table loadTable(TableIdentifier tableId, String tableLocation,
+                           Map<String, String> tableProps) throws Exception {
+        Preconditions.checkState(tableId != null);
+        final int MAX_ATTEMPTS = 5;
+        final int SLEEP_MS = 500;
+        int attempt = 0;
+        while (attempt < MAX_ATTEMPTS) {
+            try {
+                return restCatalog.loadTable(tableId);
+            } catch (NoSuchTableException e) {
+                throw e;
+            } catch (NullPointerException | UncheckedIOException e) {
+                if (attempt == MAX_ATTEMPTS - 1) {
+                    // Throw exception on last attempt.
+                    throw e;
+                }
+                LOG.warn("Caught Exception during Iceberg table loading: {}: {}", tableId, e);
+            }
+            ++attempt;
+            try {
+                Thread.sleep(SLEEP_MS);
+            } catch (InterruptedException e) {
+                // Ignored.
+            }
+        }
+        // We shouldn't really get there, but to make the compiler happy:
+        throw new Exception(
+                String.format("Failed to load Iceberg table with id: %s", tableId));
+    }
+
+    @Override
+    public boolean dropTable(String tableName, boolean purge) {
+        throw new UnsupportedOperationException("Iceberg accessor does not support dropTable operation.");
+    }
+
+    @Override
+    public void renameTable(String tableName, String newTableName) {
+        throw new UnsupportedOperationException("Iceberg accessor does not support renameTable operation.");
+    }
+}
+
