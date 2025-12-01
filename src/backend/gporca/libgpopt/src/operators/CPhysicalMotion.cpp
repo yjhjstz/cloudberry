@@ -157,7 +157,7 @@ CPhysicalMotion::PdsRequired(CMemoryPool *mp,
 CRewindabilitySpec *
 CPhysicalMotion::PrsRequired(CMemoryPool *mp,
 							 CExpressionHandle &,	// exprhdl
-							 CRewindabilitySpec *prsRequired,
+							 CRewindabilitySpec *prsRequired GPOS_UNUSED,
 							 ULONG
 #ifdef GPOS_DEBUG
 								 child_index
@@ -173,8 +173,7 @@ CPhysicalMotion::PrsRequired(CMemoryPool *mp,
 	// different slice; and thus it cannot require any rewindability property
 	// from its child
 	return GPOS_NEW(mp) CRewindabilitySpec(CRewindabilitySpec::ErtNone,
-										   CRewindabilitySpec::EmhtNoMotion,
-										   prsRequired->IsOriginNLJoin());
+										   CRewindabilitySpec::EmhtNoMotion);
 }
 
 CPartitionPropagationSpec *
