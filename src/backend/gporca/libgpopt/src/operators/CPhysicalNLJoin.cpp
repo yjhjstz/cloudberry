@@ -113,7 +113,7 @@ CPhysicalNLJoin::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl GPOS_UN
 			// we should not force materialize inner child, as we use index
 			// on inner relation and reference variables from outer relation.
 			return GPOS_NEW(mp) CRewindabilitySpec(
-				CRewindabilitySpec::ErtRewindable, prsRequired->Emht(), true);
+				CRewindabilitySpec::ErtRewindable, prsRequired->Emht(), false);
 		}
 
 		CRewindabilitySpec *prsOuter =
