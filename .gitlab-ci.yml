@@ -318,3 +318,21 @@ test_parallel:
     - !reference [ .common-rules ]
   artifacts:
     <<: *artifacts
+
+test_parallel_orca:
+  stage: test
+  extends: .common
+  <<: *cache-only-pull
+  script: |
+    trap 'test -e /tmp/.debugging && tmux new-session -d -s debug && tmux wait-for done' EXIT
+
+    env
+    set -euxo pipefail
+
+    export ENV=devel
+    export MAKE_TEST_COMMAND="-s -k installcheck-orca-parallel"
+    make test-src-test
+  rules:
+    - !reference [ .common-rules ]
+  artifacts:
+    <<: *artifacts
