@@ -192,7 +192,7 @@ CPhysicalComputeScalar::PdsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 
 	// if required distribution uses any defined column, it has to be enforced on top of ComputeScalar,
 	// in this case, we request Any distribution from the child
-	if (CDistributionSpec::EdtHashed == edtRequired) //FIXME
+	if (CDistributionSpec::EdtHashed == edtRequired)
 	{
 		CDistributionSpecHashed *pdshashed =
 			CDistributionSpecHashed::PdsConvert(pdsRequired);

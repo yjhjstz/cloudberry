@@ -187,4 +187,4 @@ test: constraints_check
 test: stats
 
 # test of tag
-#test: tag
+test: tag

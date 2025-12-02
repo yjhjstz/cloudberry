@@ -84,42 +84,6 @@ CPhysicalParallelHashJoin::~CPhysicalParallelHashJoin()
 {
 }
 
-#if 0
-//---------------------------------------------------------------------------
-//	@function:
-//		CPhysicalParallelHashJoin::CreateOptRequests
-//
-//	@doc:
-//		Create optimization requests for parallel hash join
-//		Only creates parallel-specific requests (no segment-level broadcast or singleton)
-//
-//		Request Structure:
-//		  Req 0 .. N-1:    HashDistributeWorkers (redistribute with WorkerRandom)
-//		  Req N, N+1:      BroadcastWorkers (replicate inner to workers)
-//
-//		Rationale for excluding base class non-parallel requests:
-//		  - Segment-level Broadcast: Inefficient for parallel execution, use BroadcastWorkers instead
-//		  - Singleton: Contradicts parallel execution semantics (0 workers vs ≥2 workers)
-//		  - If data is small enough for singleton/broadcast, use CPhysicalHashJoin instead
-//
-//---------------------------------------------------------------------------
-void
-CPhysicalParallelHashJoin::CreateOptRequests(CMemoryPool *mp)
-{
-	// First create redistribute requests (same as base class)
-	CreateHashRedistributeRequests(mp);
-
-	ULONG ulHashDistReqs = NumDistrReq();  // Number of hash redistribute requests
-
-	// Only add BroadcastWorkers requests (2 requests)
-	// Do NOT add segment-level broadcast or singleton - they contradict parallel execution
-	//
-	// Total = ulHashDistReqs + 2 (BroadcastWorkers only)
-	ULONG ulTotalReqs = ulHashDistReqs + 2;
-
-	SetDistrRequests(ulTotalReqs);
-}
-#endif
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -694,11 +658,6 @@ CPhysicalParallelHashJoin::PdsDerive(CMemoryPool *mp,
 	// 1. Replicated/Universal outer → return inner distribution
 	// 2. Cleanup of incomplete Hashed distribution specs
 	// 3. Right outer join distribution swap
-	//
-	// Note: We don't need to handle Replicated in the WorkerRandom branch above
-	// because CXformGet2ParallelTableScan explicitly rejects replicated tables
-	// (see CXformGet2ParallelTableScan.cpp:97-104), so WorkerRandom base distributions
-	// can only be Hashed or Random, never Replicated/MasterOnly.
 	return CPhysicalJoin::PdsDerive(mp, exprhdl);
 }
 
@@ -792,11 +751,6 @@ CPhysicalParallelHashJoin::FValidContext(
 	}
 
 	// Extract workers from child groups if not already extracted
-	// This is the correct place to extract workers because:
-	// 1. FValidContext is called during optimization context validation
-	// 2. We have access to child optimization contexts (pdrgpocChild)
-	// 3. We can directly access child groups via pocChild->Pgroup()
-	// 4. If extraction fails, we can reject this optimization context early
 	if (0 == m_ulProbeWorkers || 0 == m_ulBuildWorkers)
 	{
 		if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)

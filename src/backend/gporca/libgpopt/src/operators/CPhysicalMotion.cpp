@@ -157,7 +157,7 @@ CPhysicalMotion::PdsRequired(CMemoryPool *mp,
 CRewindabilitySpec *
 CPhysicalMotion::PrsRequired(CMemoryPool *mp,
 							 CExpressionHandle &,	// exprhdl
-							 CRewindabilitySpec *prsRequired GPOS_UNUSED,
+							 CRewindabilitySpec *,	// prsRequired
 							 ULONG
 #ifdef GPOS_DEBUG
 								 child_index

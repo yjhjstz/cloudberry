@@ -127,13 +127,6 @@ CPhysicalParallelLeftOuterHashJoin::PdsDerive(
 
 	// ========== Priority 2: Traditional Distributions ==========
 	// For non-WorkerRandom cases (e.g., from Motion nodes), use PdsDeriveForOuterJoin
-	// which correctly handles:
-	// 1. Hashed children matching logic (PdsDeriveFromHashedChildren)
-	// 2. Replicated/Universal outer → return inner distribution
-	// 3. Incomplete hashed spec cleanup
-	// 4. Right outer join distribution swap
-	//
-	// This is the same logic as CPhysicalLeftOuterHashJoin::PdsDerive
 	return PdsDeriveForOuterJoin(mp, exprhdl);
 }
 

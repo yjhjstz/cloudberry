@@ -94,7 +94,7 @@ CPhysicalNLJoin::PosRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 //
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
-CPhysicalNLJoin::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl GPOS_UNUSED,
+CPhysicalNLJoin::PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
 							 CRewindabilitySpec *prsRequired, ULONG child_index,
 							 CDrvdPropArray *pdrgpdpCtxt,
 							 ULONG	// ulOptReq
