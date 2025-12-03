@@ -66,4 +66,8 @@ singlenode_check_dirs := singlenode_regress isolation singlenode_isolation2
 installcheck-singlenode: install
     $(call recurse,installcheck-singlenode,$(singlenode_check_dirs))
 
+orca_check_dirs := regress
+installcheck-orca-parallel: install
+    $(call recurse,installcheck-orca-parallel,$(orca_check_dirs))
+
 $(recurse_always)

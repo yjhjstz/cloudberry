@@ -18,11 +18,15 @@
 #include "gpopt/base/CDistributionSpecReplicated.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CDistributionSpecStrictSingleton.h"
+#include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 using namespace gpopt;
+
+// External GUC variable for parallel execution
+extern int max_parallel_workers_per_gather;
 
 
 //---------------------------------------------------------------------------
@@ -110,10 +114,12 @@ CPhysicalAgg::CPhysicalAgg(
 	}
 	else if (COperator::EgbaggtypeGlobal == egbaggtype)
 	{
-		// Global Agg generates two optimization requests for its children:
+		// Global Agg generates three optimization requests for its children:
 		// (1) Singleton distribution, if child has volatile functions
 		// (2) Hash distribution on the group by columns
-		ulDistrReqs = 2;
+		// (3) WorkerRandom distribution with hash base on the group by columns
+		//     This avoids unnecessary redistribution when child outputs WorkerRandom
+		ulDistrReqs = 3;
 	}
 
 	// Force enable distribution property in DQA
@@ -379,7 +385,7 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 								   ULONG ulOptReq) const
 {
 	GPOS_ASSERT(FGlobal());
-	GPOS_ASSERT(2 > ulOptReq);
+	GPOS_ASSERT(3 > ulOptReq);
 
 	// TODO:  - Mar 19, 2012; Cleanup: move this check to the caller
 	if (exprhdl.HasOuterRefs())
@@ -405,6 +411,29 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	{
 		// request a singleton distribution if child has volatile functions
 		return GPOS_NEW(mp) CDistributionSpecSingleton();
+	}
+
+	// Optimization request 2: WorkerRandom distribution with hashed base
+	// This allows Finalize Agg to accept WorkerRandom output from Streaming Partial Agg
+	// without requiring expensive redistribution across segments
+	if (2 == ulOptReq)
+	{
+		// Get max_parallel_workers_per_gather setting
+		if (max_parallel_workers_per_gather > 0)
+		{
+			ULONG ulWorkers = (ULONG)max_parallel_workers_per_gather;
+
+			// Create hashed distribution on grouping columns as base
+			CDistributionSpec *pdsHashed = PdsMaximalHashed(mp, pdrgpcrGrpMinimal);
+
+			// Wrap it in WorkerRandom distribution
+			CDistributionSpecWorkerRandom *pdsWorkerRandom =
+				CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsHashed);
+
+			return pdsWorkerRandom;
+		}
+
+		// If parallel workers not enabled, fall through to regular hashed requirement
 	}
 
 	// if there are grouping columns, require a hash distribution explicitly
@@ -567,6 +596,8 @@ CPhysicalAgg::PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const
 		return GPOS_NEW(mp) CDistributionSpecReplicated(
 			CDistributionSpec::EdtTaintedReplicated);
 	}
+	// For worker-level distributions, pass through
+	// This allows aggregates to execute in parallel on workers
 
 	pds->AddRef();
 	return pds;
