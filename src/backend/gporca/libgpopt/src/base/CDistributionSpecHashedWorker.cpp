@@ -188,31 +188,19 @@ CDistributionSpecHashedWorker::AppendEnforcers(CMemoryPool *mp,
 
 			CDistributionSpecHashedWorker *pdsHashedWorker =
 				CDistributionSpecHashedWorker::PdsConvert(pdsRequired);
-			// Extract hash expressions and properties
-			CExpressionArray *pdrgpexpr = pdsHashedWorker->Pdrgpexpr();
-			pdrgpexpr->AddRef();
-			IMdIdArray *opfamilies = pdsHashedWorker->Opfamilies();
-			if (nullptr != opfamilies)
-			{
-				opfamilies->AddRef();
-			}
 
-			// Create base segment-level hashed distribution
-			CDistributionSpecHashed *pdsHashed = GPOS_NEW(mp)
-				CDistributionSpecHashed(pdrgpexpr, pdsHashedWorker->FNullsColocated(), opfamilies);
-
-			// Create WorkerRandom distribution with hashed base for the Motion operator
-			CDistributionSpecWorkerRandom *pdsWorkerRandom = GPOS_NEW(mp)
-				CDistributionSpecWorkerRandom(pdsHashedWorker->UlWorkers(), pdsHashed);
+			// Directly use CDistributionSpecHashedWorker for the Motion operator
+			// This ensures the output distribution type matches the required type (EdtHashedWorker)
+			pdsHashedWorker->AddRef();
 
 			if (fDuplicateHazard)
 			{
-				pdsWorkerRandom->MarkDuplicateSensitive();
+				pdsHashedWorker->MarkDuplicateSensitive();
 			}
 
 			pexprMotion = GPOS_NEW(mp) CExpression(
 				mp,
-				GPOS_NEW(mp) CPhysicalMotionHashDistributeWorkers(mp, pdsWorkerRandom), pexpr);
+				GPOS_NEW(mp) CPhysicalMotionHashDistributeWorkers(mp, pdsHashedWorker), pexpr);
 			break;
 		}
 

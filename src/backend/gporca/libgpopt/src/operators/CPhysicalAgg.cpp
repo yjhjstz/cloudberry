@@ -14,6 +14,7 @@
 
 #include "gpopt/base/CDistributionSpecAny.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
+#include "gpopt/base/CDistributionSpecHashedWorker.h"
 #include "gpopt/base/CDistributionSpecRandom.h"
 #include "gpopt/base/CDistributionSpecReplicated.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
@@ -418,19 +419,34 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	// without requiring expensive redistribution across segments
 	if (2 == ulOptReq)
 	{
+		// All safety checks passed - safe to use HashedWorker distribution
 		// Get max_parallel_workers_per_gather setting
 		if (max_parallel_workers_per_gather > 0)
 		{
-			ULONG ulWorkers = (ULONG)max_parallel_workers_per_gather;
+			ULONG ulWorkers = (ULONG) max_parallel_workers_per_gather;
 
 			// Create hashed distribution on grouping columns as base
-			CDistributionSpec *pdsHashed = PdsMaximalHashed(mp, pdrgpcrGrpMinimal);
+			CDistributionSpec *pdsSpec =
+				PdsMaximalHashed(mp, pdrgpcrGrpMinimal);
+			CDistributionSpecHashed *pdsHashed =
+				CDistributionSpecHashed::PdsConvert(pdsSpec);
 
-			// Wrap it in WorkerRandom distribution
-			CDistributionSpecWorkerRandom *pdsWorkerRandom =
-				CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulWorkers, pdsHashed);
+			// Extract hash expressions and properties
+			CExpressionArray *pdrgpexpr = pdsHashed->Pdrgpexpr();
+			pdrgpexpr->AddRef();
+			BOOL fNullsColocated = pdsHashed->FNullsColocated();
+			IMdIdArray *opfamilies = pdsHashed->Opfamilies();
+			if (nullptr != opfamilies)
+			{
+				opfamilies->AddRef();
+			}
 
-			return pdsWorkerRandom;
+			// Release the temporary hashed distribution
+			pdsHashed->Release();
+
+			// Create HashedWorker distribution to require partial aggregation results
+			return GPOS_NEW(mp) CDistributionSpecHashedWorker(
+				pdrgpexpr, fNullsColocated, ulWorkers, opfamilies);
 		}
 
 		// If parallel workers not enabled, fall through to regular hashed requirement
@@ -599,6 +615,7 @@ CPhysicalAgg::PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const
 	// For worker-level distributions, pass through
 	// This allows aggregates to execute in parallel on workers
 
+	// For other aggregates, pass through the child's distribution
 	pds->AddRef();
 	return pds;
 }
