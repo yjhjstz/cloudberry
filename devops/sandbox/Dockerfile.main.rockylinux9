@@ -93,6 +93,7 @@ RUN dnf makecache && \
         readline-devel \
         zlib-devel && \
     dnf install -y --enablerepo=crb \
+        liburing-devel \
         libuv-devel \
         libyaml-devel \
         perl-IPC-Run \
@@ -147,6 +148,7 @@ RUN dnf -y update && \
       krb5-libs \
       libevent \
       libicu \
+      liburing \
       libuuid \
       libxml2 \
       libyaml \
