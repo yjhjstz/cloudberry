@@ -99,7 +99,8 @@ public:
 	Cast(CDXLOperator *dxl_op)
 	{
 		GPOS_ASSERT(nullptr != dxl_op);
-		GPOS_ASSERT(EdxlopPhysicalAgg == dxl_op->GetDXLOperator());
+		GPOS_ASSERT(EdxlopPhysicalAgg == dxl_op->GetDXLOperator() ||
+					EdxlopPhysicalParallelAgg == dxl_op->GetDXLOperator());
 
 		return dynamic_cast<CDXLPhysicalAgg *>(dxl_op);
 	}

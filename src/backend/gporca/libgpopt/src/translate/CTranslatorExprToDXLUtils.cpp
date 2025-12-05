@@ -1553,6 +1553,7 @@ CTranslatorExprToDXLUtils::FMotionHazardSafeOp(CDXLNode *dxlnode)
 			break;
 
 		case EdxlopPhysicalAgg:
+		case EdxlopPhysicalParallelAgg:
 		{
 			CDXLPhysicalAgg *pdxlnPhysicalAgg =
 				CDXLPhysicalAgg::Cast(dxlnode->GetOperator());

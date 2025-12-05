@@ -3548,20 +3548,20 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 
 	// Extract parallel workers from child's distribution spec
 	ULONG parallel_workers = 0;
-	CDistributionSpec *pdsChild = pexprChild->GetDrvdPropPlan()->Pds();
+	// CDistributionSpec *pdsChild = pexprChild->GetDrvdPropPlan()->Pds();
 
-	if (CDistributionSpec::EdtHashedWorker == pdsChild->Edt())
-	{
-		CDistributionSpecHashedWorker *pdsHashedWorker =
-			CDistributionSpecHashedWorker::PdsConvert(pdsChild);
-		parallel_workers = pdsHashedWorker->UlWorkers();
-	}
-	else if (CDistributionSpec::EdtWorkerRandom == pdsChild->Edt())
-	{
-		CDistributionSpecWorkerRandom *pdsWorkerRandom =
-			CDistributionSpecWorkerRandom::PdsConvert(pdsChild);
-		parallel_workers = pdsWorkerRandom->UlWorkers();
-	}
+	// if (CDistributionSpec::EdtHashedWorker == pdsChild->Edt())
+	// {
+	// 	CDistributionSpecHashedWorker *pdsHashedWorker =
+	// 		CDistributionSpecHashedWorker::PdsConvert(pdsChild);
+	// 	parallel_workers = pdsHashedWorker->UlWorkers();
+	// }
+	// else if (CDistributionSpec::EdtWorkerRandom == pdsChild->Edt())
+	// {
+	// 	CDistributionSpecWorkerRandom *pdsWorkerRandom =
+	// 		CDistributionSpecWorkerRandom::PdsConvert(pdsChild);
+	// 	parallel_workers = pdsWorkerRandom->UlWorkers();
+	// }
 
 	// Create appropriate DXL aggregate operator based on parallel workers
 	CDXLPhysicalAgg *pdxlopAgg = nullptr;

@@ -419,6 +419,7 @@ CTranslatorDXLToPlStmt::TranslateDXLOperatorToPlan(
 			break;
 		}
 		case EdxlopPhysicalAgg:
+		case EdxlopPhysicalParallelAgg:
 		{
 			plan = TranslateDXLAgg(dxlnode, output_context,
 								   ctxt_translation_prev_siblings);
