@@ -440,25 +440,29 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			// Create hashed distribution on grouping columns as base
 			CDistributionSpec *pdsSpec =
 				PdsMaximalHashed(mp, pdrgpcrGrpMinimal);
-			CDistributionSpecHashed *pdsHashed =
+			if (pdsSpec->Edt() == CDistributionSpec::EdtHashed)
+			{
+				CDistributionSpecHashed *pdsHashed =
 				CDistributionSpecHashed::PdsConvert(pdsSpec);
 
-			// Extract hash expressions and properties
-			CExpressionArray *pdrgpexpr = pdsHashed->Pdrgpexpr();
-			pdrgpexpr->AddRef();
-			BOOL fNullsColocated = pdsHashed->FNullsColocated();
-			IMdIdArray *opfamilies = pdsHashed->Opfamilies();
-			if (nullptr != opfamilies)
-			{
-				opfamilies->AddRef();
+				// Extract hash expressions and properties
+				CExpressionArray *pdrgpexpr = pdsHashed->Pdrgpexpr();
+				pdrgpexpr->AddRef();
+				BOOL fNullsColocated = pdsHashed->FNullsColocated();
+				IMdIdArray *opfamilies = pdsHashed->Opfamilies();
+				if (nullptr != opfamilies)
+				{
+					opfamilies->AddRef();
+				}
+
+				// Release the temporary hashed distribution
+				pdsHashed->Release();
+
+				// Create HashedWorker distribution to require partial aggregation results
+				return GPOS_NEW(mp) CDistributionSpecHashedWorker(
+					pdrgpexpr, fNullsColocated, ulWorkers, opfamilies);
 			}
-
-			// Release the temporary hashed distribution
-			pdsHashed->Release();
-
-			// Create HashedWorker distribution to require partial aggregation results
-			return GPOS_NEW(mp) CDistributionSpecHashedWorker(
-				pdrgpexpr, fNullsColocated, ulWorkers, opfamilies);
+			pdsSpec->Release();
 		}
 
 		// If parallel workers not enabled, fall through to regular hashed requirement
