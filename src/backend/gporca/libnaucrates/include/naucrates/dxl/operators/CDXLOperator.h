@@ -146,6 +146,7 @@ enum Edxlopid
 	EdxlopPhysicalMotionBroadcastWorkers,
 	EdxlopPhysicalLimit,
 	EdxlopPhysicalAgg,
+	EdxlopPhysicalParallelAgg,
 	EdxlopPhysicalSort,
 	EdxlopPhysicalAppend,
 	EdxlopPhysicalMaterialize,

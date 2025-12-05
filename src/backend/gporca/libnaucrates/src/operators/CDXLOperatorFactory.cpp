@@ -30,6 +30,7 @@
 #include "naucrates/dxl/operators/CDXLLogicalJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalParallelTableScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAgg.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAppend.h"
 #include "naucrates/dxl/operators/CDXLPhysicalBroadcastMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalBroadcastWorkersMotion.h"
@@ -578,9 +579,26 @@ CDXLOperatorFactory::MakeDXLAgg(CDXLMemoryManager *dxl_memory_manager,
 			EdxltokenPhysicalAggregate);
 	}
 
-	return GPOS_NEW(mp) CDXLPhysicalAgg(mp, dxl_agg_strategy, stream_safe);
-}
+	// Check for optional ParallelWorkers attribute
+	const XMLCh *parallel_workers_xml =
+		attrs.getValue(CDXLTokens::XmlstrToken(EdxltokenParallelWorkers));
 
+	if (nullptr != parallel_workers_xml)
+	{
+		// Create parallel aggregate operator
+		ULONG parallel_workers = ConvertAttrValueToUlong(
+			dxl_memory_manager, parallel_workers_xml, EdxltokenParallelWorkers,
+			EdxltokenPhysicalAggregate);
+
+		return GPOS_NEW(mp) CDXLPhysicalParallelAgg(
+			mp, dxl_agg_strategy, stream_safe, parallel_workers);
+	}
+	else
+	{
+		// Create regular aggregate operator
+		return GPOS_NEW(mp) CDXLPhysicalAgg(mp, dxl_agg_strategy, stream_safe);
+	}
+}
 
 //---------------------------------------------------------------------------
 //	@function:
