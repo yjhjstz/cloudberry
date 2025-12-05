@@ -29,6 +29,12 @@ using namespace gpopt;
 // External GUC variable for parallel execution
 extern int max_parallel_workers_per_gather;
 
+// Forward declaration for gpdbwrappers function
+namespace gpdb
+{
+bool IsParallelModeOK(void);
+}
+
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -115,12 +121,18 @@ CPhysicalAgg::CPhysicalAgg(
 	}
 	else if (COperator::EgbaggtypeGlobal == egbaggtype)
 	{
-		// Global Agg generates three optimization requests for its children:
+		// Global Agg generates optimization requests for its children:
 		// (1) Singleton distribution, if child has volatile functions
 		// (2) Hash distribution on the group by columns
+		ulDistrReqs = 2;
+
 		// (3) WorkerRandom distribution with hash base on the group by columns
 		//     This avoids unnecessary redistribution when child outputs WorkerRandom
-		ulDistrReqs = 3;
+		//     Only generate this request when parallel mode is enabled
+		if (gpdb::IsParallelModeOK())
+		{
+			ulDistrReqs = 3;
+		}
 	}
 
 	// Force enable distribution property in DQA
@@ -420,8 +432,8 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	if (2 == ulOptReq)
 	{
 		// All safety checks passed - safe to use HashedWorker distribution
-		// Get max_parallel_workers_per_gather setting
-		if (max_parallel_workers_per_gather > 0)
+		// Check if parallel mode is enabled (consistent with distribution request generation)
+		if (gpdb::IsParallelModeOK())
 		{
 			ULONG ulWorkers = (ULONG) max_parallel_workers_per_gather;
 
