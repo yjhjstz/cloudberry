@@ -118,6 +118,8 @@
 #include "naucrates/dxl/operators/CDXLPhysicalGatherMotion.h"
 #include "naucrates/dxl/operators/CDXLPhysicalHashJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalParallelHashJoin.h"
+#include "naucrates/dxl/operators/CDXLPhysicalAgg.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexOnlyScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalLimit.h"
@@ -3544,8 +3546,36 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 
 	phmululPL->Release();
 
-	CDXLPhysicalAgg *pdxlopAgg =
-		GPOS_NEW(m_mp) CDXLPhysicalAgg(m_mp, dxl_agg_strategy, stream_safe);
+	// Extract parallel workers from child's distribution spec
+	ULONG parallel_workers = 0;
+	CDistributionSpec *pdsChild = pexprChild->GetDrvdPropPlan()->Pds();
+
+	if (CDistributionSpec::EdtHashedWorker == pdsChild->Edt())
+	{
+		CDistributionSpecHashedWorker *pdsHashedWorker =
+			CDistributionSpecHashedWorker::PdsConvert(pdsChild);
+		parallel_workers = pdsHashedWorker->UlWorkers();
+	}
+	else if (CDistributionSpec::EdtWorkerRandom == pdsChild->Edt())
+	{
+		CDistributionSpecWorkerRandom *pdsWorkerRandom =
+			CDistributionSpecWorkerRandom::PdsConvert(pdsChild);
+		parallel_workers = pdsWorkerRandom->UlWorkers();
+	}
+
+	// Create appropriate DXL aggregate operator based on parallel workers
+	CDXLPhysicalAgg *pdxlopAgg = nullptr;
+	if (parallel_workers > 0)
+	{
+		// Create parallel aggregate operator
+		pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalParallelAgg(
+			m_mp, dxl_agg_strategy, stream_safe, parallel_workers);
+	}
+	else
+	{
+		// Create regular aggregate operator
+		pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalAgg(m_mp, dxl_agg_strategy, stream_safe);
+	}
 	pdxlopAgg->SetGroupingCols(pdrgpulGroupingCols);
 
 	CDXLNode *pdxlnAgg = GPOS_NEW(m_mp) CDXLNode(m_mp, pdxlopAgg);
