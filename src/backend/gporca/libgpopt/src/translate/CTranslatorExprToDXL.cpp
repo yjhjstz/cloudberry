@@ -3546,22 +3546,9 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 
 	phmululPL->Release();
 
-	// Extract parallel workers from child's distribution spec
-	ULONG parallel_workers = 0;
-	// CDistributionSpec *pdsChild = pexprChild->GetDrvdPropPlan()->Pds();
-
-	// if (CDistributionSpec::EdtHashedWorker == pdsChild->Edt())
-	// {
-	// 	CDistributionSpecHashedWorker *pdsHashedWorker =
-	// 		CDistributionSpecHashedWorker::PdsConvert(pdsChild);
-	// 	parallel_workers = pdsHashedWorker->UlWorkers();
-	// }
-	// else if (CDistributionSpec::EdtWorkerRandom == pdsChild->Edt())
-	// {
-	// 	CDistributionSpecWorkerRandom *pdsWorkerRandom =
-	// 		CDistributionSpecWorkerRandom::PdsConvert(pdsChild);
-	// 	parallel_workers = pdsWorkerRandom->UlWorkers();
-	// }
+	// Extract parallel workers directly from aggregate operator
+	CPhysicalAgg *popAgg = CPhysicalAgg::PopConvert(pexprAgg->Pop());
+	ULONG parallel_workers = popAgg->UlParallelWorkers();
 
 	// Create appropriate DXL aggregate operator based on parallel workers
 	CDXLPhysicalAgg *pdxlopAgg = nullptr;

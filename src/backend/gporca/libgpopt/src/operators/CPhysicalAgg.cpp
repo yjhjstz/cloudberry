@@ -21,7 +21,11 @@
 #include "gpopt/base/CDistributionSpecStrictSingleton.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CUtils.h"
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalParallelTableScan.h"
+#include "gpopt/operators/CPhysicalParallelHashJoin.h"
+#include "gpopt/search/CGroupProxy.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 using namespace gpopt;
@@ -57,6 +61,7 @@ CPhysicalAgg::CPhysicalAgg(
 	  m_isAggFromSplitDQA(isAggFromSplitDQA),
 	  m_aggStage(aggStage),
 	  m_aggpushdown(isAggPushdown),
+	  m_ulParallelWorkers(0),
 	  m_pdrgpcrMinimal(nullptr),
 	  m_fGeneratesDuplicates(fGeneratesDuplicates),
 	  m_pdrgpcrArgDQA(pdrgpcrArgDQA),
@@ -851,5 +856,128 @@ CPhysicalAgg::OsPrint(IOstream &os) const
 
 	return os;
 }
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalAgg::FValidContext
+//
+//	@doc:
+//		Check if optimization context is valid
+//		Extract worker count from child group during optimization
+//
+//---------------------------------------------------------------------------
+BOOL
+CPhysicalAgg::FValidContext(CMemoryPool *,  // mp
+							COptimizationContext *poc,
+							COptimizationContextArray *pdrgpocChild) const
+{
+	GPOS_ASSERT(nullptr != poc);
+
+	// Extract worker count from child optimization context (only extract once)
+	if (0 == m_ulParallelWorkers)
+	{
+		if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 1)
+		{
+			COptimizationContext *pocChild = (*pdrgpocChild)[0];
+			if (nullptr != pocChild)
+			{
+				if (poc->PccBest() != nullptr && poc->PccBest()->UlOptReq() == 2)
+				{
+					// 2 means parallel execution request
+					CGroup *pgroupChild = poc->Pgroup();
+					if (nullptr != pgroupChild)
+					{
+						m_ulParallelWorkers = UlExtractWorkersFromGroup(pgroupChild);
+					}
+				}
+			}
+		}
+	}
+
+	// For Agg, workers=0 is valid (non-parallel), so always return true
+	return true;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalAgg::UlExtractWorkersFromGroup
+//
+//	@doc:
+//		Extract worker count from child group
+//
+//---------------------------------------------------------------------------
+ULONG
+CPhysicalAgg::UlExtractWorkersFromGroup(CGroup *pgroup) const
+{
+	if (nullptr == pgroup)
+		return 0;
+
+	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
+	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
+	ULONG ulWorkers =
+		UlExtractWorkersFromGroupInternal(pgroup, visited);
+	visited->Release();
+
+	return ulWorkers;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalAgg::UlExtractWorkersFromGroupInternal
+//
+//	@doc:
+//		Internal recursive helper to extract worker count from group
+//
+//---------------------------------------------------------------------------
+ULONG
+CPhysicalAgg::UlExtractWorkersFromGroupInternal(
+	CGroup *pgroup, CBitSet *visited_groups) const
+{
+	if (nullptr == pgroup || visited_groups->Get(pgroup->Id()))
+		return 0;
+
+	visited_groups->ExchangeSet(pgroup->Id());
+
+	// Scan all physical expressions in the group
+	CGroupProxy gpChild(pgroup);
+	CGroupExpression *pgexprChild = gpChild.PgexprFirst();
+
+	while (nullptr != pgexprChild)
+	{
+		COperator *popChild = pgexprChild->Pop();
+
+		// Check for parallel table scan
+		if (COperator::EopPhysicalParallelTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelTableScan *popScan =
+				CPhysicalParallelTableScan::PopConvert(popChild);
+			return popScan->UlParallelWorkers();
+		}
+
+		// Check for nested parallel hash join
+		if (CUtils::FParallelHashJoin(popChild))
+		{
+			CPhysicalParallelHashJoin *popJoin =
+				CPhysicalParallelHashJoin::PopConvert(popChild);
+			ULONG ulWorkers = popJoin->UlProbeWorkers();
+			if (ulWorkers > 0)
+				return ulWorkers;
+		}
+
+		// Recursively check child groups
+		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
+		{
+			ULONG ulChildWorkers = UlExtractWorkersFromGroupInternal(
+				(*pgexprChild)[ul], visited_groups);
+			if (ulChildWorkers > 0)
+				return ulChildWorkers;
+		}
+
+		pgexprChild = gpChild.PgexprNext(pgexprChild);
+	}
+
+	return 0;
+}
+
 
 // EOF
