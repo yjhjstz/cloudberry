@@ -133,8 +133,8 @@ CPhysicalAgg::CPhysicalAgg(
 
 		// (3) WorkerRandom distribution with hash base on the group by columns
 		//     This avoids unnecessary redistribution when child outputs WorkerRandom
-		//     Only generate this request when parallel mode is enabled
-		if (gpdb::IsParallelModeOK())
+		//     Only generate this request when parallel mode is enabled and parallel hashagg is not disabled
+		if (gpdb::IsParallelModeOK() && !GPOS_FTRACE(EopttraceDisableParallelHashAgg))
 		{
 			ulDistrReqs = 3;
 		}
@@ -437,7 +437,7 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	if (2 == ulOptReq)
 	{
 		// All safety checks passed - safe to use HashedWorker distribution
-		// Check if parallel mode is enabled (consistent with distribution request generation)
+		// Check if parallel mode is enabled and parallel hashagg is not disabled
 		if (gpdb::IsParallelModeOK())
 		{
 			ULONG ulWorkers = (ULONG) max_parallel_workers_per_gather;

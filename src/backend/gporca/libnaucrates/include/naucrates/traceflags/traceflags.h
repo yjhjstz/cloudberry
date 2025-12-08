@@ -259,6 +259,9 @@ enum EOptTraceFlag
 	// disable parallel hash join alternatives
 	EopttraceDisableParallelHashJoin = 103054,
 
+	// disable parallel hash aggregate alternatives
+	EopttraceDisableParallelHashAgg = 103057,
+
 	///////////////////////////////////////////////////////
 	///////////////////// statistics flags ////////////////
 	//////////////////////////////////////////////////////
