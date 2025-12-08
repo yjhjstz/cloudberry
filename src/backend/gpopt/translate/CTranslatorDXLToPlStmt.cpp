@@ -1785,11 +1785,6 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelHashJoin(
 	Plan *plan = &(join->plan);
 	plan->plan_node_id = m_dxl_to_plstmt_context->GetNextPlanId();
 
-	// set parallel execution properties
-	// plan->parallel_aware = true;
-	// plan->parallel_safe = true;
-	// join parallel degree inherits from probe (left) child; set after child translation
-
 	// set join type
 	join->jointype =
 		GetGPDBJoinTypeFromDXLJoinType(parallel_hashjoin_dxlop->GetJoinType());
@@ -4611,8 +4606,6 @@ CTranslatorDXLToPlStmt::TranslateDXLResult(
 	if (will_require_result_node)
 	{
 		result->plan.lefttree = project_set_parent_plan;
-		// inherit parallel degree from project set plan
-		result->plan.parallel = project_set_parent_plan->parallel;
 		final_plan = &(result->plan);
 	}
 	else
@@ -7873,7 +7866,7 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 	{
 		// Motion node creates a slice boundary - do not recurse into child
 		// The child's parallel workers belong to the sending slice, not receiving slice
-		// Return 0 to indicate the receiving slice (current slice) has no parallel workers
+		// Return 1 to indicate the receiving slice (current slice) has no parallel workers
 		return 1;
 	}
 
