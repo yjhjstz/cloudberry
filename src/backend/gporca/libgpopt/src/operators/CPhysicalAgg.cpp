@@ -874,7 +874,7 @@ CPhysicalAgg::FValidContext(CMemoryPool *,  // mp
 	GPOS_ASSERT(nullptr != poc);
 
 	// Extract worker count from child optimization context (only extract once)
-	if (0 == m_ulParallelWorkers)
+	//if (0 == m_ulParallelWorkers)
 	{
 		if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 1)
 		{
@@ -883,8 +883,20 @@ CPhysicalAgg::FValidContext(CMemoryPool *,  // mp
 			{
 				if (poc->PccBest() != nullptr && poc->PccBest()->UlOptReq() == 2)
 				{
+					CGroupExpression *pgexprChild = pocChild->PgexprBest();
+					if (nullptr != pgexprChild)
+					{
+						COperator *popChild = pgexprChild->Pop();
+						// Check if the best child expression is an NL Join
+						if (CUtils::FNLJoin(popChild))
+						{
+							// Direct child is NLJoin
+							m_ulParallelWorkers = 0;
+							return true;
+						}
+					}
 					// 2 means parallel execution request
-					CGroup *pgroupChild = poc->Pgroup();
+					CGroup *pgroupChild = pocChild->Pgroup();
 					if (nullptr != pgroupChild)
 					{
 						m_ulParallelWorkers = UlExtractWorkersFromGroup(pgroupChild);
@@ -955,13 +967,9 @@ CPhysicalAgg::UlExtractWorkersFromGroupInternal(
 		}
 
 		// Check for nested parallel hash join
-		if (CUtils::FParallelHashJoin(popChild))
+		if (CUtils::FPhysicalMotion(popChild))
 		{
-			CPhysicalParallelHashJoin *popJoin =
-				CPhysicalParallelHashJoin::PopConvert(popChild);
-			ULONG ulWorkers = popJoin->UlProbeWorkers();
-			if (ulWorkers > 0)
-				return ulWorkers;
+			return 0;
 		}
 
 		// Recursively check child groups
