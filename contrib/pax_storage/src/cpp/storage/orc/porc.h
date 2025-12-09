@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <future>
 #include <string>
 #include <utility>
 #include <vector>
@@ -147,7 +148,7 @@ class OrcReader : public MicroPartitionReader {
  public:
   explicit OrcReader(std::unique_ptr<File> file, std::unique_ptr<File> toast_file = nullptr);
 
-  ~OrcReader() override = default;
+  ~OrcReader() override;
 
   void Open(const ReaderOptions &options) override;
 
@@ -173,7 +174,18 @@ class OrcReader : public MicroPartitionReader {
   // Clean up reading status
   void ResetCurrentReading();
 
+  // prefetch group async for `group_index`
+  void prefetch_group(size_t group_index, const std::vector<bool> &proj_cols);
+  // wait and return the prefetched group
+  std::unique_ptr<PaxColumns> get_prefetched_group(size_t group_index);
+  // clean up the prefetch status
+  void clear_prefetch_status();
+
  protected:
+  struct PrefetchGroup {
+    int group_index = -1; // -1 if not set yet
+    std::future<std::unique_ptr<PaxColumns>> future_columns;
+  };
   std::unique_ptr<MicroPartitionReader::Group> working_group_;
 
   // used to cache the group in `GetTuple`
@@ -185,6 +197,8 @@ class OrcReader : public MicroPartitionReader {
 
   OrcFormatReader format_reader_;
   bool is_closed_;
+  bool use_prefetch_ = false;
+  PrefetchGroup prefetch_group_;
 
   // only reference
   std::shared_ptr<Bitmap8> visibility_bitmap_ = nullptr;

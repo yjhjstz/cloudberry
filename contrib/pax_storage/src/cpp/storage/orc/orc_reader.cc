@@ -121,9 +121,24 @@ std::unique_ptr<MicroPartitionReader::Group> OrcReader::ReadGroup(
 
   Assert(group_index < GetGroupNums());
 
-  pax_columns = format_reader_.ReadStripe(
-      group_index,
-      filter_ ? filter_->GetColumnProjection() : std::vector<bool>{});
+  if (use_prefetch_) {
+    size_t prefetch_index = group_index + 1;
+    if (prefetch_group_.group_index == static_cast<int>(group_index)) {
+      pax_columns = get_prefetched_group(group_index);
+    }
+    // else fallthrough to fetch the current group in sync mode
+
+    if (prefetch_index < GetGroupNums()) {
+        prefetch_group(prefetch_index,
+                      filter_ ? filter_->GetColumnProjection()
+                              : std::vector<bool>{});
+    }
+  }
+  if (!pax_columns) {
+    pax_columns = format_reader_.ReadStripe(
+        group_index,
+        filter_ ? filter_->GetColumnProjection() : std::vector<bool>{});
+  }
 
 #ifdef ENABLE_DEBUG
   for (size_t i = 0; i < pax_columns->GetColumns(); i++) {
@@ -164,7 +179,10 @@ size_t OrcReader::GetTupleCountsInGroup(size_t group_index) {
 void OrcReader::Open(const ReaderOptions &options) {
   // Must not open twice.
   Assert(is_closed_);
-  if (options.reused_buffer) {
+
+  use_prefetch_ = pax::pax_enable_prefetch;
+  // prefetch group must not reuse buffer
+  if (!use_prefetch_ && options.reused_buffer) {
     CBDB_CHECK(options.reused_buffer->IsMemTakeOver(),
                cbdb::CException::ExType::kExTypeLogicError,
                "Invalid memory owner in resued buffer");
@@ -289,6 +307,44 @@ found:
       cached_group_->GetTuple(slot, row_index - cached_group_->GetRowOffset());
   SetTupleOffset(&slot->tts_tid, row_index);
   return ok;
+}
+
+void OrcReader::prefetch_group(size_t group_index,
+                              const std::vector<bool> &proj_cols) {
+  Assert(use_prefetch_);
+  if (static_cast<size_t>(prefetch_group_.group_index) == group_index) return;
+
+  prefetch_group_.future_columns = std::async(
+      std::launch::async, &OrcFormatReader::ReadStripe, &format_reader_,
+      group_index, proj_cols);
+  prefetch_group_.group_index = static_cast<int>(group_index);
+}
+
+std::unique_ptr<PaxColumns> OrcReader::get_prefetched_group(
+    size_t group_index) {
+  Assert(use_prefetch_);
+  if (static_cast<size_t>(prefetch_group_.group_index) != group_index) return nullptr;
+
+  auto pax_columns = prefetch_group_.future_columns.get();
+  prefetch_group_.group_index = -1;
+  return pax_columns;
+}
+
+void OrcReader::clear_prefetch_status() {
+  prefetch_group_.group_index = -1;
+  if (!prefetch_group_.future_columns.valid()) return;
+  // When the async thread starts, the caller may have no chance to get the future result,
+  // so consume the future result and ignore any exception.
+  // Calling this function means the prefetched result is no longer needed.
+  try {
+    (void)prefetch_group_.future_columns.get();
+  } catch (...) {
+    // ignore all exceptions
+  }
+}
+
+OrcReader::~OrcReader() {
+  clear_prefetch_status();
 }
 
 }  // namespace pax

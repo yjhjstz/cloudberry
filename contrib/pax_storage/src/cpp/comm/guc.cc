@@ -73,6 +73,9 @@ char *pax_default_storage_format = nullptr;
 int pax_bloom_filter_work_memory_bytes = PAX_BLOOM_FILTER_WORK_MEMORY_BYTES;
 bool pax_log_filter_tree = false;
 
+bool pax_enable_prefetch = false;
+bool pax_enable_iouring = true;
+
 }  // namespace pax
 
 namespace paxc {
@@ -139,6 +142,14 @@ void DefineGUCs() {
   DefineCustomBoolVariable("pax.enable_row_filter", "enable pax row filter",
                            NULL, &pax::pax_enable_row_filter, false,
                            PGC_USERSET, 0, NULL, NULL, NULL);
+
+  DefineCustomBoolVariable("pax.enable_prefetch", "enable pax prefetch",
+                           NULL, &pax::pax_enable_prefetch, false,
+                           PGC_USERSET, GUC_GPDB_NEED_SYNC, NULL, NULL, NULL);
+
+  DefineCustomBoolVariable("pax.enable_iouring", "enable pax io_uring",
+                           NULL, &pax::pax_enable_iouring, true,
+                           PGC_USERSET, GUC_GPDB_NEED_SYNC, NULL, NULL, NULL);
 
   DefineCustomIntVariable(
       "pax.scan_reuse_buffer_size", "set the reuse buffer size", NULL,

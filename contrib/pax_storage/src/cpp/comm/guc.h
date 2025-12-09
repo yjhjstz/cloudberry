@@ -44,6 +44,9 @@ extern int pax_min_size_of_external_toast;
 extern char *pax_default_storage_format;
 extern int pax_bloom_filter_work_memory_bytes;
 extern bool pax_log_filter_tree;
+
+extern bool pax_enable_prefetch;
+extern bool pax_enable_iouring;
 }  // namespace pax
 
 namespace paxc {

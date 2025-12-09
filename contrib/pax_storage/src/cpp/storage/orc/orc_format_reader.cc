@@ -1105,6 +1105,8 @@ std::unique_ptr<PaxColumns> OrcFormatReader::ReadStripe(
 
     external_toast_buffer = std::make_unique<DataBuffer<char>>(ext_total_size);
 
+    std::vector<IORequest> io_requests(projection.size());
+    size_t index = 0;
     for (const auto &range : projection) {
       CBDB_CHECK(
           external_toast_buffer->Available() >= (range.second - range.first) &&
@@ -1120,11 +1122,14 @@ std::unique_ptr<PaxColumns> OrcFormatReader::ReadStripe(
               file_->DebugString().c_str(),
               toast_file_->DebugString().c_str()));
 
-      toast_file_->PReadN(external_toast_buffer->GetAvailableBuffer(),
-                          range.second - range.first,
-                          stripe_info.toastoffset() + range.first);
+      auto &req = io_requests[index++];
+      req.offset = stripe_info.toastoffset() + range.first;
+      req.size = range.second - range.first;
+      req.buffer = external_toast_buffer->GetAvailableBuffer();
       external_toast_buffer->Brush(range.second - range.first);
     }
+    if (index > 0)
+      toast_file_->ReadBatch(io_requests);
 
     Assert(external_toast_buffer->Available() == 0);
 

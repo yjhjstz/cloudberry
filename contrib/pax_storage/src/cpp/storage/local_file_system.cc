@@ -37,6 +37,7 @@
 #include "comm/cbdb_wrappers.h"
 #include "comm/fast_io.h"
 #include "comm/fmt.h"
+#include "comm/guc.h"
 #include "comm/pax_memory.h"
 #include "comm/pax_resource.h"
 #include "exceptions/CException.h"
@@ -137,7 +138,7 @@ ssize_t LocalFile::PWrite(const void *ptr, size_t n, off_t offset) {
 void LocalFile::ReadBatch(const std::vector<IORequest> &requests) const {
   if (unlikely(requests.empty())) return;
 
-  if (IOUringFastIO::available()) {
+  if (pax::pax_enable_iouring && IOUringFastIO::available()) {
     IOUringFastIO fast_io(requests.size());
     std::vector<bool> result(requests.size(), false);
     auto res = fast_io.read(fd_, const_cast<std::vector<IORequest>&>(requests), result);
