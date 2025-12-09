@@ -121,6 +121,10 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal(
 				CPhysicalParallelTableScan::PopConvert(popChild);
 			return popScan->UlParallelWorkers();
 		}
+		if (CUtils::FPhysicalMotion(popChild))
+		{
+			return 0;
+		}
 
 		// Recursively check all children (Motion nodes, joins, etc.)
 		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
@@ -778,7 +782,7 @@ CPhysicalParallelHashJoin::FValidContext(
 			return false;
 		}
 	}
-
+#if 0
 	// Reject if direct child is a Nested Loop Join (non-recursive check)
 	// NL Join is inherently sequential and cannot execute in parallel
 	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
@@ -802,7 +806,7 @@ CPhysicalParallelHashJoin::FValidContext(
 			}
 		}
 	}
-
+#endif
 	// Lightweight pruning based on children required distributions (when available).
 	// Do NOT attempt to inspect derived child properties here. We only reject
 	// obviously incompatible contexts to reduce search:
@@ -836,7 +840,8 @@ CPhysicalParallelHashJoin::FValidContext(
 
 		// Outer/probe side must allow parallelism: require Any or WorkerRandom.
 		if (dtOuter != CDistributionSpec::EdtAny &&
-			dtOuter != CDistributionSpec::EdtWorkerRandom)
+			dtOuter != CDistributionSpec::EdtWorkerRandom &&
+			dtOuter != CDistributionSpec::EdtHashedWorker)
 		{
 			return false;
 		}
@@ -854,7 +859,8 @@ CPhysicalParallelHashJoin::FValidContext(
 		if (dtInner != CDistributionSpec::EdtAny &&
 			dtInner != CDistributionSpec::EdtWorkerRandom &&
 			dtInner != CDistributionSpec::EdtReplicatedWorkers &&
-			dtInner != CDistributionSpec::EdtHashed)
+			dtInner != CDistributionSpec::EdtHashed &&
+			dtInner != CDistributionSpec::EdtHashedWorker)
 		{
 			// Inner child requires a distribution incompatible with parallel hash join
 			// (e.g., coordinator-only distribution, universal distribution, etc.)
