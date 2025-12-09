@@ -3549,10 +3549,12 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 	// Extract parallel workers directly from aggregate operator
 	CPhysicalAgg *popAgg = CPhysicalAgg::PopConvert(pexprAgg->Pop());
 	ULONG parallel_workers = popAgg->UlParallelWorkers();
+	CDistributionSpec *pdsChild = pexprChild->GetDrvdPropPlan()->Pds();
 
 	// Create appropriate DXL aggregate operator based on parallel workers
 	CDXLPhysicalAgg *pdxlopAgg = nullptr;
-	if (parallel_workers > 0)
+	if (parallel_workers > 0 && (CDistributionSpec::EdtHashedWorker == pdsChild->Edt() ||
+								CDistributionSpec::EdtWorkerRandom == pdsChild->Edt()))
 	{
 		// Create parallel aggregate operator
 		pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalParallelAgg(
