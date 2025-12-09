@@ -853,7 +853,10 @@ CPhysicalAgg::OsPrint(IOstream &os) const
 	{
 		os << ", m_aggStage :[ Three Stage Scalar DQA ] ";
 	}
-
+	if (m_ulParallelWorkers > 0)
+	{
+		os << ", Parallel Workers :[ " << m_ulParallelWorkers << " ] ";
+	}
 	return os;
 }
 

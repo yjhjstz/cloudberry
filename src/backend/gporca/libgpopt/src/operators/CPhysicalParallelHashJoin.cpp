@@ -121,6 +121,10 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal(
 				CPhysicalParallelTableScan::PopConvert(popChild);
 			return popScan->UlParallelWorkers();
 		}
+		if (CUtils::FPhysicalMotion(popChild))
+		{
+			return 0;
+		}
 
 		// Recursively check all children (Motion nodes, joins, etc.)
 		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
