@@ -123,6 +123,7 @@ public:
 		ExfGbAgg2HashAgg,
 		ExfGbAgg2ParallelHashAgg,
 		ExfGbAgg2StreamAgg,
+		ExfGbAgg2ParallelStreamAgg,
 		ExfGbAgg2ScalarAgg,
 		ExfGbAggDedup2HashAggDedup,
 		ExfGbAggDedup2StreamAggDedup,

@@ -607,6 +607,7 @@ CLogicalGbAgg::PxfsCandidates(CMemoryPool *mp) const
 	(void) xform_set->ExchangeSet(CXform::ExfGbAgg2HashAgg);
 	(void) xform_set->ExchangeSet(CXform::ExfGbAgg2ParallelHashAgg);
 	(void) xform_set->ExchangeSet(CXform::ExfGbAgg2StreamAgg);
+	(void) xform_set->ExchangeSet(CXform::ExfGbAgg2ParallelStreamAgg);
 	(void) xform_set->ExchangeSet(CXform::ExfGbAgg2ScalarAgg);
 	(void) xform_set->ExchangeSet(CXform::ExfEagerAgg);
 	(void) xform_set->ExchangeSet(CXform::ExfMinMax2IndexGet);

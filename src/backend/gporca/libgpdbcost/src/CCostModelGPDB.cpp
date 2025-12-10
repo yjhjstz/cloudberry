@@ -28,6 +28,7 @@
 #include "gpopt/operators/CPhysicalDynamicIndexScan.h"
 #include "gpopt/operators/CPhysicalHashAgg.h"
 #include "gpopt/operators/CPhysicalParallelHashAgg.h"
+#include "gpopt/operators/CPhysicalParallelStreamAgg.h"
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalParallelTableScan.h"
@@ -636,7 +637,8 @@ CCostModelGPDB::CostStreamAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 #ifdef GPOS_DEBUG
 	COperator::EOperatorId op_id = exprhdl.Pop()->Eopid();
 	GPOS_ASSERT(COperator::EopPhysicalStreamAgg == op_id ||
-				COperator::EopPhysicalStreamAggDeduplicate == op_id);
+				COperator::EopPhysicalStreamAggDeduplicate == op_id ||
+				COperator::EopPhysicalParallelStreamAgg == op_id);
 #endif	// GPOS_DEBUG
 
 	const CDouble dHashAggOutputTupWidthCostUnit =
@@ -680,6 +682,71 @@ CCostModelGPDB::CostStreamAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	CCost costChild =
 		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
 	return costLocal + costChild;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CCostModelGPDB::CostParallelStreamAgg
+//
+//	@doc:
+//		Cost of parallel stream aggregate
+//
+//---------------------------------------------------------------------------
+CCost
+CCostModelGPDB::CostParallelStreamAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									  const CCostModelGPDB *pcmgpdb,
+									  const SCostingInfo *pci)
+{
+	GPOS_ASSERT(nullptr != pcmgpdb);
+	GPOS_ASSERT(nullptr != pci);
+
+	COperator *pop = exprhdl.Pop();
+	GPOS_ASSERT(COperator::EopPhysicalParallelStreamAgg == pop->Eopid());
+
+	CPhysicalParallelStreamAgg *popParallelAgg =
+		CPhysicalParallelStreamAgg::PopConvert(pop);
+	ULONG ulWorkers = popParallelAgg->UlParallelWorkers();
+
+	// Fall back to serial stream agg if workers <= 1
+	if (ulWorkers <= 1)
+	{
+		return CostStreamAgg(mp, exprhdl, pcmgpdb, pci);
+	}
+
+	const CDouble dHashAggOutputTupWidthCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHashAggOutputTupWidthCostUnit)
+			->Get();
+	const CDouble dTupDefaultProcCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpTupDefaultProcCostUnit)
+			->Get();
+	GPOS_ASSERT(0 < dHashAggOutputTupWidthCostUnit);
+	GPOS_ASSERT(0 < dTupDefaultProcCostUnit);
+
+	DOUBLE num_input_rows = pci->PdRows()[0];
+	DOUBLE dWidthOuter = pci->GetWidth()[0];
+	DOUBLE num_output_rows = pci->Rows();
+
+	if ((COperator::EgbaggtypeLocal == popParallelAgg->Egbaggtype()) &&
+		popParallelAgg->FGeneratesDuplicates())
+	{
+		num_output_rows = num_output_rows * pcmgpdb->UlHosts();
+	}
+
+	// Calculate base stream agg cost
+	CDouble dBaseStreamAggCost =
+		num_input_rows * dWidthOuter * dTupDefaultProcCostUnit +
+		num_output_rows * pci->Width() * dHashAggOutputTupWidthCostUnit;
+
+	// Apply parallel efficiency factor
+	CDouble dParallelEfficiency = CalculateParallelEfficiency(ulWorkers);
+	CDouble dParallelStreamAggCost = dBaseStreamAggCost / (ulWorkers * dParallelEfficiency);
+
+	CCost costChild = CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
+
+	return CCost(pci->NumRebinds() * dParallelStreamAggCost) + costChild;
 }
 
 
@@ -3032,6 +3099,11 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalStreamAggDeduplicate:
 		{
 			return CostStreamAgg(m_mp, exprhdl, this, pci);
+		}
+
+		case COperator::EopPhysicalParallelStreamAgg:
+		{
+			return CostParallelStreamAgg(m_mp, exprhdl, this, pci);
 		}
 
 		case COperator::EopPhysicalSequence:

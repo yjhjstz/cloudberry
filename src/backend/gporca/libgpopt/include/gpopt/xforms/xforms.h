@@ -49,6 +49,7 @@
 #include "gpopt/xforms/CXformGbAgg2ParallelHashAgg.h"
 #include "gpopt/xforms/CXformGbAgg2ScalarAgg.h"
 #include "gpopt/xforms/CXformGbAgg2StreamAgg.h"
+#include "gpopt/xforms/CXformGbAgg2ParallelStreamAgg.h"
 #include "gpopt/xforms/CXformGbAggDedup2HashAggDedup.h"
 #include "gpopt/xforms/CXformGbAggDedup2StreamAggDedup.h"
 #include "gpopt/xforms/CXformGbAggWithMDQA2Join.h"

@@ -44,6 +44,7 @@
 #include "gpopt/operators/CPhysicalDynamicTableScan.h"
 #include "gpopt/operators/CPhysicalHashAgg.h"
 #include "gpopt/operators/CPhysicalParallelHashAgg.h"
+#include "gpopt/operators/CPhysicalParallelStreamAgg.h"
 #include "gpopt/operators/CPhysicalHashAggDeduplicate.h"
 #include "gpopt/operators/CPhysicalHashJoin.h"
 #include "gpopt/operators/CPhysicalParallelHashJoin.h"
@@ -404,6 +405,7 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 				pfDML);
 			break;
 		case COperator::EopPhysicalParallelHashAgg:
+		case COperator::EopPhysicalParallelStreamAgg:
 			dxlnode = CTranslatorExprToDXL::PdxlnParallelAggregate(
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
@@ -3462,24 +3464,54 @@ CTranslatorExprToDXL::PdxlnParallelAggregate(
 	BOOL *pfDML)
 {
 	GPOS_ASSERT(nullptr != pexprParallelAgg);
-	GPOS_ASSERT(COperator::EopPhysicalParallelHashAgg == pexprParallelAgg->Pop()->Eopid());
 
-	// Extract parallel hash aggregate operator
-	CPhysicalParallelHashAgg *popParallelHashAgg =
-		CPhysicalParallelHashAgg::PopConvert(pexprParallelAgg->Pop());
+	COperator::EOperatorId op_id = pexprParallelAgg->Pop()->Eopid();
+
+	CColRefSet *pcrsKeys = nullptr;
+	// extract components and construct an aggregate node
+	CPhysicalAgg *popAgg = nullptr;
+
+	GPOS_ASSERT(COperator::EopPhysicalParallelHashAgg == op_id ||
+				COperator::EopPhysicalParallelStreamAgg == op_id);
+
+	EdxlAggStrategy dxl_agg_strategy = EdxlaggstrategySentinel;
+
+	// Extract parallel aggregate operator (base class handles both hash and stream)
+	switch (op_id)
+	{
+		case COperator::EopPhysicalParallelStreamAgg:
+		{
+			popAgg = CPhysicalParallelStreamAgg::PopConvert(pexprParallelAgg->Pop());
+			dxl_agg_strategy = EdxlaggstrategySorted;
+			break;
+		}
+		case COperator::EopPhysicalParallelHashAgg:
+		{
+			popAgg = CPhysicalParallelHashAgg::PopConvert(pexprParallelAgg->Pop());
+			dxl_agg_strategy = EdxlaggstrategyHashed;
+			break;
+		}
+		// case COperator::EopPhysicalScalarAgg:
+		// {
+		// 	popAgg = CPhysicalScalarAgg::PopConvert(pexprParallelAgg->Pop());
+		// 	dxl_agg_strategy = EdxlaggstrategyPlain;
+		// 	break;
+		// }
+		default:
+		{
+			return nullptr;	 // to silence the compiler
+		}
+	}
 
 	// Get grouping columns
-	const CColRefArray *pdrgpcrGroupingCols =
-		popParallelHashAgg->PdrgpcrGroupingCols();
+	const CColRefArray *pdrgpcrGroupingCols = popAgg->PdrgpcrGroupingCols();
 
 	// Get parallel workers count
-	ULONG parallel_workers = popParallelHashAgg->UlParallelWorkers();
+	ULONG parallel_workers = popAgg->UlParallelWorkers();
 	GPOS_ASSERT(parallel_workers > 0 && "Parallel aggregate must have workers > 0");
 
-	// Use hashed aggregation strategy for parallel hash agg
-	EdxlAggStrategy dxl_agg_strategy = EdxlaggstrategyHashed;
 
-	// Check if it's safe to stream the local hash aggregate
+	// Check if it's safe to stream the local aggregate
 	BOOL stream_safe =
 		CTranslatorExprToDXLUtils::FLocalHashAggStreamSafe(pexprParallelAgg);
 
@@ -3534,7 +3566,8 @@ CTranslatorExprToDXL::PdxlnParallelAggregate(
 		CColRef *pcrGroupingCol = (*pdrgpcrGroupingCols)[ul];
 
 		// For parallel hash agg without join keys, add all grouping columns
-		if (!pcrsRequired->FMember(pcrGroupingCol))
+		if (nullptr != pcrsKeys && !pcrsKeys->FMember(pcrGroupingCol) &&
+			!pcrsRequired->FMember(pcrGroupingCol))
 		{
 			continue;
 		}
@@ -3601,6 +3634,7 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 					COperator::EopPhysicalStreamAgg == op_id ||
 						COperator::EopPhysicalHashAgg == op_id ||
 						COperator::EopPhysicalParallelHashAgg == op_id ||
+						COperator::EopPhysicalParallelStreamAgg == op_id ||
 						COperator::EopPhysicalScalarAgg == op_id);
 #endif	//GPOS_DEBUG
 

@@ -143,6 +143,7 @@ OBJS        = CExpression.o \
               CPhysicalSplit.o \
               CPhysicalSpool.o \
               CPhysicalStreamAgg.o \
+              CPhysicalParallelStreamAgg.o \
               CPhysicalStreamAggDeduplicate.o \
               CPhysicalTVF.o \
               CPhysicalTableScan.o \

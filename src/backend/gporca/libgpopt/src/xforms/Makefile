@@ -44,6 +44,7 @@ OBJS        = CDecorrelator.o \
               CXformGbAgg2ParallelHashAgg.o \
               CXformGbAgg2ScalarAgg.o \
               CXformGbAgg2StreamAgg.o \
+              CXformGbAgg2ParallelStreamAgg.o \
               CXformGbAggDedup2HashAggDedup.o \
               CXformGbAggDedup2StreamAggDedup.o \
               CXformGbAggWithMDQA2Join.o \

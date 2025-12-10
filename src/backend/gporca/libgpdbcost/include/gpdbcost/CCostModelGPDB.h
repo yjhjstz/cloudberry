@@ -158,6 +158,11 @@ private:
 							   const CCostModelGPDB *pcmgpdb,
 							   const SCostingInfo *pci);
 
+	// cost of parallel stream agg
+	static CCost CostParallelStreamAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									   const CCostModelGPDB *pcmgpdb,
+									   const SCostingInfo *pci);
+
 	// cost of sequence
 	static CCost CostSequence(CMemoryPool *mp, CExpressionHandle &exprhdl,
 							  const CCostModelGPDB *pcmgpdb,
