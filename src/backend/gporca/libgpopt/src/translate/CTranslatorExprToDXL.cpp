@@ -43,6 +43,7 @@
 #include "gpopt/operators/CPhysicalDynamicIndexScan.h"
 #include "gpopt/operators/CPhysicalDynamicTableScan.h"
 #include "gpopt/operators/CPhysicalHashAgg.h"
+#include "gpopt/operators/CPhysicalParallelHashAgg.h"
 #include "gpopt/operators/CPhysicalHashAggDeduplicate.h"
 #include "gpopt/operators/CPhysicalHashJoin.h"
 #include "gpopt/operators/CPhysicalParallelHashJoin.h"
@@ -399,6 +400,11 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 		case COperator::EopPhysicalHashAgg:
 		case COperator::EopPhysicalStreamAgg:
 			dxlnode = CTranslatorExprToDXL::PdxlnAggregate(
+				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
+				pfDML);
+			break;
+		case COperator::EopPhysicalParallelHashAgg:
+			dxlnode = CTranslatorExprToDXL::PdxlnParallelAggregate(
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
 			break;
@@ -3443,6 +3449,135 @@ CTranslatorExprToDXL::PdxlnAggregateDedup(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CTranslatorExprToDXL::PdxlnParallelAggregate
+//
+//	@doc:
+//		Create a DXL parallel aggregate node from an optimizer parallel hash agg expression
+//
+//---------------------------------------------------------------------------
+CDXLNode *
+CTranslatorExprToDXL::PdxlnParallelAggregate(
+	CExpression *pexprParallelAgg, CColRefArray *colref_array,
+	CDistributionSpecArray *pdrgpdsBaseTables, ULONG *pulNonGatherMotions,
+	BOOL *pfDML)
+{
+	GPOS_ASSERT(nullptr != pexprParallelAgg);
+	GPOS_ASSERT(COperator::EopPhysicalParallelHashAgg == pexprParallelAgg->Pop()->Eopid());
+
+	// Extract parallel hash aggregate operator
+	CPhysicalParallelHashAgg *popParallelHashAgg =
+		CPhysicalParallelHashAgg::PopConvert(pexprParallelAgg->Pop());
+
+	// Get grouping columns
+	const CColRefArray *pdrgpcrGroupingCols =
+		popParallelHashAgg->PdrgpcrGroupingCols();
+
+	// Get parallel workers count
+	ULONG parallel_workers = popParallelHashAgg->UlParallelWorkers();
+	GPOS_ASSERT(parallel_workers > 0 && "Parallel aggregate must have workers > 0");
+
+	// Use hashed aggregation strategy for parallel hash agg
+	EdxlAggStrategy dxl_agg_strategy = EdxlaggstrategyHashed;
+
+	// Check if it's safe to stream the local hash aggregate
+	BOOL stream_safe =
+		CTranslatorExprToDXLUtils::FLocalHashAggStreamSafe(pexprParallelAgg);
+
+	CExpression *pexprChild = (*pexprParallelAgg)[0];
+	CExpression *pexprProjList = (*pexprParallelAgg)[1];
+
+	// translate relational child expression
+	CDXLNode *child_dxlnode =
+		CreateDXLNode(pexprChild,
+					  nullptr,	// colref_array,
+					  pdrgpdsBaseTables, pulNonGatherMotions, pfDML,
+					  false,  // fRemap,
+					  false	  // fRoot
+		);
+
+	// compute required columns
+	GPOS_ASSERT(nullptr != pexprParallelAgg->Prpp());
+	CColRefSet *pcrsRequired = pexprParallelAgg->Prpp()->PcrsRequired();
+
+	// translate project list expression
+	CDXLNode *proj_list_dxlnode =
+		PdxlnProjList(pexprProjList, pcrsRequired, colref_array);
+
+	// create an empty filter
+	CDXLNode *filter_dxlnode =
+		GPOS_NEW(m_mp) CDXLNode(m_mp, GPOS_NEW(m_mp) CDXLScalarFilter(m_mp));
+
+	// construct grouping columns list and check if all the grouping columns are
+	// already in the project list of the aggregate operator
+
+	const ULONG num_cols = proj_list_dxlnode->Arity();
+	UlongToUlongMap *phmululPL = GPOS_NEW(m_mp) UlongToUlongMap(m_mp);
+	for (ULONG ul = 0; ul < num_cols; ul++)
+	{
+		CDXLNode *pdxlnProjElem = (*proj_list_dxlnode)[ul];
+		ULONG colid =
+			CDXLScalarProjElem::Cast(pdxlnProjElem->GetOperator())->Id();
+
+		if (nullptr == phmululPL->Find(&colid))
+		{
+			BOOL fRes GPOS_ASSERTS_ONLY = phmululPL->Insert(
+				GPOS_NEW(m_mp) ULONG(colid), GPOS_NEW(m_mp) ULONG(colid));
+			GPOS_ASSERT(fRes);
+		}
+	}
+
+	ULongPtrArray *pdrgpulGroupingCols = GPOS_NEW(m_mp) ULongPtrArray(m_mp);
+
+	const ULONG length = pdrgpcrGroupingCols->Size();
+	for (ULONG ul = 0; ul < length; ul++)
+	{
+		CColRef *pcrGroupingCol = (*pdrgpcrGroupingCols)[ul];
+
+		// For parallel hash agg without join keys, add all grouping columns
+		if (!pcrsRequired->FMember(pcrGroupingCol))
+		{
+			continue;
+		}
+
+		pdrgpulGroupingCols->Append(GPOS_NEW(m_mp) ULONG(pcrGroupingCol->Id()));
+
+		ULONG colid = pcrGroupingCol->Id();
+		if (nullptr == phmululPL->Find(&colid))
+		{
+			CDXLNode *pdxlnProjElem = CTranslatorExprToDXLUtils::PdxlnProjElem(
+				m_mp, m_phmcrdxln, pcrGroupingCol);
+			proj_list_dxlnode->AddChild(pdxlnProjElem);
+			BOOL fRes GPOS_ASSERTS_ONLY = phmululPL->Insert(
+				GPOS_NEW(m_mp) ULONG(colid), GPOS_NEW(m_mp) ULONG(colid));
+			GPOS_ASSERT(fRes);
+		}
+	}
+
+	phmululPL->Release();
+
+	// Create parallel aggregate operator with worker count
+	CDXLPhysicalAgg *pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalParallelAgg(
+		m_mp, dxl_agg_strategy, stream_safe, parallel_workers);
+	pdxlopAgg->SetGroupingCols(pdrgpulGroupingCols);
+
+	CDXLNode *pdxlnAgg = GPOS_NEW(m_mp) CDXLNode(m_mp, pdxlopAgg);
+	CDXLPhysicalProperties *dxl_properties = GetProperties(pexprParallelAgg);
+	pdxlnAgg->SetProperties(dxl_properties);
+
+	// add children
+	pdxlnAgg->AddChild(proj_list_dxlnode);
+	pdxlnAgg->AddChild(filter_dxlnode);
+	pdxlnAgg->AddChild(child_dxlnode);
+
+#ifdef GPOS_DEBUG
+	pdxlopAgg->AssertValid(pdxlnAgg, false /* validate_children */);
+#endif
+
+	return pdxlnAgg;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CTranslatorExprToDXL::PdxlnAggregate
 //
 //	@doc:
@@ -3465,6 +3600,7 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 	GPOS_ASSERT_IMP(nullptr == pcrsKeys,
 					COperator::EopPhysicalStreamAgg == op_id ||
 						COperator::EopPhysicalHashAgg == op_id ||
+						COperator::EopPhysicalParallelHashAgg == op_id ||
 						COperator::EopPhysicalScalarAgg == op_id);
 #endif	//GPOS_DEBUG
 
@@ -3546,23 +3682,8 @@ CTranslatorExprToDXL::PdxlnAggregate(CExpression *pexprAgg,
 
 	phmululPL->Release();
 
-	// Extract parallel workers directly from aggregate operator
-	CPhysicalAgg *popAgg = CPhysicalAgg::PopConvert(pexprAgg->Pop());
-	ULONG parallel_workers = popAgg->UlParallelWorkers();
-
-	// Create appropriate DXL aggregate operator based on parallel workers
-	CDXLPhysicalAgg *pdxlopAgg = nullptr;
-	if (parallel_workers > 0)
-	{
-		// Create parallel aggregate operator
-		pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalParallelAgg(
-			m_mp, dxl_agg_strategy, stream_safe, parallel_workers);
-	}
-	else
-	{
-		// Create regular aggregate operator
-		pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalAgg(m_mp, dxl_agg_strategy, stream_safe);
-	}
+	// Create regular aggregate operator
+	CDXLPhysicalAgg	*pdxlopAgg = GPOS_NEW(m_mp) CDXLPhysicalAgg(m_mp, dxl_agg_strategy, stream_safe);
 	pdxlopAgg->SetGroupingCols(pdrgpulGroupingCols);
 
 	CDXLNode *pdxlnAgg = GPOS_NEW(m_mp) CDXLNode(m_mp, pdxlopAgg);

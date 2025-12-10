@@ -227,6 +227,11 @@ private:
 								  CDistributionSpecArray *pdrgpdsBaseTables,
 								  ULONG *pulNonGatherMotions, BOOL *pfDML);
 
+	CDXLNode *PdxlnParallelAggregate(CExpression *pexprParallelAgg,
+									 CColRefArray *colref_array,
+									 CDistributionSpecArray *pdrgpdsBaseTables,
+									 ULONG *pulNonGatherMotions, BOOL *pfDML);
+
 	CDXLNode *PdxlnAggregate(CExpression *pexprAgg, CColRefArray *colref_array,
 							 CDistributionSpecArray *pdrgpdsBaseTables,
 							 ULONG *pulNonGatherMotions, BOOL *pfDML,

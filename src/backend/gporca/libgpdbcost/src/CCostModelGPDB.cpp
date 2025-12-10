@@ -27,6 +27,7 @@
 #include "gpopt/operators/CPhysicalDynamicIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalDynamicIndexScan.h"
 #include "gpopt/operators/CPhysicalHashAgg.h"
+#include "gpopt/operators/CPhysicalParallelHashAgg.h"
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalParallelTableScan.h"
@@ -829,7 +830,8 @@ CCostModelGPDB::CostHashAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 #ifdef GPOS_DEBUG
 	COperator::EOperatorId op_id = exprhdl.Pop()->Eopid();
 	GPOS_ASSERT(COperator::EopPhysicalHashAgg == op_id ||
-				COperator::EopPhysicalHashAggDeduplicate == op_id);
+				COperator::EopPhysicalHashAggDeduplicate == op_id ||
+				COperator::EopPhysicalParallelHashAgg == op_id);
 #endif	// GPOS_DEBUG
 
 	DOUBLE num_input_rows = pci->PdRows()[0];  // estimated input rows
@@ -901,6 +903,84 @@ CCostModelGPDB::CostHashAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
 
 	return costLocal + costChild;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CCostModelGPDB::CostParallelHashAgg
+//
+//	@doc:
+//		Cost of parallel hash agg
+//
+//---------------------------------------------------------------------------
+CCost
+CCostModelGPDB::CostParallelHashAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									const CCostModelGPDB *pcmgpdb,
+									const SCostingInfo *pci)
+{
+	GPOS_ASSERT(nullptr != pcmgpdb);
+	GPOS_ASSERT(nullptr != pci);
+
+	COperator *pop = exprhdl.Pop();
+	GPOS_ASSERT(COperator::EopPhysicalParallelHashAgg == pop->Eopid());
+
+	// Get the parallel hash agg operator
+	CPhysicalParallelHashAgg *popParallelAgg =
+		CPhysicalParallelHashAgg::PopConvert(pop);
+	ULONG ulWorkers = popParallelAgg->UlParallelWorkers();
+
+	// If only 1 worker, use regular hash agg cost
+	if (ulWorkers <= 1)
+	{
+		return CostHashAgg(mp, exprhdl, pcmgpdb, pci);
+	}
+
+	// Get input/output row estimates
+	DOUBLE num_input_rows = pci->PdRows()[0];
+	DOUBLE num_output_rows = pci->Rows();
+
+	// Handle local agg with duplicates (same logic as CostHashAgg)
+	if ((COperator::EgbaggtypeLocal == popParallelAgg->Egbaggtype()) &&
+		popParallelAgg->FGeneratesDuplicates())
+	{
+		num_output_rows = num_output_rows * pcmgpdb->UlHosts();
+	}
+
+	// Get the number of grouping columns
+	const ULONG ulGrpCols = popParallelAgg->PdrgpcrGroupingCols()->Size();
+
+	// Get cost parameters
+	const CDouble dHashAggInputTupColumnCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHashAggInputTupColumnCostUnit)
+			->Get();
+	const CDouble dHashAggInputTupWidthCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHashAggInputTupWidthCostUnit)
+			->Get();
+	const CDouble dHashAggOutputTupWidthCostUnit =
+		pcmgpdb->GetCostModelParams()
+			->PcpLookup(CCostModelParamsGPDB::EcpHashAggOutputTupWidthCostUnit)
+			->Get();
+
+	// Calculate base hash agg cost (same formula as CostHashAgg)
+	CDouble dBaseAggCost =
+		num_input_rows * ulGrpCols * dHashAggInputTupColumnCostUnit +
+		num_input_rows * ulGrpCols * pci->Width() * dHashAggInputTupWidthCostUnit +
+		num_output_rows * pci->Width() * dHashAggOutputTupWidthCostUnit;
+
+	// Calculate parallel efficiency (decreases with more workers)
+	CDouble dParallelEfficiency = CalculateParallelEfficiency(ulWorkers);
+
+	// Parallel agg cost = base cost / (workers * efficiency)
+	CDouble dParallelAggCost = dBaseAggCost / (ulWorkers * dParallelEfficiency);
+
+	// Calculate child cost
+	CCost costChild = CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
+
+	// Total cost
+	return CCost(pci->NumRebinds() * dParallelAggCost) + costChild;
 }
 
 
@@ -2936,6 +3016,11 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalHashAggDeduplicate:
 		{
 			return CostHashAgg(m_mp, exprhdl, this, pci);
+		}
+
+		case COperator::EopPhysicalParallelHashAgg:
+		{
+			return CostParallelHashAgg(m_mp, exprhdl, this, pci);
 		}
 
 		case COperator::EopPhysicalScalarAgg:

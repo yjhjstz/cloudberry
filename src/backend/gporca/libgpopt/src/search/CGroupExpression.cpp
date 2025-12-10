@@ -196,7 +196,7 @@ CGroupExpression::SetOptimizationLevel()
 	{
 		BOOL fPreferMultiStageAgg = GPOS_FTRACE(EopttraceForceMultiStageAgg);
 		if (!fPreferMultiStageAgg &&
-			COperator::EopPhysicalHashAgg == m_pop->Eopid())
+			COperator::EopPhysicalHashAgg == m_pop->Eopid()) //FIXME
 		{
 			// if we choose agg plans based on cost only (no preference for multi-stage agg),
 			// we optimize hash agg first to to minimize plan cost quickly

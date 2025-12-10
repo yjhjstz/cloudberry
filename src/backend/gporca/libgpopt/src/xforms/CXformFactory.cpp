@@ -199,6 +199,7 @@ CXformFactory::Instantiate()
 	Add(GPOS_NEW(m_mp) CXformLeftAntiSemiJoin2HashJoin(m_mp));
 	Add(GPOS_NEW(m_mp) CXformLeftAntiSemiJoinNotIn2HashJoinNotIn(m_mp));
 	Add(GPOS_NEW(m_mp) CXformGbAgg2HashAgg(m_mp));
+	Add(GPOS_NEW(m_mp) CXformGbAgg2ParallelHashAgg(m_mp));
 	Add(GPOS_NEW(m_mp) CXformGbAgg2StreamAgg(m_mp));
 	Add(GPOS_NEW(m_mp) CXformGbAgg2ScalarAgg(m_mp));
 	Add(GPOS_NEW(m_mp) CXformGbAggDedup2HashAggDedup(m_mp));

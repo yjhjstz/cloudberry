@@ -61,7 +61,6 @@ CPhysicalAgg::CPhysicalAgg(
 	  m_isAggFromSplitDQA(isAggFromSplitDQA),
 	  m_aggStage(aggStage),
 	  m_aggpushdown(isAggPushdown),
-	  m_ulParallelWorkers(0),
 	  m_pdrgpcrMinimal(nullptr),
 	  m_fGeneratesDuplicates(fGeneratesDuplicates),
 	  m_pdrgpcrArgDQA(pdrgpcrArgDQA),
@@ -71,6 +70,7 @@ CPhysicalAgg::CPhysicalAgg(
 	GPOS_ASSERT(nullptr != colref_array);
 	GPOS_ASSERT(COperator::EgbaggtypeSentinel > egbaggtype);
 	GPOS_ASSERT_IMP(EgbaggtypeGlobal != egbaggtype, fMultiStage);
+	m_ulParallelWorkers = 0;
 
 	ULONG ulDistrReqs = 1;
 	if (pdrgpcrMinimal == nullptr || 0 == pdrgpcrMinimal->Size())
@@ -134,10 +134,10 @@ CPhysicalAgg::CPhysicalAgg(
 		// (3) WorkerRandom distribution with hash base on the group by columns
 		//     This avoids unnecessary redistribution when child outputs WorkerRandom
 		//     Only generate this request when parallel mode is enabled and parallel hashagg is not disabled
-		if (gpdb::IsParallelModeOK() && !GPOS_FTRACE(EopttraceDisableParallelHashAgg))
-		{
-			ulDistrReqs = 3;
-		}
+		// if (gpdb::IsParallelModeOK() && !GPOS_FTRACE(EopttraceDisableParallelHashAgg))
+		// {
+		// 	ulDistrReqs = 3;
+		// }
 	}
 
 	// Force enable distribution property in DQA
@@ -857,6 +857,7 @@ CPhysicalAgg::OsPrint(IOstream &os) const
 	return os;
 }
 
+#if 0
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalAgg::FValidContext
@@ -909,6 +910,7 @@ CPhysicalAgg::FValidContext(CMemoryPool *,  // mp
 	// For Agg, workers=0 is valid (non-parallel), so always return true
 	return true;
 }
+#endif
 
 //---------------------------------------------------------------------------
 //	@function:

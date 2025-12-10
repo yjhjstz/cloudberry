@@ -102,7 +102,8 @@ public:
 	{
 		GPOS_ASSERT(nullptr != pop);
 		GPOS_ASSERT(EopPhysicalHashAgg == pop->Eopid() ||
-					EopPhysicalHashAggDeduplicate == pop->Eopid());
+					EopPhysicalHashAggDeduplicate == pop->Eopid() ||
+					EopPhysicalParallelHashAgg == pop->Eopid());
 
 		return dynamic_cast<CPhysicalHashAgg *>(pop);
 	}

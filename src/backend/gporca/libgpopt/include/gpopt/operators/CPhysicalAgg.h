@@ -47,10 +47,6 @@ private:
 	// is aggregate gernerated by pushdown
 	BOOL m_aggpushdown;
 
-	// parallel worker count (0 = no parallelism)
-	// extracted from child group in FValidContext
-	mutable ULONG m_ulParallelWorkers;
-
 	// extract worker count from child group (recursively search for parallel operators)
 	ULONG UlExtractWorkersFromGroup(CGroup *pgroup) const;
 
@@ -71,12 +67,11 @@ private:
 											CColRefArray *pdrgpcrGrpMinimal,
 											ULONG ulOptReq) const;
 
+protected:
 	// compute a maximal hashed distribution using the given columns,
 	// if no such distribution can be created, return a Singleton distribution
 	static CDistributionSpec *PdsMaximalHashed(CMemoryPool *mp,
 											   CColRefArray *colref_array);
-
-protected:
 	// array of minimal grouping columns based on FDs
 	CColRefArray *m_pdrgpcrMinimal;
 
@@ -90,6 +85,10 @@ protected:
 
 	// is agg part of multi-stage aggregation
 	BOOL m_fMultiStage;
+
+	// parallel worker count (0 = no parallelism)
+	// extracted from child group in FValidContext
+	mutable ULONG m_ulParallelWorkers;
 
 	// should distribution enforcement be enabled on this agg?
 	// By default, global and local aggregate are created with same
@@ -275,8 +274,8 @@ public:
 	}
 
 	// override FValidContext to extract worker count during optimization
-	BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
-					   COptimizationContextArray *pdrgpocChild) const override;
+	// BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
+	// 				   COptimizationContextArray *pdrgpocChild) const override;
 
 	//-------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------

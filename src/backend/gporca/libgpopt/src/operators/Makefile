@@ -97,6 +97,7 @@ OBJS        = CExpression.o \
               CPhysicalFilter.o \
               CPhysicalFullMergeJoin.o \
               CPhysicalHashAgg.o \
+              CPhysicalParallelHashAgg.o \
               CPhysicalHashAggDeduplicate.o \
               CPhysicalHashJoin.o \
               CPhysicalIndexScan.o \
