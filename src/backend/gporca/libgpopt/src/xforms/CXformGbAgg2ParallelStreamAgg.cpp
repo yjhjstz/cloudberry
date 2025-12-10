@@ -83,6 +83,16 @@ CXformGbAgg2ParallelStreamAgg::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
+	if (GPOS_FTRACE(EopttraceForceMultiStageAgg))
+	{
+		return CXform::ExfpNone;
+	}
+
+	if (!COptCtxt::PoctxtFromTLS()->HasParallelOperators())
+	{
+		return CXform::ExfpNone;
+	}
+
 	CLogicalGbAgg *popAgg = CLogicalGbAgg::PopConvert(exprhdl.Pop());
 	CColRefArray *colref_array = popAgg->Pdrgpcr();
 
@@ -144,9 +154,6 @@ CXformGbAgg2ParallelStreamAgg::Transform(CXformContext *pxfctxt,
 	{
 		ulParallelWorkers = (ULONG) max_parallel_workers_per_gather;
 	}
-
-	// Mark that we have parallel operators in the query
-	COptCtxt::PoctxtFromTLS()->SetHasParallelOperators();
 
 	// Create alternative expression with explicit parallel worker count
 	CExpression *pexprAlt = GPOS_NEW(mp) CExpression(

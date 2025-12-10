@@ -87,7 +87,12 @@ CXformGbAgg2ParallelHashAgg::Exfp(CExpressionHandle &exprhdl) const
 	}
 
 	// Check if parallel hash aggregation is disabled via trace flag
-	if (GPOS_FTRACE(EopttraceDisableParallelHashAgg))
+	if (GPOS_FTRACE(EopttraceDisableParallelHashAgg) || GPOS_FTRACE(EopttraceForceMultiStageAgg))
+	{
+		return CXform::ExfpNone;
+	}
+
+	if (!COptCtxt::PoctxtFromTLS()->HasParallelOperators())
 	{
 		return CXform::ExfpNone;
 	}
@@ -207,9 +212,6 @@ CXformGbAgg2ParallelHashAgg::Transform(CXformContext *pxfctxt,
 	{
 		ulParallelWorkers = (ULONG) max_parallel_workers_per_gather;
 	}
-
-	// Mark that we have parallel operators in the query
-	COptCtxt::PoctxtFromTLS()->SetHasParallelOperators();
 
 	// Create alternative expression with explicit parallel worker count
 	// CPhysicalParallelHashAgg stores worker count directly in member variable

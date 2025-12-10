@@ -37,11 +37,6 @@
 #include "gpopt/operators/CExpressionHandle.h"
 #include "naucrates/md/IMDFunction.h"
 
-// Forward declaration for gpdbwrappers function
-namespace gpdb
-{
-bool IsParallelModeOK(void);
-}
 
 using namespace gpopt;
 
@@ -68,7 +63,8 @@ CPhysicalParallelHashAgg::CPhysicalParallelHashAgg(
 				"CPhysicalParallelHashAgg requires workers > 0");
 	m_ulParallelWorkers = ulParallelWorkers;
 
-	if (COperator::EgbaggtypeGlobal == egbaggtype)
+	if (COperator::EgbaggtypeGlobal == egbaggtype &&
+		COptCtxt::PoctxtFromTLS()->HasParallelOperators())
 	{
 		SetDistrRequests(1);
 	}
@@ -149,17 +145,41 @@ CPhysicalParallelHashAgg::HashValue() const
 //---------------------------------------------------------------------------
 CDistributionSpec *
 CPhysicalParallelHashAgg::PdsRequired(CMemoryPool *mp,
-									   CExpressionHandle &,  // exprhdl
-									   CDistributionSpec *,  // pdsRequired
-									   ULONG,  // child_index
-									   CDrvdPropArray *,  // pdrgpdpCtxt
+									   CExpressionHandle &exprhdl,
+									   CDistributionSpec *pdsRequired,
+									   ULONG child_index,
+									   CDrvdPropArray *pdrgpdpCtxt GPOS_UNUSED,
 									   ULONG ulOptReq) const
 {
 	// With SetDistrRequests(1), we only have one distribution request
 	GPOS_ASSERT(0 == ulOptReq &&
 				"CPhysicalParallelHashAgg only supports single distribution request");
 
-	// Check if parallel mode is enabled and parallel hashagg is not disabled
+	if (exprhdl.HasOuterRefs())
+	{
+		return PdsPassThru(mp, exprhdl, pdsRequired, child_index);
+	}
+
+	if (0 == m_pdrgpcrMinimal->Size())
+	{
+		if (CDistributionSpec::EdtSingleton == pdsRequired->Edt())
+		{
+			// pass through input distribution if it is a singleton
+			pdsRequired->AddRef();
+			return pdsRequired;
+		}
+
+		// otherwise, require a singleton explicitly
+		return GPOS_NEW(mp) CDistributionSpecSingleton();
+	}
+
+	if (0 == ulOptReq && (IMDFunction::EfsVolatile ==
+						  exprhdl.DeriveFunctionProperties(0)->Efs()))
+	{
+		// request a singleton distribution if child has volatile functions
+		return GPOS_NEW(mp) CDistributionSpecSingleton();
+	}
+
 	if (FGlobal())
 	{
 		ULONG ulWorkers = m_ulParallelWorkers;
@@ -191,9 +211,8 @@ CPhysicalParallelHashAgg::PdsRequired(CMemoryPool *mp,
 		pdsSpec->Release();
 	}
 
-	// If parallel workers not enabled or hashed distribution failed,
-	// fall back to requesting any distribution from child
-	return GPOS_NEW(mp) CDistributionSpecAny(this->Eopid());
+	// if there are grouping columns, require a hash distribution explicitly
+	return PdsMaximalHashed(mp, m_pdrgpcrMinimal);
 }
 
 // EOF
