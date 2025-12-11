@@ -63,8 +63,7 @@ CPhysicalParallelHashAgg::CPhysicalParallelHashAgg(
 				"CPhysicalParallelHashAgg requires workers > 0");
 	m_ulParallelWorkers = ulParallelWorkers;
 
-	if (COperator::EgbaggtypeGlobal == egbaggtype &&
-		COptCtxt::PoctxtFromTLS()->HasParallelOperators())
+	if (COperator::EgbaggtypeGlobal == egbaggtype)
 	{
 		SetDistrRequests(1);
 	}

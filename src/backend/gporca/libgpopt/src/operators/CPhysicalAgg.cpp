@@ -130,14 +130,6 @@ CPhysicalAgg::CPhysicalAgg(
 		// (1) Singleton distribution, if child has volatile functions
 		// (2) Hash distribution on the group by columns
 		ulDistrReqs = 2;
-
-		// (3) WorkerRandom distribution with hash base on the group by columns
-		//     This avoids unnecessary redistribution when child outputs WorkerRandom
-		//     Only generate this request when parallel mode is enabled and parallel hashagg is not disabled
-		// if (gpdb::IsParallelModeOK() && !GPOS_FTRACE(EopttraceDisableParallelHashAgg))
-		// {
-		// 	ulDistrReqs = 3;
-		// }
 	}
 
 	// Force enable distribution property in DQA
@@ -429,48 +421,6 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	{
 		// request a singleton distribution if child has volatile functions
 		return GPOS_NEW(mp) CDistributionSpecSingleton();
-	}
-
-	// Optimization request 2: WorkerRandom distribution with hashed base
-	// This allows Finalize Agg to accept WorkerRandom output from Streaming Partial Agg
-	// without requiring expensive redistribution across segments
-	if (2 == ulOptReq)
-	{
-		// All safety checks passed - safe to use HashedWorker distribution
-		// Check if parallel mode is enabled and parallel hashagg is not disabled
-		if (gpdb::IsParallelModeOK())
-		{
-			ULONG ulWorkers = (ULONG) max_parallel_workers_per_gather;
-
-			// Create hashed distribution on grouping columns as base
-			CDistributionSpec *pdsSpec =
-				PdsMaximalHashed(mp, pdrgpcrGrpMinimal);
-			if (pdsSpec->Edt() == CDistributionSpec::EdtHashed)
-			{
-				CDistributionSpecHashed *pdsHashed =
-				CDistributionSpecHashed::PdsConvert(pdsSpec);
-
-				// Extract hash expressions and properties
-				CExpressionArray *pdrgpexpr = pdsHashed->Pdrgpexpr();
-				pdrgpexpr->AddRef();
-				BOOL fNullsColocated = pdsHashed->FNullsColocated();
-				IMdIdArray *opfamilies = pdsHashed->Opfamilies();
-				if (nullptr != opfamilies)
-				{
-					opfamilies->AddRef();
-				}
-
-				// Release the temporary hashed distribution
-				pdsHashed->Release();
-
-				// Create HashedWorker distribution to require partial aggregation results
-				return GPOS_NEW(mp) CDistributionSpecHashedWorker(
-					pdrgpexpr, fNullsColocated, ulWorkers, opfamilies);
-			}
-			pdsSpec->Release();
-		}
-
-		// If parallel workers not enabled, fall through to regular hashed requirement
 	}
 
 	// if there are grouping columns, require a hash distribution explicitly
