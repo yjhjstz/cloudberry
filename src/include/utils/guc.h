@@ -537,6 +537,7 @@ extern bool optimizer_enable_master_only_queries;
 extern bool optimizer_enable_hashjoin;
 extern bool optimizer_enable_parallel_hashjoin;
 extern bool optimizer_enable_parallel_hashagg;
+extern bool optimizer_enable_parallel_groupagg;
 extern bool optimizer_enable_dynamictablescan;
 extern bool optimizer_enable_dynamicindexscan;
 extern bool optimizer_enable_dynamicindexonlyscan;

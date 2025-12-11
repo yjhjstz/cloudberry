@@ -334,6 +334,9 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 	{EopttraceDisableParallelHashAgg, &optimizer_enable_parallel_hashagg,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Explore parallel hash aggregate alternatives")},
+	{EopttraceDisableParallelGroupAgg, &optimizer_enable_parallel_groupagg,
+	 true,	// m_negate_param
+	 GPOS_WSZ_LIT("Explore parallel group aggregate (streaming) alternatives")},
 	{EopttraceDisableInnerNLJ, &optimizer_enable_nljoin,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Enable nested loop join alternatives")},

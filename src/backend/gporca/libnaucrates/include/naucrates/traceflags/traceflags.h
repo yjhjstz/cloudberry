@@ -262,6 +262,9 @@ enum EOptTraceFlag
 	// disable parallel hash aggregate alternatives
 	EopttraceDisableParallelHashAgg = 103057,
 
+	// disable parallel group aggregate (streaming) alternatives
+	EopttraceDisableParallelGroupAgg = 103058,
+
 	///////////////////////////////////////////////////////
 	///////////////////// statistics flags ////////////////
 	//////////////////////////////////////////////////////

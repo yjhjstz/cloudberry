@@ -83,7 +83,8 @@ CXformGbAgg2ParallelStreamAgg::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
-	if (GPOS_FTRACE(EopttraceForceMultiStageAgg))
+	// Check if parallel group aggregation is disabled via trace flag
+	if (GPOS_FTRACE(EopttraceDisableParallelGroupAgg) || GPOS_FTRACE(EopttraceForceMultiStageAgg))
 	{
 		return CXform::ExfpNone;
 	}
