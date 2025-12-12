@@ -228,6 +228,7 @@ public:
 		// Parallel hash joins
 		EopPhysicalParallelInnerHashJoin,
 		EopPhysicalParallelLeftOuterHashJoin,
+		EopPhysicalParallelLeftSemiHashJoin,
 
 		EopPhysicalMotionGather,
 		EopPhysicalMotionBroadcast,

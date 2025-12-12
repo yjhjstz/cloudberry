@@ -231,6 +231,7 @@ public:
 		ExfImplementInnerJoin,
 		ExfInnerJoin2ParallelHashJoin,
 		ExfLeftOuterJoin2ParallelHashJoin,
+		ExfLeftSemiJoin2ParallelHashJoin,
 		ExfDynamicForeignGet2DynamicForeignScan,
 		ExfExpandDynamicGetWithForeignPartitions,
 		ExfPushJoinBelowLeftUnionAll,

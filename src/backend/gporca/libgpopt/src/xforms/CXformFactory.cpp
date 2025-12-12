@@ -296,6 +296,7 @@ CXformFactory::Instantiate()
 	Add(GPOS_NEW(m_mp) CXformImplementInnerJoin(m_mp));
 	Add(GPOS_NEW(m_mp) CXformInnerJoin2ParallelHashJoin(m_mp));
 	Add(GPOS_NEW(m_mp) CXformLeftOuterJoin2ParallelHashJoin(m_mp));
+	Add(GPOS_NEW(m_mp) CXformLeftSemiJoin2ParallelHashJoin(m_mp));
 	Add(GPOS_NEW(m_mp) CXformDynamicForeignGet2DynamicForeignScan(m_mp));
 	Add(GPOS_NEW(m_mp) CXformExpandDynamicGetWithForeignPartitions(m_mp));
 	Add(GPOS_NEW(m_mp) CXformPushJoinBelowLeftUnionAll(m_mp));
