@@ -47,13 +47,6 @@ private:
 	// is aggregate gernerated by pushdown
 	BOOL m_aggpushdown;
 
-	// extract worker count from child group (recursively search for parallel operators)
-	ULONG UlExtractWorkersFromGroup(CGroup *pgroup) const;
-
-	// internal recursive helper (with visited set to avoid cycles)
-	ULONG UlExtractWorkersFromGroupInternal(CGroup *pgroup,
-											CBitSet *visited_groups) const;
-
 	// compute required distribution of the n-th child of an intermediate aggregate
 	CDistributionSpec *PdsRequiredIntermediateAgg(CMemoryPool *mp,
 												  ULONG ulOptReq) const;
@@ -272,10 +265,6 @@ public:
 	{
 		return m_ulParallelWorkers;
 	}
-
-	// override FValidContext to extract worker count during optimization
-	// BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
-	// 				   COptimizationContextArray *pdrgpocChild) const override;
 
 	//-------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------

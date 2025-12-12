@@ -14,30 +14,16 @@
 
 #include "gpopt/base/CDistributionSpecAny.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
-#include "gpopt/base/CDistributionSpecHashedWorker.h"
 #include "gpopt/base/CDistributionSpecRandom.h"
 #include "gpopt/base/CDistributionSpecReplicated.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CDistributionSpecStrictSingleton.h"
-#include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CUtils.h"
-#include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/operators/CPhysicalParallelTableScan.h"
-#include "gpopt/operators/CPhysicalParallelHashJoin.h"
-#include "gpopt/search/CGroupProxy.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 using namespace gpopt;
 
-// External GUC variable for parallel execution
-extern int max_parallel_workers_per_gather;
-
-// Forward declaration for gpdbwrappers function
-namespace gpdb
-{
-bool IsParallelModeOK(void);
-}
 
 
 //---------------------------------------------------------------------------
@@ -126,7 +112,7 @@ CPhysicalAgg::CPhysicalAgg(
 	}
 	else if (COperator::EgbaggtypeGlobal == egbaggtype)
 	{
-		// Global Agg generates optimization requests for its children:
+		// Global Agg generates two optimization requests for its children:
 		// (1) Singleton distribution, if child has volatile functions
 		// (2) Hash distribution on the group by columns
 		ulDistrReqs = 2;
@@ -395,7 +381,7 @@ CPhysicalAgg::PdsRequiredGlobalAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 								   ULONG ulOptReq) const
 {
 	GPOS_ASSERT(FGlobal());
-	GPOS_ASSERT(3 > ulOptReq);
+	GPOS_ASSERT(2 > ulOptReq);
 
 	// TODO:  - Mar 19, 2012; Cleanup: move this check to the caller
 	if (exprhdl.HasOuterRefs())
@@ -583,10 +569,7 @@ CPhysicalAgg::PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const
 		return GPOS_NEW(mp) CDistributionSpecReplicated(
 			CDistributionSpec::EdtTaintedReplicated);
 	}
-	// For worker-level distributions, pass through
-	// This allows aggregates to execute in parallel on workers
 
-	// For other aggregates, pass through the child's distribution
 	pds->AddRef();
 	return pds;
 }
@@ -809,138 +792,5 @@ CPhysicalAgg::OsPrint(IOstream &os) const
 	}
 	return os;
 }
-
-#if 0
-//---------------------------------------------------------------------------
-//	@function:
-//		CPhysicalAgg::FValidContext
-//
-//	@doc:
-//		Check if optimization context is valid
-//		Extract worker count from child group during optimization
-//
-//---------------------------------------------------------------------------
-BOOL
-CPhysicalAgg::FValidContext(CMemoryPool *,  // mp
-							COptimizationContext *poc,
-							COptimizationContextArray *pdrgpocChild) const
-{
-	GPOS_ASSERT(nullptr != poc);
-
-	// Extract worker count from child optimization context (only extract once)
-	//if (0 == m_ulParallelWorkers)
-	{
-		if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 1)
-		{
-			COptimizationContext *pocChild = (*pdrgpocChild)[0];
-			if (nullptr != pocChild)
-			{
-				if (poc->PccBest() != nullptr && poc->PccBest()->UlOptReq() == 2)
-				{
-					CGroupExpression *pgexprChild = pocChild->PgexprBest();
-					if (nullptr != pgexprChild)
-					{
-						COperator *popChild = pgexprChild->Pop();
-						// Check if the best child expression is an NL Join
-						if (CUtils::FNLJoin(popChild))
-						{
-							// Direct child is NLJoin
-							m_ulParallelWorkers = 0;
-							return true;
-						}
-					}
-					// 2 means parallel execution request
-					CGroup *pgroupChild = pocChild->Pgroup();
-					if (nullptr != pgroupChild)
-					{
-						m_ulParallelWorkers = UlExtractWorkersFromGroup(pgroupChild);
-					}
-				}
-			}
-		}
-	}
-
-	// For Agg, workers=0 is valid (non-parallel), so always return true
-	return true;
-}
-#endif
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CPhysicalAgg::UlExtractWorkersFromGroup
-//
-//	@doc:
-//		Extract worker count from child group
-//
-//---------------------------------------------------------------------------
-ULONG
-CPhysicalAgg::UlExtractWorkersFromGroup(CGroup *pgroup) const
-{
-	if (nullptr == pgroup)
-		return 0;
-
-	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
-	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
-	ULONG ulWorkers =
-		UlExtractWorkersFromGroupInternal(pgroup, visited);
-	visited->Release();
-
-	return ulWorkers;
-}
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CPhysicalAgg::UlExtractWorkersFromGroupInternal
-//
-//	@doc:
-//		Internal recursive helper to extract worker count from group
-//
-//---------------------------------------------------------------------------
-ULONG
-CPhysicalAgg::UlExtractWorkersFromGroupInternal(
-	CGroup *pgroup, CBitSet *visited_groups) const
-{
-	if (nullptr == pgroup || visited_groups->Get(pgroup->Id()))
-		return 0;
-
-	visited_groups->ExchangeSet(pgroup->Id());
-
-	// Scan all physical expressions in the group
-	CGroupProxy gpChild(pgroup);
-	CGroupExpression *pgexprChild = gpChild.PgexprFirst();
-
-	while (nullptr != pgexprChild)
-	{
-		COperator *popChild = pgexprChild->Pop();
-
-		// Check for parallel table scan
-		if (COperator::EopPhysicalParallelTableScan == popChild->Eopid())
-		{
-			CPhysicalParallelTableScan *popScan =
-				CPhysicalParallelTableScan::PopConvert(popChild);
-			return popScan->UlParallelWorkers();
-		}
-
-		// Check for nested parallel hash join
-		if (CUtils::FPhysicalMotion(popChild))
-		{
-			return 0;
-		}
-
-		// Recursively check child groups
-		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
-		{
-			ULONG ulChildWorkers = UlExtractWorkersFromGroupInternal(
-				(*pgexprChild)[ul], visited_groups);
-			if (ulChildWorkers > 0)
-				return ulChildWorkers;
-		}
-
-		pgexprChild = gpChild.PgexprNext(pgexprChild);
-	}
-
-	return 0;
-}
-
 
 // EOF
