@@ -3551,6 +3551,19 @@ CTranslatorDXLToPlStmt::TranslateDXLAgg(
 
 	m_dxl_to_plstmt_context->ResetAggInfosAndTransInfos();
 
+	// Adjust row count for parallel aggregates
+	if (EdxlopPhysicalParallelAgg == dxl_phy_agg_dxlop->GetDXLOperator())
+	{
+		CDXLPhysicalParallelAgg *dxl_parallel_agg =
+			CDXLPhysicalParallelAgg::Cast(dxl_phy_agg_dxlop);
+		ULONG parallel_workers = dxl_parallel_agg->GetParallelWorkers();
+
+		if (parallel_workers > 1)
+		{
+			plan->plan_rows = ceil(plan->plan_rows / parallel_workers);
+		}
+	}
+
 	SetParamIds(plan);
 
 	// cleanup
