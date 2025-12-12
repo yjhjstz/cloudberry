@@ -487,7 +487,8 @@ CPhysicalHashJoin::PdsDeriveForOuterJoin(CMemoryPool *mp,
 										 CExpressionHandle &exprhdl) const
 {
 	GPOS_ASSERT(EopPhysicalLeftOuterHashJoin == Eopid() ||
-				EopPhysicalRightOuterHashJoin == Eopid());
+				EopPhysicalRightOuterHashJoin == Eopid() ||
+				EopPhysicalParallelLeftOuterHashJoin == Eopid());
 
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0 /*child_index*/)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1 /*child_index*/)->Pds();
