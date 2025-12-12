@@ -33,6 +33,7 @@ OBJS        = CAutoOptCtxt.o \
               CDefaultComparator.o \
               CDistributionSpecHashed.o \
               CDistributionSpecHashedNoOp.o \
+              CDistributionSpecHashedWorker.o \
               CDistributionSpecNonSingleton.o \
               CDistributionSpecRandom.o \
               CDistributionSpecReplicated.o \

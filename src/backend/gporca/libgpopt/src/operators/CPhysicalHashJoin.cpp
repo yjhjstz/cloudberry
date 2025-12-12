@@ -295,6 +295,7 @@ CPhysicalHashJoin::PdsMatch(CMemoryPool *mp, CDistributionSpec *pds,
 									 ulSourceChildIndex);
 		//FIXME:
 		case CDistributionSpec::EdtWorkerRandom:
+		case CDistributionSpec::EdtHashedWorker:
 			// Regular HashJoin cannot handle WorkerRandom distributions.
 			// Return NonSingleton so that FValidContext() will reject this context later.
 			// ORCA will then explore alternatives: ParallelHashJoin or Motion nodes.
@@ -486,7 +487,8 @@ CPhysicalHashJoin::PdsDeriveForOuterJoin(CMemoryPool *mp,
 										 CExpressionHandle &exprhdl) const
 {
 	GPOS_ASSERT(EopPhysicalLeftOuterHashJoin == Eopid() ||
-				EopPhysicalRightOuterHashJoin == Eopid());
+				EopPhysicalRightOuterHashJoin == Eopid() ||
+				EopPhysicalParallelLeftOuterHashJoin == Eopid());
 
 	CDistributionSpec *pdsOuter = exprhdl.Pdpplan(0 /*child_index*/)->Pds();
 	CDistributionSpec *pdsInner = exprhdl.Pdpplan(1 /*child_index*/)->Pds();
@@ -1193,7 +1195,8 @@ CPhysicalHashJoin::FValidContext(CMemoryPool *,  // mp
 					if (nullptr != pdpplan)
 					{
 						CDistributionSpec *pds = pdpplan->Pds();
-						if (CDistributionSpec::EdtWorkerRandom == pds->Edt())
+						if (CDistributionSpec::EdtWorkerRandom == pds->Edt() ||
+							CDistributionSpec::EdtHashedWorker == pds->Edt())
 						{
 							// Regular HashJoin cannot handle WorkerRandom input
 							// Reject this context so ORCA will try ParallelHashJoin or add Motion

@@ -121,6 +121,10 @@ CPhysicalParallelHashJoin::UlExtractWorkersFromGroupInternal(
 				CPhysicalParallelTableScan::PopConvert(popChild);
 			return popScan->UlParallelWorkers();
 		}
+		if (CUtils::FPhysicalMotion(popChild))
+		{
+			return 0;
+		}
 
 		// Recursively check all children (Motion nodes, joins, etc.)
 		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
@@ -318,7 +322,7 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 	CMemoryPool *mp, CExpressionHandle &exprhdl, CDistributionSpec *pdsInput,
 	ULONG child_index, CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq) const
 {
-	EChildExecOrder eceo = Eceo();
+	EChildExecOrder eceo GPOS_ASSERTS_ONLY = Eceo();
 	GPOS_ASSERT(EceoRightToLeft == eceo);  // ParallelHashJoin always RightToLeft
 
 	if (1 == child_index)
@@ -779,30 +783,6 @@ CPhysicalParallelHashJoin::FValidContext(
 		}
 	}
 
-	// Reject if direct child is a Nested Loop Join (non-recursive check)
-	// NL Join is inherently sequential and cannot execute in parallel
-	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
-	{
-		for (ULONG ulChild = 0; ulChild < 2; ulChild++)
-		{
-			COptimizationContext *pocChild = (*pdrgpocChild)[ulChild];
-			if (nullptr != pocChild)
-			{
-				CGroupExpression *pgexprChild = pocChild->PgexprBest();
-				if (nullptr != pgexprChild)
-				{
-					COperator *popChild = pgexprChild->Pop();
-					// Check if the best child expression is an NL Join
-					if (CUtils::FNLJoin(popChild))
-					{
-						// Direct child is NLJoin - incompatible with parallel execution
-						return false;
-					}
-				}
-			}
-		}
-	}
-
 	// Lightweight pruning based on children required distributions (when available).
 	// Do NOT attempt to inspect derived child properties here. We only reject
 	// obviously incompatible contexts to reduce search:
@@ -836,7 +816,8 @@ CPhysicalParallelHashJoin::FValidContext(
 
 		// Outer/probe side must allow parallelism: require Any or WorkerRandom.
 		if (dtOuter != CDistributionSpec::EdtAny &&
-			dtOuter != CDistributionSpec::EdtWorkerRandom)
+			dtOuter != CDistributionSpec::EdtWorkerRandom &&
+			dtOuter != CDistributionSpec::EdtHashedWorker)
 		{
 			return false;
 		}
@@ -854,7 +835,8 @@ CPhysicalParallelHashJoin::FValidContext(
 		if (dtInner != CDistributionSpec::EdtAny &&
 			dtInner != CDistributionSpec::EdtWorkerRandom &&
 			dtInner != CDistributionSpec::EdtReplicatedWorkers &&
-			dtInner != CDistributionSpec::EdtHashed)
+			dtInner != CDistributionSpec::EdtHashed &&
+			dtInner != CDistributionSpec::EdtHashedWorker)
 		{
 			// Inner child requires a distribution incompatible with parallel hash join
 			// (e.g., coordinator-only distribution, universal distribution, etc.)

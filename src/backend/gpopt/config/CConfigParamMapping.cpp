@@ -331,6 +331,12 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 	{EopttraceDisableParallelHashJoin, &optimizer_enable_parallel_hashjoin,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Explore parallel hash join alternatives")},
+	{EopttraceDisableParallelHashAgg, &optimizer_enable_parallel_hashagg,
+	 true,	// m_negate_param
+	 GPOS_WSZ_LIT("Explore parallel hash aggregate alternatives")},
+	{EopttraceDisableParallelGroupAgg, &optimizer_enable_parallel_groupagg,
+	 true,	// m_negate_param
+	 GPOS_WSZ_LIT("Explore parallel group aggregate (streaming) alternatives")},
 	{EopttraceDisableInnerNLJ, &optimizer_enable_nljoin,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Enable nested loop join alternatives")},
@@ -510,6 +516,8 @@ CConfigParamMapping::PackConfigParamInBitset(
 			GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAgg2HashAgg));
 		traceflag_bitset->ExchangeSet(
 			GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAggDedup2HashAggDedup));
+		traceflag_bitset->ExchangeSet(
+			GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAgg2ParallelHashAgg));
 	}
 
 	if (!optimizer_enable_groupagg)
@@ -518,6 +526,8 @@ CConfigParamMapping::PackConfigParamInBitset(
 			GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAgg2StreamAgg));
 		traceflag_bitset->ExchangeSet(
 			GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAggDedup2StreamAggDedup));
+		traceflag_bitset->ExchangeSet(
+			GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAgg2ParallelStreamAgg));
 	}
 
 	if (!optimizer_enable_mergejoin)

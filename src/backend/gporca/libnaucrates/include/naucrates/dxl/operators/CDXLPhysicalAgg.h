@@ -60,10 +60,10 @@ private:
 	// is it safe to stream the local hash aggregate
 	BOOL m_stream_safe;
 
+public:
 	// serialize output grouping columns indices in DXL
 	void SerializeGroupingColsToDXL(CXMLSerializer *xml_serializer) const;
 
-public:
 	// ctor
 	CDXLPhysicalAgg(CMemoryPool *mp, EdxlAggStrategy dxl_agg_strategy,
 					BOOL stream_safe);
@@ -99,7 +99,8 @@ public:
 	Cast(CDXLOperator *dxl_op)
 	{
 		GPOS_ASSERT(nullptr != dxl_op);
-		GPOS_ASSERT(EdxlopPhysicalAgg == dxl_op->GetDXLOperator());
+		GPOS_ASSERT(EdxlopPhysicalAgg == dxl_op->GetDXLOperator() ||
+					EdxlopPhysicalParallelAgg == dxl_op->GetDXLOperator());
 
 		return dynamic_cast<CDXLPhysicalAgg *>(dxl_op);
 	}

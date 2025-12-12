@@ -25,6 +25,7 @@
 using namespace gpopt;
 
 
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalAgg::CPhysicalAgg
@@ -55,6 +56,7 @@ CPhysicalAgg::CPhysicalAgg(
 	GPOS_ASSERT(nullptr != colref_array);
 	GPOS_ASSERT(COperator::EgbaggtypeSentinel > egbaggtype);
 	GPOS_ASSERT_IMP(EgbaggtypeGlobal != egbaggtype, fMultiStage);
+	m_ulParallelWorkers = 0;
 
 	ULONG ulDistrReqs = 1;
 	if (pdrgpcrMinimal == nullptr || 0 == pdrgpcrMinimal->Size())
@@ -784,7 +786,10 @@ CPhysicalAgg::OsPrint(IOstream &os) const
 	{
 		os << ", m_aggStage :[ Three Stage Scalar DQA ] ";
 	}
-
+	if (m_ulParallelWorkers > 0)
+	{
+		os << ", Parallel Workers :[ " << m_ulParallelWorkers << " ] ";
+	}
 	return os;
 }
 

@@ -60,12 +60,11 @@ private:
 											CColRefArray *pdrgpcrGrpMinimal,
 											ULONG ulOptReq) const;
 
+protected:
 	// compute a maximal hashed distribution using the given columns,
 	// if no such distribution can be created, return a Singleton distribution
 	static CDistributionSpec *PdsMaximalHashed(CMemoryPool *mp,
 											   CColRefArray *colref_array);
-
-protected:
 	// array of minimal grouping columns based on FDs
 	CColRefArray *m_pdrgpcrMinimal;
 
@@ -79,6 +78,10 @@ protected:
 
 	// is agg part of multi-stage aggregation
 	BOOL m_fMultiStage;
+
+	// parallel worker count (0 = no parallelism)
+	// extracted from child group in FValidContext
+	mutable ULONG m_ulParallelWorkers;
 
 	// should distribution enforcement be enabled on this agg?
 	// By default, global and local aggregate are created with same
@@ -254,6 +257,13 @@ public:
 	FPassThruStats() const override
 	{
 		return false;
+	}
+
+	// parallel workers accessor
+	ULONG
+	UlParallelWorkers() const
+	{
+		return m_ulParallelWorkers;
 	}
 
 	//-------------------------------------------------------------------------------------

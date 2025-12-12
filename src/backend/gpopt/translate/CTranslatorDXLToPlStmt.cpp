@@ -58,6 +58,7 @@ extern "C" {
 #include "naucrates/dxl/operators/CDXLDirectDispatchInfo.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAgg.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAppend.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAssert.h"
 #include "naucrates/dxl/operators/CDXLPhysicalBitmapTableScan.h"
@@ -418,6 +419,7 @@ CTranslatorDXLToPlStmt::TranslateDXLOperatorToPlan(
 			break;
 		}
 		case EdxlopPhysicalAgg:
+		case EdxlopPhysicalParallelAgg:
 		{
 			plan = TranslateDXLAgg(dxlnode, output_context,
 								   ctxt_translation_prev_siblings);
@@ -3548,6 +3550,19 @@ CTranslatorDXLToPlStmt::TranslateDXLAgg(
 	}
 
 	m_dxl_to_plstmt_context->ResetAggInfosAndTransInfos();
+
+	// Adjust row count for parallel aggregates
+	if (EdxlopPhysicalParallelAgg == dxl_phy_agg_dxlop->GetDXLOperator())
+	{
+		CDXLPhysicalParallelAgg *dxl_parallel_agg =
+			CDXLPhysicalParallelAgg::Cast(dxl_phy_agg_dxlop);
+		ULONG parallel_workers = dxl_parallel_agg->GetParallelWorkers();
+
+		if (parallel_workers > 1)
+		{
+			plan->plan_rows = ceil(plan->plan_rows / parallel_workers);
+		}
+	}
 
 	SetParamIds(plan);
 
@@ -7829,6 +7844,13 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 		CDXLPhysicalParallelHashJoin *parallel_hashjoin_dxlop =
 			CDXLPhysicalParallelHashJoin::Cast(dxlop);
 		return parallel_hashjoin_dxlop->BuildWorkers();
+	}
+	else if (EdxlopPhysicalParallelAgg == dxlop->GetDXLOperator())
+	{
+		// Parallel Aggregate operator - return its parallel workers
+		CDXLPhysicalParallelAgg *parallel_agg_dxlop =
+			CDXLPhysicalParallelAgg::Cast(dxlop);
+		return parallel_agg_dxlop->GetParallelWorkers();
 	}
 	else if (EdxlopPhysicalTableScan == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalDynamicTableScan == dxlop->GetDXLOperator() ||

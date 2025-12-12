@@ -411,6 +411,8 @@
 		"optimizer_enable_groupagg",
 		"optimizer_enable_hashagg",
 		"optimizer_enable_hashjoin",
+		"optimizer_enable_parallel_hashagg",
+		"optimizer_enable_parallel_groupagg",
 		"optimizer_enable_parallel_hashjoin",
 		"optimizer_enable_hashjoin_redistribute_broadcast_children",
 		"optimizer_discard_redistribute_hashjoin",

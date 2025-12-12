@@ -50,6 +50,7 @@ OBJS        = CDXLColDescr.o \
               CDXLPhysical.o \
               CDXLPhysicalAbstractBitmapScan.o \
               CDXLPhysicalAgg.o \
+              CDXLPhysicalParallelAgg.o \
               CDXLPhysicalAppend.o \
               CDXLPhysicalAssert.o \
               CDXLPhysicalBitmapTableScan.o \

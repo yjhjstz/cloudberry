@@ -238,8 +238,10 @@ public:
 		EopPhysicalMotionBroadcastWorkers,
 
 		EopPhysicalHashAgg,
+		EopPhysicalParallelHashAgg,
 		EopPhysicalHashAggDeduplicate,
 		EopPhysicalStreamAgg,
+		EopPhysicalParallelStreamAgg,
 		EopPhysicalStreamAggDeduplicate,
 		EopPhysicalScalarAgg,
 

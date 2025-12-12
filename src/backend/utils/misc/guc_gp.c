@@ -354,6 +354,8 @@ bool		optimizer_enable_dml_constraints;
 bool		optimizer_enable_master_only_queries;
 bool		optimizer_enable_hashjoin;
 bool		optimizer_enable_parallel_hashjoin;
+bool		optimizer_enable_parallel_hashagg;
+bool		optimizer_enable_parallel_groupagg;
 bool		optimizer_enable_dynamictablescan;
 bool		optimizer_enable_dynamicindexscan;
 bool		optimizer_enable_dynamicindexonlyscan;
@@ -2375,6 +2377,28 @@ struct config_bool ConfigureNamesBool_gp[] =
 			GUC_EXPLAIN
 		},
 		&optimizer_enable_parallel_hashjoin,
+		true,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"optimizer_enable_parallel_hashagg", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Enables the optimizer's use of parallel hash aggregate plans."),
+			NULL,
+			GUC_EXPLAIN
+		},
+		&optimizer_enable_parallel_hashagg,
+		true,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"optimizer_enable_parallel_groupagg", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Enables the optimizer's use of parallel group aggregate (streaming) plans."),
+			NULL,
+			GUC_EXPLAIN
+		},
+		&optimizer_enable_parallel_groupagg,
 		true,
 		NULL, NULL, NULL
 	},

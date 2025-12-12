@@ -143,6 +143,11 @@ private:
 							 const CCostModelGPDB *pcmgpdb,
 							 const SCostingInfo *pci);
 
+	// cost of parallel hash agg
+	static CCost CostParallelHashAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									 const CCostModelGPDB *pcmgpdb,
+									 const SCostingInfo *pci);
+
 	// cost of scalar agg
 	static CCost CostScalarAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 							   const CCostModelGPDB *pcmgpdb,
@@ -152,6 +157,11 @@ private:
 	static CCost CostStreamAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
 							   const CCostModelGPDB *pcmgpdb,
 							   const SCostingInfo *pci);
+
+	// cost of parallel stream agg
+	static CCost CostParallelStreamAgg(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									   const CCostModelGPDB *pcmgpdb,
+									   const SCostingInfo *pci);
 
 	// cost of sequence
 	static CCost CostSequence(CMemoryPool *mp, CExpressionHandle &exprhdl,

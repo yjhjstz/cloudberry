@@ -1139,15 +1139,6 @@ CUtils::FParallelHashJoin(COperator *pop)
 	return (nullptr != popPHJN);
 }
 
-// check if a given operator is a parallel left outer hash join
-BOOL
-CUtils::FParallelLeftOuterHashJoin(COperator *pop)
-{
-	GPOS_ASSERT(nullptr != pop);
-
-	return (nullptr != pop &&
-			COperator::EopPhysicalParallelLeftOuterHashJoin == pop->Eopid());
-}
 
 // check if a given operator is a correlated nested loops join
 BOOL

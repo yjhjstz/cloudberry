@@ -97,6 +97,7 @@ OBJS        = CExpression.o \
               CPhysicalFilter.o \
               CPhysicalFullMergeJoin.o \
               CPhysicalHashAgg.o \
+              CPhysicalParallelHashAgg.o \
               CPhysicalHashAggDeduplicate.o \
               CPhysicalHashJoin.o \
               CPhysicalIndexScan.o \
@@ -142,6 +143,7 @@ OBJS        = CExpression.o \
               CPhysicalSplit.o \
               CPhysicalSpool.o \
               CPhysicalStreamAgg.o \
+              CPhysicalParallelStreamAgg.o \
               CPhysicalStreamAggDeduplicate.o \
               CPhysicalTVF.o \
               CPhysicalTableScan.o \

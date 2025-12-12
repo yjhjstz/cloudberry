@@ -128,7 +128,8 @@ public:
 	{
 		GPOS_ASSERT(nullptr != pop);
 		GPOS_ASSERT(EopPhysicalStreamAgg == pop->Eopid() ||
-					EopPhysicalStreamAggDeduplicate == pop->Eopid());
+					EopPhysicalStreamAggDeduplicate == pop->Eopid()||
+					EopPhysicalParallelStreamAgg == pop->Eopid());
 
 		return dynamic_cast<CPhysicalStreamAgg *>(pop);
 	}

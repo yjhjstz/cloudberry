@@ -589,9 +589,6 @@ public:
 	// check if a given operator is a parallel hash join
 	static BOOL FParallelHashJoin(COperator *pop);
 
-	// check if a given operator is a parallel left outer hash join
-	static BOOL FParallelLeftOuterHashJoin(COperator *pop);
-
 	// check if a given operator is a correlated nested loops join
 	static BOOL FCorrelatedNLJoin(COperator *pop);
 

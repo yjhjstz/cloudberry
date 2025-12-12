@@ -30,6 +30,7 @@
 #include "gpos/base.h"
 
 #include "gpopt/base/CDistributionSpecHashed.h"
+#include "gpopt/base/CDistributionSpecHashedWorker.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COrderSpec.h"
 #include "gpopt/operators/CPhysicalMotion.h"
@@ -47,14 +48,18 @@ namespace gpopt
 class CPhysicalMotionHashDistributeWorkers : public CPhysicalMotion
 {
 private:
-	// worker-level random distribution spec containing base hash distribution
-	CDistributionSpecWorkerRandom *m_pdsWorkerRandom;
+	// Can hold either CDistributionSpecWorkerRandom or CDistributionSpecHashedWorker
+	CDistributionSpec *m_pds;
 
 public:
 	CPhysicalMotionHashDistributeWorkers(
 		const CPhysicalMotionHashDistributeWorkers &) = delete;
 
-	// ctor
+	// ctor for CDistributionSpecHashedWorker (used for multi-stage aggregation)
+	CPhysicalMotionHashDistributeWorkers(
+		CMemoryPool *mp, CDistributionSpecHashedWorker *pdsHashedWorker);
+
+	// ctor for CDistributionSpecWorkerRandom (used for other scenarios)
 	CPhysicalMotionHashDistributeWorkers(
 		CMemoryPool *mp, CDistributionSpecWorkerRandom *pdsWorkerRandom);
 
@@ -78,35 +83,57 @@ public:
 	CDistributionSpec *
 	Pds() const override
 	{
-		return m_pdsWorkerRandom;
+		return m_pds;
 	}
 
-	// Get hash expressions from base distribution
+	// Get hash expressions from distribution
 	CExpressionArray *
 	GetHashExpressions() const
 	{
-		CDistributionSpec *pdsBase = m_pdsWorkerRandom->PdsSegmentBase();
-		if (nullptr != pdsBase &&
-			CDistributionSpec::EdtHashed == pdsBase->Edt())
+		if (m_pds->Edt() == CDistributionSpec::EdtHashedWorker)
 		{
-			CDistributionSpecHashed *pdsHashed =
-				CDistributionSpecHashed::PdsConvert(pdsBase);
-			return pdsHashed->Pdrgpexpr();
+			CDistributionSpecHashedWorker *pdsHashedWorker =
+				CDistributionSpecHashedWorker::PdsConvert(m_pds);
+			return pdsHashedWorker->Pdrgpexpr();
+		}
+		else if (m_pds->Edt() == CDistributionSpec::EdtWorkerRandom)
+		{
+			CDistributionSpecWorkerRandom *pdsWorkerRandom =
+				CDistributionSpecWorkerRandom::PdsConvert(m_pds);
+			CDistributionSpec *pdsBase = pdsWorkerRandom->PdsSegmentBase();
+			if (nullptr != pdsBase &&
+				CDistributionSpec::EdtHashed == pdsBase->Edt())
+			{
+				CDistributionSpecHashed *pdsHashed =
+					CDistributionSpecHashed::PdsConvert(pdsBase);
+				return pdsHashed->Pdrgpexpr();
+			}
 		}
 		return nullptr;
 	}
 
-	// Get hash opfamilies from base distribution
+	// Get hash opfamilies from distribution
 	IMdIdArray *
 	GetHashOpfamilies() const
 	{
-		CDistributionSpec *pdsBase = m_pdsWorkerRandom->PdsSegmentBase();
-		if (nullptr != pdsBase &&
-			CDistributionSpec::EdtHashed == pdsBase->Edt())
+		if (m_pds->Edt() == CDistributionSpec::EdtHashedWorker)
 		{
-			CDistributionSpecHashed *pdsHashed =
-				CDistributionSpecHashed::PdsConvert(pdsBase);
-			return pdsHashed->Opfamilies();
+			CDistributionSpecHashedWorker *pdsHashedWorker =
+				CDistributionSpecHashedWorker::PdsConvert(m_pds);
+			return pdsHashedWorker->Opfamilies();
+		}
+		else if (m_pds->Edt() == CDistributionSpec::EdtWorkerRandom)
+		{
+			CDistributionSpecWorkerRandom *pdsWorkerRandom =
+				CDistributionSpecWorkerRandom::PdsConvert(m_pds);
+			CDistributionSpec *pdsBase = pdsWorkerRandom->PdsSegmentBase();
+			if (nullptr != pdsBase &&
+				CDistributionSpec::EdtHashed == pdsBase->Edt())
+			{
+				CDistributionSpecHashed *pdsHashed =
+					CDistributionSpecHashed::PdsConvert(pdsBase);
+				return pdsHashed->Opfamilies();
+			}
 		}
 		return nullptr;
 	}
@@ -115,7 +142,15 @@ public:
 	ULONG
 	NumWorkers() const
 	{
-		return m_pdsWorkerRandom->UlWorkers();
+		if (m_pds->Edt() == CDistributionSpec::EdtHashedWorker)
+		{
+			return CDistributionSpecHashedWorker::PdsConvert(m_pds)->UlWorkers();
+		}
+		else if (m_pds->Edt() == CDistributionSpec::EdtWorkerRandom)
+		{
+			return CDistributionSpecWorkerRandom::PdsConvert(m_pds)->UlWorkers();
+		}
+		return 0;
 	}
 
 	// match function

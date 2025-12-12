@@ -1344,7 +1344,8 @@ CTranslatorExprToDXLUtils::FLocalHashAggStreamSafe(CExpression *pexprAgg)
 	COperator::EOperatorId op_id = pexprAgg->Pop()->Eopid();
 
 	if (COperator::EopPhysicalHashAgg != op_id &&
-		COperator::EopPhysicalHashAggDeduplicate != op_id)
+		COperator::EopPhysicalHashAggDeduplicate != op_id &&
+		COperator::EopPhysicalParallelHashAgg != op_id)
 	{
 		// not a hash aggregate
 		return false;
@@ -1553,6 +1554,7 @@ CTranslatorExprToDXLUtils::FMotionHazardSafeOp(CDXLNode *dxlnode)
 			break;
 
 		case EdxlopPhysicalAgg:
+		case EdxlopPhysicalParallelAgg:
 		{
 			CDXLPhysicalAgg *pdxlnPhysicalAgg =
 				CDXLPhysicalAgg::Cast(dxlnode->GetOperator());
