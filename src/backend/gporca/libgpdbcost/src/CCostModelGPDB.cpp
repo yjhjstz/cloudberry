@@ -3141,6 +3141,7 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalParallelInnerHashJoin:
 		case COperator::EopPhysicalParallelLeftOuterHashJoin:
 		case COperator::EopPhysicalParallelLeftSemiHashJoin:
+		case COperator::EopPhysicalParallelLeftAntiSemiHashJoinNotIn:
 		{
 			return CostParallelHashJoin(m_mp, exprhdl, this, pci);
 		}

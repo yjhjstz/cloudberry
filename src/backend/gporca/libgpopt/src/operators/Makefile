@@ -110,6 +110,7 @@ OBJS        = CExpression.o \
               CPhysicalParallelInnerHashJoin.o \
               CPhysicalParallelLeftOuterHashJoin.o \
               CPhysicalParallelLeftSemiHashJoin.o \
+              CPhysicalParallelLeftAntiSemiHashJoinNotIn.o \
               CPhysicalLeftAntiSemiHashJoin.o \
               CPhysicalLeftAntiSemiHashJoinNotIn.o \
               CPhysicalLeftAntiSemiNLJoin.o \
