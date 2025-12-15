@@ -63,7 +63,7 @@ CPhysicalParallelHashAgg::CPhysicalParallelHashAgg(
 				"CPhysicalParallelHashAgg requires workers > 0");
 	m_ulParallelWorkers = ulParallelWorkers;
 
-	if (COperator::EgbaggtypeGlobal == egbaggtype)
+	if (COperator::EgbaggtypeGlobal == egbaggtype && fMultiStage)
 	{
 		SetDistrRequests(1);
 	}
