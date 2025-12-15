@@ -4665,6 +4665,14 @@ CTranslatorDXLToPlStmt::TranslateDXLPartSelector(
 		CDXLPhysicalPartitionSelector::Cast(
 			partition_selector_dxlnode->GetOperator());
 
+	ULONG parallel_workers = partition_selector_dxlop->ParallelWorkers();
+	if (parallel_workers > 1)
+	{
+		plan->parallel_aware = true;
+		plan->parallel_safe = true;
+		plan->parallel = parallel_workers;
+	}
+
 	TranslatePlanCosts(partition_selector_dxlnode, plan);
 
 	CDXLNode *child_dxlnode = nullptr;

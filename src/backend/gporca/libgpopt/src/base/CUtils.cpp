@@ -49,6 +49,8 @@
 #include "gpopt/operators/CPhysicalMotionRandom.h"
 #include "gpopt/operators/CPhysicalNLJoin.h"
 #include "gpopt/operators/CPhysicalParallelHashJoin.h"
+#include "gpopt/operators/CPhysicalParallelTableScan.h"
+#include "gpopt/operators/CPhysicalParallelAppendTableScan.h"
 #include "gpopt/operators/CPredicateUtils.h"
 #include "gpopt/operators/CScalarArray.h"
 #include "gpopt/operators/CScalarArrayCoerceExpr.h"
@@ -64,6 +66,7 @@
 #include "gpopt/operators/CScalarProjectList.h"
 #include "gpopt/operators/CScalarValuesList.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
+#include "gpopt/search/CGroupProxy.h"
 #include "gpopt/search/CMemo.h"
 #include "gpopt/translate/CTranslatorExprToDXLUtils.h"
 #include "naucrates/base/IDatumBool.h"
@@ -1239,6 +1242,93 @@ CUtils::FPhysicalMotion(COperator *pop)
 	return (nullptr != popMotion);
 }
 
+//---------------------------------------------------------------------------
+//	@function:
+//		CUtils::UlExtractWorkersFromGroupInternal
+//
+//	@doc:
+//		Internal recursive function to extract worker count from a child group
+//		Uses visited set to avoid infinite loops from circular references
+//
+//---------------------------------------------------------------------------
+ULONG
+CUtils::UlExtractWorkersFromGroupInternal(
+	CGroup *pgroup, CBitSet *visited_groups)
+{
+	if (nullptr == pgroup || visited_groups->Get(pgroup->Id()))
+	{
+		return 0;  // Already visited or null - avoid infinite recursion
+	}
+
+	// Mark this group as visited
+	visited_groups->ExchangeSet(pgroup->Id());
+
+	// Scan through all physical expressions in the child group
+	CGroupProxy gpChild(pgroup);
+	CGroupExpression *pgexprChild = gpChild.PgexprFirst();
+
+	while (nullptr != pgexprChild)
+	{
+		COperator *popChild = pgexprChild->Pop();
+
+		// Check for parallel table scan - this is the source of worker count
+		if (COperator::EopPhysicalParallelTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelTableScan *popScan =
+				CPhysicalParallelTableScan::PopConvert(popChild);
+			return popScan->UlParallelWorkers();
+		}
+
+		if (COperator::EopPhysicalParallelAppendTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelAppendTableScan *popScan =
+				CPhysicalParallelAppendTableScan::PopConvert(popChild);
+			return popScan->UlParallelWorkers();
+		}
+
+		// Recursively check all children (Motion nodes, joins, etc.)
+		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
+		{
+			ULONG ulChildWorkers = UlExtractWorkersFromGroupInternal(
+				(*pgexprChild)[ul], visited_groups);
+			if (ulChildWorkers > 0)
+			{
+				return ulChildWorkers;
+			}
+		}
+
+		pgexprChild = gpChild.PgexprNext(pgexprChild);
+	}
+
+	return 0;  // No parallel operators found
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CUtils::UlExtractWorkersFromGroup
+//
+//	@doc:
+//		Extract worker count from a child group by scanning for parallel operators
+//		This handles cases where Motion nodes hide parallel scans
+//
+//---------------------------------------------------------------------------
+ULONG
+CUtils::UlExtractWorkersFromGroup(CGroup *pgroup)
+{
+	if (nullptr == pgroup)
+	{
+		return 0;
+	}
+
+	// Create visited set to track groups and avoid infinite recursion
+	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
+	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
+	ULONG ulWorkers = UlExtractWorkersFromGroupInternal(pgroup, visited);
+	visited->Release();
+
+	return ulWorkers;
+}
+
 // check if a given operator is an FEnforcer
 BOOL
 CUtils::FEnforcer(COperator *pop)
@@ -1249,6 +1339,7 @@ CUtils::FEnforcer(COperator *pop)
 	return COperator::EopPhysicalSort == op_id ||
 		   COperator::EopPhysicalSpool == op_id ||
 		   COperator::EopPhysicalPartitionSelector == op_id ||
+		   COperator::EopPhysicalParallelPartitionSelector == op_id ||
 		   FPhysicalMotion(pop);
 }
 

@@ -41,6 +41,26 @@ CDXLPhysicalPartitionSelector::CDXLPhysicalPartitionSelector(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CDXLPhysicalPartitionSelector::CDXLPhysicalPartitionSelector
+//
+//	@doc:
+//		Ctor
+//
+//---------------------------------------------------------------------------
+CDXLPhysicalPartitionSelector::CDXLPhysicalPartitionSelector(
+	CMemoryPool *mp, IMDId *mdid_rel, ULONG selector_id, ULONG scan_id,
+	ULongPtrArray *parts, ULONG parallel_workers)
+	: CDXLPhysical(mp),
+	  m_rel_mdid(mdid_rel),
+	  m_selector_id(selector_id),
+	  m_scan_id(scan_id),
+	  m_parts(parts),
+	  m_parallel_workers(parallel_workers)
+{
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CDXLPhysicalPartitionSelector::~CDXLPhysicalPartitionSelector
 //
 //	@doc:
