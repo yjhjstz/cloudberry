@@ -1,59 +1,81 @@
-//---------------------------------------------------------------------------
-//	Greenplum Database
-//	Copyright (C) 2014 VMware, Inc. or its affiliates.
-//
-//	@filename:
-//		CPhysicalPartitionSelector.cpp
-//
-//	@doc:
-//		Implementation of physical partition selector
-//---------------------------------------------------------------------------
+/*-------------------------------------------------------------------------
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ *
+ * CPhysicalParallelPartitionSelector.cpp
+ *
+ * IDENTIFICATION
+ *	  src/backend/gporca/libgpopt/src/operators/CPhysicalParallelPartitionSelector.cpp
+ *
+ *-------------------------------------------------------------------------
+ */
 
-#include "gpopt/operators/CPhysicalPartitionSelector.h"
+#include "gpopt/operators/CPhysicalParallelPartitionSelector.h"
 
 #include "gpos/base.h"
 
 #include "gpopt/base/CColRef.h"
 #include "gpopt/base/CDistributionSpecAny.h"
+#include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CDrvdPropCtxtPlan.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalParallelTableScan.h"
+#include "gpopt/operators/CPhysicalParallelAppendTableScan.h"
 #include "gpopt/search/CGroupProxy.h"
 
 using namespace gpopt;
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::CPhysicalPartitionSelector
+//		CPhysicalParallelPartitionSelector::CPhysicalParallelPartitionSelector
 //
 //	@doc:
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CPhysicalPartitionSelector::CPhysicalPartitionSelector(CMemoryPool *mp,
-													   ULONG scan_id,
-													   ULONG selector_id,
-													   IMDId *mdid,
-													   CExpression *pexprScalar)
+CPhysicalParallelPartitionSelector::CPhysicalParallelPartitionSelector(CMemoryPool *mp,
+																	   ULONG scan_id,
+																	   ULONG selector_id,
+																	   IMDId *mdid,
+																	   CExpression *pexprScalar,
+																	   ULONG ulParallelWorkers)
 	: CPhysical(mp),
 	  m_scan_id(scan_id),
 	  m_selector_id(selector_id),
 	  m_mdid(mdid),
-	  m_filter_expr(pexprScalar)
+	  m_filter_expr(pexprScalar),
+	  m_parallel_workers(ulParallelWorkers)
 {
 	GPOS_ASSERT(0 < scan_id);
 	GPOS_ASSERT(mdid->IsValid());
+	GPOS_ASSERT(ulParallelWorkers > 0);
 }
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::~CPhysicalPartitionSelector
+//		CPhysicalParallelPartitionSelector::~CPhysicalParallelPartitionSelector
 //
 //	@doc:
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CPhysicalPartitionSelector::~CPhysicalPartitionSelector()
+CPhysicalParallelPartitionSelector::~CPhysicalParallelPartitionSelector()
 {
 	m_mdid->Release();
 	CRefCount::SafeRelease(m_filter_expr);
@@ -61,39 +83,40 @@ CPhysicalPartitionSelector::~CPhysicalPartitionSelector()
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::Matches
+//		CPhysicalParallelPartitionSelector::Matches
 //
 //	@doc:
 //		Match operators
 //
 //---------------------------------------------------------------------------
 BOOL
-CPhysicalPartitionSelector::Matches(COperator *pop) const
+CPhysicalParallelPartitionSelector::Matches(COperator *pop) const
 {
 	if (Eopid() != pop->Eopid())
 	{
 		return false;
 	}
 
-	CPhysicalPartitionSelector *popPartSelector =
-		CPhysicalPartitionSelector::PopConvert(pop);
+	CPhysicalParallelPartitionSelector *popPartSelector =
+		CPhysicalParallelPartitionSelector::PopConvert(pop);
 
 	BOOL fScanIdCmp = popPartSelector->ScanId() == m_scan_id;
 	BOOL fMdidCmp = popPartSelector->MDId()->Equals(MDId());
+	BOOL fParallelWorkersCmp = popPartSelector->UlParallelWorkers() == m_parallel_workers;
 
-	return fScanIdCmp && fMdidCmp;
+	return fScanIdCmp && fMdidCmp && fParallelWorkersCmp;
 }
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::HashValue
+//		CPhysicalParallelPartitionSelector::HashValue
 //
 //	@doc:
 //		Hash operator
 //
 //---------------------------------------------------------------------------
 ULONG
-CPhysicalPartitionSelector::HashValue() const
+CPhysicalParallelPartitionSelector::HashValue() const
 {
 	return gpos::CombineHashes(
 		Eopid(), gpos::CombineHashes(m_scan_id, MDId()->HashValue()));
@@ -101,7 +124,7 @@ CPhysicalPartitionSelector::HashValue() const
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PcrsRequired
+//		CPhysicalParallelPartitionSelector::PcrsRequired
 //
 //	@doc:
 //		Compute required columns of the n-th child;
@@ -109,7 +132,7 @@ CPhysicalPartitionSelector::HashValue() const
 //
 //---------------------------------------------------------------------------
 CColRefSet *
-CPhysicalPartitionSelector::PcrsRequired(CMemoryPool *mp,
+CPhysicalParallelPartitionSelector::PcrsRequired(CMemoryPool *mp,
 										 CExpressionHandle &exprhdl,
 										 CColRefSet *pcrsInput,
 										 ULONG child_index,
@@ -119,7 +142,7 @@ CPhysicalPartitionSelector::PcrsRequired(CMemoryPool *mp,
 {
 	GPOS_ASSERT(
 		0 == child_index &&
-		"Required properties can only be computed on the relational child");
+			"Required properties can only be computed on the relational child");
 
 	CColRefSet *pcrs = GPOS_NEW(mp) CColRefSet(mp, *pcrsInput);
 	pcrs->Union(m_filter_expr->DeriveUsedColumns());
@@ -130,14 +153,14 @@ CPhysicalPartitionSelector::PcrsRequired(CMemoryPool *mp,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PosRequired
+//		CPhysicalParallelPartitionSelector::PosRequired
 //
 //	@doc:
 //		Compute required sort order of the n-th child
 //
 //---------------------------------------------------------------------------
 COrderSpec *
-CPhysicalPartitionSelector::PosRequired(CMemoryPool *mp,
+CPhysicalParallelPartitionSelector::PosRequired(CMemoryPool *mp,
 										CExpressionHandle &exprhdl,
 										COrderSpec *posRequired,
 										ULONG child_index,
@@ -152,23 +175,21 @@ CPhysicalPartitionSelector::PosRequired(CMemoryPool *mp,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PdsRequired
+//		CPhysicalParallelPartitionSelector::PdsRequired
 //
 //	@doc:
-//		Compute required distribution of the n-th child
+//		Compute required distribution of the n-th child跑
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalPartitionSelector::PdsRequired(CMemoryPool *mp,
+CPhysicalParallelPartitionSelector::PdsRequired(CMemoryPool *mp,
 										CExpressionHandle &exprhdl,
-										CDistributionSpec *pdsInput,
-										ULONG child_index,
+										CDistributionSpec *pdsInput,	// pdsInput
+										ULONG child_index,	// child_index
 										CDrvdPropArray *,  // pdrgpdpCtxt
 										ULONG			   // ulOptReq
 ) const
 {
-	GPOS_ASSERT(0 == child_index);
-
 	CPartInfo *ppartinfo = exprhdl.DerivePartitionInfo();
 	BOOL fCovered = ppartinfo->FContainsScanId(m_scan_id);
 
@@ -185,14 +206,14 @@ CPhysicalPartitionSelector::PdsRequired(CMemoryPool *mp,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PrsRequired
+//		CPhysicalParallelPartitionSelector::PrsRequired
 //
 //	@doc:
 //		Compute required rewindability of the n-th child
 //
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
-CPhysicalPartitionSelector::PrsRequired(CMemoryPool *mp,
+CPhysicalParallelPartitionSelector::PrsRequired(CMemoryPool *mp,
 										CExpressionHandle &exprhdl,
 										CRewindabilitySpec *prsRequired,
 										ULONG child_index,
@@ -207,21 +228,21 @@ CPhysicalPartitionSelector::PrsRequired(CMemoryPool *mp,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PcteRequired
+//		CPhysicalParallelPartitionSelector::PcteRequired
 //
 //	@doc:
 //		Compute required CTE map of the n-th child
 //
 //---------------------------------------------------------------------------
 CCTEReq *
-CPhysicalPartitionSelector::PcteRequired(CMemoryPool *,		   //mp,
+CPhysicalParallelPartitionSelector::PcteRequired(CMemoryPool *,		   //mp,
 										 CExpressionHandle &,  //exprhdl,
 										 CCTEReq *pcter,
 										 ULONG
 #ifdef GPOS_DEBUG
-											 child_index
+child_index
 #endif
-										 ,
+	,
 										 CDrvdPropArray *,	//pdrgpdpCtxt,
 										 ULONG				//ulOptReq
 ) const
@@ -231,7 +252,7 @@ CPhysicalPartitionSelector::PcteRequired(CMemoryPool *,		   //mp,
 }
 
 CPartitionPropagationSpec *
-CPhysicalPartitionSelector::PppsRequired(
+CPhysicalParallelPartitionSelector::PppsRequired(
 	CMemoryPool *mp, CExpressionHandle &,
 	CPartitionPropagationSpec *pppsRequired,
 	ULONG child_index GPOS_ASSERTS_ONLY, CDrvdPropArray *, ULONG) const
@@ -246,14 +267,14 @@ CPhysicalPartitionSelector::PppsRequired(
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::FProvidesReqdCols
+//		CPhysicalParallelPartitionSelector::FProvidesReqdCols
 //
 //	@doc:
 //		Check if required columns are included in output columns
 //
 //---------------------------------------------------------------------------
 BOOL
-CPhysicalPartitionSelector::FProvidesReqdCols(CExpressionHandle &exprhdl,
+CPhysicalParallelPartitionSelector::FProvidesReqdCols(CExpressionHandle &exprhdl,
 											  CColRefSet *pcrsRequired,
 											  ULONG	 // ulOptReq
 ) const
@@ -263,14 +284,14 @@ CPhysicalPartitionSelector::FProvidesReqdCols(CExpressionHandle &exprhdl,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PosDerive
+//		CPhysicalParallelPartitionSelector::PosDerive
 //
 //	@doc:
 //		Derive sort order
 //
 //---------------------------------------------------------------------------
 COrderSpec *
-CPhysicalPartitionSelector::PosDerive(CMemoryPool *,  // mp
+CPhysicalParallelPartitionSelector::PosDerive(CMemoryPool *,  // mp
 									  CExpressionHandle &exprhdl) const
 {
 	return PosDerivePassThruOuter(exprhdl);
@@ -278,14 +299,14 @@ CPhysicalPartitionSelector::PosDerive(CMemoryPool *,  // mp
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PdsDerive
+//		CPhysicalParallelPartitionSelector::PdsDerive
 //
 //	@doc:
 //		Derive distribution
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalPartitionSelector::PdsDerive(CMemoryPool *,  // mp
+CPhysicalParallelPartitionSelector::PdsDerive(CMemoryPool *,  // mp
 									  CExpressionHandle &exprhdl) const
 {
 	return PdsDerivePassThruOuter(exprhdl);
@@ -293,21 +314,21 @@ CPhysicalPartitionSelector::PdsDerive(CMemoryPool *,  // mp
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::PrsDerive
+//		CPhysicalParallelPartitionSelector::PrsDerive
 //
 //	@doc:
 //		Derive rewindability
 //
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
-CPhysicalPartitionSelector::PrsDerive(CMemoryPool *mp,
+CPhysicalParallelPartitionSelector::PrsDerive(CMemoryPool *mp,
 									  CExpressionHandle &exprhdl) const
 {
 	return PrsDerivePassThruOuter(mp, exprhdl);
 }
 
 CPartitionPropagationSpec *
-CPhysicalPartitionSelector::PppsDerive(CMemoryPool *mp,
+CPhysicalParallelPartitionSelector::PppsDerive(CMemoryPool *mp,
 									   CExpressionHandle &exprhdl) const
 {
 	CPartitionPropagationSpec *pps_result =
@@ -328,14 +349,14 @@ CPhysicalPartitionSelector::PppsDerive(CMemoryPool *mp,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::EpetDistribution
+//		CPhysicalParallelPartitionSelector::EpetDistribution
 //
 //	@doc:
 //		Return the enforcing type for distribution property based on this operator
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalPartitionSelector::EpetDistribution(CExpressionHandle &exprhdl,
+CPhysicalParallelPartitionSelector::EpetDistribution(CExpressionHandle &exprhdl,
 											 const CEnfdDistribution *ped) const
 {
 	CDrvdPropPlan *pdpplan = exprhdl.Pdpplan(0 /* child_index */);
@@ -366,7 +387,7 @@ CPhysicalPartitionSelector::EpetDistribution(CExpressionHandle &exprhdl,
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalPartitionSelector::EpetRewindability(
+CPhysicalParallelPartitionSelector::EpetRewindability(
 	CExpressionHandle &exprhdl, const CEnfdRewindability *per) const
 {
 	// get rewindability delivered by the node
@@ -383,14 +404,14 @@ CPhysicalPartitionSelector::EpetRewindability(
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::EpetOrder
+//		CPhysicalParallelPartitionSelector::EpetOrder
 //
 //	@doc:
 //		Return the enforcing type for order property based on this operator
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalPartitionSelector::EpetOrder(CExpressionHandle &,	// exprhdl,
+CPhysicalParallelPartitionSelector::EpetOrder(CExpressionHandle &,	// exprhdl,
 									  const CEnfdOrder *	// ped
 ) const
 {
@@ -399,38 +420,130 @@ CPhysicalPartitionSelector::EpetOrder(CExpressionHandle &,	// exprhdl,
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::FValidContext
+//		CPhysicalParallelPartitionSelector::IsContextValidInternal
 //
 //---------------------------------------------------------------------------
 BOOL
-CPhysicalPartitionSelector::FValidContext(
+CPhysicalParallelPartitionSelector::IsContextValidInternal(
+	CGroup *pgroup, CBitSet *visited_groups) const
+{
+	if (nullptr == pgroup || visited_groups->Get(pgroup->Id()))
+	{
+		return false;  // Already visited or null - avoid infinite recursion
+	}
+
+	// Mark this group as visited
+	visited_groups->ExchangeSet(pgroup->Id());
+
+	// Scan through all physical expressions in the child group
+	CGroupProxy gpChild(pgroup);
+	CGroupExpression *pgexprChild = gpChild.PgexprFirst();
+
+	while (nullptr != pgexprChild)
+	{
+		COperator *popChild = pgexprChild->Pop();
+
+		// Check for parallel table scan - this is the source of worker count
+		if (COperator::EopPhysicalParallelTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelTableScan *popScan =
+				CPhysicalParallelTableScan::PopConvert(popChild);
+
+			if (popScan->UlParallelWorkers() > 1)
+				return true;
+			else
+				return false;
+		}
+
+		if (COperator::EopPhysicalParallelAppendTableScan == popChild->Eopid())
+		{
+			CPhysicalParallelAppendTableScan *popScan =
+				CPhysicalParallelAppendTableScan::PopConvert(popChild);
+
+			if (popScan->UlParallelWorkers() > 1)
+				return true;
+			else
+				return false;
+		}
+
+		if (CUtils::FPhysicalMotion(popChild))
+		{
+			// Only allow MotionBroadcastWorkers or MotionHashDistributeWorkers
+			if (COperator::EopPhysicalMotionBroadcastWorkers == popChild->Eopid() ||
+				COperator::EopPhysicalMotionHashDistributeWorkers == popChild->Eopid())
+				return true;
+			else
+				return false;
+		}
+
+		// Recursively check all children (Motion nodes, joins, etc.)
+		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
+		{
+			BOOL fValid = IsContextValidInternal(
+				(*pgexprChild)[ul], visited_groups);
+			if (fValid)
+				return fValid;
+		}
+
+		pgexprChild = gpChild.PgexprNext(pgexprChild);
+	}
+
+	return false;  // No parallel operators found
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelPartitionSelector::IsContextValid
+//
+//---------------------------------------------------------------------------
+BOOL
+CPhysicalParallelPartitionSelector::IsContextValid(CGroup *pgroup) const
+{
+	if (nullptr == pgroup)
+	{
+		return false;
+	}
+
+	// Create visited set to track groups and avoid infinite recursion
+	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
+	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
+	BOOL fVliad = IsContextValidInternal(pgroup, visited);
+	visited->Release();
+
+	return fVliad;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalParallelPartitionSelector::FValidContext
+//
+//---------------------------------------------------------------------------
+BOOL
+CPhysicalParallelPartitionSelector::FValidContext(
 	CMemoryPool *,  // mp
 	COptimizationContext *poc,
 	COptimizationContextArray *) const
 {
 	// Regular hash join should reject WorkerRandom distributions from children.
 	// Only ParallelHashJoin can handle WorkerRandom distributions.
-	ULONG ulParallelWorkers = CUtils::UlExtractWorkersFromGroup(poc->Pgroup());
+	BOOL fValid = IsContextValid(poc->Pgroup());
 
-	if (ulParallelWorkers > 1)
-		return false;
-
-	return true;
+	return fValid;
 }
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalPartitionSelector::OsPrint
+//		CPhysicalParallelPartitionSelector::OsPrint
 //
 //	@doc:
 //		Debug print
 //
 //---------------------------------------------------------------------------
 IOstream &
-CPhysicalPartitionSelector::OsPrint(IOstream &os) const
+CPhysicalParallelPartitionSelector::OsPrint(IOstream &os) const
 {
 	os << SzId() << ", Id: " << SelectorId() << ", Scan Id: " << m_scan_id
-	   << ", Part Table: ";
+	   << ", Parallel workers: " << m_parallel_workers << ", Part Table: ";
 	MDId()->OsPrint(os);
 
 	return os;

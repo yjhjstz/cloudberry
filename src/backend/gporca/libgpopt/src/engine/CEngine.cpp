@@ -40,6 +40,7 @@
 #include "gpopt/operators/CPhysicalAgg.h"
 #include "gpopt/operators/CPhysicalMotionGather.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
+#include "gpopt/operators/CPhysicalParallelPartitionSelector.h"
 #include "gpopt/operators/CPhysicalSort.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
 #include "gpopt/search/CBinding.h"
@@ -2330,6 +2331,15 @@ CEngine::FCheckReqdProps(CExpressionHandle &exprhdl, CReqdPropPlan *prpp,
 	{
 		CPhysicalPartitionSelector *part_selector =
 			CPhysicalPartitionSelector::PopConvert(popPhysical);
+		if (!pps->Contains(part_selector->ScanId()))
+		{
+			return false;
+		}
+	}
+	else if (COperator::EopPhysicalParallelPartitionSelector == popPhysical->Eopid())
+	{
+		CPhysicalParallelPartitionSelector *part_selector =
+			CPhysicalParallelPartitionSelector::PopConvert(popPhysical);
 		if (!pps->Contains(part_selector->ScanId()))
 		{
 			return false;

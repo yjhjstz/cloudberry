@@ -1,15 +1,32 @@
-//---------------------------------------------------------------------------
-//	Greenplum Database
-//	Copyright (C) 2014 VMware, Inc. or its affiliates.
-//
-//	@filename:
-//		CPhysicalPartitionSelector.h
-//
-//	@doc:
-//		Physical partition selector operator used for property enforcement
-//---------------------------------------------------------------------------
-#ifndef GPOPT_CPhysicalPartitionSelector_H
-#define GPOPT_CPhysicalPartitionSelector_H
+/*-------------------------------------------------------------------------
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ *
+ * CPhysicalParallelPartitionSelector.h
+ *
+ * IDENTIFICATION
+ *	  src/backend/gporca/libgpopt/include/gpopt/operators/CPhysicalParallelPartitionSelector.h
+ *
+ *-------------------------------------------------------------------------
+ */
+
+#ifndef GPOPT_CPhysicalParallelPartitionSelector_H
+#define GPOPT_CPhysicalParallelPartitionSelector_H
 
 #include "gpos/base.h"
 
@@ -21,13 +38,13 @@ namespace gpopt
 {
 //---------------------------------------------------------------------------
 //	@class:
-//		CPhysicalPartitionSelector
+//		CPhysicalParallelPartitionSelector
 //
 //	@doc:
-//		Physical partition selector operator used for property enforcement
+//		Physical parallel partition selector operator used for property enforcement
 //
 //---------------------------------------------------------------------------
-class CPhysicalPartitionSelector : public CPhysical
+class CPhysicalParallelPartitionSelector : public CPhysical
 {
 private:
 	// Scan id
@@ -42,29 +59,32 @@ private:
 	// partition selection predicate
 	CExpression *m_filter_expr;
 
+	// parallel workers
+	ULONG m_parallel_workers;
+
 public:
-	CPhysicalPartitionSelector(const CPhysicalPartitionSelector &) = delete;
+	CPhysicalParallelPartitionSelector(const CPhysicalParallelPartitionSelector &) = delete;
 
 	// ctor
-	CPhysicalPartitionSelector(CMemoryPool *mp, ULONG scan_id,
-							   ULONG selector_id, IMDId *mdid,
-							   CExpression *pexprScalar);
+	CPhysicalParallelPartitionSelector(CMemoryPool *mp, ULONG scan_id,
+									   ULONG selector_id, IMDId *mdid,
+									   CExpression *pexprScalar, ULONG ulParallelWorkers);
 
 	// dtor
-	~CPhysicalPartitionSelector() override;
+	~CPhysicalParallelPartitionSelector() override;
 
 	// ident accessors
 	EOperatorId
 	Eopid() const override
 	{
-		return EopPhysicalPartitionSelector;
+		return EopPhysicalParallelPartitionSelector;
 	}
 
 	// operator name
 	const CHAR *
 	SzId() const override
 	{
-		return "CPhysicalPartitionSelector";
+		return "CPhysicalParallelPartitionSelector";
 	}
 
 	// scan id
@@ -80,7 +100,7 @@ public:
 		return m_selector_id;
 	}
 
-	// partitioned table mdid
+	// partition table mdid
 	IMDId *
 	MDId() const
 	{
@@ -92,6 +112,13 @@ public:
 	FilterExpr() const
 	{
 		return m_filter_expr;
+	}
+
+	// parallel workers
+	ULONG
+	UlParallelWorkers() const
+	{
+		return m_parallel_workers;
 	}
 
 	// match function
@@ -203,14 +230,18 @@ public:
 	//-------------------------------------------------------------------------------------
 
 	// conversion function
-	static CPhysicalPartitionSelector *
+	static CPhysicalParallelPartitionSelector *
 	PopConvert(COperator *pop)
 	{
 		GPOS_ASSERT(nullptr != pop);
-		GPOS_ASSERT(EopPhysicalPartitionSelector == pop->Eopid());
+		GPOS_ASSERT(EopPhysicalParallelPartitionSelector == pop->Eopid());
 
-		return dynamic_cast<CPhysicalPartitionSelector *>(pop);
+		return dynamic_cast<CPhysicalParallelPartitionSelector *>(pop);
 	}
+
+	BOOL IsContextValidInternal(CGroup *pgroup, CBitSet *visited_groups) const;
+
+	BOOL IsContextValid(CGroup *pgroup) const;
 
 	// check if optimization context is valid
 	BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
@@ -218,11 +249,10 @@ public:
 
 	// debug print
 	IOstream &OsPrint(IOstream &os) const override;
+};
+}	// namespace gpopt
 
-};	// class CPhysicalPartitionSelector
+#endif	//	!GPOPT_CPhysicalParallelPartitionSelector_H
 
-}  // namespace gpopt
+//	EOF
 
-#endif	// !GPOPT_CPhysicalPartitionSelector_H
-
-// EOF

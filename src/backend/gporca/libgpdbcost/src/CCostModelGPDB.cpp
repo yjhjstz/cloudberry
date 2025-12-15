@@ -38,6 +38,7 @@
 #include "gpopt/operators/CPhysicalMotionBroadcast.h"
 #include "gpopt/operators/CPhysicalMotionBroadcastWorkers.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
+#include "gpopt/operators/CPhysicalParallelPartitionSelector.h"
 #include "gpopt/operators/CPhysicalSequenceProject.h"
 #include "gpopt/operators/CPhysicalHashSequenceProject.h"
 #include "gpopt/operators/CPhysicalStreamAgg.h"
@@ -278,6 +279,7 @@ CCostModelGPDB::FUnary(COperator::EOperatorId op_id)
 		   COperator::EopPhysicalComputeScalar == op_id ||
 		   COperator::EopPhysicalLimit == op_id ||
 		   COperator::EopPhysicalPartitionSelector == op_id ||
+		   COperator::EopPhysicalParallelPartitionSelector == op_id ||
 		   COperator::EopPhysicalSplit == op_id ||
 		   COperator::EopPhysicalSpool == op_id;
 }
@@ -310,7 +312,8 @@ CCostModelGPDB::CostChildren(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		COperator *popChild = exprhdl.Pop(ul);
 		if (nullptr != popChild &&
 			(CUtils::FPhysicalScan(popChild) ||
-			 COperator::EopPhysicalPartitionSelector == popChild->Eopid()))
+			 COperator::EopPhysicalPartitionSelector == popChild->Eopid() ||
+			 COperator::EopPhysicalParallelPartitionSelector == popChild->Eopid()))
 		{
 			// by default, compute scan output cost based on full Scan
 			DOUBLE dScanRows = pci->PdRows()[ul];
@@ -318,36 +321,71 @@ CCostModelGPDB::CostChildren(CMemoryPool *mp, CExpressionHandle &exprhdl,
 
 			if (fFilterParent)
 			{
-				CPhysicalPartitionSelector *ps =
-					dynamic_cast<CPhysicalPartitionSelector *>(popChild);
-
-				if (ps)
+				if (COperator::EopPhysicalPartitionSelector == popChild->Eopid())
 				{
-					CCostContext *grandchildContext = nullptr;
+					CPhysicalPartitionSelector *ps = dynamic_cast<CPhysicalPartitionSelector *>(popChild);
 
-					scanOp = exprhdl.PopGrandchild(ul, 0, &grandchildContext);
-					CPhysicalDynamicScan *scan =
-						dynamic_cast<CPhysicalDynamicScan *>(scanOp);
-
-					if (scan && scan->ScanId() == ps->ScanId() &&
-						grandchildContext)
+					if (ps)
 					{
-						// We have a filter on top of a partition selector on top of a scan.
-						// Base the scan output cost on the combination (filter + part sel + scan)
-						// on the rows that are produced by the scan, since the runtime execution
-						// plan with be sequence(part_sel, scan+filter). Note that the cost of
-						// the partition selector is ignored here. It may be higher than that of
-						// the complete tree (filter + part sel + scan).
-						// See method CTranslatorExprToDXL::PdxlnPartitionSelectorWithInlinedCondition()
-						// for how we inline the predicate into the dynamic table scan.
-						dCostChild = grandchildContext->Cost().Get();
+						CCostContext *grandchildContext = nullptr;
+
+						scanOp = exprhdl.PopGrandchild(ul, 0, &grandchildContext);
+						CPhysicalDynamicScan *scan =
+							dynamic_cast<CPhysicalDynamicScan *>(scanOp);
+
+						if (scan && scan->ScanId() == ps->ScanId() &&
+							grandchildContext)
+						{
+							// We have a filter on top of a partition selector on top of a scan.
+							// Base the scan output cost on the combination (filter + part sel + scan)
+							// on the rows that are produced by the scan, since the runtime execution
+							// plan with be sequence(part_sel, scan+filter). Note that the cost of
+							// the partition selector is ignored here. It may be higher than that of
+							// the complete tree (filter + part sel + scan).
+							// See method CTranslatorExprToDXL::PdxlnPartitionSelectorWithInlinedCondition()
+							// for how we inline the predicate into the dynamic table scan.
+							dCostChild = grandchildContext->Cost().Get();
+							dScanRows = pci->Rows();
+						}
+					}
+					else
+					{
+						// if parent is filter, compute scan output cost based on rows produced by Filter operator
 						dScanRows = pci->Rows();
 					}
 				}
-				else
+				else if (COperator::EopPhysicalParallelPartitionSelector == popChild->Eopid())
 				{
-					// if parent is filter, compute scan output cost based on rows produced by Filter operator
-					dScanRows = pci->Rows();
+					CPhysicalParallelPartitionSelector *ps = dynamic_cast<CPhysicalParallelPartitionSelector *>(popChild);
+
+					if (ps)
+					{
+						CCostContext *grandchildContext = nullptr;
+
+						scanOp = exprhdl.PopGrandchild(ul, 0, &grandchildContext);
+						CPhysicalDynamicScan *scan =
+							dynamic_cast<CPhysicalDynamicScan *>(scanOp);
+
+						if (scan && scan->ScanId() == ps->ScanId() &&
+							grandchildContext)
+						{
+							// We have a filter on top of a partition selector on top of a scan.
+							// Base the scan output cost on the combination (filter + part sel + scan)
+							// on the rows that are produced by the scan, since the runtime execution
+							// plan with be sequence(part_sel, scan+filter). Note that the cost of
+							// the partition selector is ignored here. It may be higher than that of
+							// the complete tree (filter + part sel + scan).
+							// See method CTranslatorExprToDXL::PdxlnPartitionSelectorWithInlinedCondition()
+							// for how we inline the predicate into the dynamic table scan.
+							dCostChild = grandchildContext->Cost().Get();
+							dScanRows = pci->Rows();
+						}
+					}
+					else
+					{
+						// if parent is filter, compute scan output cost based on rows produced by Filter operator
+						dScanRows = pci->Rows();
+					}
 				}
 			}
 

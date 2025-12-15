@@ -54,6 +54,8 @@ private:
 
 	ULongPtrArray *m_parts;
 
+	ULONG m_parallel_workers = 0;
+
 public:
 	CDXLPhysicalPartitionSelector(CDXLPhysicalPartitionSelector &) = delete;
 
@@ -61,6 +63,11 @@ public:
 	CDXLPhysicalPartitionSelector(CMemoryPool *mp, IMDId *mdid_rel,
 								  ULONG selector_id, ULONG scan_id,
 								  ULongPtrArray *parts);
+
+	// ctor
+	CDXLPhysicalPartitionSelector(CMemoryPool *mp, IMDId *mdid_rel,
+								  ULONG selector_id, ULONG scan_id,
+								  ULongPtrArray *parts, ULONG ul_parallel_workers);
 
 	// dtor
 	~CDXLPhysicalPartitionSelector() override;
@@ -90,6 +97,12 @@ public:
 	ScanId() const
 	{
 		return m_scan_id;
+	}
+
+	ULONG
+	ParallelWorkers() const
+	{
+		return m_parallel_workers;
 	}
 
 	ULongPtrArray *

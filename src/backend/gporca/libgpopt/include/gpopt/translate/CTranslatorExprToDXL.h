@@ -471,6 +471,12 @@ private:
 									 CDistributionSpecArray *pdrgpdsBaseTables,
 									 ULONG *pulNonGatherMotions, BOOL *pfDML);
 
+	// translate a parallel partition selector
+	CDXLNode *PdxlnParallelPartitionSelector(CExpression *pexpr,
+									 CColRefArray *colref_array,
+									 CDistributionSpecArray *pdrgpdsBaseTables,
+									 ULONG *pulNonGatherMotions, BOOL *pfDML);
+
 	// translate a DML operator
 	CDXLNode *PdxlnDML(CExpression *pexpr, CColRefArray *colref_array,
 					   CDistributionSpecArray *pdrgpdsBaseTables,

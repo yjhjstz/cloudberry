@@ -137,6 +137,7 @@ OBJS        = CExpression.o \
               CPhysicalParallelTableScan.o \
               CPhysicalParallelUnionAll.o \
               CPhysicalPartitionSelector.o \
+              CPhysicalParallelPartitionSelector.o \
               CPhysicalRightOuterHashJoin.o \
               CPhysicalScalarAgg.o \
               CPhysicalScan.o \

@@ -12,11 +12,20 @@
 #include "gpopt/base/CPartitionPropagationSpec.h"
 
 #include "gpopt/exception.h"
+#include "gpopt/operators/COperator.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalParallelPartitionSelector.h"
+#include "gpopt/operators/CPhysicalParallelTableScan.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
+#include "gpopt/base/CDistributionSpecWorkerRandom.h"
 
 using namespace gpos;
 using namespace gpopt;
+
+// Forward declarations for gpdbwrappers functions
+namespace gpdb {
+bool IsParallelModeOK(void);
+}
 
 // used for determining equality in memo (e.g in optimization contexts)
 BOOL
@@ -403,6 +412,7 @@ CPartitionPropagationSpec::AppendEnforcers(CMemoryPool *mp,
 										   CExpressionArray *pdrgpexpr,
 										   CExpression *expr)
 {
+	BOOL fParallelScan = false;
 	UlongToSPartPropSpecInfoMapIter hmulpi(m_part_prop_spec_infos);
 	while (hmulpi.Advance())
 	{
@@ -420,12 +430,52 @@ CPartitionPropagationSpec::AppendEnforcers(CMemoryPool *mp,
 		info->m_filter_expr->AddRef();
 		expr->AddRef();
 
-		CExpression *part_selector = GPOS_NEW(mp)
-			CExpression(mp,
-						GPOS_NEW(mp) CPhysicalPartitionSelector(
-							mp, info->m_scan_id, selector_id,
-							info->m_root_rel_mdid, info->m_filter_expr),
-						expr);
+		// Decide which partition selector to build based on the child operator
+		COperator *popChild = exprhdl.Pop();
+		COperator *pop_scan = nullptr;
+
+		if (COperator::EopPhysicalFilter == popChild->Eopid() && exprhdl.Arity() > 0)
+		{
+			pop_scan = exprhdl.Pop(0);
+
+			if (nullptr != popChild && COperator::EopPhysicalParallelTableScan == pop_scan->Eopid())
+			{
+				fParallelScan = gpdb::IsParallelModeOK();
+			}
+		}
+		else if (COperator::EopPhysicalParallelTableScan == popChild->Eopid()  ||
+			COperator::EopPhysicalMotionBroadcastWorkers == popChild->Eopid() ||
+			COperator::EopPhysicalMotionHashDistributeWorkers == popChild->Eopid())
+		{
+			fParallelScan = gpdb::IsParallelModeOK();
+		}
+
+		CExpression *part_selector = nullptr;
+		if (fParallelScan)
+		{
+			ULONG ulParallelWorkers = 0;
+			if (pop_scan)
+				ulParallelWorkers = CPhysicalParallelTableScan::PopConvert(pop_scan)->UlParallelWorkers();
+			else
+				ulParallelWorkers = CUtils::UlExtractWorkersFromGroup(expr->Pgexpr()->Pgroup());
+
+			part_selector = GPOS_NEW(mp)
+				CExpression(mp,
+							GPOS_NEW(mp) CPhysicalParallelPartitionSelector(
+								mp, info->m_scan_id, selector_id,
+								info->m_root_rel_mdid, info->m_filter_expr,
+								ulParallelWorkers),
+							expr);
+		}
+		else
+		{
+			part_selector = GPOS_NEW(mp)
+				CExpression(mp,
+							GPOS_NEW(mp) CPhysicalPartitionSelector(
+								mp, info->m_scan_id, selector_id,
+								info->m_root_rel_mdid, info->m_filter_expr),
+							expr);
+		}
 
 		IStatistics *stats = exprhdl.Pstats();
 
