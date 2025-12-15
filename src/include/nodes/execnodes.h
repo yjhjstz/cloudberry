@@ -29,6 +29,7 @@
 #include "partitioning/partdefs.h"
 #include "storage/barrier.h"
 #include "storage/condition_variable.h"
+#include "storage/lwlock.h"
 #include "utils/hsearch.h"
 #include "utils/queryenvironment.h"
 #include "utils/reltrigger.h"
@@ -3328,6 +3329,13 @@ typedef struct MotionState
 	int 		parallel_workers; /* parallel workers of motion */
 } MotionState;
 
+/* Shared state for parallel-aware ParitionSelector */
+typedef struct ParallelPartitionSelectorState
+{
+	LWLock		pa_lock;	/* mutual exclusion to change pa_part_prune_result */
+	Bitmapset	pa_part_prune_result;
+} ParallelPartitionSelectorState;
+
 /* ----------------
  *	 PartitionSelectorState information
  *
@@ -3344,6 +3352,8 @@ typedef struct PartitionSelectorState
 	PlanState	ps;				/* its first field is NodeTag */
 
 	struct PartitionPruneState *prune_state;
+	ParallelPartitionSelectorState *pstate; /* parallel coordination info */
+	Size		pstate_len;		/* size of parallel coordination info */
 	Bitmapset *part_prune_result;
 } PartitionSelectorState;
 

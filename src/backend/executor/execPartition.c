@@ -2281,6 +2281,14 @@ ExecFindMatchingSubPlans(PartitionPruneState *prunestate,
 			{
 				Assert(IsA(psstate, PartitionSelectorState));
 
+				if (psstate->ps.plan->parallel_aware)
+				{
+					if (!psstate->part_prune_result)
+						psstate->part_prune_result = palloc0(BITMAPSET_SIZE(psstate->pstate->pa_part_prune_result.nwords));
+					memcpy(psstate->part_prune_result, &psstate->pstate->pa_part_prune_result,
+						   BITMAPSET_SIZE(psstate->pstate->pa_part_prune_result.nwords));
+				}
+
 				join_selected = bms_intersect(join_selected,
 											  psstate->part_prune_result);
 			}

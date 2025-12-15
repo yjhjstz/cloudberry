@@ -17,9 +17,14 @@
 #ifndef NODEPARTITIONSELECTOR_H
 #define NODEPARTITIONSELECTOR_H
 
+#include "access/parallel.h"
+
 extern PartitionSelectorState* ExecInitPartitionSelector(PartitionSelector *node, EState *estate, int eflags);
 extern void ExecEndPartitionSelector(PartitionSelectorState *node);
 extern void ExecReScanPartitionSelector(PartitionSelectorState *node);
+extern void ExecPartitionSelectorInitializeWorker(PartitionSelectorState *node, ParallelWorkerContext *pwcxt);
+extern void ExecPartitionSelectorEstimate(PartitionSelectorState *node, ParallelContext *pcxt);
+extern void ExecPartitionSelectorInitializeDSM(PartitionSelectorState *node, ParallelContext *pcxt);
 
 #endif   /* NODEPARTITIONSELECTOR_H */
 
