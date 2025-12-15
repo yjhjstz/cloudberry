@@ -142,6 +142,28 @@ ExecPartitionSelector(PlanState *pstate)
 		Assert(param->execPlan == NULL);
 		Assert(!param->isnull);
 		param->value = PointerGetDatum(node);
+		if (node->ps.plan->parallel_aware)
+		{
+			int	i;
+			int	len = 0;
+
+			if (node->part_prune_result)
+				len = node->part_prune_result->nwords;
+			Assert(len <= node->pstate->pa_part_prune_result.nwords);
+
+			LWLockAcquire(&node->pstate->pa_lock, LW_EXCLUSIVE);
+			Bitmapset	*result = &node->pstate->pa_part_prune_result;
+
+			for (i = 0; i < len; i++)
+				result->words[i] |= node->part_prune_result->words[i];
+
+			if (node->part_prune_result)
+			{
+				pfree(node->part_prune_result);
+				node->part_prune_result = NULL;
+			}
+			LWLockRelease(&node->pstate->pa_lock);
+		}
 
 		return NULL;
 	}
@@ -183,6 +205,88 @@ ExecEndPartitionSelector(PartitionSelectorState *node)
 
 	/* clean child node */
 	ExecEndNode(outerPlanState(node));
+}
+
+void
+ExecPartitionSelectorInitializeWorker(PartitionSelectorState *node, ParallelWorkerContext *pwcxt)
+{
+	node->pstate = shm_toc_lookup(pwcxt->toc, node->ps.plan->plan_node_id, false);
+}
+
+/* ----------------------------------------------------------------
+ *		ExecPartitionSelectorInitializeDSM
+ *
+ *		Set up shared state for Parallel partition selector.
+ * ----------------------------------------------------------------
+ */
+void
+ExecPartitionSelectorInitializeDSM(PartitionSelectorState *node, ParallelContext *pcxt)
+{
+	ParallelPartitionSelectorState *pstate;
+	int num_partrelprunedata = 0;
+	int partprunedata_idx = 0;
+	int partrelprunedata_idx = 0;
+	int nparts_sum = 0;
+
+	pstate = shm_toc_allocate(pcxt->toc, node->pstate_len);
+	memset(pstate, 0, node->pstate_len);
+
+	node->pstate = pstate;
+
+	/* Calculate npart sum of all prune partitioned tables */
+	for (partprunedata_idx = 0; partprunedata_idx < node->prune_state->num_partprunedata; partprunedata_idx++)
+	{
+		num_partrelprunedata = node->prune_state->partprunedata[partprunedata_idx]->num_partrelprunedata;
+		for (partrelprunedata_idx = 0; partrelprunedata_idx < num_partrelprunedata; partrelprunedata_idx++)
+		{
+			nparts_sum += node->prune_state->partprunedata[partprunedata_idx]->partrelprunedata[partrelprunedata_idx].nparts;
+		}
+	}
+
+	node->pstate->pa_part_prune_result.nwords = (nparts_sum + BITS_PER_BITMAPWORD - 1) / BITS_PER_BITMAPWORD;
+
+	LWLockInitialize(&pstate->pa_lock, LWTRANCHE_SHARED_PARTITIONSELECTOR);
+	shm_toc_insert(pcxt->toc, node->ps.plan->plan_node_id, pstate);
+}
+
+/* ----------------------------------------------------------------
+ *		ExecPartitionSelectorEstimate
+ *
+ *		Compute the amount of space we'll need in the parallel
+ *		query DSM, and inform pcxt->estimator about our needs.
+ * ----------------------------------------------------------------
+ */
+void
+ExecPartitionSelectorEstimate(PartitionSelectorState *node,
+							  ParallelContext *pcxt)
+{
+	int num_partrelprunedata = 0;
+	int partprunedata_idx;
+	int partrelprunedata_idx;
+	int nparts_sum = 0;
+	Size size = 0;
+
+	size = add_size(size, sizeof(LWLock));
+
+	/* Calculate npart sum of all prune partitioned tables */
+	for (partprunedata_idx = 0; partprunedata_idx < node->prune_state->num_partprunedata; partprunedata_idx++)
+	{
+		num_partrelprunedata = node->prune_state->partprunedata[partprunedata_idx]->num_partrelprunedata;
+		for (partrelprunedata_idx = 0; partrelprunedata_idx < num_partrelprunedata; partrelprunedata_idx++)
+		{
+			nparts_sum += node->prune_state->partprunedata[partprunedata_idx]->partrelprunedata[partrelprunedata_idx].nparts;
+		}
+	}
+
+	{
+		Size nwords = (nparts_sum + BITS_PER_BITMAPWORD - 1) / BITS_PER_BITMAPWORD;
+		size = add_size(size, BITMAPSET_SIZE(nwords));
+	}
+	node->pstate_len = size;
+	Assert(node->pstate_len);
+
+	shm_toc_estimate_chunk(&pcxt->estimator, node->pstate_len);
+	shm_toc_estimate_keys(&pcxt->estimator, 1);
 }
 
 /* EOF */

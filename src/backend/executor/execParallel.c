@@ -37,6 +37,7 @@
 #include "executor/nodeIndexonlyscan.h"
 #include "executor/nodeIndexscan.h"
 #include "executor/nodeMemoize.h"
+#include "executor/nodePartitionSelector.h"
 #include "executor/nodeSeqscan.h"
 #include "executor/nodeSort.h"
 #include "executor/nodeSubplan.h"
@@ -1001,6 +1002,7 @@ ExecParallelReInitializeDSM(PlanState *planstate,
 		case T_SortState:
 		case T_IncrementalSortState:
 		case T_MemoizeState:
+		case T_PartitionSelectorState:
 			/* these nodes have DSM state, but no reinitialization is required */
 			break;
 
@@ -1551,6 +1553,9 @@ EstimateGpParallelDSMEntrySize(PlanState *planstate, ParallelContext *pctx)
 		case T_SortState:
 			ExecSortEstimate((SortState *) planstate, pctx);
 			break;
+		case T_PartitionSelectorState:
+			ExecPartitionSelectorEstimate((PartitionSelectorState *) planstate, pctx);
+			break;
 		default:
 			break;
 
@@ -1603,6 +1608,10 @@ InitializeGpParallelWorkers(PlanState *planstate, ParallelWorkerContext *pwcxt)
 		case T_HashJoinState:
 			if (planstate->plan->parallel_aware)
 				ExecHashJoinInitializeWorker((HashJoinState *) planstate, pwcxt);
+			break;
+		case T_PartitionSelectorState:
+			if (planstate->plan->parallel_aware)
+				ExecPartitionSelectorInitializeWorker((PartitionSelectorState *) planstate, pwcxt);
 			break;
 		default:
 			break;
@@ -1661,6 +1670,10 @@ InitializeGpParallelDSMEntry(PlanState *planstate, ParallelContext *pctx)
 			break;
 		case T_SortState:
 			ExecSortInitializeDSM((SortState *) planstate, pctx);
+			break;
+		case T_PartitionSelectorState:
+			/* even when not parallel-aware, for EXPLAIN ANALYZE */
+			ExecPartitionSelectorInitializeDSM((PartitionSelectorState *) planstate, pctx);
 			break;
 		default:
 			break;
