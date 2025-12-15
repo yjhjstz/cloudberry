@@ -1078,7 +1078,9 @@ CCostModelGPDB::CostHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				COperator::EopPhysicalRightOuterHashJoin == op_id ||
 				COperator::EopPhysicalFullHashJoin == op_id ||
 				COperator::EopPhysicalParallelInnerHashJoin == op_id ||
-				COperator::EopPhysicalParallelLeftSemiHashJoin == op_id);
+				COperator::EopPhysicalParallelLeftSemiHashJoin == op_id ||
+				COperator::EopPhysicalParallelLeftOuterHashJoin == op_id ||
+				COperator::EopPhysicalParallelLeftAntiSemiHashJoinNotIn == op_id);
 #endif	// GPOS_DEBUG
 
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
