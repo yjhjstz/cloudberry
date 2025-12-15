@@ -256,15 +256,6 @@ CPhysicalMotionHashDistributeWorkers::PosDerive(
 	return GPOS_NEW(mp) COrderSpec(mp);
 }
 
-CPartitionPropagationSpec *
-CPhysicalMotionHashDistributeWorkers::PppsDerive(
-	CMemoryPool *mp, CExpressionHandle &  // exprhdl
-) const
-{
-	// A Motion cannot pass propagation spec
-	return GPOS_NEW(mp) CPartitionPropagationSpec(mp);
-}
-
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalMotionHashDistributeWorkers::OsPrint

@@ -62,6 +62,7 @@
 #include "gpopt/operators/CPhysicalMotionRoutedDistribute.h"
 #include "gpopt/operators/CPhysicalNLJoin.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
+#include "gpopt/operators/CPhysicalParallelPartitionSelector.h"
 #include "gpopt/operators/CPhysicalScalarAgg.h"
 #include "gpopt/operators/CPhysicalSequenceProject.h"
 #include "gpopt/operators/CPhysicalHashSequenceProject.h"
@@ -541,6 +542,11 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 			break;
 		case COperator::EopPhysicalPartitionSelector:
 			dxlnode = CTranslatorExprToDXL::PdxlnPartitionSelector(
+				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
+				pfDML);
+			break;
+		case COperator::EopPhysicalParallelPartitionSelector:
+			dxlnode = CTranslatorExprToDXL::PdxlnParallelPartitionSelector(
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
 			break;
@@ -6249,6 +6255,62 @@ CTranslatorExprToDXL::PdxlnPartitionSelector(
 		CDXLNode(m_mp, GPOS_NEW(m_mp) CDXLPhysicalPartitionSelector(
 						   m_mp, popSelector->MDId(), popSelector->SelectorId(),
 						   popSelector->ScanId(), parts));
+
+	CDXLNode *pdxlnFilter = PdxlnScalar(popSelector->FilterExpr());
+	CDXLPhysicalProperties *dxl_properties = GetProperties(pexprChild);
+
+	pdxlnSelector->SetProperties(dxl_properties);
+	pdxlnSelector->AddChild(pdxlnPrL);
+	pdxlnSelector->AddChild(pdxlnFilter);
+	pdxlnSelector->AddChild(child_dxlnode);
+
+	return pdxlnSelector;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CTranslatorExprToDXL::PdxlnPartitionSelector
+//
+//	@doc:
+//		Translate a partition selector into DXL
+//
+//---------------------------------------------------------------------------
+CDXLNode *
+CTranslatorExprToDXL::PdxlnParallelPartitionSelector(
+	CExpression *pexpr, CColRefArray *colref_array,
+	CDistributionSpecArray *pdrgpdsBaseTables, ULONG *pulNonGatherMotions,
+	BOOL *pfDML)
+{
+	CPhysicalParallelPartitionSelector *popSelector =
+		CPhysicalParallelPartitionSelector::PopConvert(pexpr->Pop());
+
+	CExpression *pexprChild = (*pexpr)[0];
+
+	// translate child
+	CDXLNode *child_dxlnode = CreateDXLNode(
+		pexprChild, colref_array, pdrgpdsBaseTables, pulNonGatherMotions, pfDML,
+		false /*fRemap*/, false /*fRoot*/);
+
+	CDXLNode *pdxlnPrLChild = (*child_dxlnode)[0];
+	CDXLNode *pdxlnPrL =
+		CTranslatorExprToDXLUtils::PdxlnProjListFromChildProjList(
+			m_mp, m_pcf, m_phmcrdxln, pdxlnPrLChild);
+	const ULONG scanid = popSelector->ScanId();
+
+	CBitSet *bs = COptCtxt::PoctxtFromTLS()->GetPartitionsForScanId(scanid);
+	GPOS_ASSERT(nullptr != bs);
+	ULongPtrArray *parts = GPOS_NEW(m_mp) ULongPtrArray(m_mp);
+	CBitSetIter bsi(*bs);
+	while (bsi.Advance())
+	{
+		parts->Append(GPOS_NEW(m_mp) ULONG(bsi.Bit()));
+	}
+
+	popSelector->MDId()->AddRef();
+	CDXLNode *pdxlnSelector = GPOS_NEW(m_mp)
+		CDXLNode(m_mp, GPOS_NEW(m_mp) CDXLPhysicalPartitionSelector(
+		m_mp, popSelector->MDId(), popSelector->SelectorId(),
+		popSelector->ScanId(), parts, popSelector->UlParallelWorkers()));
 
 	CDXLNode *pdxlnFilter = PdxlnScalar(popSelector->FilterExpr());
 	CDXLPhysicalProperties *dxl_properties = GetProperties(pexprChild);

@@ -190,10 +190,6 @@ public:
 	COrderSpec *PosDerive(CMemoryPool *mp,
 						  CExpressionHandle &exprhdl) const override;
 
-	// derived properties: derive partition propagation spec
-	CPartitionPropagationSpec *PppsDerive(
-		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
-
 	//-------------------------------------------------------------------------------------
 	// Enforced Properties
 	//-------------------------------------------------------------------------------------

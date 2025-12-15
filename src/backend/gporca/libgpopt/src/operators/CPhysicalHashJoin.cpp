@@ -1212,6 +1212,14 @@ CPhysicalHashJoin::FValidContext(CMemoryPool *,  // mp
 				CCostContext *pccBest = pocChild->PccBest();
 				if (nullptr != pccBest)
 				{
+					// Reject if child is a Parallel Partition Selector
+					CGroupExpression *pgexprChild = pccBest->Pgexpr();
+					if (nullptr != pgexprChild &&
+						COperator::EopPhysicalParallelPartitionSelector == pgexprChild->Pop()->Eopid())
+					{
+						return false;
+					}
+
 					CDrvdPropPlan *pdpplan = pccBest->Pdpplan();
 					if (nullptr != pdpplan)
 					{

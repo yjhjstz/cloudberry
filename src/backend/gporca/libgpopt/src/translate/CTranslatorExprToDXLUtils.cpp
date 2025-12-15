@@ -1584,6 +1584,7 @@ CTranslatorExprToDXLUtils::FDirectDispatchableFilter(CExpression *pexprFilter)
 	// a Project, Filter or PhysicalComputeScalar (result node)
 	// if it is a scan, then this Filter is direct dispatchable
 	while (COperator::EopPhysicalPartitionSelector == pop->Eopid() ||
+		   COperator::EopPhysicalParallelPartitionSelector == pop->Eopid() ||
 		   COperator::EopPhysicalFilter == pop->Eopid() ||
 		   COperator::EopPhysicalComputeScalar == pop->Eopid())
 	{
