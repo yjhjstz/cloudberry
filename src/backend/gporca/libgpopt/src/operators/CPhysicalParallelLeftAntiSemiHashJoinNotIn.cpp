@@ -124,7 +124,8 @@ CPhysicalParallelLeftAntiSemiHashJoinNotIn::Ped(
 		// This ensures that the inner relation is replicated to all workers within each segment
 		ULONG ulWorkers = UlExtractRequestedWorkers(exprhdl, child_index);
 		enfd_dist = GPOS_NEW(mp) CEnfdDistribution(
-			CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulWorkers),
+			CDistributionSpecReplicatedWorkers::PdsCreate(
+				mp, ulWorkers, true /*ignore_broadcast_threshold*/),
 			CEnfdDistribution::EdmSatisfy);
 	}
 	else
@@ -148,9 +149,9 @@ CPhysicalParallelLeftAntiSemiHashJoinNotIn::Ped(
 		ULONG ulWorkers = pds_current->UlWorkers();
 
 		// Create new replicated workers distribution spec
-		// Note: CDistributionSpecReplicatedWorkers doesn't have ignore_broadcast_threshold parameter
 		CDistributionSpecReplicatedWorkers *pds_rep =
-			CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulWorkers);
+			CDistributionSpecReplicatedWorkers::PdsCreate(
+				mp, ulWorkers, true /*ignore_broadcast_threshold*/);
 		CEnfdDistribution::EDistributionMatching matches = enfd_dist->Edm();
 		enfd_dist->Release();
 		return GPOS_NEW(mp) CEnfdDistribution(pds_rep, matches);

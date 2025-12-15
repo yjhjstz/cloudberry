@@ -68,6 +68,7 @@ CPhysicalLeftAntiSemiHashJoinNotIn::Ped(
 	GPOS_ASSERT(2 > child_index);
 	GPOS_ASSERT(ulOptReq < UlDistrRequests());
 
+	GPOS_TRACE_FORMAT("  ulOptReq:  %d", ulOptReq);
 	CEnfdDistribution *enfd_dist = nullptr;
 	if (0 == ulOptReq && 1 == child_index &&
 		(FNullableHashKeys(exprhdl.DeriveNotNullColumns(0), false /*fInner*/) ||
