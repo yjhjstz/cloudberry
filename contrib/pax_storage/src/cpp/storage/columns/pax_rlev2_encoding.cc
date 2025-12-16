@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "comm/cbdb_wrappers.h"
+#include "comm/guc.h"
 #include "comm/pax_memory.h"
 
 namespace pax {
@@ -284,9 +285,148 @@ void PaxOrcEncoder::SwitchStatusTo(EncoderStatus new_status) {
   status_ = new_status;
 }
 
+void PaxOrcEncoder::BatchEncoding(const int64 data, bool is_flush) {
+  if (!is_flush) {
+    AppendData(data);
+    encoder_context_.var_len++;
+  } else {
+    SwitchStatusTo(kInvalid);
+  }
+
+  if ((is_flush && data_buffer_->Used() != 0) ||
+          (!is_flush && encoder_context_.var_len == ORC_MAX_LITERAL_SIZE)) {
+    EncoderStatus status = kInvalid;
+    size_t data_lens = data_buffer_->UnTreated() / sizeof(int64);
+    auto delta_ctx = encoder_context_.delta_ctx;
+    auto direct_ctx = encoder_context_.direct_ctx;
+    auto pb_ctx = encoder_context_.pb_ctx;
+    int64 init_delta_val = (*data_buffer_)[1] - (*data_buffer_)[0];
+    int64 curr_delta = 0;
+    int64 max_delta = 0;
+    uint32 zigzag_bits_90_p = 0;
+    bool increasing = true;
+    bool decreasing = true;
+
+    pb_ctx->min = (*data_buffer_)[0];
+    pb_ctx->max = (*data_buffer_)[0];
+
+    delta_ctx->adj_deltas[delta_ctx->adj_deltas_idx++] = init_delta_val;
+
+    for (size_t i = 1; i < data_lens; i++) {
+      const int64 l1 = (*data_buffer_)[i];
+      const int64 l0 = (*data_buffer_)[i - 1];
+      curr_delta = l1 - l0;
+      pb_ctx->min = std::min(pb_ctx->min, l1);
+      pb_ctx->max = std::max(pb_ctx->max, l1);
+
+      increasing &= (l0 <= l1);
+      decreasing &= (l0 >= l1);
+
+      delta_ctx->is_fixed_delta &= (curr_delta == init_delta_val);
+      if (i > 1) {
+        delta_ctx->adj_deltas[delta_ctx->adj_deltas_idx++] =
+            std::abs(curr_delta);
+        max_delta = std::max(max_delta, delta_ctx->adj_deltas[i - 1]);
+      }
+    }
+
+    bool is_safe_subtract = (((pb_ctx->max ^ pb_ctx->min) >= 0) ||
+                      ((pb_ctx->max ^ (pb_ctx->max - pb_ctx->min)) >= 0));
+
+    if (pb_ctx->min == pb_ctx->max) {
+      delta_ctx->is_fixed_delta = true;
+      delta_ctx->fixed_delta_val = 0;
+      status = kTreatDelta;
+    } else if (delta_ctx->is_fixed_delta && is_safe_subtract) {
+      Assert(curr_delta == init_delta_val);
+      delta_ctx->fixed_delta_val = curr_delta;
+      status = kTreatDelta;
+    } else {
+      uint32 bits_max = FindClosestBits(pb_ctx->max);
+      uint32 bits_max_delta = FindClosestBits(max_delta);
+      uint32 best_score = bits_max;
+      status = kTreatDirect;
+
+      if (is_safe_subtract) {
+        if ((increasing || decreasing) && init_delta_val != 0 && bits_max_delta < best_score) {
+          status = kTreatDelta;
+          delta_ctx->bits_delta_max = bits_max_delta;
+          best_score = bits_max_delta;
+        }
+
+        // try PATCHED_BASE encoding
+        pb_ctx->histogram_len = data_lens;
+        if (encoder_context_.is_sign) {
+          zigzag_buffer_->BrushBackAll();
+          if (zigzag_buffer_->Capacity() < data_lens * sizeof(int64)) {
+            zigzag_buffer_->ReSize(data_lens * sizeof(int64));
+          }
+          ZigZagBuffers(data_buffer_->StartT(), zigzag_buffer_->StartT(),
+                        data_lens);
+          zigzag_buffer_->Brush(data_lens * sizeof(int64));
+        }
+
+        BuildHistogram(pb_ctx->histogram,
+                       encoder_context_.is_sign ? zigzag_buffer_->StartT()
+                                                : data_buffer_->StartT(),
+                       data_lens);
+
+        direct_ctx->zz_bits_100_p_inited = true;
+        direct_ctx->zigzag_bits_100_p =
+            GetPercentileBits(pb_ctx->histogram, pb_ctx->histogram_len, 1.0);
+        zigzag_bits_90_p =
+            GetPercentileBits(pb_ctx->histogram, pb_ctx->histogram_len, 0.9);
+
+        if (direct_ctx->zigzag_bits_100_p - zigzag_bits_90_p > 1) {
+          for (size_t i = 0; i < data_lens; i++) {
+            pb_ctx->base_patch_buffer[pb_ctx->base_patch_buffer_count++] =
+                ((*data_buffer_)[i] - pb_ctx->min);
+          }
+
+          pb_ctx->histogram_len = data_lens;
+          BuildHistogram(pb_ctx->histogram, pb_ctx->base_patch_buffer,
+                         data_lens);
+          pb_ctx->hist_bits_95_p =
+              GetPercentileBits(pb_ctx->histogram, pb_ctx->histogram_len, 0.95);
+          pb_ctx->hist_bits_100_p =
+              GetPercentileBits(pb_ctx->histogram, pb_ctx->histogram_len, 1.0);
+
+          if ((pb_ctx->hist_bits_100_p - pb_ctx->hist_bits_95_p) != 0 &&
+                                          pb_ctx->hist_bits_95_p < best_score) {
+            status = kTreatPatchedBase;
+          }
+        }
+      }
+    }
+
+    if (status == kTreatDirect) {
+      TreatDirect();
+      encoder_context_.var_len = 0;
+    } else if (status == kTreatDelta) {
+      TreatDelta();
+      encoder_context_.var_len = 0;
+    } else {
+      Assert(status == kTreatPatchedBase);
+      TreatPatchedBase();
+      encoder_context_.var_len = 0;
+    }
+    encoder_context_.ResetDeltaCtx();
+    encoder_context_.ResetDirectCtx();
+    encoder_context_.ResetPbCtx();
+
+    data_buffer_->TreatedAll();
+    data_buffer_->BrushUnTreatedAll();
+  }
+}
+
 void PaxOrcEncoder::AppendInternal(const int64 data, bool is_flush) {
   bool already_append_before_delta_changed = false;
   bool keep_push_status = true;
+
+  if (pax_enable_rle_batch_encoding) {
+    BatchEncoding(data, is_flush);
+    return;
+  }
 
   if (is_flush) {
     SwitchStatusTo(kFlush);

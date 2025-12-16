@@ -47,6 +47,8 @@ extern bool pax_log_filter_tree;
 
 extern bool pax_enable_prefetch;
 extern bool pax_enable_iouring;
+
+extern bool pax_enable_rle_batch_encoding;
 }  // namespace pax
 
 namespace paxc {

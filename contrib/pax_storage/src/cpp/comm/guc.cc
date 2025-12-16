@@ -76,6 +76,8 @@ bool pax_log_filter_tree = false;
 bool pax_enable_prefetch = false;
 bool pax_enable_iouring = true;
 
+bool pax_enable_rle_batch_encoding = false;
+
 }  // namespace pax
 
 namespace paxc {
@@ -149,6 +151,10 @@ void DefineGUCs() {
 
   DefineCustomBoolVariable("pax.enable_iouring", "enable pax io_uring",
                            NULL, &pax::pax_enable_iouring, true,
+                           PGC_USERSET, GUC_GPDB_NEED_SYNC, NULL, NULL, NULL);
+
+  DefineCustomBoolVariable("pax.enable_rle_batch_encoding", "enable pax rle batch encoding",
+                           NULL, &pax::pax_enable_rle_batch_encoding, false,
                            PGC_USERSET, GUC_GPDB_NEED_SYNC, NULL, NULL, NULL);
 
   DefineCustomIntVariable(

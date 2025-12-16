@@ -134,6 +134,8 @@ class PaxOrcEncoder final : public PaxEncoder {
 
   bool TreatDelta();
 
+  void BatchEncoding(int64 data, bool is_flush);
+
  private:
   EncoderContext encoder_context_;
   std::shared_ptr<UntreatedDataBuffer<int64>> data_buffer_;
