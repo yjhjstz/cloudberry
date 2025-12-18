@@ -88,10 +88,10 @@ CXformLeftSemiJoin2ParallelHashJoin::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
-	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
-	{
-		return CXform::ExfpNone;
-	}
+	// if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
+	// {
+	// 	return CXform::ExfpNone;
+	// }
 
 	// Check if the query has any parallel operators
 	// Parallel hash join is only beneficial when parallel table scans exist
