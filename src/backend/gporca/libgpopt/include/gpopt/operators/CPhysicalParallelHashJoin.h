@@ -43,7 +43,7 @@ namespace gpopt
 //---------------------------------------------------------------------------
 class CPhysicalParallelHashJoin : public CPhysicalHashJoin
 {
-private:
+protected:
 	// per-side parallel degrees (extracted in FValidContext from child groups)
 	mutable ULONG m_ulProbeWorkers;
 	mutable ULONG m_ulBuildWorkers;
@@ -62,6 +62,8 @@ private:
 	// Extract workers from child distributions (lazy initialization)
 	// Called by PdsDerive on first invocation
 	void ExtractWorkersIfNeeded(CExpressionHandle &exprhdl) const;
+
+private:
 
 	// Compute required redistribute distribution spec for the n-th child
 	// Wraps base class redistribution logic with WorkerRandom

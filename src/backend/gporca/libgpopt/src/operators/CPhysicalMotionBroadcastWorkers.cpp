@@ -35,8 +35,11 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CPhysicalMotionBroadcastWorkers::CPhysicalMotionBroadcastWorkers(
-	CMemoryPool *mp, CDistributionSpecReplicatedWorkers *pds)
-	: CPhysicalMotion(mp), m_pdsReplicatedWorkers(pds)
+	CMemoryPool *mp, CDistributionSpecReplicatedWorkers *pds,
+	BOOL ignore_broadcast_threshold)
+	: CPhysicalMotion(mp),
+	  m_pdsReplicatedWorkers(pds),
+	  m_ignore_broadcast_threshold(ignore_broadcast_threshold)
 {
 	GPOS_ASSERT(nullptr != pds);
 }
@@ -73,7 +76,9 @@ CPhysicalMotionBroadcastWorkers::Matches(COperator *pop) const
 	CPhysicalMotionBroadcastWorkers *popBroadcastWorkers =
 		CPhysicalMotionBroadcastWorkers::PopConvert(pop);
 
-	return m_pdsReplicatedWorkers->Matches(popBroadcastWorkers->m_pdsReplicatedWorkers);
+	return m_pdsReplicatedWorkers->Matches(popBroadcastWorkers->m_pdsReplicatedWorkers) &&
+		   m_ignore_broadcast_threshold ==
+			   popBroadcastWorkers->m_ignore_broadcast_threshold;
 }
 
 //---------------------------------------------------------------------------
@@ -89,6 +94,8 @@ CPhysicalMotionBroadcastWorkers::HashValue() const
 {
 	ULONG ulHash = gpos::CombineHashes(COperator::HashValue(),
 									   m_pdsReplicatedWorkers->HashValue());
+	ulHash = gpos::CombineHashes(
+		ulHash, gpos::HashValue<BOOL>(&m_ignore_broadcast_threshold));
 
 	return ulHash;
 }

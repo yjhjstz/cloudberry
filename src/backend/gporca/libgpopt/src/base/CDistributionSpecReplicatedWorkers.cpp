@@ -35,8 +35,9 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers::CDistributionSpecReplicatedWorkers(
-	ULONG ulWorkers)
-	: m_ulWorkers(ulWorkers)
+	ULONG ulWorkers, BOOL ignore_broadcast_threshold)
+	: m_ulWorkers(ulWorkers),
+	  m_ignore_broadcast_threshold(ignore_broadcast_threshold)
 {
 	GPOS_ASSERT(ulWorkers > 0);
 }
@@ -62,12 +63,14 @@ CDistributionSpecReplicatedWorkers::~CDistributionSpecReplicatedWorkers()
 //
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers *
-CDistributionSpecReplicatedWorkers::PdsCreate(CMemoryPool *mp, ULONG ulWorkers)
+CDistributionSpecReplicatedWorkers::PdsCreate(CMemoryPool *mp, ULONG ulWorkers,
+											  BOOL ignore_broadcast_threshold)
 {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(ulWorkers > 0);
 
-	return GPOS_NEW(mp) CDistributionSpecReplicatedWorkers(ulWorkers);
+	return GPOS_NEW(mp)
+		CDistributionSpecReplicatedWorkers(ulWorkers, ignore_broadcast_threshold);
 }
 
 //---------------------------------------------------------------------------
@@ -152,10 +155,12 @@ CDistributionSpecReplicatedWorkers::AppendEnforcers(
 
 	// Create Broadcast Workers Motion
 	CDistributionSpecReplicatedWorkers *pdsReplicatedWorkers =
-		PdsCreate(mp, m_ulWorkers);
+		PdsCreate(mp, m_ulWorkers, m_ignore_broadcast_threshold);
 
 	CExpression *pexprMotion = GPOS_NEW(mp) CExpression(
-		mp, GPOS_NEW(mp) CPhysicalMotionBroadcastWorkers(mp, pdsReplicatedWorkers),
+		mp,
+		GPOS_NEW(mp) CPhysicalMotionBroadcastWorkers(
+			mp, pdsReplicatedWorkers, m_ignore_broadcast_threshold),
 		pexpr);
 
 	pdrgpexpr->Append(pexprMotion);

@@ -51,13 +51,16 @@ class CDistributionSpecReplicatedWorkers : public CDistributionSpec
 private:
 	// Number of parallel workers per segment
 	ULONG m_ulWorkers;
+	// Ignore broadcast threshold when costing (similar to Replicated)
+	BOOL m_ignore_broadcast_threshold;
 
 	// Private copy ctor
 	CDistributionSpecReplicatedWorkers(const CDistributionSpecReplicatedWorkers &);
 
 public:
 	// Ctor
-	CDistributionSpecReplicatedWorkers(ULONG ulWorkers);
+	CDistributionSpecReplicatedWorkers(ULONG ulWorkers,
+									   BOOL ignore_broadcast_threshold = false);
 
 	// Dtor
 	~CDistributionSpecReplicatedWorkers() override;
@@ -74,6 +77,12 @@ public:
 	UlWorkers() const
 	{
 		return m_ulWorkers;
+	}
+
+	BOOL
+	FIgnoreBroadcastThreshold() const
+	{
+		return m_ignore_broadcast_threshold;
 	}
 
 	// Does this distribution match the given one?
@@ -99,7 +108,8 @@ public:
 
 	// Factory method
 	static CDistributionSpecReplicatedWorkers *PdsCreate(CMemoryPool *mp,
-														  ULONG ulWorkers);
+														  ULONG ulWorkers,
+														  BOOL ignore_broadcast_threshold = false);
 
 	// Conversion function
 	static CDistributionSpecReplicatedWorkers *

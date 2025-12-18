@@ -35,6 +35,7 @@
 #include "gpopt/operators/CPhysicalParallelHashJoin.h"
 #include "gpopt/operators/CPhysicalMotion.h"
 #include "gpopt/operators/CPhysicalMotionBroadcast.h"
+#include "gpopt/operators/CPhysicalMotionBroadcastWorkers.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
 #include "gpopt/operators/CPhysicalSequenceProject.h"
 #include "gpopt/operators/CPhysicalHashSequenceProject.h"
@@ -43,6 +44,7 @@
 #include "gpopt/operators/CPredicateUtils.h"
 #include "gpopt/operators/CScalarBitmapIndexProbe.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
+#include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/xforms/CXformUtils.h"
 #include "naucrates/statistics/CStatisticsUtils.h"
 
@@ -1076,7 +1078,9 @@ CCostModelGPDB::CostHashJoin(CMemoryPool *mp, CExpressionHandle &exprhdl,
 				COperator::EopPhysicalRightOuterHashJoin == op_id ||
 				COperator::EopPhysicalFullHashJoin == op_id ||
 				COperator::EopPhysicalParallelInnerHashJoin == op_id ||
-				COperator::EopPhysicalParallelLeftOuterHashJoin == op_id);
+				COperator::EopPhysicalParallelLeftSemiHashJoin == op_id ||
+				COperator::EopPhysicalParallelLeftOuterHashJoin == op_id ||
+				COperator::EopPhysicalParallelLeftAntiSemiHashJoinNotIn == op_id);
 #endif	// GPOS_DEBUG
 
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
@@ -1973,6 +1977,8 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 	}
 	else if (COperator::EopPhysicalMotionBroadcastWorkers == op_id)
 	{
+		CPhysicalMotionBroadcastWorkers *physical_broadcast_workers =
+			CPhysicalMotionBroadcastWorkers::PopConvert(exprhdl.Pop());
 		COptimizerConfig *optimizer_config =
 			COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
 		ULONG broadcast_threshold =
@@ -1981,7 +1987,10 @@ CCostModelGPDB::CostMotion(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		// if the broadcast threshold is 0, don't penalize
 		// also, if the replicated distribution is set to ignore the broadcast
 		// threshold (e.g. it's under a LASJ not-in) don't penalize
-		if (broadcast_threshold > 0 && num_rows_outer > broadcast_threshold)
+		if (broadcast_threshold > 0 && num_rows_outer > broadcast_threshold &&
+			!CDistributionSpecReplicatedWorkers::PdsConvert(
+				 physical_broadcast_workers->Pds())
+				 ->FIgnoreBroadcastThreshold())
 		{
 			DOUBLE ulPenalizationFactor = 200000000000000.0;
 			costLocal = CCost(ulPenalizationFactor);
@@ -3140,6 +3149,8 @@ CCostModelGPDB::Cost(
 
 		case COperator::EopPhysicalParallelInnerHashJoin:
 		case COperator::EopPhysicalParallelLeftOuterHashJoin:
+		case COperator::EopPhysicalParallelLeftSemiHashJoin:
+		case COperator::EopPhysicalParallelLeftAntiSemiHashJoinNotIn:
 		{
 			return CostParallelHashJoin(m_mp, exprhdl, this, pci);
 		}

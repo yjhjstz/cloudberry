@@ -43,6 +43,7 @@ class CPhysicalMotionBroadcastWorkers : public CPhysicalMotion
 private:
 	// Distribution spec for replicated workers
 	CDistributionSpecReplicatedWorkers *m_pdsReplicatedWorkers;
+	BOOL m_ignore_broadcast_threshold;
 
 	// Private copy ctor
 	CPhysicalMotionBroadcastWorkers(const CPhysicalMotionBroadcastWorkers &);
@@ -50,7 +51,8 @@ private:
 public:
 	// Ctor
 	CPhysicalMotionBroadcastWorkers(CMemoryPool *mp,
-									CDistributionSpecReplicatedWorkers *pds);
+									CDistributionSpecReplicatedWorkers *pds,
+									BOOL ignore_broadcast_threshold = false);
 
 	// Dtor
 	~CPhysicalMotionBroadcastWorkers() override;
@@ -74,6 +76,12 @@ public:
 	Pds() const override
 	{
 		return m_pdsReplicatedWorkers;
+	}
+
+	BOOL
+	FIgnoreBroadcastThreshold() const
+	{
+		return m_ignore_broadcast_threshold;
 	}
 
 	// Match function

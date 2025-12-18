@@ -19,6 +19,7 @@
 #include "gpopt/base/CDistributionSpecNonReplicated.h"
 #include "gpopt/base/CDistributionSpecNonSingleton.h"
 #include "gpopt/base/CDistributionSpecReplicated.h"
+#include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
@@ -293,6 +294,26 @@ CPhysicalHashJoin::PdsMatch(CMemoryPool *mp, CDistributionSpec *pds,
 			return PdshashedMatching(mp,
 									 CDistributionSpecHashed::PdsConvert(pds),
 									 ulSourceChildIndex);
+		case CDistributionSpec::EdtReplicatedWorkers:
+		{
+			// Treat worker-level replication like regular replication:
+			// inner replicated_workers → outer NonSingleton (unless outer join semantics require singleton)
+			// outer replicated_workers → replicate inner as well to avoid duplicates
+			if (EceoRightToLeft == eceo)
+			{
+				GPOS_ASSERT(1 == ulSourceChildIndex);
+				return GPOS_NEW(mp) CDistributionSpecNonSingleton();
+			}
+
+			GPOS_ASSERT(0 == ulSourceChildIndex);
+			// outer child is replicated, replicate inner child too in order to preserve correctness of semi-join
+			ULONG ulWorkers =
+				CDistributionSpecReplicatedWorkers::PdsConvert(
+					const_cast<CDistributionSpec *>(pds))
+					->UlWorkers();
+			return CDistributionSpecReplicatedWorkers::PdsCreate(
+				mp, ulWorkers, false /*ignore_broadcast_threshold*/);
+		}
 		//FIXME:
 		case CDistributionSpec::EdtWorkerRandom:
 		case CDistributionSpec::EdtHashedWorker:
