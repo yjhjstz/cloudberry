@@ -138,13 +138,13 @@ set(manifest_src
   manifest/manifest_wrapper.cc
 )
 
+set(pax_target_include ${pax_target_include} ${CMAKE_CURRENT_BINARY_DIR})
 if (USE_MANIFEST_API)
   set(pax_storage_src ${pax_storage_src} storage/micro_partition_iterator_manifest.cc)
   if (USE_PAX_CATALOG)
     set(pax_catalog_src ${pax_catalog_src} catalog/pax_manifest_impl.cc)
   else()
     # use manifest implementation
-    set(pax_target_include ${pax_target_include} ${CMAKE_CURRENT_BINARY_DIR})
     set(pax_catalog_src ${pax_catalog_src} ${manifest_src})
   endif()
 else() # USE_MANIFEST_API
