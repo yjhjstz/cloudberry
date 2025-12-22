@@ -33,17 +33,38 @@ using namespace gpos;
 //
 //	@doc:
 //		Distribution specification for worker-level replication
-//		Used for Broadcast Workers Motion
 //
-//		Semantics:
-//		- Data is replicated across all workers WITHIN each segment
-//		- Does NOT cross segment boundaries
-//		- Each worker in a segment has a complete copy of that segment's data
+//		Corresponds to PG planner's CdbLocusType_ReplicatedWorkers
 //
-//		Example with 6 segments, 2 workers per segment:
-//		  Before: Seg0.W0 has rows 0-50, Seg0.W1 has rows 51-100
-//		  After:  Seg0.W0 has rows 0-100, Seg0.W1 has rows 0-100
-//		          (Seg0.W0 and W1 exchange data locally, no network transfer)
+//		PRIMARY USE CASE: Broadcast Workers Motion
+//		- Used to replicate data across all workers within each segment
+//		- Typically used for parallel hash joins when the build side needs to
+//		  be available to all workers in each segment
+//
+//		SEMANTICS:
+//		- Data is REPLICATED across all workers WITHIN each segment
+//		- Does NOT cross segment boundaries (no network transfer)
+//		- Each worker in a segment has a COMPLETE COPY of that segment's data
+//		- Workers do NOT split/partition the data - they all have identical data
+//
+//		IMPORTANT DISTINCTION:
+//		This is for MOTION operations (broadcasting data to workers), NOT for
+//		parallel table scans. For parallel scans on replicated tables where
+//		workers SPLIT the data, use EdtSegmentGeneralWorkers instead.
+//
+//		Example with 3 segments, 2 workers per segment:
+//		  Input (before Motion):
+//		    Seg0.W0 has rows 0-50
+//		    Seg0.W1 has rows 51-100
+//		  Output (after Broadcast Workers Motion):
+//		    Seg0.W0 has rows 0-100  ← Complete data replicated
+//		    Seg0.W1 has rows 0-100  ← Complete data replicated
+//		  (W0 and W1 exchange data locally via shared memory, no network I/O)
+//
+//		Contrast with EdtSegmentGeneralWorkers (parallel table scan):
+//		  Table: Replicated table with rows 0-100 on each segment
+//		  Seg0.W0 scans rows 0-50   ← Workers SPLIT the work
+//		  Seg0.W1 scans rows 51-100 ← Workers SPLIT the work
 //
 //---------------------------------------------------------------------------
 class CDistributionSpecReplicatedWorkers : public CDistributionSpec
