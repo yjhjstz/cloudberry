@@ -6,6 +6,9 @@ OBJS = \
 
 PGFILEDESC = "vbf - append-only file"
 
+# Avoid building LLVM Bitcode for vbf module.
+with_llvm = no
+
 subdir = contrib/vbf
 top_builddir = ../../
 include $(top_builddir)/src/Makefile.global

@@ -1838,13 +1838,13 @@ llvm_compile_expr(ExprState *state)
 
 			case EEOP_SCALARARRAYOP_FAST_INT:
 				build_EvalXFunc(b, mod, "ExecEvalScalarArrayOpFastInt",
-								v_state, op, v_econtext);
+								v_state, op);
 				LLVMBuildBr(b, opblocks[opno + 1]);
 				break;
 
 			case EEOP_SCALARARRAYOP_FAST_STR:
 				build_EvalXFunc(b, mod, "ExecEvalScalarArrayOpFastStr",
-								v_state, op, v_econtext);
+								v_state, op);
 				LLVMBuildBr(b, opblocks[opno + 1]);
 				break;
 
