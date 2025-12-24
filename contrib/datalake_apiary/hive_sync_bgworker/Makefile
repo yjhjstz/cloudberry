@@ -5,6 +5,8 @@ OBJS = \
 	$(WIN32RES) \
 	hive_auto_sync.o
 
+with_llvm = no
+
 EXTENSION = hive_auto_sync
 
 PGFILEDESC = "hive_auto_sync - Hive Auto Sync"

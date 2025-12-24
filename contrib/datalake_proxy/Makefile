@@ -5,6 +5,9 @@ OBJS = \
 	$(WIN32RES) \
 	datalake_proxy.o
 
+# Avoid building LLVM Bitcode for datalake_proxy module.
+with_llvm = no
+
 EXTENSION = datalake_proxy
 
 PGFILEDESC = "datalake_proxy - Datalake Proxy"

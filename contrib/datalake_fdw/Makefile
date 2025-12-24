@@ -94,6 +94,8 @@ OBJS = 	src/datalake_fdw.o \
 		src/provider/provider.o \
 		src/hdw_gopher_cache/hdw_gopher_cache.o
 
+# Avoid building LLVM Bitcode for datalake_fdw module.
+with_llvm = no
 
 SHLIB_LINK += -lgopher -lparquet -lorc -larchive -lavrocpp -larrow -lavro -lcurl -lyaml -lboost_iostreams -lsnappy -lprotobuf -lstdc++ -lm
 

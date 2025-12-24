@@ -26,6 +26,9 @@ SUBDIRS = $(VHEAP) $(ARROW) $(AOCS) $(COMMON) $(AM) $(HOOK) $(PLAN) $(MISC) $(EX
 SRC := $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c))
 OBJS = main.o $(patsubst %.c,%.o,$(SRC))
 
+# Avoid building LLVM Bitcode for vectorization module.
+with_llvm = no
+
 arrow_dist_dir = $(abspath $(top_builddir)/contrib/apache-arrow/dist)
 
 PG_CFLAGS += $(shell pkg-config --cflags glib-2.0 gobject-2.0) -I$(arrow_dist_dir)/include

@@ -1,6 +1,8 @@
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
+with_llvm = no
+
 all:
 	mvn package
 
