@@ -87,7 +87,7 @@ CXformGbAgg2ParallelHashAgg::Exfp(CExpressionHandle &exprhdl) const
 	}
 
 	// Check if parallel hash aggregation is disabled via trace flag
-	if (GPOS_FTRACE(EopttraceDisableParallelHashAgg) || GPOS_FTRACE(EopttraceForceMultiStageAgg))
+	if (GPOS_FTRACE(EopttraceDisableParallelHashAgg))
 	{
 		return CXform::ExfpNone;
 	}

@@ -118,6 +118,7 @@ analyze multi_stage_test;
 -- TEST
 set optimizer_segments=2;
 set optimizer_force_multistage_agg = on;
+set enable_parallel = off;
 select count_operator('select count(*) from multi_stage_test group by b;','GroupAggregate');
 
 set optimizer_force_multistage_agg = off;
@@ -126,6 +127,7 @@ select count_operator('select count(*) from multi_stage_test group by b;','Group
 --CLEANUP
 reset optimizer_segments;
 reset optimizer_force_multistage_agg;
+reset enable_parallel;
 
 -- Testing not picking HashAgg for aggregates without combine functions
 

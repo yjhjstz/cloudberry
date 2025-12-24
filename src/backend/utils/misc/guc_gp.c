@@ -2564,7 +2564,7 @@ struct config_bool ConfigureNamesBool_gp[] =
 		{"optimizer_force_multistage_agg", PGC_USERSET, QUERY_TUNING_METHOD,
 			gettext_noop("Force optimizer to always pick multistage aggregates when such a plan alternative is generated."),
 			NULL,
-			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+			GUC_EXPLAIN
 		},
 		&optimizer_force_multistage_agg,
 		false,
