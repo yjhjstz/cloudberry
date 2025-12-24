@@ -183,7 +183,7 @@ CREATE TABLE supplier (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-1::real,
 	0::smallint,
@@ -209,7 +209,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	19::integer,
 	-1::real,
 	0::smallint,
@@ -235,7 +235,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	26::integer,
 	-1::real,
 	0::smallint,
@@ -261,7 +261,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	25::real,
 	1::smallint,
@@ -287,7 +287,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	5::smallint,
-	0::real,
+	false::boolean,
 	16::integer,
 	-1::real,
 	0::smallint,
@@ -313,7 +313,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	6::smallint,
-	0::real,
+	false::boolean,
 	8::integer,
 	1.02349e+06::real,
 	1::smallint,
@@ -339,7 +339,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	7::smallint,
-	0::real,
+	false::boolean,
 	11::integer,
 	5::real,
 	1::smallint,
@@ -365,7 +365,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.customer'::regclass,
 	8::smallint,
-	0::real,
+	false::boolean,
 	73::integer,
 	-0.760944::real,
 	1::smallint,
@@ -391,7 +391,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	8::integer,
 	2.83108e+08::real,
 	1::smallint,
@@ -417,7 +417,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	5.42498e+07::real,
 	1::smallint,
@@ -443,7 +443,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	5.07803e+06::real,
 	1::smallint,
@@ -469,7 +469,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	7::real,
 	1::smallint,
@@ -495,7 +495,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	5::smallint,
-	0::real,
+	false::boolean,
 	7::integer,
 	50::real,
 	1::smallint,
@@ -521,7 +521,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	6::smallint,
-	0::real,
+	false::boolean,
 	10::integer,
 	2.69251e+06::real,
 	1::smallint,
@@ -547,7 +547,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	7::smallint,
-	0::real,
+	false::boolean,
 	6::integer,
 	11::real,
 	1::smallint,
@@ -573,7 +573,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	8::smallint,
-	0::real,
+	false::boolean,
 	6::integer,
 	9::real,
 	1::smallint,
@@ -599,7 +599,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	9::smallint,
-	0::real,
+	false::boolean,
 	2::integer,
 	3::real,
 	1::smallint,
@@ -625,7 +625,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	10::smallint,
-	0::real,
+	false::boolean,
 	2::integer,
 	2::real,
 	1::smallint,
@@ -651,7 +651,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	11::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	2515.75::real,
 	1::smallint,
@@ -677,7 +677,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	12::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	2462.34::real,
 	1::smallint,
@@ -703,7 +703,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	13::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	2521.81::real,
 	1::smallint,
@@ -729,7 +729,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	14::smallint,
-	0::real,
+	false::boolean,
 	26::integer,
 	4::real,
 	1::smallint,
@@ -755,7 +755,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	15::smallint,
-	0::real,
+	false::boolean,
 	11::integer,
 	7::real,
 	1::smallint,
@@ -781,7 +781,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.lineitem'::regclass,
 	16::smallint,
-	0::real,
+	false::boolean,
 	27::integer,
 	1.23854e+06::real,
 	1::smallint,
@@ -807,7 +807,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.nation'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-1::real,
 	1::smallint,
@@ -833,7 +833,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.nation'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	26::integer,
 	-1::real,
 	1::smallint,
@@ -859,7 +859,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.nation'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-0.2::real,
 	1::smallint,
@@ -885,7 +885,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.nation'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	75::integer,
 	-1::real,
 	1::smallint,
@@ -911,7 +911,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	8::integer,
 	-1::real,
 	0::smallint,
@@ -937,7 +937,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	5.58477e+07::real,
 	1::smallint,
@@ -963,7 +963,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	2::integer,
 	3::real,
 	1::smallint,
@@ -989,7 +989,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	10::integer,
 	4.19851e+07::real,
 	1::smallint,
@@ -1015,7 +1015,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	5::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	2406::real,
 	1::smallint,
@@ -1041,7 +1041,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	6::smallint,
-	0::real,
+	false::boolean,
 	16::integer,
 	5::real,
 	1::smallint,
@@ -1067,7 +1067,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	7::smallint,
-	0::real,
+	false::boolean,
 	16::integer,
 	488990::real,
 	1::smallint,
@@ -1093,7 +1093,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	8::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	1::real,
 	1::smallint,
@@ -1119,7 +1119,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.orders'::regclass,
 	9::smallint,
-	0::real,
+	false::boolean,
 	49::integer,
 	3.81924e+07::real,
 	1::smallint,
@@ -1145,7 +1145,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-1::real,
 	0::smallint,
@@ -1171,7 +1171,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	34::integer,
 	-1::real,
 	0::smallint,
@@ -1197,7 +1197,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	26::integer,
 	5::real,
 	1::smallint,
@@ -1223,7 +1223,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	11::integer,
 	25::real,
 	1::smallint,
@@ -1249,7 +1249,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	5::smallint,
-	0::real,
+	false::boolean,
 	21::integer,
 	150::real,
 	1::smallint,
@@ -1275,7 +1275,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	6::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	50::real,
 	1::smallint,
@@ -1301,7 +1301,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	7::smallint,
-	0::real,
+	false::boolean,
 	11::integer,
 	40::real,
 	1::smallint,
@@ -1327,7 +1327,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	8::smallint,
-	0::real,
+	false::boolean,
 	8::integer,
 	107651::real,
 	1::smallint,
@@ -1353,7 +1353,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.part'::regclass,
 	9::smallint,
-	0::real,
+	false::boolean,
 	14::integer,
 	121849::real,
 	1::smallint,
@@ -1379,7 +1379,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.partsupp'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-0.20436::real,
 	1::smallint,
@@ -1405,7 +1405,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.partsupp'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	5.53321e+06::real,
 	1::smallint,
@@ -1431,7 +1431,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.partsupp'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	10000.4::real,
 	1::smallint,
@@ -1457,7 +1457,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.partsupp'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	8::integer,
 	98854.1::real,
 	1::smallint,
@@ -1483,7 +1483,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.partsupp'::regclass,
 	5::smallint,
-	0::real,
+	false::boolean,
 	126::integer,
 	-0.506794::real,
 	1::smallint,
@@ -1509,7 +1509,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.region'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-1::real,
 	1::smallint,
@@ -1535,7 +1535,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.region'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	26::integer,
 	-1::real,
 	1::smallint,
@@ -1561,7 +1561,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.region'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	67::integer,
 	-1::real,
 	1::smallint,
@@ -1587,7 +1587,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	1::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	-1::real,
 	0::smallint,
@@ -1613,7 +1613,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	2::smallint,
-	0::real,
+	false::boolean,
 	26::integer,
 	-1::real,
 	0::smallint,
@@ -1639,7 +1639,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	3::smallint,
-	0::real,
+	false::boolean,
 	25::integer,
 	-1::real,
 	0::smallint,
@@ -1665,7 +1665,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	4::smallint,
-	0::real,
+	false::boolean,
 	4::integer,
 	25::real,
 	1::smallint,
@@ -1691,7 +1691,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	5::smallint,
-	0::real,
+	false::boolean,
 	16::integer,
 	-1::real,
 	0::smallint,
@@ -1717,7 +1717,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	6::smallint,
-	0::real,
+	false::boolean,
 	8::integer,
 	-0.18404::real,
 	1::smallint,
@@ -1743,7 +1743,7 @@ INSERT INTO pg_statistic VALUES (
 INSERT INTO pg_statistic VALUES (
 	'tpch500gb.supplier'::regclass,
 	7::smallint,
-	0::real,
+	false::boolean,
 	63::integer,
 	-0.982448::real,
 	1::smallint,
