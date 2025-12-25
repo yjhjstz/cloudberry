@@ -48,6 +48,20 @@ private:
 	// Number of parallel workers
 	//ULONG m_ulParallelWorkers;
 
+	// Helper function for computing required distribution for Local aggregates
+	CDistributionSpec *PdsRequiredForLocal(CMemoryPool *mp,
+										   CExpressionHandle &exprhdl,
+										   CDistributionSpec *pdsRequired,
+										   ULONG child_index,
+										   ULONG ulOptReq) const;
+
+	// Helper function for computing required distribution for Global aggregates
+	CDistributionSpec *PdsRequiredForGlobal(CMemoryPool *mp,
+											CExpressionHandle &exprhdl,
+											CDistributionSpec *pdsRequired,
+											ULONG child_index,
+											ULONG ulOptReq) const;
+
 public:
 	CPhysicalParallelHashAgg(const CPhysicalParallelHashAgg &) = delete;
 
@@ -101,6 +115,12 @@ public:
 								   CDistributionSpec *pdsRequired,
 								   ULONG child_index, CDrvdPropArray *pdrgpdpCtxt,
 								   ULONG ulOptReq) const override;
+
+	// check if optimization contexts is valid
+	// Reject if parent requires REWINDABLE (e.g., for NL Join inner child)
+	BOOL FValidContext(CMemoryPool *mp, COptimizationContext *poc,
+					   COptimizationContextArray *pdrgpocChild) const override;
+
 
 };	// class CPhysicalParallelHashAgg
 

@@ -165,6 +165,13 @@ public:
 		return (COperator::EgbaggtypeGlobal == m_egbaggtype);
 	}
 
+	// is a local aggregate?
+	BOOL
+	FLocal() const
+	{
+		return (COperator::EgbaggtypeLocal == m_egbaggtype);
+	}
+
 	// is agg part of multi-stage aggregation
 	BOOL
 	FMultiStage() const
