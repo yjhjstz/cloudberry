@@ -263,16 +263,19 @@ bool MicroPartitionManifestParallelIterator::HasNext() {
     fetch_range();
 
   auto n = micro_partitions_.size();
-  for (; current_index_ < n; ++current_index_) {
+  for (; current_index_ < n;) {
     const auto &m = micro_partitions_[current_index_];
     auto block = m.GetMicroPartitionId();
-    if (block < start_block_) continue;
-    if (block >= end_block_) {
+    if (block < start_block_) {
+      ++current_index_;
+      continue;
+    } else if (block >= end_block_) {
       fetch_range();
       continue;
+    } else {
+      next_ = true;
+      break;
     }
-    next_ = true;
-    break;
   }
   return next_;
 }

@@ -1,0 +1,74 @@
+set enable_parallel = on;
+set max_parallel_workers_per_gather=2;
+set min_parallel_table_scan_size=0;
+set parallel_setup_cost=0;
+set optimizer_enable_indexonlyscan = off;
+set optimizer_enable_indexscan = off;
+set enable_indexonlyscan = off;
+set enable_indexscan = off;
+set enable_bitmapscan = off;
+CREATE TABLE foo (a INT, b INT, c CHAR(128)) using pax;
+CREATE INDEX foo_index ON foo(b);
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+INSERT INTO foo SELECT i as a, i as b, 'hello world' as c FROM generate_series(1, 100000) AS i;
+EXPLAIN SELECT COUNT(*) FROM foo;
+                                     QUERY PLAN                                     
+------------------------------------------------------------------------------------
+ Aggregate  (cost=0.00..237.05 rows=1 width=8)
+   ->  Gather Motion 6:1  (slice1; segments: 6)  (cost=0.00..237.05 rows=1 width=1)
+         ->  Parallel Seq Scan on foo  (cost=0.00..237.05 rows=1 width=1)
+ Optimizer: GPORCA
+(4 rows)
+
+SELECT COUNT(*) FROM foo;
+  count  
+---------
+ 1100000
+(1 row)
+
+EXPLAIN SELECT COUNT(*) FROM foo WHERE b = 17;
+                                     QUERY PLAN                                     
+------------------------------------------------------------------------------------
+ Aggregate  (cost=0.00..237.05 rows=1 width=8)
+   ->  Gather Motion 6:1  (slice1; segments: 6)  (cost=0.00..237.05 rows=1 width=1)
+         ->  Parallel Seq Scan on foo  (cost=0.00..237.05 rows=1 width=1)
+               Filter: (b = 17)
+ Optimizer: GPORCA
+(5 rows)
+
+SELECT COUNT(*) FROM foo WHERE b = 17;
+ count 
+-------
+    11
+(1 row)
+
+DELETE FROM foo WHERE b = 17;
+SELECT COUNT(*) FROM foo WHERE b = 17;
+ count 
+-------
+     0
+(1 row)
+
+SELECT COUNT(*) FROM foo;
+  count  
+---------
+ 1099989
+(1 row)
+
+DELETE FROM foo WHERE b = 16 OR b = 10000 OR b = 15;
+SELECT COUNT(*) FROM foo;
+  count  
+---------
+ 1099956
+(1 row)
+
+DROP TABLE foo;

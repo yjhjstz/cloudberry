@@ -1,6 +1,7 @@
 test: setup
 
 test: pax_inject_fault
+test: pax_parallel
 test: cbdb_parallel
 test: alter_distributed 
 test: toast toast_failed detoast ddl numeric types filter
