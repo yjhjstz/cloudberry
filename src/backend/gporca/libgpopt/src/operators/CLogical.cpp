@@ -1315,11 +1315,7 @@ CLogical::NameFromLogicalGet(CLogical *pop)
 //		CLogical::PcrsDist
 //
 //	@doc:
-//		Return the set of distribution columns.
-//		The output columns (pdrgpcrOutput) may be a subset of the table columns
-//		(e.g., in semi-joins or projections). We map by attribute number instead
-//		of positional index to handle this case. Returns empty set if any
-//		distribution column is missing from the output.
+//		Return the set of distribution columns
 //
 //---------------------------------------------------------------------------
 CColRefSet *
@@ -1328,6 +1324,66 @@ CLogical::PcrsDist(CMemoryPool *mp, const CTableDescriptor *ptabdesc,
 {
 	GPOS_ASSERT(nullptr != ptabdesc);
 	GPOS_ASSERT(nullptr != pdrgpcrOutput);
+
+	const CColumnDescriptorArray *pdrgpcoldesc = ptabdesc->Pdrgpcoldesc();
+	const CColumnDescriptorArray *pdrgpcoldescDist =
+		ptabdesc->PdrgpcoldescDist();
+	GPOS_ASSERT(nullptr != pdrgpcoldesc);
+	GPOS_ASSERT(nullptr != pdrgpcoldescDist);
+	GPOS_ASSERT(pdrgpcrOutput->Size() == pdrgpcoldesc->Size());
+
+
+	// mapping base table columns to corresponding column references
+	IntToColRefMap *phmicr = GPOS_NEW(mp) IntToColRefMap(mp);
+	const ULONG num_cols = pdrgpcoldesc->Size();
+	for (ULONG ul = 0; ul < num_cols; ul++)
+	{
+		CColumnDescriptor *pcoldesc = (*pdrgpcoldesc)[ul];
+		CColRef *colref = (*pdrgpcrOutput)[ul];
+
+		phmicr->Insert(GPOS_NEW(mp) INT(pcoldesc->AttrNum()), colref);
+	}
+
+	CColRefSet *pcrsDist = GPOS_NEW(mp) CColRefSet(mp);
+	const ULONG ulDistCols = pdrgpcoldescDist->Size();
+	for (ULONG ul2 = 0; ul2 < ulDistCols; ul2++)
+	{
+		CColumnDescriptor *pcoldesc = (*pdrgpcoldescDist)[ul2];
+		const INT attno = pcoldesc->AttrNum();
+		CColRef *pcrMapped = phmicr->Find(&attno);
+		GPOS_ASSERT(nullptr != pcrMapped);
+		pcrsDist->Include(pcrMapped);
+	}
+
+	// clean up
+	phmicr->Release();
+
+	return pcrsDist;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CLogical::PcrsDistSafe
+//
+//	@doc:
+//		Return the set of distribution columns (safe version).
+//		The output columns (pdrgpcrOutput) may be a subset of the table columns
+//		(e.g., in semi-joins or projections). We map by attribute number instead
+//		of positional index to handle this case.
+//		Sets pfComplete to false and returns empty set if any distribution
+//		column is missing from the output.
+//
+//---------------------------------------------------------------------------
+CColRefSet *
+CLogical::PcrsDistSafe(CMemoryPool *mp, const CTableDescriptor *ptabdesc,
+					   const CColRefArray *pdrgpcrOutput, BOOL *pfComplete)
+{
+	GPOS_ASSERT(nullptr != ptabdesc);
+	GPOS_ASSERT(nullptr != pdrgpcrOutput);
+	GPOS_ASSERT(nullptr != pfComplete);
+
+	*pfComplete = true;  // assume complete unless we find a missing column
 
 	const CColumnDescriptorArray *pdrgpcoldescDist =
 		ptabdesc->PdrgpcoldescDist();
@@ -1369,12 +1425,11 @@ CLogical::PcrsDist(CMemoryPool *mp, const CTableDescriptor *ptabdesc,
 		{
 			// Distribution column not found in output columns
 			// This can happen with semi-joins, projections, etc.
-			// Clean up and return empty set to signal caller
+			*pfComplete = false;
 			phmicr->Release();
 			pcrsDist->Release();
 
-			// Return empty set instead of nullptr to avoid null checks
-			// Caller should check if result is empty
+			// Return empty set to signal caller
 			return GPOS_NEW(mp) CColRefSet(mp);
 		}
 

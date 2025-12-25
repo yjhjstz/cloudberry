@@ -335,6 +335,13 @@ public:
 								const CTableDescriptor *ptabdesc,
 								const CColRefArray *colref_array);
 
+	// return the set of distribution columns (safe version that handles incomplete columns)
+	// Sets pfComplete to false if any distribution column is not in colref_array
+	static CColRefSet *PcrsDistSafe(CMemoryPool *mp,
+									const CTableDescriptor *ptabdesc,
+									const CColRefArray *colref_array,
+									BOOL *pfComplete);
+
 	// derive constraint property when expression has relational children and predicates
 	static CPropConstraint *PpcDeriveConstraintFromPredicates(
 		CMemoryPool *mp, CExpressionHandle &exprhdl);
