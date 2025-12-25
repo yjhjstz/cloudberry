@@ -14,6 +14,7 @@
 #include "gpos/base.h"
 
 #include "gpopt/base/CColRef.h"
+#include "gpopt/base/CColRefTable.h"
 #include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CConstraintConjunction.h"
@@ -1314,7 +1315,11 @@ CLogical::NameFromLogicalGet(CLogical *pop)
 //		CLogical::PcrsDist
 //
 //	@doc:
-//		Return the set of distribution columns
+//		Return the set of distribution columns.
+//		The output columns (pdrgpcrOutput) may be a subset of the table columns
+//		(e.g., in semi-joins or projections). We map by attribute number instead
+//		of positional index to handle this case. Returns empty set if any
+//		distribution column is missing from the output.
 //
 //---------------------------------------------------------------------------
 CColRefSet *
@@ -1324,33 +1329,55 @@ CLogical::PcrsDist(CMemoryPool *mp, const CTableDescriptor *ptabdesc,
 	GPOS_ASSERT(nullptr != ptabdesc);
 	GPOS_ASSERT(nullptr != pdrgpcrOutput);
 
-	const CColumnDescriptorArray *pdrgpcoldesc = ptabdesc->Pdrgpcoldesc();
 	const CColumnDescriptorArray *pdrgpcoldescDist =
 		ptabdesc->PdrgpcoldescDist();
-	GPOS_ASSERT(nullptr != pdrgpcoldesc);
 	GPOS_ASSERT(nullptr != pdrgpcoldescDist);
-	GPOS_ASSERT(pdrgpcrOutput->Size() == pdrgpcoldesc->Size());
 
-
-	// mapping base table columns to corresponding column references
+	// Build mapping from attribute number to column reference
+	// Only map columns that are actually present in the output
 	IntToColRefMap *phmicr = GPOS_NEW(mp) IntToColRefMap(mp);
-	const ULONG num_cols = pdrgpcoldesc->Size();
-	for (ULONG ul = 0; ul < num_cols; ul++)
+
+	for (ULONG ul = 0; ul < pdrgpcrOutput->Size(); ul++)
 	{
-		CColumnDescriptor *pcoldesc = (*pdrgpcoldesc)[ul];
 		CColRef *colref = (*pdrgpcrOutput)[ul];
 
-		phmicr->Insert(GPOS_NEW(mp) INT(pcoldesc->AttrNum()), colref);
+		// Only map table columns (skip computed columns)
+		if (CColRef::EcrtTable != colref->Ecrt())
+		{
+			continue;
+		}
+
+		CColRefTable *pcrTable = CColRefTable::PcrConvert(colref);
+		INT attno = pcrTable->AttrNum();
+
+		// Use attribute number as key for mapping
+		// This allows output to be a subset or in different order
+		phmicr->Insert(GPOS_NEW(mp) INT(attno), colref);
 	}
 
+	// Find distribution columns in the output column mapping
 	CColRefSet *pcrsDist = GPOS_NEW(mp) CColRefSet(mp);
 	const ULONG ulDistCols = pdrgpcoldescDist->Size();
+
 	for (ULONG ul2 = 0; ul2 < ulDistCols; ul2++)
 	{
 		CColumnDescriptor *pcoldesc = (*pdrgpcoldescDist)[ul2];
 		const INT attno = pcoldesc->AttrNum();
 		CColRef *pcrMapped = phmicr->Find(&attno);
-		GPOS_ASSERT(nullptr != pcrMapped);
+
+		if (nullptr == pcrMapped)
+		{
+			// Distribution column not found in output columns
+			// This can happen with semi-joins, projections, etc.
+			// Clean up and return empty set to signal caller
+			phmicr->Release();
+			pcrsDist->Release();
+
+			// Return empty set instead of nullptr to avoid null checks
+			// Caller should check if result is empty
+			return GPOS_NEW(mp) CColRefSet(mp);
+		}
+
 		pcrsDist->Include(pcrMapped);
 	}
 

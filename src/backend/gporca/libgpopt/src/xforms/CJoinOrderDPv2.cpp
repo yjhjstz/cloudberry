@@ -917,9 +917,30 @@ CJoinOrderDPv2::PopulateDPEInfo(SExpressionInfo *join_expr_info,
 			{
 				CColRefArray *atomOutputColArray =
 					pt_atom_expr->DeriveOutputColumns()->Pdrgpcr(m_mp);
+
+				// Attempt to get distribution columns
+				// PcrsDist now handles subset case - returns empty set if distribution
+				// columns are not present in output (e.g., in semi-joins)
 				CColRefSet *pt_atom_distribution_cols = CLogical::PcrsDist(
 					m_mp, atom_table_descriptor, atomOutputColArray);
+
 				atomOutputColArray->Release();
+
+				// Check if we successfully found all distribution columns
+				// If the set is empty, it means some distribution columns are missing
+				// from the output (e.g., this is a semi-join or projection that doesn't
+				// include all necessary columns for DPE optimization)
+				const CColumnDescriptorArray *pdrgpcoldescDist =
+					atom_table_descriptor->PdrgpcoldescDist();
+
+				if (pt_atom_distribution_cols->Size() != pdrgpcoldescDist->Size())
+				{
+					// Distribution columns not fully present in output
+					// Skip DPE optimization for this case
+					pt_atom_distribution_cols->Release();
+					continue;
+				}
+
 				// check that the child join condition contains the partition table's distribution columns
 				// if it doesn't, it won't be a valid partition selector due to the added redistribute
 				if (!left_child_join_condition_cols->ContainsAll(
