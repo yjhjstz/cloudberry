@@ -1363,7 +1363,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1379,7 +1379,7 @@ SELECT * FROM gp_read_error_log('exttab_subtxs_2')
 ) FOO;
  count 
 -------
-     4
+     2
 (1 row)
 
 BEGIN;
@@ -1400,7 +1400,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1417,7 +1417,7 @@ SELECT * FROM gp_read_error_log('exttab_subtxs_2')
 ) FOO;
  count 
 -------
-     4
+     2
 (1 row)
 
 savepoint s2;
@@ -1425,7 +1425,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1438,7 +1438,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_subtxs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1456,7 +1456,7 @@ SELECT * FROM gp_read_error_log('exttab_subtxs_2')
 ) FOO;
  count 
 -------
-    12
+     6
 (1 row)
 
 -- Make the tx fail, segment reject limit reaches here
@@ -1481,7 +1481,7 @@ SELECT * FROM gp_read_error_log('exttab_subtxs_2')
 ) FOO;
  ?column? 
 ----------
- t
+ f
 (1 row)
 
 -- TRUNCATE error logs within tx , abort transaction
@@ -1498,7 +1498,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_txs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_txs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1514,7 +1514,7 @@ SELECT * FROM gp_read_error_log('exttab_txs_2')
 ) FOO;
  count 
 -------
-     4
+     2
 (1 row)
 
 BEGIN;
@@ -1534,7 +1534,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_txs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_txs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1564,7 +1564,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_txs_1 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_txs_1 WHERE i < 10) e2
 WHERE e1.i = e2.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1580,7 +1580,7 @@ SELECT * FROM gp_read_error_log('exttab_txs_2')
 ) FOO;
  count 
 -------
-     8
+     4
 (1 row)
 
 BEGIN;
@@ -1653,7 +1653,7 @@ SELECT e1.i, e2.j FROM
 (SELECT i, j FROM exttab_txs_4 WHERE i < 5 ) e1,
 (SELECT i, j FROM exttab_txs_4 WHERE i < 10) e2
 WHERE e1.i = e2.i order by e1.i;
-NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related input data
+NOTICE:  found 2 data formatting errors (2 or more input rows), rejected related input data
  i |    j     
 ---+----------
  1 | 1_number
@@ -1665,7 +1665,7 @@ NOTICE:  found 4 data formatting errors (4 or more input rows), rejected related
 SELECT count(*) FROM gp_read_error_log('exttab_txs_4');
  count 
 -------
-     4
+     2
 (1 row)
 
 -- should error out and abort the transaction

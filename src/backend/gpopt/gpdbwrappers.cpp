@@ -112,6 +112,17 @@ gpdb::BmsNextMember(const Bitmapset *a, int prevbit)
 	return -2;
 }
 
+BOOL
+gpdb::BmsIsMember(int x,Bitmapset *a)
+{
+	GP_WRAP_START;
+	{
+		return bms_is_member(x, a);
+	}
+	GP_WRAP_END;
+	return false;
+}
+
 void *
 gpdb::CopyObject(void *from)
 {
@@ -1368,6 +1379,17 @@ gpdb::ListFreeDeep(List *list)
 	GP_WRAP_END;
 }
 
+void
+gpdb::ListSort(List *list, list_sort_comparator cmp)
+{
+	GP_WRAP_START;
+	{
+		list_sort(list, cmp);
+		return;
+	}
+	GP_WRAP_END;
+}
+
 TypeCacheEntry *
 gpdb::LookupTypeCache(Oid type_id, int flags)
 {
@@ -1466,6 +1488,17 @@ gpdb::MakeVar(Index varno, AttrNumber varattno, Oid vartype, int32 vartypmod,
 		Oid collation = TypeCollation(vartype);
 		return makeVar(varno, varattno, vartype, vartypmod, collation,
 					   varlevelsup);
+	}
+	GP_WRAP_END;
+	return nullptr;
+}
+
+Alias *
+gpdb::MakeAlias(const char *aliasname, List *colnames)
+{
+	GP_WRAP_START;
+	{
+		return makeAlias(aliasname, colnames);
 	}
 	GP_WRAP_END;
 	return nullptr;
@@ -1730,6 +1763,28 @@ gpdb::MutateQueryOrExpressionTree(Node *node, Node *(*mutator)(Node *, void *), 
 	GP_WRAP_START;
 	{
 		return query_or_expression_tree_mutator_wrapper(node, mutator, context, flags);
+	}
+	GP_WRAP_END;
+	return nullptr;
+}
+
+bool
+gpdb::ContainVarsOfLevelOrAbove(Node *node, int levelsup)
+{
+	GP_WRAP_START;
+	{
+		return contain_vars_of_level_or_above(node, levelsup);
+	}
+	GP_WRAP_END;
+	return false;
+}
+
+Expr *
+gpdb::CanonicalizeQual(Expr *quals, bool is_check)
+{
+	GP_WRAP_START;
+	{
+		return canonicalize_qual(quals, is_check);
 	}
 	GP_WRAP_END;
 	return nullptr;
