@@ -71,6 +71,11 @@ public:
 		return dynamic_cast<CPhysicalDynamicTableScan *>(pop);
 	}
 
+	// return rewindability property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetRewindability(
+		CExpressionHandle &exprhdl,
+		const CEnfdRewindability *per) const override;
+
 	CPartitionPropagationSpec *PppsDerive(
 		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
 

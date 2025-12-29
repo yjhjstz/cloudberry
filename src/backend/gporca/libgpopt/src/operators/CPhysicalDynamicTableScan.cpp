@@ -18,6 +18,8 @@
 #include "gpopt/base/CDistributionSpecRandom.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CUtils.h"
+#include "gpopt/base/CDrvdPropPlan.h"
+#include "gpopt/base/CEnfdRewindability.h"
 #include "gpopt/metadata/CName.h"
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "naucrates/statistics/CStatisticsUtils.h"
@@ -79,6 +81,33 @@ CPhysicalDynamicTableScan::PstatsDerive(CMemoryPool *mp,
 		mp, exprhdl, ScanId(), prpplan->Pepp()->PppsRequired());
 }
 
+//---------------------------------------------------------------------------
+//	@function:
+//		CPhysicalDynamicTableScan::EpetRewindability
+//
+//	@doc:
+//		Return the enforcing type for rewindability property based on this operator
+//		Dynamic Table Scan can only provide REWINDABLE, not MARK-RESTORE
+//
+//---------------------------------------------------------------------------
+CEnfdProp::EPropEnforcingType
+CPhysicalDynamicTableScan::EpetRewindability(
+	CExpressionHandle &exprhdl, const CEnfdRewindability *per) const
+{
+	// Get rewindability delivered by the Dynamic Table Scan
+	CRewindabilitySpec *prs = CDrvdPropPlan::Pdpplan(exprhdl.Pdp())->Prs();
+	GPOS_ASSERT(nullptr != prs);
+
+	// Check if our derived rewindability is compatible with what's required
+	if (per->FCompatible(prs))
+	{
+		// Required rewindability is already satisfied by Dynamic Table Scan
+		return CEnfdProp::EpetUnnecessary;
+	}
+
+	// For other mismatches, allow ORCA to add an enforcer
+	return CEnfdProp::EpetRequired;
+}
 
 CPartitionPropagationSpec *
 CPhysicalDynamicTableScan::PppsDerive(CMemoryPool *mp,
