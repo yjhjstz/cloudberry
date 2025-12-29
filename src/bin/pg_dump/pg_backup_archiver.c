@@ -6,7 +6,7 @@
  *
  *	See the headers to pg_restore for more details.
  *
- * Copyright (c) 2000, Philip Warner
+ * Copyright (c) 2000, Philip Warnerf
  *	Rights are granted to use this software in any way so long
  *	as this notice is not removed.
  *
@@ -4937,6 +4937,7 @@ CloneArchive(ArchiveHandle *AH)
 	if (AH->mode == archModeRead)
 		_doSetFixedOutputState(clone);
 	
+	/* in write case, setupDumpWorker will fix up connection state */
 
 	/* Let the format-specific code have a chance too */
 	clone->ClonePtr(clone);
