@@ -18,6 +18,8 @@
 #include "gpopt/cost/ICostModel.h"
 #include "gpopt/eval/IConstExprEvaluator.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
+#include "gpopt/search/CMemo.h"
+#include "gpopt/xforms/CXformUtils.h"
 #include "naucrates/traceflags/traceflags.h"
 
 
@@ -179,3 +181,4 @@ COptCtxt::AddPartSelectorInfo(ULONG selector_id, SPartSelectorInfoEntry *entry)
 	ULONG *key = GPOS_NEW(m_mp) ULONG(selector_id);
 	return m_part_selector_info->Insert(key, entry);
 }
+

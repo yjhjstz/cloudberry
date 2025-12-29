@@ -78,6 +78,11 @@ private:
 				   CGroupExpression>
 		m_sht;
 
+	// flag indicating whether memo contains parallel-incompatible operators
+	// Maintained incrementally: set to true when incompatible ops are inserted
+	// This enables O(1) parallel compatibility check instead of O(groups × expressions) scan
+	BOOL m_fHasParallelIncompatibleOps;
+
 	// add new group
 	void Add(CGroup *pgroup, CExpression *pexprOrigin);
 
@@ -169,6 +174,14 @@ public:
 
 	// get group by id
 	CGroup *Pgroup(ULONG id);
+
+	// check if memo contains parallel-incompatible operators (O(1) lookup)
+	// Returns cached flag maintained incrementally during group expression insertion
+	BOOL
+	FHasParallelIncompatibleOps() const
+	{
+		return m_fHasParallelIncompatibleOps;
+	}
 
 };	// class CMemo
 

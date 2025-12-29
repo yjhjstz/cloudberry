@@ -85,10 +85,20 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
-	// Check for parallel-incompatible operations that would conflict with parallel scans
-	if (CXformUtils::FHasParallelIncompatibleOps(exprhdl))
+	// Check for parallel-incompatible operations using O(1) CMemo lookup
+	// CMemo maintains incompatibility flag incrementally during expression insertion
+	CGroupExpression *pgexprHandle = exprhdl.Pgexpr();
+	if (nullptr != pgexprHandle)
 	{
-		return CXform::ExfpNone;
+		CGroup *pgroup = pgexprHandle->Pgroup();
+		if (nullptr != pgroup)
+		{
+			CMemo *pmemo = pgroup->Pmemo();
+			if (CXformUtils::FHasParallelIncompatibleOps(pmemo))
+			{
+				return CXform::ExfpNone;
+			}
+		}
 	}
 
 	CLogicalGet *popGet = CLogicalGet::PopConvert(exprhdl.Pop());

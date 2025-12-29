@@ -47,7 +47,8 @@ CMemo::CMemo(CMemoryPool *mp)
 	  m_aul(0),
 	  m_pgroupRoot(nullptr),
 	  m_ulpGrps(0),
-	  m_pmemotmap(nullptr)
+	  m_pmemotmap(nullptr),
+	  m_fHasParallelIncompatibleOps(false)
 {
 	GPOS_ASSERT(nullptr != mp);
 
@@ -172,6 +173,28 @@ CMemo::PgroupInsert(CGroup *pgroupTarget, CGroupExpression *pgexpr,
 	if (nullptr == pgexprFound)
 	{
 		shta.Insert(pgexpr);
+
+		// Incrementally check for parallel-incompatible operators
+		// This maintains m_fHasParallelIncompatibleOps flag for O(1) lookup
+		if (!m_fHasParallelIncompatibleOps)
+		{
+			COperator::EOperatorId eopid = pgexpr->Pop()->Eopid();
+
+			// Check for CTE-related operators (incompatible with parallel execution)
+			if (COperator::EopLogicalCTEProducer == eopid ||
+				COperator::EopLogicalSequence == eopid ||
+				COperator::EopLogicalSequenceProject == eopid)
+			{
+				m_fHasParallelIncompatibleOps = true;
+			}
+
+			// Check for set operations (incompatible with parallel execution)
+			if (COperator::EopLogicalUnion == eopid ||
+				COperator::EopLogicalUnionAll == eopid)
+			{
+				m_fHasParallelIncompatibleOps = true;
+			}
+		}
 
 		// group proxy scope
 		{

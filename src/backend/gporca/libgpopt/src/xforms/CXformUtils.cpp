@@ -106,6 +106,7 @@ CXformUtils::ExfpLogicalJoin2PhysicalJoin(CExpressionHandle &exprhdl)
 //
 //	@doc:
 //		Check if memo contains operations incompatible with parallel execution
+//		Uses O(1) lookup via incrementally maintained flag in CMemo
 //
 //---------------------------------------------------------------------------
 BOOL
@@ -116,43 +117,10 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 		return false;
 	}
 
-	// Iterate through all groups in memo to check for parallel-incompatible operations
-	const ULONG_PTR ulGroups = pmemo->UlpGroups();
-	for (ULONG_PTR ul = 0; ul < ulGroups; ul++)
-	{
-		CGroup *pgroupCurrent = pmemo->Pgroup(ul);
-		if (nullptr == pgroupCurrent)
-		{
-			continue;
-		}
-
-		// Check all group expressions in this group using CGroupProxy
-		CGroupProxy gp(pgroupCurrent);
-		CGroupExpression *pgexpr = gp.PgexprFirst();
-		while (nullptr != pgexpr)
-		{
-			COperator::EOperatorId eopid = pgexpr->Pop()->Eopid();
-
-			// Check for CTE-related operators (incompatible with parallel execution)
-			if (COperator::EopLogicalCTEProducer == eopid ||
-				COperator::EopLogicalSequence == eopid ||
-				COperator::EopLogicalSequenceProject == eopid)
-			{
-				return true;
-			}
-
-			// Check for set operations (incompatible with parallel execution)
-			if (COperator::EopLogicalUnion == eopid ||
-				COperator::EopLogicalUnionAll == eopid)
-			{
-				return true;
-			}
-
-			pgexpr = gp.PgexprNext(pgexpr);
-		}
-	}
-
-	return false;
+	// O(1) lookup using incrementally maintained flag
+	// The flag is set during group expression insertion in CMemo::PgroupInsert
+	// This eliminates O(groups × expressions) scan overhead
+	return pmemo->FHasParallelIncompatibleOps();
 }
 
 //---------------------------------------------------------------------------
