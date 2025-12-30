@@ -60,15 +60,16 @@ static inline int Append(char *dst, size_t count, const char *format, ...) {
   }
   return n;
 }
-
-static inline void StackTrace(char *stack_buffer,
-                              uint8 max_depth = DEFAULT_STACK_MAX_DEPTH) {
-  void *addr_list[max_depth + 1];
+#ifndef ENABLE_DEBUG
+static inline
+#endif
+void StackTrace(char *stack_buffer) {
+  void *addr_list[DEFAULT_STACK_MAX_DEPTH + 1];
   int addr_len;
   char **symbol_list;
   size_t origin_func_name_size = 16384;  // same as ORCA
   size_t func_name_size = origin_func_name_size;
-  char func_name[func_name_size];
+  char *func_name = nullptr;
   int index = 0;
 
   addr_len = backtrace(addr_list, sizeof(addr_list) / sizeof(void *));
@@ -106,22 +107,14 @@ static inline void StackTrace(char *stack_buffer,
       *end_offset = '\0';
 
       int status;
-      char *ret =
-          abi::__cxa_demangle(begin_name, func_name, &func_name_size, &status);
 
-      if (origin_func_name_size < func_name_size) {
-        // realloc happen
-        // should not allow realloc in `abi::__cxa_demangle`
-        // just return and make sure origin_func_name_size big enough
-#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
-        free(func_name);  // NOLINT
-        goto finish;
-      }
-      if (status == 0) {
-        if (!ret) {
-          continue;
-        }
-        memcpy(func_name, ret, func_name_size);
+      if (func_name) free(func_name);
+
+      func_name =
+          abi::__cxa_demangle(begin_name, nullptr, &func_name_size, &status);
+
+      if (status == 0 && func_name) {
+
         single_buffer_size = strlen(func_name_msg) + strlen(symbol_list[i]) +
                              func_name_size + strlen(begin_offset);
         if (index > DEFAULT_STACK_MAX_SIZE ||
@@ -166,6 +159,9 @@ static inline void StackTrace(char *stack_buffer,
 finish:
   if (index < DEFAULT_STACK_MAX_SIZE) {
     stack_buffer[index] = '\0';
+  }
+  if (func_name) {
+    free(func_name);  // NOLINT
   }
   free(symbol_list);  // NOLINT
 }
