@@ -134,7 +134,7 @@ CDistributionSpecReplicatedWorkers::AppendEnforcers(
 	CMemoryPool *mp, CExpressionHandle &
 	/*exprhdl*/
 	,
-	CReqdPropPlan *prpp, CExpressionArray *pdrgpexpr, CExpression *pexpr)
+	CReqdPropPlan *prpp GPOS_UNUSED, CExpressionArray *pdrgpexpr, CExpression *pexpr)
 {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(nullptr != prpp);
