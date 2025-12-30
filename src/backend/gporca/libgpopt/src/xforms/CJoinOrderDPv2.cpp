@@ -918,6 +918,14 @@ CJoinOrderDPv2::PopulateDPEInfo(SExpressionInfo *join_expr_info,
 				CColRefArray *atomOutputColArray =
 					pt_atom_expr->DeriveOutputColumns()->Pdrgpcr(m_mp);
 
+				if (atomOutputColArray->Size() !=
+					atom_table_descriptor->Pdrgpcoldesc()->Size())
+				{
+					// Skip DPE optimization for this case
+					atomOutputColArray->Release();
+					continue;
+				}
+
 				// Attempt to get distribution columns
 				// PcrsDist now handles subset case - returns empty set if distribution
 				// columns are not present in output (e.g., in semi-joins)
