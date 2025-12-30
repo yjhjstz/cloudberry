@@ -191,7 +191,7 @@ CDistributionSpec *
 CPhysicalParallelHashAgg::PdsRequiredForLocal(
 	CMemoryPool *mp, CExpressionHandle &exprhdl GPOS_UNUSED,
 	CDistributionSpec *pdsRequired GPOS_UNUSED, ULONG child_index GPOS_UNUSED,
-	ULONG ulOptReq) const
+	ULONG ulOptReq GPOS_ASSERTS_ONLY) const
 {
 	GPOS_ASSERT(FLocal());
 	GPOS_ASSERT(0 == ulOptReq && "Local aggregate only supports single distribution request");

@@ -322,7 +322,7 @@ CPhysicalParallelHashJoin::PdsRequiredReplicateWorkers(
 	CMemoryPool *mp, CExpressionHandle &exprhdl, CDistributionSpec *pdsInput,
 	ULONG child_index, CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq) const
 {
-	EChildExecOrder eceo = Eceo();
+	EChildExecOrder GPOS_ASSERTS_ONLY eceo = Eceo();
 	GPOS_ASSERT(EceoRightToLeft == eceo);  // ParallelHashJoin always RightToLeft
 
 	if (1 == child_index)
