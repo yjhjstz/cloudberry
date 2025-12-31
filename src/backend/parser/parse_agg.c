@@ -77,6 +77,7 @@ static void check_agglevels_and_constraints(ParseState *pstate, Node *expr);
 static List *expand_groupingset_node(GroupingSet *gs);
 static Node *make_agg_arg(Oid argtype, Oid argcollation);
 
+transform_aggregate_call_hook_t transform_aggregate_call_hook = NULL;
 
 /*
  * transformAggregateCall -
@@ -114,6 +115,9 @@ transformAggregateCall(ParseState *pstate, Aggref *agg,
 	AttrNumber	attno = 1;
 	int			save_next_resno;
 	ListCell   *lc;
+
+	if (transform_aggregate_call_hook)
+		transform_aggregate_call_hook(pstate, agg, &args);
 
 	if (AGGKIND_IS_ORDERED_SET(agg->aggkind))
 	{

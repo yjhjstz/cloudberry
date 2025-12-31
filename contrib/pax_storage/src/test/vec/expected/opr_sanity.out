@@ -1217,7 +1217,8 @@ FROM pg_operator AS p1
 WHERE p1.oprcanmerge AND NOT EXISTS
   (SELECT 1 FROM pg_amop
    WHERE amopmethod = (SELECT oid FROM pg_am WHERE amname = 'btree') AND
-         amopopr = p1.oid AND amopstrategy = 3);
+         amopopr = p1.oid AND amopstrategy = 3) AND
+  oprcode::text not like '%fixeddecimal%'; -- ignore operator defined by fixeddecimal
  oid | oprname 
 -----+---------
 (0 rows)
@@ -1782,7 +1783,8 @@ WHERE a.aggfnoid = p.oid AND a.aggsortop = o.oid AND
                WHERE amopmethod = (SELECT oid FROM pg_am WHERE amname = 'btree')
                      AND amopopr = o.oid
                      AND amoplefttype = o.oprleft
-                     AND amoprighttype = o.oprright);
+                     AND amoprighttype = o.oprright) AND
+    o.oprcode::text not like '%fixeddecimal%';
  aggfnoid | oid 
 ----------+-----
 (0 rows)

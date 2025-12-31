@@ -623,6 +623,8 @@ SELECT oid, typname, typtype, typelem, typarray, typarray
                      'pg_brin_minmax_multi_summary', 'xml']::regtype[]) AND
     -- GPDB_14_MERGE_FIXME: Discard the GP-specific type gp_hyperloglog_estimator?
     oid != 'gp_hyperloglog_estimator'::regtype AND
+    -- Ignore builtin fixeddecimal type
+    oid != 'fixeddecimal'::regtype AND
     -- CBDB: ignore types defined in extension namespace
     typnamespace != (select oid from pg_namespace where nspname='pg_ext_aux') AND
     -- Discard arrays.

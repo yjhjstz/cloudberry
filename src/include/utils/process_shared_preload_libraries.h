@@ -28,3 +28,5 @@
 		"hive_auto_sync",
 		"datalake_fdw",
 #endif
+
+		"fixeddecimal",

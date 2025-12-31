@@ -5261,29 +5261,32 @@ List of access methods
 (2 rows)
 
 \df int*pl
-                            List of functions
-   Schema   |    Name     | Result data type | Argument data types | Type 
-------------+-------------+------------------+---------------------+------
- pg_catalog | int24pl     | integer          | smallint, integer   | func
- pg_catalog | int28pl     | bigint           | smallint, bigint    | func
- pg_catalog | int2pl      | smallint         | smallint, smallint  | func
- pg_catalog | int42pl     | integer          | integer, smallint   | func
- pg_catalog | int48pl     | bigint           | integer, bigint     | func
- pg_catalog | int4pl      | integer          | integer, integer    | func
- pg_catalog | int82pl     | bigint           | bigint, smallint    | func
- pg_catalog | int84pl     | bigint           | bigint, integer     | func
- pg_catalog | int8pl      | bigint           | bigint, bigint      | func
- pg_catalog | interval_pl | interval         | interval, interval  | func
-(10 rows)
+                                 List of functions
+   Schema   |        Name        | Result data type |  Argument data types   | Type 
+------------+--------------------+------------------+------------------------+------
+ pg_catalog | int24pl            | integer          | smallint, integer      | func
+ pg_catalog | int28pl            | bigint           | smallint, bigint       | func
+ pg_catalog | int2fixeddecimalpl | fixeddecimal     | smallint, fixeddecimal | func
+ pg_catalog | int2pl             | smallint         | smallint, smallint     | func
+ pg_catalog | int42pl            | integer          | integer, smallint      | func
+ pg_catalog | int48pl            | bigint           | integer, bigint        | func
+ pg_catalog | int4fixeddecimalpl | fixeddecimal     | integer, fixeddecimal  | func
+ pg_catalog | int4pl             | integer          | integer, integer       | func
+ pg_catalog | int82pl            | bigint           | bigint, smallint       | func
+ pg_catalog | int84pl            | bigint           | bigint, integer        | func
+ pg_catalog | int8pl             | bigint           | bigint, bigint         | func
+ pg_catalog | interval_pl        | interval         | interval, interval     | func
+(12 rows)
 
 \df int*pl int4
-                          List of functions
-   Schema   |  Name   | Result data type | Argument data types | Type 
-------------+---------+------------------+---------------------+------
- pg_catalog | int42pl | integer          | integer, smallint   | func
- pg_catalog | int48pl | bigint           | integer, bigint     | func
- pg_catalog | int4pl  | integer          | integer, integer    | func
-(3 rows)
+                                 List of functions
+   Schema   |        Name        | Result data type |  Argument data types  | Type 
+------------+--------------------+------------------+-----------------------+------
+ pg_catalog | int42pl            | integer          | integer, smallint     | func
+ pg_catalog | int48pl            | bigint           | integer, bigint       | func
+ pg_catalog | int4fixeddecimalpl | fixeddecimal     | integer, fixeddecimal | func
+ pg_catalog | int4pl             | integer          | integer, integer      | func
+(4 rows)
 
 \df int*pl * pg_catalog.int8
                           List of functions

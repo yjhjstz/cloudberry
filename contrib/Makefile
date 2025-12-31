@@ -24,6 +24,7 @@ SUBDIRS = \
 		dict_int	\
 		dict_xsyn	\
 		file_fdw	\
+		fixeddecimal	\
 		fuzzystrmatch	\
 		hstore		\
 		intagg		\

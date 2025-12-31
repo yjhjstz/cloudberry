@@ -15,6 +15,9 @@
 
 #include "parser/parse_node.h"
 
+typedef void (*transform_aggregate_call_hook_t)(ParseState *pstate, Aggref *agg, List **args);
+extern transform_aggregate_call_hook_t transform_aggregate_call_hook;
+
 extern void transformAggregateCall(ParseState *pstate, Aggref *agg,
 								   List *args, List *aggorder,
 								   bool agg_distinct);
