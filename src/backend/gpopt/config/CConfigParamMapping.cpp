@@ -298,6 +298,10 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 	 false,	 // m_negate_param
 	 GPOS_WSZ_LIT("Enable parallel append for scan/bitmap/index scan in partition tables.")},
 
+	{EopttraceEnableParallelPartSelector, &optimizer_enable_parallel_part_selector,
+	 true,	// m_negate_param
+	 GPOS_WSZ_LIT("Enable parallel partition selector for parallel append.")},
+
 	{EopttraceDisableOrderedAgg, &optimizer_enable_orderedagg,
 	 true,	// m_negate_param
 	 GPOS_WSZ_LIT("Disable ordered aggregate plans.")},

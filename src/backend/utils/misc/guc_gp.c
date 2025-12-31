@@ -338,6 +338,7 @@ bool		optimizer_enable_motion_broadcast_workers;
 bool		optimizer_enable_sort;
 bool		optimizer_enable_materialize;
 bool		optimizer_enable_parallel_append;
+bool		optimizer_enable_parallel_part_selector;
 bool		optimizer_enable_partition_propagation;
 bool		optimizer_enable_partition_selection;
 bool		optimizer_enable_outerjoin_rewrite;
@@ -2300,6 +2301,16 @@ struct config_bool ConfigureNamesBool_gp[] =
 		},
 		&optimizer_enable_parallel_append,
 		false,
+		NULL, NULL, NULL
+	},
+	{
+		{"optimizer_enable_parallel_part_selector", PGC_USERSET, DEVELOPER_OPTIONS,
+		 gettext_noop("Enable parallel partition selector for parallel append."),
+		 NULL,
+		 GUC_NOT_IN_SAMPLE
+		},
+		&optimizer_enable_parallel_part_selector,
+		true,
 		NULL, NULL, NULL
 	},
 	{

@@ -1379,6 +1379,10 @@ CPhysicalHashJoin::PexprJoinPredOnPartKeys(CMemoryPool *mp,
 	for (ULONG ulKey = 0; nullptr == pexprPred && ulKey < pdrgppartkeys->Size();
 		 ulKey++)
 	{
+		// skip dynamic partition selection if parallel append scan is enabled
+		if (GPOS_FTRACE(EopttraceEnableParallelPartSelector))
+			continue;
+
 		// get partition key
 		CColRef2dArray *pdrgpdrgpcrPartKeys =
 			(*pdrgppartkeys)[ulKey]->Pdrgpdrgpcr();

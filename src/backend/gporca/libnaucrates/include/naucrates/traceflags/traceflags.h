@@ -229,6 +229,9 @@ enum EOptTraceFlag
 	// Enable use the distribution key in DQA
 	EopttraceEnableUseDistributionInDQA = 103042,
 
+	// Enable parallel partition selector for parallel append
+	EopttraceEnableParallelPartSelector = 103043,
+
 	// Discard HashJoin with RedistributeMotion nodes
 	EopttraceDiscardRedistributeHashJoin = 103044,
 
