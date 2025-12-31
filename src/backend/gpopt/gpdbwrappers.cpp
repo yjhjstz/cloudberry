@@ -59,6 +59,7 @@ extern "C" {
 
 extern bool enable_parallel;
 extern int max_parallel_workers_per_gather;
+extern int statement_mem;
 }
 #define GP_WRAP_START                                            \
 	sigjmp_buf local_sigjmp_buf;                                 \
@@ -2756,6 +2757,9 @@ gpdb::IsParallelModeOK(void)
 			return false;
 
 		if (max_parallel_workers_per_gather <= 0)
+			return false;
+		// At least 32MB per worker
+		if (statement_mem < 32768 * max_parallel_workers_per_gather)
 			return false;
 
 		// Check if parallel plans are enabled in current optimizer context
