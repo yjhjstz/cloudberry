@@ -1,5 +1,6 @@
 create schema orca_parallel;
 set search_path=orca_parallel, public;
+set statement_mem = '256MB';
 create table t1(a int, b int) with(parallel_workers=2) distributed by (a);
 create table t2(c int, d int ) with(parallel_workers=3) distributed by (c);
 insert into t1 select i, i+1 from generate_series(1, 1000)i;
@@ -408,14 +409,15 @@ explain (costs off) select a, count(*) from t0 group by a;
 explain (costs off) select b, count(*) from t0 group by b;
                          QUERY PLAN                         
 ------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
+ Gather Motion 6:1  (slice1; segments: 6)
    ->  HashAggregate
          Group Key: b
-         ->  Redistribute Motion 6:3  (slice2; segments: 6)
+         ->  Redistribute Motion 6:6  (slice2; segments: 6)
                Hash Key: b
+               Hash Module: 3
                ->  Parallel Seq Scan on t0
  Optimizer: GPORCA
-(7 rows)
+(8 rows)
 
 -- Group Agg
 set optimizer_enable_hashagg = off;
@@ -482,6 +484,7 @@ explain (costs off) select count(*), sum(b) from t0;
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
 reset parallel_setup_cost;
+reset statement_mem;
 -- start_ignore
 drop schema orca_parallel cascade;
 NOTICE:  drop cascades to 4 other objects
