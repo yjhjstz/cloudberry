@@ -1380,7 +1380,7 @@ CPhysicalHashJoin::PexprJoinPredOnPartKeys(CMemoryPool *mp,
 		 ulKey++)
 	{
 		// skip dynamic partition selection if parallel append scan is enabled
-		if (GPOS_FTRACE(EopttraceEnableParallelPartSelector))
+		if (GPOS_FTRACE(EopttraceEnableParallelPartSelector) && GPOS_FTRACE(EopttraceEnableParallelAppendScan))
 			continue;
 
 		// get partition key
