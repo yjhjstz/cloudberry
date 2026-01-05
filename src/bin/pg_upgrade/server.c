@@ -208,6 +208,7 @@ start_postmaster(ClusterInfo *cluster, bool report_and_exit_on_error)
 	PGconn	   *conn;
 	bool		pg_ctl_return = false;
 	char		socket_string[MAXPGPATH + 200];
+	char	   *parentdir = NULL;
 
 	static bool exit_hook_registered = false;
 
@@ -259,8 +260,11 @@ start_postmaster(ClusterInfo *cluster, bool report_and_exit_on_error)
 				" -c gp_dbid=1 -c gp_contentid=0 -c gp_num_contents_in_cluster=1";
 	}
 
+	parentdir = pstrdup(cluster->bindir);
+	get_parent_directory(parentdir);
 	snprintf(cmd, sizeof(cmd),
-			 "unset LD_LIBRARY_PATH;\"%s/pg_ctl\" -w -l \"%s/%s\" -D \"%s\" -o \"-p %d -c %s -b%s %s %s%s\" start",
+			 "export LD_LIBRARY_PATH=%s/lib:$LD_LIBRARY_PATH; \"%s/pg_ctl\" -w -l \"%s/%s\" -D \"%s\" -o \"-p %d -c %s -b%s %s %s%s\" start",
+			 parentdir,
 			 cluster->bindir,
 			 log_opts.logdir,
 			 SERVER_LOG_FILE,
