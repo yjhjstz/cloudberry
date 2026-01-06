@@ -329,7 +329,7 @@ COrderedAggPreprocessor::SplitPrjList(
 			pos->Append(mdid_pos, colref, ent);
 			CLogicalLimit *popLimit = GPOS_NEW(mp)
 				CLogicalLimit(mp, pos, true /* fGlobal */, true /* fHasCount */,
-							  false /*fTopLimitUnderDML*/);
+							  false /*fTopLimitUnderDML*/, 0 /*query_level*/);
 			CExpression *pexprLimitOffset = CUtils::PexprScalarConstInt8(mp, 0);
 			CExpression *pexprLimitCount =
 				CUtils::PexprScalarConstInt8(mp, 1, true);

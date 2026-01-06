@@ -2002,7 +2002,7 @@ CTranslatorQueryToDXL::TranslateLimitToDXLGroupBy(
 	BOOL is_limit_top_level = (m_is_top_query_dml && 1 == m_query_level) ||
 							  (m_is_ctas_query && 0 == m_query_level);
 	CDXLNode *limit_dxlnode = GPOS_NEW(m_mp) CDXLNode(
-		m_mp, GPOS_NEW(m_mp) CDXLLogicalLimit(m_mp, is_limit_top_level));
+		m_mp, GPOS_NEW(m_mp) CDXLLogicalLimit(m_mp, is_limit_top_level, m_query_level));
 
 	// create a sorting col list
 	CDXLNode *sort_col_list_dxl = GPOS_NEW(m_mp)

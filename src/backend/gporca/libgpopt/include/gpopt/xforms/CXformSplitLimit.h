@@ -39,7 +39,8 @@ private:
 		COrderSpec *pos,				// ordering specification
 		BOOL fGlobal,					// is it a local or global limit
 		BOOL fHasCount,					// does limit specify a number of rows
-		BOOL fTopLimitUnderDML);
+		BOOL fTopLimitUnderDML,
+		ULONG query_level);				// query nesting level
 
 public:
 	CXformSplitLimit(const CXformSplitLimit &) = delete;

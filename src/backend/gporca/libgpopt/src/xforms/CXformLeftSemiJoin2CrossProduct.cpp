@@ -104,7 +104,7 @@ CXformLeftSemiJoin2CrossProduct::Transform(CXformContext *pxfctxt,
 	COrderSpec *pos = GPOS_NEW(mp) COrderSpec(mp);
 	CLogicalLimit *popLimit = GPOS_NEW(mp)
 		CLogicalLimit(mp, pos, true /*fGlobal*/, true /*fHasCount*/,
-					  false /*fNonRemovableLimit*/);
+					  false /*fNonRemovableLimit*/, 0 /*query_level*/);
 	CExpression *pexprLimit = GPOS_NEW(mp) CExpression(
 		mp, popLimit, pexprInner, pexprLimitOffset, pexprLimitCount);
 

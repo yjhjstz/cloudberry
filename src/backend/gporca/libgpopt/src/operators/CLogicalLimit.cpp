@@ -38,7 +38,8 @@ CLogicalLimit::CLogicalLimit(CMemoryPool *mp)
 	  m_pos(nullptr),
 	  m_fGlobal(true),
 	  m_fHasCount(false),
-	  m_top_limit_under_dml(false)
+	  m_top_limit_under_dml(false),
+	  m_query_level(0)
 {
 	m_fPattern = true;
 }
@@ -53,12 +54,13 @@ CLogicalLimit::CLogicalLimit(CMemoryPool *mp)
 //
 //---------------------------------------------------------------------------
 CLogicalLimit::CLogicalLimit(CMemoryPool *mp, COrderSpec *pos, BOOL fGlobal,
-							 BOOL fHasCount, BOOL fTopLimitUnderDML)
+							 BOOL fHasCount, BOOL fTopLimitUnderDML, ULONG query_level)
 	: CLogical(mp),
 	  m_pos(pos),
 	  m_fGlobal(fGlobal),
 	  m_fHasCount(fHasCount),
-	  m_top_limit_under_dml(fTopLimitUnderDML)
+	  m_top_limit_under_dml(fTopLimitUnderDML),
+	  m_query_level(query_level)
 {
 	GPOS_ASSERT(nullptr != pos);
 	CColRefSet *pcrsSort = m_pos->PcrsUsed(mp);
@@ -143,7 +145,7 @@ CLogicalLimit::PopCopyWithRemappedColumns(CMemoryPool *mp,
 		m_pos->PosCopyWithRemappedColumns(mp, colref_mapping, must_exist);
 
 	return GPOS_NEW(mp)
-		CLogicalLimit(mp, pos, m_fGlobal, m_fHasCount, m_top_limit_under_dml);
+		CLogicalLimit(mp, pos, m_fGlobal, m_fHasCount, m_top_limit_under_dml, m_query_level);
 }
 
 //---------------------------------------------------------------------------

@@ -1473,7 +1473,8 @@ CTestUtils::PexprLogicalLimit(CMemoryPool *mp, CExpression *pexpr, LINT iStart,
 	return GPOS_NEW(mp)
 		CExpression(mp,
 					GPOS_NEW(mp) CLogicalLimit(mp, pos, fGlobal, fHasCount,
-											   false /*fTopLimitUnderDML*/),
+											   false /*fTopLimitUnderDML*/,
+											   0 /*query_level*/),
 					pexpr, CUtils::PexprScalarConstInt8(mp, iStart),
 					CUtils::PexprScalarConstInt8(mp, iRows));
 }
