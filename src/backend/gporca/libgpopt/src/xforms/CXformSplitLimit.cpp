@@ -111,13 +111,15 @@ CXformSplitLimit::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
 	CExpression *pexprLimitLocal =
 		PexprLimit(mp, pexprRelational, pexprScalarStart, pexprScalarRows, pos,
 				   false,  // fGlobal
-				   popLimit->FHasCount(), popLimit->IsTopLimitUnderDMLorCTAS());
+				   popLimit->FHasCount(), popLimit->IsTopLimitUnderDMLorCTAS(),
+				   popLimit->GetQueryLevel());
 
 	// assemble global limit operator
 	CExpression *pexprLimitGlobal =
 		PexprLimit(mp, pexprLimitLocal, pexprScalarStart, pexprScalarRows, pos,
 				   true,  // fGlobal
-				   popLimit->FHasCount(), popLimit->IsTopLimitUnderDMLorCTAS());
+				   popLimit->FHasCount(), popLimit->IsTopLimitUnderDMLorCTAS(),
+				   popLimit->GetQueryLevel());
 
 	pxfres->Add(pexprLimitGlobal);
 }
@@ -136,7 +138,7 @@ CXformSplitLimit::PexprLimit(CMemoryPool *mp, CExpression *pexprRelational,
 							 CExpression *pexprScalarStart,
 							 CExpression *pexprScalarRows, COrderSpec *pos,
 							 BOOL fGlobal, BOOL fHasCount,
-							 BOOL fTopLimitUnderDML)
+							 BOOL fTopLimitUnderDML, ULONG ulQueryLevel)
 {
 	pexprScalarStart->AddRef();
 	pexprScalarRows->AddRef();
@@ -146,7 +148,7 @@ CXformSplitLimit::PexprLimit(CMemoryPool *mp, CExpression *pexprRelational,
 	CExpression *pexprLimit = GPOS_NEW(mp) CExpression(
 		mp,
 		GPOS_NEW(mp)
-			CLogicalLimit(mp, pos, fGlobal, fHasCount, fTopLimitUnderDML),
+			CLogicalLimit(mp, pos, fGlobal, fHasCount, fTopLimitUnderDML, ulQueryLevel),
 		pexprRelational, pexprScalarStart, pexprScalarRows);
 
 	return pexprLimit;

@@ -27,8 +27,8 @@ using namespace gpdxl;
 //		Construct a DXL Logical limit node
 //
 //---------------------------------------------------------------------------
-CDXLLogicalLimit::CDXLLogicalLimit(CMemoryPool *mp, BOOL top_limit_under_dml)
-	: CDXLLogical(mp), m_top_limit_under_dml(top_limit_under_dml)
+CDXLLogicalLimit::CDXLLogicalLimit(CMemoryPool *mp, BOOL top_limit_under_dml, ULONG query_level)
+	: CDXLLogical(mp), m_top_limit_under_dml(top_limit_under_dml), m_query_level(query_level)
 {
 }
 

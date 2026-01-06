@@ -44,13 +44,16 @@ private:
 	// the limit must be kept, even if it has no offset, nor count
 	BOOL m_top_limit_under_dml;
 
+	// query level where this limit appears (0 = top level, 1+ = subquery)
+	ULONG m_query_level;
+
 public:
 	CLogicalLimit(const CLogicalLimit &) = delete;
 
 	// ctors
 	explicit CLogicalLimit(CMemoryPool *mp);
 	CLogicalLimit(CMemoryPool *mp, COrderSpec *pos, BOOL fGlobal,
-				  BOOL fHasCount, BOOL fTopLimitUnderDML);
+				  BOOL fHasCount, BOOL fTopLimitUnderDML, ULONG ulQueryLevel = 0);
 
 	// dtor
 	~CLogicalLimit() override;
@@ -94,6 +97,13 @@ public:
 	IsTopLimitUnderDMLorCTAS() const
 	{
 		return m_top_limit_under_dml;
+	}
+
+	// get query level
+	ULONG
+	GetQueryLevel() const
+	{
+		return m_query_level;
 	}
 
 	// match function

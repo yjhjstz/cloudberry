@@ -35,6 +35,7 @@
 #include "gpopt/operators/CLogicalGbAggDeduplicate.h"
 #include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalLimit.h"
 #include "gpopt/operators/CLogicalNAryJoin.h"
 #include "gpopt/operators/CLogicalSelect.h"
 #include "gpopt/operators/CLogicalSequenceProject.h"
@@ -146,6 +147,21 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 				COperator::EopLogicalUnionAll == eopid)
 			{
 				return true;
+			}
+
+			// Check for Local Limit (subquery LIMIT without ORDER BY)
+			// Local limit applies at segment level, incompatible with worker-level
+			// parallel distribution (WorkerRandom)
+			// query_level > 0 means this limit is in a subquery
+			if (COperator::EopLogicalLimit == eopid)
+			{
+				CLogicalLimit *popLimit = CLogicalLimit::PopConvert(pgexpr->Pop());
+				// If query_level > 0, this is a subquery limit, which may be local limit
+				// and is incompatible with parallel execution
+				if (popLimit->GetQueryLevel() > 0)
+				{
+					return true;
+				}
 			}
 
 			pgexpr = gp.PgexprNext(pgexpr);

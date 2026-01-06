@@ -42,11 +42,14 @@ class CDXLLogicalLimit : public CDXLLogical
 private:
 	BOOL m_top_limit_under_dml;
 
+	// query level where this limit appears (0 = top level, 1+ = subquery)
+	ULONG m_query_level;
+
 public:
 	CDXLLogicalLimit(CDXLLogicalLimit &) = delete;
 
 	// ctor/dtor
-	CDXLLogicalLimit(CMemoryPool *mp, BOOL fNonRemovableLimit);
+	CDXLLogicalLimit(CMemoryPool *mp, BOOL fNonRemovableLimit, ULONG ulQueryLevel = 0);
 
 	~CDXLLogicalLimit() override;
 
@@ -60,6 +63,13 @@ public:
 	IsTopLimitUnderDMLorCTAS() const
 	{
 		return m_top_limit_under_dml;
+	}
+
+	// get query level
+	ULONG
+	GetQueryLevel() const
+	{
+		return m_query_level;
 	}
 
 	// serialize operator in DXL format

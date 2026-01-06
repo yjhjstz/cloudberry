@@ -4654,7 +4654,7 @@ CUtils::PexprLimit(CMemoryPool *mp, CExpression *pexpr, ULONG ulOffSet,
 	COrderSpec *pos = GPOS_NEW(mp) COrderSpec(mp);
 	CLogicalLimit *popLimit = GPOS_NEW(mp)
 		CLogicalLimit(mp, pos, true /* fGlobal */, true /* fHasCount */,
-					  false /*fTopLimitUnderDML*/);
+					  false /*fTopLimitUnderDML*/, 0 /*query_level*/);
 	CExpression *pexprLimitOffset = CUtils::PexprScalarConstInt8(mp, ulOffSet);
 	CExpression *pexprLimitCount = CUtils::PexprScalarConstInt8(mp, count);
 
@@ -4673,7 +4673,7 @@ CUtils::BuildLimitExprWithOrderSpec(CMemoryPool *mp, CExpression *pexpr,
 
 	CLogicalLimit *popLimit = GPOS_NEW(mp)
 		CLogicalLimit(mp, pos, true /* fGlobal */, true /* fHasCount */,
-					  false /*fTopLimitUnderDML*/);
+					  false /*fTopLimitUnderDML*/, 0 /*query_level*/);
 	CExpression *pexprLimitOffset = CUtils::PexprScalarConstInt8(mp, ulOffSet);
 	CExpression *pexprLimitCount = CUtils::PexprScalarConstInt8(mp, count);
 

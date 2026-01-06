@@ -548,7 +548,7 @@ CExpressionPreprocessor::PexprRemoveSuperfluousOuterRefs(CMemoryPool *mp,
 			pop->Release();
 			pop = GPOS_NEW(mp) CLogicalLimit(
 				mp, posNew, popLimit->FGlobal(), popLimit->FHasCount(),
-				popLimit->IsTopLimitUnderDMLorCTAS());
+				popLimit->IsTopLimitUnderDMLorCTAS(), popLimit->GetQueryLevel());
 		}
 		else if (COperator::EopLogicalGbAgg == op_id)
 		{

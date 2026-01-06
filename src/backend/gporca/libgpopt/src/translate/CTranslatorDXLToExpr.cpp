@@ -1880,10 +1880,14 @@ CTranslatorDXLToExpr::PexprLogicalLimit(const CDXLNode *dxlnode)
 	// translate sort col list
 	COrderSpec *pos = Pos(sort_col_list_dxlnode);
 
-	BOOL fNonRemovable = CDXLLogicalLimit::Cast(dxlnode->GetOperator())
-							 ->IsTopLimitUnderDMLorCTAS();
+	CDXLLogicalLimit *dxl_limit = CDXLLogicalLimit::Cast(dxlnode->GetOperator());
+	BOOL fNonRemovable = dxl_limit->IsTopLimitUnderDMLorCTAS();
+	ULONG query_level = dxl_limit->GetQueryLevel();
+
+	// Keep original fGlobal logic (always true for now)
+	// query_level will be used separately to determine local/global semantics
 	CLogicalLimit *popLimit = GPOS_NEW(m_mp)
-		CLogicalLimit(m_mp, pos, true /*fGlobal*/, fHasCount, fNonRemovable);
+		CLogicalLimit(m_mp, pos, true /*fGlobal*/, fHasCount, fNonRemovable, query_level);
 	return GPOS_NEW(m_mp) CExpression(m_mp, popLimit, pexprChild,
 									  pexprLimitOffset, pexprLimitCount);
 }
