@@ -463,6 +463,87 @@ explain (costs off) select count(*), sum(b) from t0;
  Optimizer: Postgres query optimizer
 (5 rows)
 
+explain (costs off)
+select * from t1 where a in (
+    select c from t2 limit 10
+);
+                               QUERY PLAN                               
+------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Hash Semi Join
+         Hash Cond: (t1.a = t2.c)
+         ->  Seq Scan on t1
+         ->  Hash
+               ->  Redistribute Motion 1:3  (slice2; segments: 1)
+                     Hash Key: t2.c
+                     ->  Limit
+                           ->  Gather Motion 3:1  (slice3; segments: 3)
+                                 ->  Limit
+                                       ->  Seq Scan on t2
+ Optimizer: Postgres query optimizer
+(12 rows)
+
+-- Subquery with LIMIT and ORDER BY should NOT use parallel scan
+explain (costs off)
+select * from t1 where a in (
+    select c from t2 order by c limit 10
+);
+                               QUERY PLAN                               
+------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Hash Semi Join
+         Hash Cond: (t1.a = t2.c)
+         ->  Seq Scan on t1
+         ->  Hash
+               ->  Redistribute Motion 1:3  (slice2; segments: 1)
+                     Hash Key: t2.c
+                     ->  Limit
+                           ->  Gather Motion 3:1  (slice3; segments: 3)
+                                 Merge Key: t2.c
+                                 ->  Limit
+                                       ->  Sort
+                                             Sort Key: t2.c
+                                             ->  Seq Scan on t2
+ Optimizer: Postgres query optimizer
+(15 rows)
+
+-- Top-level LIMIT should still allow parallel scan (query_level = 0)
+explain (costs off) select * from t2 limit 100;
+                   QUERY PLAN                   
+------------------------------------------------
+ Limit
+   ->  Gather Motion 6:1  (slice1; segments: 6)
+         ->  Limit
+               ->  Parallel Seq Scan on t2
+ Optimizer: Postgres query optimizer
+(5 rows)
+
+-- Nested subquery with LIMIT - inner limit should prevent parallel scan
+explain (costs off)
+select * from t1 where a in (
+    select c from t2 where d in (
+        select a from t1 limit 5
+    )
+);
+                                     QUERY PLAN                                     
+------------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)
+   ->  Hash Semi Join
+         Hash Cond: (t1.a = t2.c)
+         ->  Seq Scan on t1
+         ->  Hash
+               ->  Hash Semi Join
+                     Hash Cond: (t2.d = t1_1.a)
+                     ->  Seq Scan on t2
+                     ->  Hash
+                           ->  Broadcast Motion 1:3  (slice2; segments: 1)
+                                 ->  Limit
+                                       ->  Gather Motion 3:1  (slice3; segments: 3)
+                                             ->  Limit
+                                                   ->  Seq Scan on t1 t1_1
+ Optimizer: Postgres query optimizer
+(15 rows)
+
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
 reset parallel_setup_cost;

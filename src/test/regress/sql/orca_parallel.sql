@@ -85,6 +85,28 @@ explain (costs off) select b, count(distinct a) from t1 group by b;
 explain (costs off) select count(*), sum(b) from t0;
 
 
+explain (costs off)
+select * from t1 where a in (
+    select c from t2 limit 10
+);
+
+-- Subquery with LIMIT and ORDER BY should NOT use parallel scan
+explain (costs off)
+select * from t1 where a in (
+    select c from t2 order by c limit 10
+);
+
+-- Top-level LIMIT should still allow parallel scan (query_level = 0)
+explain (costs off) select * from t2 limit 100;
+
+-- Nested subquery with LIMIT - inner limit should prevent parallel scan
+explain (costs off)
+select * from t1 where a in (
+    select c from t2 where d in (
+        select a from t1 limit 5
+    )
+);
+
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
 reset parallel_setup_cost;
