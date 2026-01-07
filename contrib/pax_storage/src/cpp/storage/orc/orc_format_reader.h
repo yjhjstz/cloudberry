@@ -50,11 +50,13 @@ class OrcFormatReader final {
 
   size_t GetStripeNums() const;
 
-  size_t GetStripeNumberOfRows(size_t stripe_index);
+  size_t GetStripeNumberOfRows(size_t stripe_index) const;
 
   size_t GetStripeOffset(size_t stripe_index);
 
   std::unique_ptr<PaxColumns> ReadStripe(size_t group_index, const std::vector<bool> &proj_cols);
+
+  const std::vector<pax::porc::proto::Type_Kind> &GetColumnTypes() const { return column_types_; }
 
  private:
   pax::porc::proto::StripeFooter ReadStripeWithProjection(

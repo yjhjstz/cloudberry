@@ -496,3 +496,128 @@ bool PaxScanDesc::ScanSampleNextTuple(SampleScanState * /*scanstate*/,
 }
 
 }  // namespace pax
+
+extern "C" {
+#define ATTR_MICRO_PARTITION_ID 1
+#define ATTR_NUM_COLS 2
+#define ATTR_GROUP_INDEX 3
+#define ATTR_NUM_ROWS 4
+#define ATTR_NUM_ATTRIBUTES 4
+
+extern Datum pax_dump_groups(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(pax_dump_groups);
+
+struct GroupInfo {
+    int32 group_index;
+    int32 num_rows;
+};
+struct MicroPartitionInfo {
+    int32 num_cols;
+    std::vector<GroupInfo> group_infos;
+};
+
+static void
+fill_micro_partition_info(const pax::OrcFormatReader &reader, MicroPartitionInfo &info)
+{
+  int num_groups = reader.GetStripeNums();
+  info.group_infos.reserve(num_groups);
+
+  info.num_cols = static_cast<int32>(reader.GetColumnTypes().size());
+  for (int i = 0; i < num_groups; ++i) {
+    GroupInfo grp_info;
+    grp_info.group_index = i;
+    grp_info.num_rows = static_cast<int32>(reader.GetStripeNumberOfRows(static_cast<size_t>(i)));
+    info.group_infos.push_back(grp_info);
+  }
+}
+
+Datum
+pax_dump_groups(PG_FUNCTION_ARGS)
+{
+  if (PG_ARGISNULL(0))
+      ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                      errmsg("No pax relation OID provided")));
+
+  Oid pax_relid = PG_GETARG_OID(0);
+  Relation pax_rel = table_open(pax_relid, AccessShareLock);
+  Snapshot aux_snapshot = GetCatalogSnapshot(pax_relid);
+  MemoryContext oldcontext;
+  Tuplestorestate *tupstore;
+  TupleDesc tupdesc;
+
+  /* resultset handling */
+  ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+  if (!rsinfo || !IsA(rsinfo, ReturnSetInfo))
+      ereport(ERROR, (errmsg("set-returning function called in non-set context")));
+
+  if (!(rsinfo->allowedModes & SFRM_Materialize))
+      ereport(ERROR, (errcode(ERRCODE_SYNTAX_ERROR),
+                      errmsg("materialize mode required, but it is not allowed in this context")));
+
+  oldcontext = MemoryContextSwitchTo(rsinfo->econtext->ecxt_per_query_memory);
+
+  tupdesc = CreateTemplateTupleDesc(ATTR_NUM_ATTRIBUTES);
+  TupleDescInitEntry(tupdesc, (AttrNumber) ATTR_MICRO_PARTITION_ID, "micro_partition_id", INT4OID, -1, 0);
+  TupleDescInitEntry(tupdesc, (AttrNumber) ATTR_NUM_COLS, "num_cols", INT4OID, -1, 0);
+  TupleDescInitEntry(tupdesc, (AttrNumber) ATTR_GROUP_INDEX, "group_index", INT4OID, -1, 0);
+  TupleDescInitEntry(tupdesc, (AttrNumber) ATTR_NUM_ROWS, "num_rows", INT4OID, -1, 0);
+  BlessTupleDesc(tupdesc);
+
+  /* prepare tuplestore */
+
+  tupstore = tuplestore_begin_heap(true, false, work_mem);
+  MemoryContextSwitchTo(oldcontext);
+
+  Datum values[ATTR_NUM_ATTRIBUTES];
+  bool nulls[ATTR_NUM_ATTRIBUTES];
+  memset(nulls, false, sizeof(nulls));
+
+  rsinfo->returnMode = SFRM_Materialize;
+  rsinfo->setResult = tupstore; /* Note: tuplestore state type differs by PG version */
+  rsinfo->setDesc = tupdesc;
+  /* iterate micro-partitions and groups */
+  CBDB_TRY();
+  {
+    auto iter = pax::MicroPartitionIterator::New(pax_rel, aux_snapshot);
+    auto fs = pax::Singleton<pax::LocalFileSystem>::GetInstance();
+    while (iter->HasNext()) {
+      MicroPartitionInfo info;
+      auto mp = iter->Next();
+
+      auto name = mp.GetFileName();
+      auto file = fs->Open(name, O_RDONLY);
+      pax::OrcFormatReader reader(std::move(file));
+
+      reader.Open();
+      fill_micro_partition_info(reader, info);
+      reader.Close();
+
+      values[ATTR_MICRO_PARTITION_ID - 1] = Int32GetDatum(mp.GetMicroPartitionId());
+      values[ATTR_NUM_COLS - 1] = Int32GetDatum(info.num_cols);
+
+      for (size_t i = 0; i < info.group_infos.size(); i++) {
+        const auto &g = info.group_infos[i];
+        values[ATTR_GROUP_INDEX - 1] = Int32GetDatum(static_cast<int32>(g.group_index));
+        values[ATTR_NUM_ROWS - 1] = Int32GetDatum(static_cast<int32>(g.num_rows));
+
+        CBDB_WRAP_START;
+        {
+        tuplestore_putvalues(tupstore, tupdesc, values, nulls);
+        }
+        CBDB_WRAP_END;
+      }
+    }
+    iter->Release();
+  }
+  CBDB_CATCH_DEFAULT();
+  CBDB_FINALLY({
+      /* nothing special */
+  });
+  CBDB_END_TRY();
+
+  table_close(pax_rel, AccessShareLock);
+
+  PG_RETURN_NULL();
+}
+
+}

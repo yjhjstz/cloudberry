@@ -219,7 +219,7 @@ void OrcFormatReader::Close() {
 
 size_t OrcFormatReader::GetStripeNums() const { return num_of_stripes_; }
 
-size_t OrcFormatReader::GetStripeNumberOfRows(size_t stripe_index) {
+size_t OrcFormatReader::GetStripeNumberOfRows(size_t stripe_index) const {
   Assert(stripe_index < GetStripeNums());
   return file_footer_.stripes(static_cast<int>(stripe_index)).numberofrows();
 }

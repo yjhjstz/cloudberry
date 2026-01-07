@@ -324,5 +324,8 @@ int main() {
   printf("UPDATE pg_class SET oid=%u WHERE relname='%s';\n",
          PAX_FASTSEQUENCE_INDEX_OID, PG_PAX_FASTSEQUENCE_INDEX_NAME);
 
+  printf("-- pax_dump_groups\n");
+  printf("-- CREATE FUNCTION pax_dump_groups(pax_relid Oid) RETURNS TABLE(micro_partition_id int, num_cols int, group_index int, num_rows int) AS '$libdir/pax.so', 'pax_dump_groups' LANGUAGE C STRICT;\n");
+
   return 0;
 }
