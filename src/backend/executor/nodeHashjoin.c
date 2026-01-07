@@ -171,7 +171,7 @@ static bool CheckTargetNode(PlanState *node,
 							AttrNumber *lattno);
 static List *FindTargetNodes(HashJoinState *hjstate,
 							 AttrNumber attno,
-							 AttrNumber *lattno);
+							 List **lattnos);
 static AttrFilter *CreateAttrFilter(PlanState *target,
 									AttrNumber lattno,
 									AttrNumber rattno,
@@ -2191,7 +2191,10 @@ CreateRuntimeFilter(HashJoinState* hjstate)
 	HashState	*hstate;
 	AttrFilter	*attr_filter;
 	ListCell	*lc;
+	ListCell	*cell1;
+	ListCell	*cell2;
 	List		*targets;
+	List		*lattnos = NULL;
 
 	/*
 	 * A build-side Bloom filter tells us if a row is definitely not in the build
@@ -2232,13 +2235,17 @@ CreateRuntimeFilter(HashJoinState* hjstate)
 		if (lattno < 1 || rattno < 1)
 			continue;
 
-		targets = FindTargetNodes(hjstate, lattno, &lattno);
-		if (lattno == -1 || targets == NULL)
-			continue;
-
-		foreach(lc, targets)
+		targets = FindTargetNodes(hjstate, lattno, &lattnos);
+		if (lattnos == NULL || targets == NULL ||
+			list_length(lattnos) != list_length(targets))
 		{
-			PlanState *target = lfirst(lc);
+			continue;
+		}
+
+		forboth(cell1, targets, cell2, lattnos)
+		{
+			PlanState *target = lfirst(cell1);
+			lattno = lfirst_int(cell2);
 			Assert(IsA(target, SeqScanState) || IsA(target, DynamicSeqScanState));
 
 			attr_filter = CreateAttrFilter(target, lattno, rattno,
@@ -2372,18 +2379,19 @@ CheckTargetNode(PlanState *node, AttrNumber attno, AttrNumber *lattno)
  *          SeqScan <- target
  */
 static List *
-FindTargetNodes(HashJoinState *hjstate, AttrNumber attno, AttrNumber *lattno)
+FindTargetNodes(HashJoinState *hjstate, AttrNumber attno, List **lattnos)
 {
 	Var *var;
 	PlanState *child, *parent;
 	TargetEntry *te;
 	List *targetNodes;
+	AttrNumber lattno;
 
 	parent = (PlanState *)hjstate;
 	child  = outerPlanState(hjstate);
 	Assert(child);
 
-	*lattno = -1;
+	*lattnos = NULL;
 	targetNodes = NIL;
 	while (true)
 	{
@@ -2396,10 +2404,11 @@ FindTargetNodes(HashJoinState *hjstate, AttrNumber attno, AttrNumber *lattno)
 			 *   [result]
 			 *     seqscan | dynamicseqscan
 			 */
-			if (!CheckTargetNode(child, attno, lattno))
+			if (!CheckTargetNode(child, attno, &lattno))
 				return NULL;
 
 			targetNodes = lappend(targetNodes, child);
+			*lattnos = lappend_int(*lattnos, lattno);
 			return targetNodes;
 		}
 		else if (IsA(parent, AppendState) && child == NULL)
@@ -2409,15 +2418,19 @@ FindTargetNodes(HashJoinState *hjstate, AttrNumber attno, AttrNumber *lattno)
 			 *   seqscan on t1_prt_1
 			 *   seqscan on t1_prt_2
 			 *   ...
+			 *
+			 * the underlying subplans might use different varno values, so we need to
+			 * construct distinct varno values for different plans to ensure correctness.
 			 */
 			AppendState *as = castNode(AppendState, parent);
 			for (int i = 0; i < as->as_nplans; i++)
 			{
 				child = as->appendplans[i];
-				if (!CheckTargetNode(child, attno, lattno))
+				if (!CheckTargetNode(child, attno, &lattno))
 					return NULL;
 
 				targetNodes = lappend(targetNodes, child);
+				*lattnos = lappend_int(*lattnos, lattno);
 			}
 
 			return targetNodes;
