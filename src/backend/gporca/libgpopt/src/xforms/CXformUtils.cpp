@@ -136,8 +136,7 @@ CXformUtils::FHasParallelIncompatibleOps(CMemo *pmemo)
 
 			// Check for CTE-related operators (incompatible with parallel execution)
 			if (COperator::EopLogicalCTEProducer == eopid ||
-				COperator::EopLogicalSequence == eopid ||
-				COperator::EopLogicalSequenceProject == eopid)
+				COperator::EopLogicalSequence == eopid)
 			{
 				return true;
 			}
