@@ -129,7 +129,7 @@ std::unique_ptr<MicroPartitionReader::Group> OrcReader::ReadGroup(
     // else fallthrough to fetch the current group in sync mode
 
     if (prefetch_index < GetGroupNums()) {
-        prefetch_group(prefetch_index,
+        PrefetchGroup(prefetch_index,
                       filter_ ? filter_->GetColumnProjection()
                               : std::vector<bool>{});
     }
@@ -309,7 +309,7 @@ found:
   return ok;
 }
 
-void OrcReader::prefetch_group(size_t group_index,
+void OrcReader::PrefetchGroup(size_t group_index,
                               const std::vector<bool> &proj_cols) {
   Assert(use_prefetch_);
   if (static_cast<size_t>(prefetch_group_.group_index) == group_index) return;

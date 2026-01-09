@@ -327,16 +327,19 @@ TableReader::TableReader(
       is_empty_(false),
       reader_options_(options) {
   file_system_ = Singleton<LocalFileSystem>::GetInstance();
+  use_prefetch_ = reader_options_.use_prefetch;
 }
 
-TableReader::~TableReader() {}
+TableReader::~TableReader() {
+  ClearFuture();
+}
 
 void TableReader::Open() {
   if (!iterator_->HasNext()) {
     is_empty_ = true;
     return;
   }
-  OpenFile();
+  AdvanceReader(use_prefetch_);
   is_empty_ = false;
 }
 
@@ -354,9 +357,76 @@ void TableReader::Close() {
   iterator_->Release();
 }
 
+void TableReader::AdvanceReader(bool use_prefetch) {
+  if (use_prefetch) {
+    Assert(use_prefetch_);
+
+    if (next_reader_future_.valid()) {
+      auto result = next_reader_future_.get();
+      reader_ = std::move(result.reader);
+      current_block_number_ = result.metadata.GetMicroPartitionId();
+      micro_partition_id_ = result.micro_partition_id;
+      current_block_metadata_ = std::move(result.metadata);
+    } else {
+      if (!iterator_->HasNext()) {
+        // The first time AdvanceReader is called
+        is_empty_ = true;
+        return;
+      }
+      auto meta = iterator_->Next();
+      reader_ = OpenFile2(meta);
+      current_block_number_ = meta.GetMicroPartitionId();
+      micro_partition_id_ = meta.GetMicroPartitionId();
+      current_block_metadata_ = std::move(meta);
+    }
+    Assert(reader_);
+
+    if (!iterator_->HasNext()) {
+      return;
+    }
+
+    MicroPartitionMetadata it = iterator_->Next();
+    next_reader_future_ = std::async(std::launch::async, [meta = std::move(it), this]() {
+      AsyncReaderResult result;
+      result.reader = OpenFile2(meta);
+      result.micro_partition_id = meta.GetMicroPartitionId();
+      result.metadata = std::move(meta);
+
+      auto filter = reader_options_.filter.get();
+      const auto &proj_columns = filter ? filter->GetColumnProjection()
+                                        : std::vector<bool>{};
+      result.reader->PrefetchGroup(0, proj_columns);
+      return result;
+    });
+  } else {
+    if (!iterator_->HasNext()) {
+      is_empty_ = true;
+      return;
+    }
+
+    MicroPartitionMetadata it = iterator_->Next();
+    reader_ = OpenFile2(it);
+    Assert(reader_);
+    current_block_number_ = it.GetMicroPartitionId();
+    micro_partition_id_ = it.GetMicroPartitionId();
+    current_block_metadata_ = std::move(it);
+  }
+
+}
+
+void TableReader::ClearFuture() {
+  if (next_reader_future_.valid()) {
+    try {
+      (void) next_reader_future_.get();
+    } catch (...) {
+      // ignore exceptions
+    }
+  }
+}
+
 bool TableReader::ReadTuple(TupleTableSlot *slot) {
   if (unlikely(!reader_)) {
-    Open();
+    AdvanceReader(use_prefetch_);
     if (is_empty_) return false;
     Assert(reader_);
   }
@@ -366,7 +436,7 @@ bool TableReader::ReadTuple(TupleTableSlot *slot) {
   while (!reader_->ReadTuple(slot)) {
     reader_->Close();
     reader_ = nullptr;
-    Open();
+    AdvanceReader(use_prefetch_);
     if (is_empty_) return false;
     Assert(reader_);
     SetBlockNumber(&slot->tts_tid, current_block_number_);
@@ -389,7 +459,7 @@ bool TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
   bool ok;
 
   if (!reader_) {
-    Open();
+    AdvanceReader(false);
     if (is_empty_) return false;
   }
 
@@ -481,6 +551,49 @@ bool TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
   return ok;
 }
 
+std::unique_ptr<MicroPartitionReader> TableReader::OpenFile2(const MicroPartitionMetadata &meta) const {
+  MicroPartitionReader::ReaderOptions options;
+  std::unique_ptr<File> toast_file;
+  int32 reader_flags = FLAGS_EMPTY;
+
+  options.filter = reader_options_.filter;
+  options.reused_buffer = reader_options_.reused_buffer;
+
+  // load visibility map
+  std::string visibility_bitmap_file = meta.GetVisibilityBitmapFile();
+  if (!visibility_bitmap_file.empty()) {
+    auto file = file_system_->Open(visibility_bitmap_file, fs::kReadMode);
+    auto file_length = file->FileLength();
+    auto bm = std::make_shared<Bitmap8>(file_length * 8);
+    file->ReadN(bm->Raw().bitmap, file_length);
+    options.visibility_bitmap = bm;
+    file->Close();
+  }
+
+#ifdef VEC_BUILD
+  options.tuple_desc = reader_options_.tuple_desc;
+  if (reader_options_.is_vec) {
+    Assert(options.tuple_desc);
+    READER_FLAG_SET_VECTOR_PATH(reader_flags);
+  }
+
+  if (reader_options_.vec_build_ctid)
+    READER_FLAG_SET_SCAN_WITH_CTID(reader_flags);
+#endif
+
+  if (meta.GetExistToast()) {
+    // must exist the file in disk
+    toast_file =
+        file_system_->Open(meta.GetFileName() + TOAST_FILE_SUFFIX, fs::kReadMode);
+  }
+
+  return MicroPartitionFileFactory::CreateMicroPartitionReader(
+      std::move(options), reader_flags,
+      file_system_->Open(meta.GetFileName(), fs::kReadMode),
+      std::move(toast_file));
+}
+
+#if 0
 void TableReader::OpenFile() {
   Assert(iterator_->HasNext());
 
@@ -529,6 +642,7 @@ void TableReader::OpenFile() {
       file_system_->Open(it.GetFileName(), fs::kReadMode),
       std::move(toast_file));
 }
+#endif
 
 TableDeleter::TableDeleter(
     Relation rel, std::map<int, std::shared_ptr<Bitmap8>> delete_bitmap,

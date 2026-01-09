@@ -244,6 +244,8 @@ class MicroPartitionReader {
   virtual std::unique_ptr<ColumnStatsProvider> GetGroupStatsInfo(
       size_t group_index) = 0;
 
+  virtual void PrefetchGroup(size_t group_index, const std::vector<bool> &proj_cols) {}
+
 #ifdef VEC_BUILD
  private:
   friend class PaxVecReader;

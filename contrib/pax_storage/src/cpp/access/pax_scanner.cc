@@ -226,6 +226,9 @@ TableScanDesc PaxScanDesc::BeginScan(Relation relation, Snapshot snapshot,
   std::shared_ptr<PaxFilter> filter;
   TableReader::ReaderOptions reader_options{};
 
+  // analyze may skip tuples, so disable prefetch
+  bool use_prefetch = pax_enable_prefetch && (flags & SO_TYPE_ANALYZE) == 0;
+
   StaticAssertStmt(
       offsetof(PaxScanDesc, rs_base_) == 0,
       "rs_base should be the first field and aligned to the object address");
@@ -241,8 +244,13 @@ TableScanDesc PaxScanDesc::BeginScan(Relation relation, Snapshot snapshot,
   desc->rs_base_.rs_nkeys = nkeys;
   desc->rs_base_.rs_flags = flags;
   desc->rs_base_.rs_parallel = pscan;
-  desc->reused_buffer_ =
-      std::make_shared<DataBuffer<char>>(pax_scan_reuse_buffer_size);
+
+  // prefetch can't reuse buffer, because prefetch may read ahead multiple
+  // micro partitions.
+  if (!use_prefetch)
+    desc->reused_buffer_ =
+        std::make_shared<DataBuffer<char>>(pax_scan_reuse_buffer_size);
+
   if (pax_filter)
     desc->filter_ = std::move(pax_filter);
   else
@@ -268,6 +276,7 @@ TableScanDesc PaxScanDesc::BeginScan(Relation relation, Snapshot snapshot,
   reader_options.reused_buffer = desc->reused_buffer_;
   reader_options.table_space_id = relation->rd_rel->reltablespace;
   reader_options.filter = filter;
+  reader_options.use_prefetch = use_prefetch;
 
   // aux_snapshot is used to get the micro partition metadata
   // from the micro partition files.

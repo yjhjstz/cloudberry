@@ -145,6 +145,8 @@ class TableReader final {
     // But pass into micro partition reader
     std::shared_ptr<PaxFilter> filter;
 
+    bool use_prefetch = true; // disabled when analyze scan
+
 #ifdef VEC_BUILD
     bool is_vec = false;
     TupleDesc tuple_desc = nullptr;
@@ -172,12 +174,27 @@ class TableReader final {
   int GetCurrentMicroPartitionId() const { return micro_partition_id_; }
 
  private:
-  void OpenFile();
+  struct AsyncReaderResult {
+    std::unique_ptr<MicroPartitionReader> reader;
+    MicroPartitionMetadata metadata; // current_block_metadata_
+    int micro_partition_id = -1;
+    AsyncReaderResult() = default;
+    AsyncReaderResult(const AsyncReaderResult &other) = delete;
+    AsyncReaderResult(AsyncReaderResult &&other) = default;
+    AsyncReaderResult &operator=(const AsyncReaderResult &other) = delete;
+    AsyncReaderResult &operator=(AsyncReaderResult &&other) = default;
+  };
+  void AdvanceReader(bool use_prefetch);
+  //void OpenFile();
+  std::unique_ptr<MicroPartitionReader> OpenFile2(const MicroPartitionMetadata &meta) const;
+  void ClearFuture();
 
  private:
   std::unique_ptr<IteratorBase<MicroPartitionMetadata>> iterator_;
   std::unique_ptr<MicroPartitionReader> reader_ = nullptr;
+  std::future<AsyncReaderResult> next_reader_future_;
   bool is_empty_ = false;
+  bool use_prefetch_ = true;
   ReaderOptions reader_options_;
   uint32 current_block_number_ = 0;
 

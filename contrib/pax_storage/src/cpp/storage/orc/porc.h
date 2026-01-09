@@ -167,6 +167,9 @@ class OrcReader : public MicroPartitionReader {
   std::unique_ptr<ColumnStatsProvider> GetGroupStatsInfo(
       size_t group_index) override;
 
+  // prefetch group async for `group_index`
+  void PrefetchGroup(size_t group_index, const std::vector<bool> &proj_cols) override;
+
 #ifndef RUN_GTEST
  protected:  // NOLINT
 #endif
@@ -174,15 +177,13 @@ class OrcReader : public MicroPartitionReader {
   // Clean up reading status
   void ResetCurrentReading();
 
-  // prefetch group async for `group_index`
-  void prefetch_group(size_t group_index, const std::vector<bool> &proj_cols);
   // wait and return the prefetched group
   std::unique_ptr<PaxColumns> get_prefetched_group(size_t group_index);
   // clean up the prefetch status
   void clear_prefetch_status();
 
  protected:
-  struct PrefetchGroup {
+  struct PrefetchGroupItem {
     int group_index = -1; // -1 if not set yet
     std::future<std::unique_ptr<PaxColumns>> future_columns;
   };
@@ -198,7 +199,7 @@ class OrcReader : public MicroPartitionReader {
   OrcFormatReader format_reader_;
   bool is_closed_;
   bool use_prefetch_ = false;
-  PrefetchGroup prefetch_group_;
+  PrefetchGroupItem prefetch_group_;
 
   // only reference
   std::shared_ptr<Bitmap8> visibility_bitmap_ = nullptr;
