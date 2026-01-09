@@ -199,7 +199,7 @@ gopherFileInfo *FileSystem::listInfo(const char *path, int &count, int recursive
 		elog(LOG, "Datalake foreign table gopherListDirectory path %s recursive %d.", gopher_prefix.c_str(), recursive);
 	}
 
-	gopherFileInfo *res = gopherListDirectory(fs, gopher_prefix.c_str(), recursive, &numEntries, /*getLocation*/true,
+	gopherFileInfo *res = gopherListDirectory(fs, gopher_prefix.c_str(), recursive, &numEntries, enable_get_block_location,
 											  gp_session_id, gp_command_count, iswrite);
 	if (numEntries == -1)
 		throw Error("failed to list directory: \"%s\" %s.", path, gopherGetLastError());

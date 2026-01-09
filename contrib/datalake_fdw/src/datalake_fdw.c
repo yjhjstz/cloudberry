@@ -234,6 +234,7 @@ int hudiLogMergerThreshold;
 double hudiLogSizeScaleFactor;
 int external_table_limit_segment_num;
 bool enable_list_in_master;
+bool enable_get_block_location;
 
 void
 _PG_init(void)
@@ -365,6 +366,18 @@ _PG_init(void)
 							NULL,
 							&enable_list_in_master,
 							true,
+							PGC_USERSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
+
+	DefineCustomBoolVariable("datalake.enable_get_block_location",
+							"If the guc is set to true, the list directory operation will get hdfs block location."
+							"Note: This guc is only used for hdfs list directory operation.",
+							NULL,
+							&enable_get_block_location,
+							false,
 							PGC_USERSET,
 							0,
 							NULL,
