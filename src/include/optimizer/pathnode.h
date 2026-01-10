@@ -20,6 +20,11 @@
 #include "nodes/bitmapset.h"
 #include "nodes/pathnodes.h"
 
+typedef struct ModifyPathExtraData
+{
+	PathTarget *final_target;
+	double 		limit_tuples;
+} ModifyPathExtraData;
 
 /*
  * prototypes for pathnode.c
@@ -332,7 +337,7 @@ extern ModifyTablePath *create_modifytable_path(PlannerInfo *root,
 												List *updateColnosLists,
 												List *withCheckOptionLists, List *returningLists,
 												List *rowMarks, OnConflictExpr *onconflict,
-												int epqParam);
+												int epqParam, ModifyPathExtraData *extra);
 extern Path *create_limit_path(PlannerInfo *root, RelOptInfo *rel,
 									Path *subpath,
 									Node *limitOffset, Node *limitCount,

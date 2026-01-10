@@ -505,6 +505,8 @@ struct PlannerInfo
 	int			numPureOrderedAggs; /* CDB: number that use ORDER BY/WITHIN GROUP, not counting DISTINCT */
 	bool		hasNonCombine;	/* CDB: any agg func w/o a combine func? */
 	bool		is_from_orca; /* true if this PlannerInfo was created from Orca*/
+
+	bool		ec_merging_done_skip;	/* set true if we don't want to check */
 };
 
 /*

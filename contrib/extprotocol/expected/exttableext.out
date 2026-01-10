@@ -2255,3 +2255,62 @@ NOTICE:  no privileges could be revoked
     DISTRIBUTED BY (id);
 ERROR:  permission denied for external protocol demoprot
 RESET ROLE;
+CREATE WRITABLE EXTERNAL TABLE EXT_W_TMP_GP7_10 
+  ("date_dtm" TEXT,"num" TEXT, "segnum" TEXT) 
+  LOCATION ('demoprot://tmp_gpdb7_10_output.txt')
+  FORMAT 'CSV' ENCODING 'UTF8' 
+  DISTRIBUTED BY (segnum);
+CREATE READABLE EXTERNAL TABLE EXT_R_TMP_GP7_10 
+  ("date_dtm" TEXT,"num" TEXT, "segnum" TEXT) 
+  LOCATION ('demoprot://tmp_gpdb7_10_output.txt')
+  FORMAT 'CSV' ENCODING 'UTF8';
+CREATE TABLE PUBLIC.tmp_gpdb7_10 ("date_dtm" TEXT,"num" TEXT, "segnum" TEXT) distributed by (date_dtm);
+INSERT INTO public.tmp_gpdb7_10 VALUES ('z20260103', '33', 'seg10');
+INSERT INTO public.tmp_gpdb7_10 VALUES ('z20260101', '11', 'seg10');
+INSERT INTO public.tmp_gpdb7_10 VALUES ('z20260102', '22', 'seg10');
+EXPLAIN INSERT INTO EXT_W_TMP_GP7_10 
+WITH DATA AS ( 
+    SELECT 'date_dtm' AS "date_dtm", 'num' AS "num", 'seg10' AS "segnum" 
+    UNION ALL 
+    SELECT "date_dtm"::TEXT, num AS "num", segnum AS "segnum" 
+    FROM public.tmp_gpdb7_10 
+) 
+SELECT "date_dtm","num","segnum" 
+FROM DATA 
+ORDER BY "date_dtm";
+                                              QUERY PLAN                                               
+-------------------------------------------------------------------------------------------------------
+ Insert on ext_w_tmp_gp7_10  (cost=1573.15..1594.74 rows=0 width=0)
+   ->  Sort  (cost=1573.15..1594.74 rows=8634 width=96)
+         Sort Key: ('date_dtm'::text)
+         ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=728.03..1008.65 rows=8634 width=96)
+               Hash Key: ('seg10'::text)
+               ->  Sort  (cost=728.03..749.62 rows=8634 width=96)
+                     Sort Key: ('date_dtm'::text)
+                     ->  Append  (cost=0.00..163.53 rows=8634 width=96)
+                           ->  Result  (cost=0.00..0.02 rows=1 width=96)
+                                 One-Time Filter: (gp_execution_segment() = 2)
+                                 ->  Result  (cost=0.00..0.01 rows=1 width=96)
+                           ->  Seq Scan on tmp_gpdb7_10  (cost=0.00..120.33 rows=8633 width=96)
+ Optimizer: Postgres query optimizer
+(13 rows)
+
+INSERT INTO EXT_W_TMP_GP7_10 
+WITH DATA AS ( 
+    SELECT 'date_dtm' AS "date_dtm", 'num' AS "num", 'seg10' AS "segnum" 
+    UNION ALL 
+    SELECT "date_dtm"::TEXT, num AS "num", segnum AS "segnum" 
+    FROM public.tmp_gpdb7_10 
+) 
+SELECT "date_dtm","num","segnum" 
+FROM DATA 
+ORDER BY "date_dtm";
+SELECT * FROM EXT_R_TMP_GP7_10 where gp_segment_id = 2;
+ date_dtm  | num | segnum 
+-----------+-----+--------
+ date_dtm  | num | seg10
+ z20260101 | 11  | seg10
+ z20260102 | 22  | seg10
+ z20260103 | 33  | seg10
+(4 rows)
+

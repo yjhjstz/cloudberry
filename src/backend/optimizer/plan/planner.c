@@ -963,6 +963,7 @@ subquery_planner(PlannerGlobal *glob, Query *parse,
 	root->eq_classes = NIL;
 	root->non_eq_clauses = NIL;
 	root->init_plans = NIL;
+	root->ec_merging_done_skip = false;
 
 	root->list_cteplaninfo = NIL;
 	if (parse->cteList != NIL)
@@ -2559,6 +2560,9 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 			else
 				rowMarks = root->rowMarks;
 
+			ModifyPathExtraData *extra = & (ModifyPathExtraData){final_target, limit_tuples};
+
+
 			path = (Path *)
 				create_modifytable_path(root, final_rel,
 										path,
@@ -2574,7 +2578,8 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 										returningLists,
 										rowMarks,
 										parse->onConflict,
-										assign_special_exec_param(root));
+										assign_special_exec_param(root),
+										extra /* foreign table insert order */);
 		}
 
 		/* And shove it into final_rel */

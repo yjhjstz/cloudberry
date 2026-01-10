@@ -1821,3 +1821,43 @@ RESET ROLE;
     DISTRIBUTED BY (id);
 
 RESET ROLE;
+
+CREATE WRITABLE EXTERNAL TABLE EXT_W_TMP_GP7_10 
+  ("date_dtm" TEXT,"num" TEXT, "segnum" TEXT) 
+  LOCATION ('demoprot://tmp_gpdb7_10_output.txt')
+  FORMAT 'CSV' ENCODING 'UTF8' 
+  DISTRIBUTED BY (segnum);
+
+CREATE READABLE EXTERNAL TABLE EXT_R_TMP_GP7_10 
+  ("date_dtm" TEXT,"num" TEXT, "segnum" TEXT) 
+  LOCATION ('demoprot://tmp_gpdb7_10_output.txt')
+  FORMAT 'CSV' ENCODING 'UTF8';
+
+CREATE TABLE PUBLIC.tmp_gpdb7_10 ("date_dtm" TEXT,"num" TEXT, "segnum" TEXT) distributed by (date_dtm);
+INSERT INTO public.tmp_gpdb7_10 VALUES ('z20260103', '33', 'seg10');
+INSERT INTO public.tmp_gpdb7_10 VALUES ('z20260101', '11', 'seg10');
+INSERT INTO public.tmp_gpdb7_10 VALUES ('z20260102', '22', 'seg10');
+
+EXPLAIN INSERT INTO EXT_W_TMP_GP7_10 
+WITH DATA AS ( 
+    SELECT 'date_dtm' AS "date_dtm", 'num' AS "num", 'seg10' AS "segnum" 
+    UNION ALL 
+    SELECT "date_dtm"::TEXT, num AS "num", segnum AS "segnum" 
+    FROM public.tmp_gpdb7_10 
+) 
+SELECT "date_dtm","num","segnum" 
+FROM DATA 
+ORDER BY "date_dtm";
+
+INSERT INTO EXT_W_TMP_GP7_10 
+WITH DATA AS ( 
+    SELECT 'date_dtm' AS "date_dtm", 'num' AS "num", 'seg10' AS "segnum" 
+    UNION ALL 
+    SELECT "date_dtm"::TEXT, num AS "num", segnum AS "segnum" 
+    FROM public.tmp_gpdb7_10 
+) 
+SELECT "date_dtm","num","segnum" 
+FROM DATA 
+ORDER BY "date_dtm";
+
+SELECT * FROM EXT_R_TMP_GP7_10 where gp_segment_id = 2;

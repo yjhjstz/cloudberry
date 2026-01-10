@@ -748,7 +748,7 @@ get_eclass_for_sort_expr(PlannerInfo *root,
 	 * If EC merging is already complete, we have to mop up by adding the new
 	 * EC to the eclass_indexes of the relation(s) mentioned in it.
 	 */
-	if (root->ec_merging_done)
+	if (root->ec_merging_done && !root->ec_merging_done_skip)
 	{
 		int			ec_index = list_length(root->eq_classes) - 1;
 		int			i = -1;

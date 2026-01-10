@@ -83,6 +83,9 @@ adjust_modifytable_subpath(PlannerInfo *root, CmdType operation,
 							int resultRelationRTI, Path **pSubpath,
 							bool splitUpdate);
 
+static Path*
+adjust_foreign_table_insert_order(PlannerInfo *root, Path*orig_path, int res_rti, ModifyPathExtraData *extra);
+
 /*****************************************************************************
  *		MISC. PATH UTILITIES
  *****************************************************************************/
@@ -5838,7 +5841,7 @@ create_modifytable_path(PlannerInfo *root, RelOptInfo *rel,
 						List *updateColnosLists,
 						List *withCheckOptionLists, List *returningLists,
 						List *rowMarks, OnConflictExpr *onconflict,
-						int epqParam)
+						int epqParam, ModifyPathExtraData *extra)
 {
 	ModifyTablePath *pathnode = makeNode(ModifyTablePath);
 
@@ -5866,11 +5869,20 @@ create_modifytable_path(PlannerInfo *root, RelOptInfo *rel,
 	 * ModifyTable path itself.
 	 */
 	if (Gp_role == GP_ROLE_DISPATCH)
+	{
 		pathnode->path.locus =
 			adjust_modifytable_subpath(root, operation,
 										linitial_int(resultRelations),
 										&subpath, /* IN-OUT argument */
 										splitUpdate);
+
+		if (root->parse->commandType == CMD_INSERT &&
+			list_length(resultRelations) == 1 &&
+			list_length(root->parse->jointree->fromlist) == 1)
+		{
+			subpath = adjust_foreign_table_insert_order(root, subpath, linitial_int(resultRelations), extra);
+		}
+	}
 	else
 	{
 		/* don't allow split updates in utility mode. */
@@ -6627,4 +6639,78 @@ reparameterize_pathlist_by_child(PlannerInfo *root,
 	}
 
 	return result;
+}
+
+static Path*
+adjust_foreign_table_insert_order(PlannerInfo *root, Path*orig_path, int res_rti, ModifyPathExtraData *extra)
+{
+	Query *parse = root->parse;
+	RangeTblEntry *res_rte = rt_fetch(res_rti, parse->rtable);
+	RangeTblEntry *from_rte;
+	int from_rti;
+	List *subquery_sort_clause = NIL;
+	List *sort_pathkeys = NIL;
+	Path *sorted_path = NULL;
+
+	/* only for foreign table. */
+	if (res_rte->relkind != RELKIND_FOREIGN_TABLE)
+		return orig_path;
+
+	Node *jtnode = (Node *) linitial(parse->jointree->fromlist);
+	if (!IsA(jtnode, RangeTblRef))
+		return orig_path;
+
+	from_rti = ((RangeTblRef *) jtnode)->rtindex;
+	from_rte = rt_fetch(from_rti, parse->rtable);
+
+	/* must be a subquery */
+	if (from_rte->rtekind != RTE_SUBQUERY)
+		return orig_path;
+
+	/* INSERT SELECT target list must be matched exaclty. */
+	if (list_length(root->processed_tlist) != list_length(from_rte->subquery->targetList))
+		return orig_path;
+
+	subquery_sort_clause = from_rte->subquery->sortClause;
+	/* Nothing to do if there is no OrderBy.*/
+	if (subquery_sort_clause == NIL)
+		return orig_path;
+
+	/* What if it's not distributed? */
+	if (!CdbPathLocus_IsPartitioned(orig_path->locus))
+		return orig_path;
+
+	/* install sortgroupref */
+	ListCell *lc1, *lc2;
+	forboth(lc1, parse->targetList, lc2, from_rte->subquery->targetList)
+	{
+		TargetEntry *tle1, *tle2;
+		tle1 = (TargetEntry*) lfirst(lc1);
+		tle2 = (TargetEntry*) lfirst(lc2);
+		tle1->ressortgroupref = tle2->ressortgroupref;
+	}
+	/* need to assign? but in fact we don't have that and sortCluase might be used later in other codes */
+	// parse->sortClause = from_rte->subquery->sortClause;
+
+	root->ec_merging_done_skip = false;
+	/* Get the sort pathkeys we want to apply. */
+	sort_pathkeys = make_pathkeys_for_sortclauses(root,
+												  from_rte->subquery->sortClause,
+												  parse->targetList);
+
+	sorted_path = (Path *) create_sort_path(root,
+														orig_path->parent,
+														orig_path,
+														sort_pathkeys,
+														extra->limit_tuples);
+	root->ec_merging_done_skip = false;
+
+	/* TODO: do a projection? */
+	if(!equal(sorted_path->pathtarget->sortgrouprefs, extra->final_target->sortgrouprefs))
+		return orig_path;
+
+	if (!equal(sorted_path->pathtarget->exprs, extra->final_target->exprs))
+		return orig_path;
+	
+	return sorted_path;
 }
