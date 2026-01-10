@@ -187,7 +187,7 @@ class TableReader final {
   void AdvanceReader(bool use_prefetch);
   //void OpenFile();
   std::unique_ptr<MicroPartitionReader> OpenFile2(const MicroPartitionMetadata &meta) const;
-  void ClearFuture();
+  void ClearFuture(bool close_reader);
 
  private:
   std::unique_ptr<IteratorBase<MicroPartitionMetadata>> iterator_;

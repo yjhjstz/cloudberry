@@ -99,14 +99,14 @@ install: install-data
 pax-test: 
 	@echo "Begin running pax tests"
 	@echo "Run pax-test with vector.enable_vectorization off"
-	PGOPTIONS="$(PGOPTIONS) -c vector.enable_vectorization=off" \
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on -c vector.enable_vectorization=off" \
 	$(PG_REGRESS) \
 		--init-file=init_file --schedule=pax_schedule \
 		--load-extension=gp_inject_fault --dbname=pax_test
 	$(bindir)/dropdb --if-exists pax_test
 ifeq ($(enable_vectorization),yes)
 	@echo "Run pax-test with vector.enable_vectorization on"
-	PGOPTIONS="$(PGOPTIONS) -c vector.enable_vectorization=on" \
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on -c vector.enable_vectorization=on" \
 	$(PG_REGRESS) \
 		--init-file=init_file --schedule=pax_schedule \
 		--load-extension=gp_inject_fault --dbname=pax_test
@@ -121,24 +121,24 @@ pax_vec_test:
 ifeq ($(enable_vectorization),yes)
 	@echo "Begin running pax+vector regression tests"
 	@echo "Current PGOPTIONS=$(PGOPTIONS) -c vector.enable_vectorization=on"
-	PGOPTIONS="$(PGOPTIONS) -c vector.enable_vectorization=on" make -C $(PAX_VEC_REGRESS_DIR) icw_test
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on -c vector.enable_vectorization=on" make -C $(PAX_VEC_REGRESS_DIR) icw_test
 	@echo "Begin running pax+vec format+vector regression tests"
 	@echo "Current PGOPTIONS=$(PGOPTIONS) -c vector.enable_vectorization=on -c pax.default_storage_format=porc_vec"
-	PGOPTIONS="$(PGOPTIONS) -c vector.enable_vectorization=on -c pax.default_storage_format=porc_vec" make -C $(PAX_VEC_REGRESS_DIR) icw_test
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on -c vector.enable_vectorization=on -c pax.default_storage_format=porc_vec" make -C $(PAX_VEC_REGRESS_DIR) icw_test
 endif
 
 .PHONY: regress_test isolation2_test
 regress_test:
 	@echo "Begin running pax regression tests"
-	make -C $(PAX_REGRESS_DIR) regress_link
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on" make -C $(PAX_REGRESS_DIR) regress_link
 	@echo "Current PGOPTIONS=$(PGOPTIONS)"
-	make -C $(PAX_REGRESS_DIR) icw_test
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on" make -C $(PAX_REGRESS_DIR) icw_test
 
 isolation2_test:
 	@echo "Begin running pax isolation2 tests"
-	make -C $(PAX_REGRESS_DIR) regress_link
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on" make -C $(PAX_REGRESS_DIR) regress_link
 	@echo "Current PGOPTIONS=$(PGOPTIONS)"
-	make -C $(PAX_ISOLATION2_DIR) installcheck
+	PGOPTIONS="$(PGOPTIONS) -c pax.enable_prefetch=on" make -C $(PAX_ISOLATION2_DIR) installcheck
 
 .PHONY: uninstall-data
 uninstall-data:

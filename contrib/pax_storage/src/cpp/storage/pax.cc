@@ -331,7 +331,7 @@ TableReader::TableReader(
 }
 
 TableReader::~TableReader() {
-  ClearFuture();
+  ClearFuture(false);
 }
 
 void TableReader::Open() {
@@ -355,6 +355,7 @@ void TableReader::Close() {
     reader_ = nullptr;
   }
   iterator_->Release();
+  ClearFuture(true);
 }
 
 void TableReader::AdvanceReader(bool use_prefetch) {
@@ -414,10 +415,13 @@ void TableReader::AdvanceReader(bool use_prefetch) {
 
 }
 
-void TableReader::ClearFuture() {
+void TableReader::ClearFuture(bool close_reader) {
   if (next_reader_future_.valid()) {
     try {
-      (void) next_reader_future_.get();
+      auto result = next_reader_future_.get();
+      if (close_reader && result.reader) {
+        result.reader->Close();
+      }
     } catch (...) {
       // ignore exceptions
     }
