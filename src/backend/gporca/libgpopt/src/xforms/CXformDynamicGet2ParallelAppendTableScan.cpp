@@ -87,6 +87,7 @@ CXformDynamicGet2ParallelAppendTableScan::Exfp(CExpressionHandle &exprhdl) const
 	// Don't use parallel append for replicated tables
 	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrReplicated ||
 		ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly ||
+		ptabdesc->RetrieveRelStorageType() == IMDRelation::ErelstorageMixedPartitioned ||
 		COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
 	{
 		return CXform::ExfpNone;
