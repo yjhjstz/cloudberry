@@ -48,6 +48,7 @@ class LocalFile final : public File {
 
  public:
   LocalFile(int fd, const std::string &file_path);
+  virtual ~LocalFile();
 
   ssize_t Read(void *ptr, size_t n) const override;
   ssize_t Write(const void *ptr, size_t n) override;
@@ -62,23 +63,22 @@ class LocalFile final : public File {
   std::string DebugString() const override;
 
  private:
-  int fd_;
+  int fd_ = -1;
   std::string file_path_;
 };
-
-static void LocalFileReleaseFile(Datum arg) {
-  int rc;
-  auto fd = cbdb::DatumToInt32(arg);
-  Assert(fd >= 0);
-
-  do {
-    rc = close(fd);
-  } while (unlikely(rc == -1 && errno == EINTR));
-}
 
 LocalFile::LocalFile(int fd, const std::string &file_path)
     : File(), fd_(fd), file_path_(file_path) {
   Assert(fd_ >= 0);
+}
+LocalFile::~LocalFile() {
+  if (fd_ >= 0) {
+    int rc;
+    do {
+      rc = close(fd_);
+    } while (unlikely(rc == -1 && errno == EINTR));
+    fd_ = -1;
+  }
 }
 
 ssize_t LocalFile::Read(void *ptr, size_t n) const {
@@ -194,7 +194,6 @@ void LocalFile::Close() {
              fmt("Fail to close [rc=%d, errno=%d], %s", rc, errno,
                  DebugString().c_str()));
 
-  pax::common::ForgetResourceCallback(LocalFileReleaseFile, cbdb::Int32ToDatum(fd_));
   fd_ = -1;
 }
 
@@ -217,17 +216,6 @@ std::unique_ptr<File> LocalFileSystem::Open(const std::string &file_path, int fl
   CBDB_CHECK(fd >= 0, cbdb::CException::ExType::kExTypeIOError,
              fmt("Fail to open [rc=%d, errno=%d, path=%s, flags=%d]", fd, errno,
                  file_path.c_str(), flags));
-
-  auto ok = pax::common::RememberResourceCallback(LocalFileReleaseFile, cbdb::Int32ToDatum(fd));
-  if (!ok) {
-    int saved_errno = errno;
-    close(fd);
-    errno = saved_errno;
-    CBDB_CHECK(
-        ok, cbdb::CException::ExType::kExTypeIOError,
-        fmt("Fail to do remember local fd [fd=%d, errno=%m, path=%s, flags=%d]",
-            fd, file_path.c_str(), flags));
-  }
 
   return std::make_unique<LocalFile>(fd, file_path);
 }
