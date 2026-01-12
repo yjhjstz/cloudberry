@@ -128,16 +128,6 @@ CDistributionSpecWorkerRandom::Matches(const CDistributionSpec *pds) const
 				 (nullptr != m_pdsSegmentBase && nullptr != pdsWorkerRandom->m_pdsSegmentBase &&
 				  m_pdsSegmentBase->Matches(pdsWorkerRandom->m_pdsSegmentBase))));
 	}
-	else if (pds->Edt() == CDistributionSpec::EdtRandom)
-	{
-		// Worker random can match regular random if base distribution matches
-		const CDistributionSpecRandom *pdsRandom =
-			CDistributionSpecRandom::PdsConvert(pds);
-
-		return (nullptr != m_pdsSegmentBase &&
-				m_pdsSegmentBase->Matches(pds) &&
-				IsDuplicateSensitive() == pdsRandom->IsDuplicateSensitive());
-	}
 
 	return false;
 }
@@ -173,13 +163,9 @@ CDistributionSpecWorkerRandom::FSatisfies(const CDistributionSpec *pds) const
 	}
 	else if (EdtRandom == pds->Edt())
 	{
-		const CDistributionSpecRandom *pdsRandom = CDistributionSpecRandom::PdsConvert(pds);
-
-		// Worker-level can satisfy segment-level requirement
-		// if the base segment distribution satisfies it
-		return (nullptr != m_pdsSegmentBase &&
-				m_pdsSegmentBase->FSatisfies(pds) &&
-				(IsDuplicateSensitive() || !pdsRandom->IsDuplicateSensitive()));
+		// Note: This ensures semantic consistency with Random::FSatisfies(WorkerRandom),
+		// which also returns false, as neither can satisfy the other without a Motion.
+		return false;
 	}
 
 	// Standard satisfaction logic for other distribution types
@@ -252,7 +238,8 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 
 		case CDistributionSpec::EdtRandom:
 		{
-			// Required: Random/WorkerRandom distribution -> Generate Random Motion
+			// Required: Random distribution (segment-level, no worker parallelism)
+			// Need to convert WorkerRandom to plain Random
 			if (GPOS_FTRACE(EopttraceDisableMotionRandom))
 			{
 				// Random Motion is disabled
@@ -260,13 +247,19 @@ CDistributionSpecWorkerRandom::AppendEnforcers(CMemoryPool *mp,
 				return;
 			}
 
-			// Use factory method to ensure proper memory pool usage
-			CDistributionSpecWorkerRandom *random_dist_spec =
-				PdsCreateWorkerRandom(mp, m_ulWorkers, m_pdsSegmentBase);
+			// Create a Random distribution spec (not WorkerRandom) as the Motion target
+			// This converts worker-level parallelism to segment-level distribution
+			CDistributionSpecRandom *random_dist_spec = nullptr;
 
 			if (fDuplicateHazard)
 			{
+				random_dist_spec = GPOS_NEW(mp) CDistributionSpecRandom();
 				random_dist_spec->MarkDuplicateSensitive();
+			}
+			else
+			{
+				// Use StrictRandom for actual redistribution motion
+				random_dist_spec = GPOS_NEW(mp) CDistributionSpecStrictRandom();
 			}
 
 			pexprMotion = GPOS_NEW(mp) CExpression(
