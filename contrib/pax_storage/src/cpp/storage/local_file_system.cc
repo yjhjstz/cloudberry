@@ -44,6 +44,12 @@
 
 namespace pax {
 
+struct DIRCloser {
+  void operator()(DIR *d) const noexcept {
+    if (d) closedir(d);
+  }
+};
+
 class LocalFile final : public File {
 
  public:
@@ -271,6 +277,8 @@ std::vector<std::string> LocalFileSystem::ListDirectory(
   CBDB_CHECK(dir, cbdb::CException::ExType::kExTypeFileOperationError,
              fmt("Fail to opendir [path=%s, errno=%d]", filepath, errno));
 
+  std::unique_ptr<DIR, DIRCloser> dir_guard(dir);
+
   try {
     struct dirent *direntry;
     while ((direntry = readdir(dir)) != NULL) {
@@ -283,9 +291,8 @@ std::vector<std::string> LocalFileSystem::ListDirectory(
       filelist.push_back(std::string(filename));
     }
   } catch (std::exception &ex) {
-    closedir(dir);
     CBDB_RAISE(cbdb::CException::ExType::kExTypeFileOperationError,
-               fmt("List directory failed. [path=%s]", path.c_str()));
+               fmt("List directory failed. [path=%s] %s", path.c_str(), ex.what()));
   }
 
   return filelist;
