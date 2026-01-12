@@ -1387,6 +1387,18 @@ lc_ctype_is_c(Oid collation)
 		static int	result = -1;
 		char	   *localeptr;
 
+		/*
+		 * FIX: Static variable inheritance and contamination issues in forked
+		 * processes.
+		 */
+		if (!IsUnderPostmaster || MyDatabaseId == InvalidOid)
+		{
+			localeptr = setlocale(LC_CTYPE, NULL);
+			if (!localeptr)
+				elog(ERROR, "invalid LC_CTYPE setting");
+			return (strcmp(localeptr, "C") == 0 || strcmp(localeptr, "POSIX") == 0);
+		}
+
 		if (result >= 0)
 			return (bool) result;
 		localeptr = setlocale(LC_CTYPE, NULL);
