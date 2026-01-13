@@ -279,7 +279,7 @@ class CsvFlatten(object):
         #we need to make a minor format change to the log level field so that
         # our single regex will match both.
         item[16] = item[16] + ": "
-
+        self.buffer.seek(0)
         self.buffer.truncate(0)
         self.writer.writerow(item)
 
