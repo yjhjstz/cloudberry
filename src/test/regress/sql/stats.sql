@@ -14,6 +14,11 @@ SET enable_indexscan TO on;
 -- for the moment, we don't want index-only scans here
 SET enable_indexonlyscan TO off;
 
+-- ORCA equivalents
+SET optimizer_enable_tablescan TO on;
+SET optimizer_enable_indexscan TO on;
+SET optimizer_enable_indexonlyscan TO off;
+
 -- save counters
 CREATE TABLE prevstats AS
 SELECT t.seq_scan, t.seq_tup_read, t.idx_scan, t.idx_tup_fetch,
