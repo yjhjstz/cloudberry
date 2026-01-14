@@ -416,6 +416,10 @@ CQueryReformers::GetSubqueryRelids(Query *query, List *refs)
 			RangeTblEntry *subrte = RTRefLC2RTE(subq, lc);
 			relids = gpdb::LAppendOid(relids, subrte->relid);
 		}
+
+		if (relids == NIL)
+			continue;
+
 		sq_relids = gpdb::LAppend(sq_relids, relids);
 	}
 	// FIXME:: although Reformer only considers inner join, so far all matched

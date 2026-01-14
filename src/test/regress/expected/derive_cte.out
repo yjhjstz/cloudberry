@@ -283,5 +283,12 @@ from
  Optimizer: GPORCA
 (22 rows)
 
+--bug fix
+select count(*) from (select 1) a, (select 1) b;
+ count 
+-------
+     1
+(1 row)
+
 drop table s1, s2;
 reset optimizer;
