@@ -24,7 +24,7 @@ void upgrade_log_alert_table_distributed_key(PGconn*);
 #define MAX_SMON_PATH_SIZE (1024)
 #define MAX_OWNER_LENGTH   (100)
 
-#define GPDB_CONNECTION_STRING "dbname='" GPMON_DB "' user='" GPMON_DBUSER "' connect_timeout='30'"
+#define GPDB_CONNECTION_STRING "dbname='" GPMON_DB "' user='" GPMON_DBUSER "' connect_timeout='30' options='-c optimizer=off'"
 Oid gpperfmon_dbid;
 
 int find_token_in_config_string(char* buffer, char**result, const char* token)
@@ -64,11 +64,9 @@ static const bool gpdb_exec_ddl(PGconn* conn, const char* ddl_query)
 // creates a connection and then runs the query
 static const char* gpdb_exec(PGconn** pconn, PGresult** pres, const char* query)
 {
-	const char *connstr = "dbname='" GPMON_DB "' user='" GPMON_DBUSER
-	"' connect_timeout='30'";
 	PGconn *conn = NULL;
 
-	conn = PQconnectdb(connstr);
+	conn = PQconnectdb(GPDB_CONNECTION_STRING);
 	// early assignment to pconn guarantees connection available to get freed by the caller
 	*pconn = conn;
 
