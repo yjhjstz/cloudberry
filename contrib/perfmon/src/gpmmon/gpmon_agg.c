@@ -863,6 +863,8 @@ static apr_uint32_t write_system(agg_t* agg, const char* nowstr)
 		void* valptr = 0;
 		int quantum = gpmmon_quantum();
 		int bytes_this_line;
+		if (quantum <= 0)
+			quantum = 1;
 		apr_hash_this(hi, 0, 0, (void**) &valptr);
 		mp = (gpmon_metrics_t*) valptr;
 
@@ -949,6 +951,8 @@ static double get_cpu_skew(qdnode_t* qdnode)
 	}
 
 	cpu_avg = total_cpu / segcnt;
+	if (!max_seg_cpu_sum)
+		return 0.0f;
         cpu_skew = 1 - (cpu_avg / max_seg_cpu_sum);
         TR2(("(SKEW) queryID:%d-%d-%d, Avg cpu usage: %" FMT64 ", Max segment cpu sum : %" FMT64 ", cpu skew : %lf \n",
                 qdnode->qlog.key.tmid, qdnode->qlog.key.ssid, qdnode->qlog.key.ccnt, cpu_avg, max_seg_cpu_sum, cpu_skew));
@@ -990,13 +994,17 @@ static void update_query_now_metrics(qdnode_t* qdnode, long *spill_file_size)
                         qdnode->qlog.key.ssid, qdnode->qlog.key.ccnt, qdnode->p_queries_history_metrics.spill_files_size));
         }
 
+        int interval_groups = 0;
         if (qdnode->num_metrics_packets_interval && qdnode->host_cnt)
+                interval_groups = qdnode->num_metrics_packets_interval / qdnode->host_cnt;
+
+        if (interval_groups > 0)
         {
-                qdnode->p_queries_now_metrics.cpu_pct = qdnode->p_interval_metrics.cpu_pct / (qdnode->num_metrics_packets_interval / qdnode->host_cnt);
+                qdnode->p_queries_now_metrics.cpu_pct = qdnode->p_interval_metrics.cpu_pct / interval_groups;
                 qdnode->p_queries_history_metrics.cpu_pct += qdnode->p_queries_now_metrics.cpu_pct;
                 qdnode->num_cpu_pct_interval_total++;
 
-                qdnode->p_queries_now_metrics.mem.resident = qdnode->p_interval_metrics.mem.resident / (qdnode->num_metrics_packets_interval / qdnode->host_cnt);
+                qdnode->p_queries_now_metrics.mem.resident = qdnode->p_interval_metrics.mem.resident / interval_groups;
                 if (qdnode->p_queries_now_metrics.mem.resident > qdnode->p_queries_history_metrics.mem.resident){
                         qdnode->p_queries_history_metrics.mem.resident = qdnode->p_queries_now_metrics.mem.resident;
                 }
