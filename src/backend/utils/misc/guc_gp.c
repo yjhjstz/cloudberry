@@ -446,6 +446,9 @@ bool		optimizer_analyze_midlevel_partition;
 /* GUCs for replicated table */
 bool		optimizer_replicated_table_insert;
 
+/* GUCs for valuescan rte threholder */
+int			optimizer_valuescan_threshold;
+
 /* GUCs for slice table*/
 int			gp_max_slices;
 
@@ -4597,6 +4600,16 @@ struct config_int ConfigureNamesInt_gp[] =
             0, 0, 100,
             NULL, NULL, NULL
     },
+	{
+            {"optimizer_valuescan_threshold", PGC_USERSET, DEVELOPER_OPTIONS,
+             gettext_noop("each query maximum value number for ORCA plan"),
+             NULL,
+			 GUC_NOT_IN_SAMPLE
+            },
+            &optimizer_valuescan_threshold,
+            100, 0, INT_MAX,
+            NULL, NULL, NULL
+	},
 
 	{
 		{"optimizer_join_order_threshold", PGC_USERSET, QUERY_TUNING_METHOD,

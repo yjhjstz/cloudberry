@@ -3571,6 +3571,12 @@ CTranslatorQueryToDXL::TranslateValueScanRTEToDXL(const RangeTblEntry *rte,
 	const ULONG num_of_tuples = gpdb::ListLength(tuples_list);
 	GPOS_ASSERT(0 < num_of_tuples);
 
+	if (num_of_tuples > optimizer_valuescan_threshold)
+	{
+		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiQuery2DXLError,
+				   GPOS_WSZ_LIT("too many tuples in VALUES clause"));
+	}
+
 	// children of the UNION ALL
 	CDXLNodeArray *dxlnodes = GPOS_NEW(m_mp) CDXLNodeArray(m_mp);
 
