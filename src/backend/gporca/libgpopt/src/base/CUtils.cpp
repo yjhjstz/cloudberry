@@ -1249,11 +1249,12 @@ CUtils::FPhysicalMotion(COperator *pop)
 //	@doc:
 //		Internal recursive function to extract worker count from a child group
 //		Uses visited set to avoid infinite loops from circular references
+//		If fStopAtMotion is true, stop searching when a Motion node is found
 //
 //---------------------------------------------------------------------------
 ULONG
 CUtils::UlExtractWorkersFromGroupInternal(
-	CGroup *pgroup, CBitSet *visited_groups)
+	CGroup *pgroup, CBitSet *visited_groups, BOOL fStopAtMotion)
 {
 	if (nullptr == pgroup || visited_groups->Get(pgroup->Id()))
 	{
@@ -1279,6 +1280,12 @@ CUtils::UlExtractWorkersFromGroupInternal(
 			return popScan->UlParallelWorkers();
 		}
 
+		// If requested, stop at Motion nodes (don't propagate workers across Motion)
+		if (fStopAtMotion && FPhysicalMotion(popChild))
+		{
+			return 0;
+		}
+
 		if (COperator::EopPhysicalParallelAppendTableScan == popChild->Eopid())
 		{
 			CPhysicalParallelAppendTableScan *popScan =
@@ -1290,7 +1297,7 @@ CUtils::UlExtractWorkersFromGroupInternal(
 		for (ULONG ul = 0; ul < pgexprChild->Arity(); ul++)
 		{
 			ULONG ulChildWorkers = UlExtractWorkersFromGroupInternal(
-				(*pgexprChild)[ul], visited_groups);
+				(*pgexprChild)[ul], visited_groups, fStopAtMotion);
 			if (ulChildWorkers > 0)
 			{
 				return ulChildWorkers;
@@ -1310,10 +1317,11 @@ CUtils::UlExtractWorkersFromGroupInternal(
 //	@doc:
 //		Extract worker count from a child group by scanning for parallel operators
 //		This handles cases where Motion nodes hide parallel scans
+//		If fStopAtMotion is true, stop searching when a Motion node is found
 //
 //---------------------------------------------------------------------------
 ULONG
-CUtils::UlExtractWorkersFromGroup(CGroup *pgroup)
+CUtils::UlExtractWorkersFromGroup(CGroup *pgroup, BOOL fStopAtMotion)
 {
 	if (nullptr == pgroup)
 	{
@@ -1323,7 +1331,7 @@ CUtils::UlExtractWorkersFromGroup(CGroup *pgroup)
 	// Create visited set to track groups and avoid infinite recursion
 	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
 	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
-	ULONG ulWorkers = UlExtractWorkersFromGroupInternal(pgroup, visited);
+	ULONG ulWorkers = UlExtractWorkersFromGroupInternal(pgroup, visited, fStopAtMotion);
 	visited->Release();
 
 	return ulWorkers;
