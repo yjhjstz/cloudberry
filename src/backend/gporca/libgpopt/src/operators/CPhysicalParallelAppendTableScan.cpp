@@ -260,7 +260,7 @@ CPhysicalParallelAppendTableScan::FValidContext(CMemoryPool *,
 		CDistributionSpec *dsReq = ed->PdsRequired();
 
 		const CDistributionSpec::EDistributionType dt = dsReq->Edt();
-		if (dt != CDistributionSpec::EdtWorkerRandom ||
+		if (dt != CDistributionSpec::EdtWorkerRandom &&
 			dt != CDistributionSpec::EdtReplicatedWorkers)
 			return false;
 	}

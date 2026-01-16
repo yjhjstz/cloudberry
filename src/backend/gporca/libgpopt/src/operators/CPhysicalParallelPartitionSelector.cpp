@@ -178,7 +178,7 @@ CPhysicalParallelPartitionSelector::PosRequired(CMemoryPool *mp,
 //		CPhysicalParallelPartitionSelector::PdsRequired
 //
 //	@doc:
-//		Compute required distribution of the n-th child跑
+//		Compute required distribution of the n-th child
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
