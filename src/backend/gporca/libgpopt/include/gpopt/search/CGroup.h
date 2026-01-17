@@ -620,6 +620,9 @@ public:
 	// print function
 	IOstream &OsPrint(IOstream &os) const;
 
+	// print best plans for each optimization context
+	IOstream &OsPrintBestPlans(IOstream &os) const;
+
 	// slink for group list in memo
 	SLink m_link;
 

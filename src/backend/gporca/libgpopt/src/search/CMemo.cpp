@@ -616,6 +616,274 @@ CMemo::Trace()
 }
 
 
+//---------------------------------------------------------------------------
+//	@function:
+//		CMemo::PrintPlanExtractionTree
+//
+//	@doc:
+//		Helper to print plan extraction tree recursively
+//
+//---------------------------------------------------------------------------
+void
+CMemo::PrintPlanExtractionTree(IOstream &os, CMemoryPool *mp, CGroup *pgroup,
+							   CReqdPropPlan *prpp, ULONG ulSearchStages,
+							   ULONG ulIndent) const
+{
+	GPOS_CHECK_STACK_SIZE;
+	GPOS_CHECK_ABORT;
+
+	// Print indentation
+	for (ULONG i = 0; i < ulIndent; i++)
+	{
+		os << "   ";
+	}
+	if (ulIndent > 0)
+	{
+		os << "+--";
+	}
+
+	if (pgroup->FScalar())
+	{
+		// Scalar group - just print basic info
+		CGroupProxy gp(pgroup);
+		CGroupExpression *pgexpr = gp.PgexprFirst();
+		if (nullptr != pgexpr)
+		{
+			os << "[Grp:" << pgroup->Id() << "] "
+			   << pgexpr->Pop()->SzId() << " (scalar)" << std::endl;
+
+			// Recurse into children
+			ULONG arity = pgexpr->Arity();
+			for (ULONG i = 0; i < arity; i++)
+			{
+				CGroup *pgroupChild = (*pgexpr)[i];
+				PrintPlanExtractionTree(os, mp, pgroupChild, nullptr,
+										ulSearchStages, ulIndent + 1);
+			}
+		}
+		return;
+	}
+
+	// Non-scalar group - lookup best plan
+	COptimizationContext *poc =
+		pgroup->PocLookupBest(mp, ulSearchStages, prpp);
+	if (nullptr == poc)
+	{
+		os << "[Grp:" << pgroup->Id() << "] (no optimization context)"
+		   << std::endl;
+		return;
+	}
+
+	CCostContext *pccBest = poc->PccBest();
+	if (nullptr == pccBest)
+	{
+		os << "[Grp:" << pgroup->Id() << ", OptCtxt:" << poc->Id()
+		   << "] (no best plan)" << std::endl;
+		return;
+	}
+
+	CGroupExpression *pgexprBest = pccBest->Pgexpr();
+
+	// Print this node
+	os << "[Grp:" << pgroup->Id() << ", OptCtxt:" << poc->Id()
+	   << ", Expr:" << pgexprBest->Id() << "] "
+	   << pgexprBest->Pop()->SzId()
+	   << "  Cost=" << pccBest->Cost() << std::endl;
+
+	// Recurse into children
+	ULONG arity = pgexprBest->Arity();
+	for (ULONG i = 0; i < arity; i++)
+	{
+		CGroup *pgroupChild = (*pgexprBest)[i];
+		CReqdPropPlan *prppChild = nullptr;
+
+		if (!pgroupChild->FScalar())
+		{
+			COptimizationContext *pocChild = (*pccBest->Pdrgpoc())[i];
+			if (nullptr != pocChild)
+			{
+				prppChild = pocChild->Prpp();
+			}
+		}
+
+		PrintPlanExtractionTree(os, mp, pgroupChild, prppChild,
+								ulSearchStages, ulIndent + 1);
+	}
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CMemo::PrintGroupDiagram
+//
+//	@doc:
+//		Print ASCII diagram for a single group showing all candidates
+//
+//---------------------------------------------------------------------------
+void
+CMemo::PrintGroupDiagram(IOstream &os, CMemoryPool *mp, CGroup *pgroup,
+						 BOOL fIsRoot, BOOL fInPath) const
+{
+	if (pgroup->FScalar() || pgroup->FDuplicateGroup())
+	{
+		return;
+	}
+
+	// Print top border
+	os << "+";
+	for (int i = 0; i < 78; i++) os << "-";
+	os << "+" << std::endl;
+
+	// Print group header
+	os << "| GROUP " << pgroup->Id();
+	if (fIsRoot)
+	{
+		os << " (ROOT)";
+	}
+	if (fInPath)
+	{
+		os << " [IN SELECTED PATH]";
+	}
+
+	// Pad and close
+	os << std::endl;
+
+	os << "+";
+	for (int i = 0; i < 78; i++) os << "-";
+	os << "+" << std::endl;
+
+	// Get number of optimization contexts
+	ULONG num_opt_contexts = pgroup->Sht().Size();
+
+	if (num_opt_contexts == 0)
+	{
+		os << "| (no optimization contexts)" << std::endl;
+	}
+	else
+	{
+		// For each optimization context
+		for (ULONG ulOC = 0; ulOC < num_opt_contexts; ulOC++)
+		{
+			COptimizationContext *poc = pgroup->Ppoc(ulOC);
+			if (nullptr == poc)
+			{
+				continue;
+			}
+
+			os << "|" << std::endl;
+			os << "| OptCtxt " << poc->Id() << ":" << std::endl;
+
+			CCostContext *pccBest = poc->PccBest();
+
+			// Iterate through all group expressions to find candidates
+			CGroupProxy gp(pgroup);
+			CGroupExpression *pgexpr = gp.PgexprFirst();
+
+			while (nullptr != pgexpr)
+			{
+				// Only show physical operators
+				if (pgexpr->Pop()->FPhysical())
+				{
+					// Get cost context for this expression and optimization context
+					CCostContextArray *pdrgpcc =
+						pgexpr->PdrgpccLookupAll(mp, poc);
+
+					if (nullptr != pdrgpcc && pdrgpcc->Size() > 0)
+					{
+						for (ULONG ulCC = 0; ulCC < pdrgpcc->Size(); ulCC++)
+						{
+							CCostContext *pcc = (*pdrgpcc)[ulCC];
+							BOOL fIsWinner =
+								(nullptr != pccBest &&
+								 pcc->Pgexpr()->Id() == pccBest->Pgexpr()->Id() &&
+								 pcc->Cost() == pccBest->Cost());
+
+							os << "|   ";
+							if (fIsWinner)
+							{
+								os << "[WINNER] ";
+							}
+							else
+							{
+								os << "         ";
+							}
+							os << "Expr " << pgexpr->Id()
+							   << ": " << pgexpr->Pop()->SzId()
+							   << "  Cost=" << pcc->Cost();
+							if (fIsWinner)
+							{
+								os << " <--";
+							}
+							os << std::endl;
+						}
+					}
+
+					CRefCount::SafeRelease(pdrgpcc);
+				}
+
+				pgexpr = gp.PgexprNext(pgexpr);
+			}
+		}
+	}
+
+	// Print bottom border
+	os << "+";
+	for (int i = 0; i < 78; i++) os << "-";
+	os << "+" << std::endl;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CMemo::PrintPlanSelectionSummary
+//
+//	@doc:
+//		Print summary of plan selection for all groups
+//
+//---------------------------------------------------------------------------
+void
+CMemo::PrintPlanSelectionSummary(CMemoryPool *mp, CReqdPropPlan *prppInput,
+								 ULONG ulSearchStages) const
+{
+	CAutoTrace at(mp);
+	IOstream &os = at.Os();
+
+	os << std::endl
+	   << "========================================" << std::endl
+	   << "  PLAN EXTRACTION PATH (Selected Plan)" << std::endl
+	   << "========================================" << std::endl
+	   << std::endl;
+
+	// Print the extraction tree starting from root
+	PrintPlanExtractionTree(os, mp, m_pgroupRoot, prppInput, ulSearchStages, 0);
+
+	os << std::endl
+	   << "========================================" << std::endl
+	   << "  GROUP SELECTION DIAGRAMS" << std::endl
+	   << "========================================" << std::endl
+	   << std::endl;
+
+	// Print diagrams for each non-scalar group
+	CGroup *pgroup = m_listGroups.PtFirst();
+
+	while (nullptr != pgroup)
+	{
+		if (pgroup->FScalar() || pgroup->FDuplicateGroup())
+		{
+			pgroup = m_listGroups.Next(pgroup);
+			continue;
+		}
+
+		PrintGroupDiagram(os, mp, pgroup, (m_pgroupRoot == pgroup), false);
+		os << std::endl;
+
+		pgroup = m_listGroups.Next(pgroup);
+
+		GPOS_CHECK_ABORT;
+	}
+}
+
+
 FORCE_GENERATE_DBGSTR(gpopt::CMemo);
 
 //---------------------------------------------------------------------------

@@ -83,6 +83,9 @@ enum EOptTraceFlag
 	// print debug info of CTE
 	EopttraceDebugCTE = 101020,
 
+	// print plan selection decisions (cost comparisons)
+	EopttracePrintPlanSelection = 101021,
+
 	///////////////////////////////////////////////////////
 	////////////////// transformations flags //////////////
 	///////////////////////////////////////////////////////

@@ -375,6 +375,30 @@ CGroupExpression::PccInsertBest(CCostContext *pcc)
 	// compare existing context with given context
 	if (nullptr == pccExisting || pcc->FBetterThan(pccExisting))
 	{
+		// Print plan selection trace
+		if (GPOS_FTRACE(EopttracePrintPlanSelection))
+		{
+			CAutoTrace at(CTask::Self()->Pmp());
+			IOstream &os = at.Os();
+			os << std::endl
+			   << "=== PLAN SELECTED ===" << std::endl
+			   << "Group: " << Pgroup()->Id()
+			   << ", OptCtxt: " << poc->Id() << std::endl
+			   << "  Selected: Expr " << Id()
+			   << " [" << Pop()->SzId() << "]"
+			   << " Cost=" << pcc->Cost() << std::endl;
+			if (nullptr != pccExisting)
+			{
+				os << "  Replaced: Expr " << pccExisting->Pgexpr()->Id()
+				   << " [" << pccExisting->Pgexpr()->Pop()->SzId() << "]"
+				   << " Cost=" << pccExisting->Cost() << std::endl;
+			}
+			else
+			{
+				os << "  (First candidate for this context)" << std::endl;
+			}
+		}
+
 		// insert new context
 		pccKept = PccInsert(pcc);
 		GPOS_ASSERT(pccKept == pcc);
@@ -391,6 +415,23 @@ CGroupExpression::PccInsertBest(CCostContext *pcc)
 	}
 	else
 	{
+		// Print trace for rejected candidate
+		if (GPOS_FTRACE(EopttracePrintPlanSelection))
+		{
+			CAutoTrace at(CTask::Self()->Pmp());
+			IOstream &os = at.Os();
+			os << std::endl
+			   << "=== PLAN REJECTED ===" << std::endl
+			   << "Group: " << Pgroup()->Id()
+			   << ", OptCtxt: " << poc->Id() << std::endl
+			   << "  Rejected: Expr " << Id()
+			   << " [" << Pop()->SzId() << "]"
+			   << " Cost=" << pcc->Cost() << std::endl
+			   << "  Kept:     Expr " << pccExisting->Pgexpr()->Id()
+			   << " [" << pccExisting->Pgexpr()->Pop()->SzId() << "]"
+			   << " Cost=" << pccExisting->Cost() << std::endl;
+		}
+
 		// re-insert existing context
 		pcc->Release();
 		pccKept = PccInsert(pccExisting);

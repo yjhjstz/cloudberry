@@ -486,6 +486,7 @@
 		"optimizer_print_optimization_context",
 		"optimizer_print_optimization_stats",
 		"optimizer_print_plan",
+		"optimizer_print_plan_selection",
 		"optimizer_print_query",
 		"optimizer_print_xform",
 		"optimizer_print_xform_results",

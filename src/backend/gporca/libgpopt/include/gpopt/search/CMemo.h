@@ -167,6 +167,22 @@ public:
 	// print memo to output logger
 	void Trace();
 
+	// print plan selection summary for all groups
+	void PrintPlanSelectionSummary(CMemoryPool *mp, CReqdPropPlan *prppInput,
+								   ULONG ulSearchStages) const;
+
+private:
+	// helper to print plan extraction tree
+	void PrintPlanExtractionTree(IOstream &os, CMemoryPool *mp,
+								 CGroup *pgroup, CReqdPropPlan *prpp,
+								 ULONG ulSearchStages, ULONG ulIndent) const;
+
+	// helper to print ASCII diagram for a group
+	void PrintGroupDiagram(IOstream &os, CMemoryPool *mp, CGroup *pgroup,
+						   BOOL fIsRoot, BOOL fInPath) const;
+
+public:
+
 	// get group by id
 	CGroup *Pgroup(ULONG id);
 

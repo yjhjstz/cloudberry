@@ -1814,6 +1814,13 @@ CEngine::PexprExtractPlan()
 		}
 	}
 
+	// Print plan selection summary if trace flag is enabled
+	if (GPOS_FTRACE(EopttracePrintPlanSelection))
+	{
+		m_pmemo->PrintPlanSelectionSummary(m_mp, m_pqc->Prpp(),
+										   m_search_stage_array->Size());
+	}
+
 	CExpression *pexpr = nullptr;
 	if (fGenerateAlt)
 	{

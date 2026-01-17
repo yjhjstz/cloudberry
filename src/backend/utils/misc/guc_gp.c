@@ -315,6 +315,7 @@ bool		optimizer_print_optimization_context;
 bool		optimizer_print_optimization_stats;
 bool		optimizer_print_xform_results;
 bool		optimizer_print_preprocess_result;
+bool		optimizer_print_plan_selection;
 bool		optimizer_debug_cte;
 
 /* array of xforms disable flags */
@@ -2132,6 +2133,17 @@ struct config_bool ConfigureNamesBool_gp[] =
 			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
 		},
 		&optimizer_print_optimization_stats,
+		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"optimizer_print_plan_selection", PGC_USERSET, LOGGING_WHAT,
+			gettext_noop("Print ORCA plan selection decisions."),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&optimizer_print_plan_selection,
 		false,
 		NULL, NULL, NULL
 	},

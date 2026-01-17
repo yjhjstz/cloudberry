@@ -309,6 +309,30 @@ CGroup::UpdateBestCost(COptimizationContext *poc, CCostContext *pcc)
 	if (GPOPT_INVALID_COST != pcc->Cost() &&
 		(nullptr == pccBest || pcc->FBetterThan(pccBest)))
 	{
+		// Print trace for best cost update
+		if (GPOS_FTRACE(EopttracePrintPlanSelection))
+		{
+			CAutoTrace at(m_mp);
+			IOstream &os = at.Os();
+			os << std::endl
+			   << "=== GROUP BEST UPDATED ===" << std::endl
+			   << "Group: " << Id()
+			   << ", OptCtxt: " << pocFound->Id() << std::endl
+			   << "  New Best: Expr " << pcc->Pgexpr()->Id()
+			   << " [" << pcc->Pgexpr()->Pop()->SzId() << "]"
+			   << " Cost=" << pcc->Cost() << std::endl;
+			if (nullptr != pccBest)
+			{
+				os << "  Previous: Expr " << pccBest->Pgexpr()->Id()
+				   << " [" << pccBest->Pgexpr()->Pop()->SzId() << "]"
+				   << " Cost=" << pccBest->Cost() << std::endl;
+			}
+			else
+			{
+				os << "  (First best for this context)" << std::endl;
+			}
+		}
+
 		pocFound->SetBest(pcc);
 	}
 }
@@ -2071,6 +2095,53 @@ CGroup::OsPrint(IOstream &os) const
 
 	(void) OsPrintGrpProps(os, szPrefix);
 	(void) OsPrintGrpOptCtxts(os, szPrefix);
+
+	return os;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CGroup::OsPrintBestPlans
+//
+//	@doc:
+//		Print best plans for each optimization context
+//
+//---------------------------------------------------------------------------
+IOstream &
+CGroup::OsPrintBestPlans(IOstream &os) const
+{
+	if (FScalar() || FDuplicateGroup())
+	{
+		return os;
+	}
+
+	ULONG num_opt_contexts = m_sht.Size();
+
+	for (ULONG ul = 0; ul < num_opt_contexts; ul++)
+	{
+		COptimizationContext *poc = Ppoc(ul);
+
+		if (nullptr != poc)
+		{
+			CCostContext *pccBest = poc->PccBest();
+
+			os << "  OptCtxt " << poc->Id() << ": ";
+
+			if (nullptr != pccBest)
+			{
+				os << "Best=Expr " << pccBest->Pgexpr()->Id()
+				   << " [" << pccBest->Pgexpr()->Pop()->SzId() << "]"
+				   << " Cost=" << pccBest->Cost() << std::endl;
+			}
+			else
+			{
+				os << "(no best plan)" << std::endl;
+			}
+		}
+
+		GPOS_CHECK_ABORT;
+	}
 
 	return os;
 }

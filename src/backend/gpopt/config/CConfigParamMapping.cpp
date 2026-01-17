@@ -85,6 +85,10 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] = {
 		false,	 // m_negate_param
 		GPOS_WSZ_LIT("Prints the expression tree produced by the optimizer preprocess(every steps). Only worked with debug version of CBDB.")},
 
+	{EopttracePrintPlanSelection, &optimizer_print_plan_selection,
+	 false,	 // m_negate_param
+	 GPOS_WSZ_LIT("Prints plan selection decisions (cost comparisons).")},
+
 	{EopttraceDebugCTE, &optimizer_debug_cte,
 	 false,	 // m_negate_param
 	 GPOS_WSZ_LIT("Print debug info of CTE. Only worked with debug version of CBDB.")},
