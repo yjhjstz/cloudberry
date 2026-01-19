@@ -438,7 +438,7 @@ CPartitionPropagationSpec::AppendEnforcers(CMemoryPool *mp,
 		{
 			pop_scan = exprhdl.Pop(0);
 
-			if (nullptr != popChild && COperator::EopPhysicalParallelTableScan == pop_scan->Eopid())
+			if (nullptr != pop_scan && COperator::EopPhysicalParallelTableScan == pop_scan->Eopid())
 			{
 				fParallelScan = gpdb::IsParallelModeOK();
 			}

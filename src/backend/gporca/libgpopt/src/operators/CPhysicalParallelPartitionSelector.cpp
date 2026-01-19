@@ -507,10 +507,10 @@ CPhysicalParallelPartitionSelector::IsContextValid(CGroup *pgroup) const
 	// Create visited set to track groups and avoid infinite recursion
 	CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
 	CBitSet *visited = GPOS_NEW(mp) CBitSet(mp);
-	BOOL fVliad = IsContextValidInternal(pgroup, visited);
+	BOOL fValid = IsContextValidInternal(pgroup, visited);
 	visited->Release();
 
-	return fVliad;
+	return fValid;
 }
 
 //---------------------------------------------------------------------------
