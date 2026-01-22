@@ -235,6 +235,7 @@ enable_shared_postgres_backend    = @enable_shared_postgres_backend@
 enable_vectorization    = @enable_vectorization@
 enable_perfmon    = @enable_perfmon@
 enable_pax		= @enable_pax@
+enable_vbf		= @enable_vbf@
 enable_datalake     = @enable_datalake@
 enable_dfs_tablespace     = @enable_dfs_tablespace@
 enable_gophermeta   = @enable_gophermeta@

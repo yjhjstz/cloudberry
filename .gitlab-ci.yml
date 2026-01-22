@@ -205,7 +205,7 @@ test_pax:
     set -euxo pipefail
 
     export ENV=devel
-    export MAKE_TEST_COMMAND="-c default_table_access_method=pax -c optimizer=off -c enable_parallel=off"
+    export MAKE_TEST_COMMAND="-c default_table_access_method=pax -c optimizer=off -c enable_parallel=off -c force_parallel_mode=1"
     make test-pax
   rules:
     - !reference [ .common-rules ]
@@ -223,7 +223,7 @@ test_vectorization:
     set -euxo pipefail
 
     export ENV=devel
-    export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off"
+    export MAKE_TEST_COMMAND="-c vector.enable_vectorization=on -c optimizer=off -c enable_parallel=off -c force_parallel_mode=1"
     make test-vectorization
   rules:
     - !reference [ .common-rules ]

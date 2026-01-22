@@ -5070,7 +5070,43 @@ create_agg_path(PlannerInfo *root,
 		subpath->parallel_safe;
 	pathnode->path.parallel_workers = subpath->parallel_workers;
 	if (aggstrategy == AGG_SORTED)
-		pathnode->path.pathkeys = subpath->pathkeys;	/* preserves order */
+	{
+		/*
+		 * When building execution paths, GroupAggregate was incorrectly inheriting all pathkeys from its subpath,
+		 * even when it cannot preserve the ordering of all columns.
+		 * This occurs because GroupAggregate only maintains ordering for columns that are part of GROUP BY or appear
+		 * in the target list in a way that preserves ordering semantics, but columns used as aggregate function arguments
+		 * lose their ordering guarantees.
+		 * The problematic case appears in queries where a subpath (like Unique with DISTINCT) provides ordering on multiple columns,
+		 * but the outer GroupAggregate only groups by a subset of those columns.
+		 * For example, when a query performs DISTINCT on two columns then groups by only the first column with an aggregate on the second,
+		 * the GroupAggregate cannot preserve ordering on the second column since it becomes an aggregate argument.
+		 *
+		 * SELECT para, max(para_name) para_name FROM (
+		 * SELECT DISTINCT pram_tp_nm || '' || PROC_NM || '' || ISP_GR_KEY_ID AS para, '[' || proc_nm || '] ' || isp_atc_nm AS para_name
+		 * FROM t_issue_internal_738
+		 * ) z GROUP BY para;
+		 */
+		List *pathkeys = NIL;
+		ListCell *i;
+
+		foreach(i, subpath->pathkeys)
+		{
+			PathKey    *pathkey = (PathKey *) lfirst(i);
+			EquivalenceClass *ec = pathkey->pk_eclass;
+
+			ListCell *lc;
+			foreach(lc, target->exprs)
+			{
+				Expr *expr = (Expr*) lfirst(lc);
+				EquivalenceMember *em =  find_ec_member_matching_expr(ec, expr, rel->relids);
+				/* ok, we could preserves the order */
+				if (em)
+					pathkeys = lappend(pathkeys, pathkey);
+			}
+		}
+		pathnode->path.pathkeys = pathkeys;	/* preserves order */
+	}
 	else
 		pathnode->path.pathkeys = NIL;	/* output is unordered */
 	pathnode->path.barrierHazard = subpath->barrierHazard;

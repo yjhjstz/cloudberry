@@ -52,3 +52,6 @@ install-data: fixeddecimal--1.1.0.sql
 	fi
 
 install: install-data
+
+clean:
+	rm -f fixeddecimal--1.1.0.sql

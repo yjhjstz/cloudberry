@@ -821,6 +821,7 @@ enable_orafce
 enable_faultinjector
 enable_debug_extensions
 enable_pxf
+enable_vbf
 enable_gpfdist
 enable_strong_random
 enable_rpath
@@ -892,6 +893,7 @@ enable_atomics
 enable_strong_random
 enable_gpfdist
 enable_pxf
+enable_vbf
 enable_debug_extensions
 enable_faultinjector
 enable_orafce
@@ -1618,6 +1620,7 @@ Optional Features:
   --disable-strong-random do not use a strong random number source
   --disable-gpfdist       do not use gpfdist
   --disable-pxf           do not build pxf
+  --disable-vbf           do not build vbf 
   --disable-debug-extensions
                           exclude debug extensions in gpcontrib
   --disable-faultinjector disable fault injector
@@ -4046,6 +4049,32 @@ else
 
 fi
 
+#
+# vbf 
+#
+
+
+# Check whether --enable-vbf was given.
+if test "${enable_vbf+set}" = set; then :
+  enableval=$enable_vbf;
+  case $enableval in
+    yes)
+
+$as_echo "#define USE_VBF 1" >>confdefs.h
+
+      ;;
+    no)
+      :
+      ;;
+    *)
+      as_fn_error $? "no argument expected for --enable-vbf option" "$LINENO" 5
+      ;;
+  esac
+
+else
+  enable_vbf=yes
+
+fi
 
 
 

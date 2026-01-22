@@ -1,11 +1,15 @@
 top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 
+MVN_EXISTS := $(shell command -v mvn 2> /dev/null)
+
 all:
 	mvn package
 
 clean:
+ifdef MVN_EXISTS
 	mvn clean
+endif
 
 install: all
 	$(MKDIR_P) $(pkglibdir)/java/
@@ -14,5 +18,4 @@ install: all
 uninstall:
 	rm -f $(pkglibdir)/java/dlagent-1.0.0.jar
 
-distclean:
-	mvn clean
+distclean: clean

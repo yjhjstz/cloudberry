@@ -99,8 +99,12 @@ with_llvm = no
 
 SHLIB_LINK += -lgopher -lparquet -lorc -larchive -lavrocpp -larrow -lavro -lcurl -lyaml -lboost_iostreams -lsnappy -lprotobuf -lstdc++ -lm
 
+ifneq ($(filter distclean clean,$(MAKECMDGOALS)),)
+JANSSON_STATIC_LIBS = dummy
+else
 JANSSON_STATIC_PATH ?= /usr/lib64 /usr/local/lib /usr/lib /opt/local/lib
 JANSSON_STATIC_LIBS = $(wildcard $(addsuffix /libjansson.a,$(JANSSON_STATIC_PATH)))
+endif
 
 ifneq ($(JANSSON_STATIC_LIBS),)
     $(info Found JANSSON_STATIC_LIBS: $(JANSSON_STATIC_LIBS))

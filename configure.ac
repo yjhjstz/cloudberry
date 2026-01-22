@@ -3286,3 +3286,11 @@ AC_OUTPUT
 # as a C literal string, it's invalid, so converting `\` to `\\`
 # to be correct for C program.
 sed -i '/define CONFIGURE_ARGS/s,\([[^\\]]\)\\\$\$,\1\\\\$$,g' src/include/pg_config.h
+
+#
+# vbf 
+#
+PGAC_ARG_BOOL(enable, vbf, no,
+              [enable VBF support],
+              [AC_DEFINE(USE_VBF, 1,
+                         [Define to 1 to support VBF])])

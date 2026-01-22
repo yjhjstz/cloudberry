@@ -65,7 +65,6 @@ SUBDIRS += \
 		formatter_fixedwidth \
 		extprotocol \
 		indexscan  \
-		vbf \
 		file_content
 		
 
@@ -145,6 +144,12 @@ ifeq ($(enable_ic_udp2),yes)
 SUBDIRS += udp2
 else
 ALWAYS_SUBDIRS += udp2
+endif
+
+ifeq ($(enable_vbf),yes)
+SUBDIRS += vbf
+else
+ALWAYS_SUBDIRS += vbf
 endif
 
 # Missing:

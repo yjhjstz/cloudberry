@@ -1570,10 +1570,10 @@ SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, pl
 --------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    Merge Key: t1.c, t3.c
-   ->  GroupAggregate
-         Group Key: t1.c, t2.c, t3.c
-         ->  Sort
-               Sort Key: t1.c, t3.c
+   ->  Sort
+         Sort Key: t1.c, t3.c
+         ->  HashAggregate
+               Group Key: t1.c, t2.c, t3.c
                ->  Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: t1.c, t1.c, t3.c
                      ->  Append
@@ -1736,10 +1736,10 @@ SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM pht1 t1, ph
 --------------------------------------------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
    Merge Key: t1.c, t3.c
-   ->  GroupAggregate
-         Group Key: t1.c, t2.c, t3.c
-         ->  Sort
-               Sort Key: t1.c, t3.c
+   ->  Sort
+         Sort Key: t1.c, t3.c
+         ->  HashAggregate
+               Group Key: t1.c, t2.c, t3.c
                ->  Redistribute Motion 3:3  (slice2; segments: 3)
                      Hash Key: t1.c, t1.c, t3.c
                      ->  Append
