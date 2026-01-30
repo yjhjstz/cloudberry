@@ -27,8 +27,6 @@
 
 #include "fast_io.h"
 #include <stdint.h>
-#include <unistd.h>
-
 #include <unistd.h>  // for pread
 
 // uring_likely may not be defined in older liburing versions
