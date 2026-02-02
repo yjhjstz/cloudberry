@@ -85,6 +85,8 @@ variables:
     - ${CI_PROJECT_DIR}/**/gpMgmt/**/*.diff
     - ${CI_PROJECT_DIR}/deploy/**/*.log
     - ${CI_PROJECT_DIR}/deploy/**/*.csv
+    - ${CI_PROJECT_DIR}/analyze_cores/*.log
+
   when: always
   reports:
     dotenv: ${CI_PROJECT_DIR}/dist/packages/manifest*.txt
