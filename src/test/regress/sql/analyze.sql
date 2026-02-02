@@ -677,3 +677,132 @@ analyze verbose p2;
 select * from pg_stats where tablename like 'part2';
 
 drop table multipart cascade;
+
+--
+-- analyze_only_modified_relations
+-- skip relations that have not been modified since the last ANALYZE.
+--
+-- start_ignore
+set analyze_only_modified_relations to on;
+alter system set autovacuum = off;
+select gp_segment_id, pg_reload_conf() from gp_id union select gp_segment_id, pg_reload_conf() from gp_dist_random('gp_id');
+-- end_ignore
+
+-- Case 1: regular table
+CREATE TABLE analyze_modified_0 (
+    tc1 int,
+    tc2 int
+) DISTRIBUTED BY (tc1);
+
+-- no modfications, analyze skipping
+set client_min_messages to log;
+analyze verbose analyze_modified_0;
+reset client_min_messages;
+
+-- do analyze
+insert into analyze_modified_0 select i,i from generate_series(1,100) i;
+select pg_sleep(1);
+set client_min_messages to log;
+analyze verbose analyze_modified_0;
+reset client_min_messages;
+
+-- vacuum analyze
+insert into analyze_modified_0 select i,i from generate_series(1,100) i;
+select pg_sleep(1);
+set client_min_messages to log;
+vacuum (analyze) analyze_modified_0;
+reset client_min_messages;
+
+-- Case 2: analyze table columns
+CREATE TABLE analyze_modified_cols (
+    tc1 int,
+    tc2 int
+) DISTRIBUTED BY (tc1);
+
+set client_min_messages to log;
+analyze verbose analyze_modified_cols (tc1, tc2);
+reset client_min_messages;
+
+alter table analyze_modified_cols drop column tc2;
+set client_min_messages to log;
+analyze verbose analyze_modified_cols (tc2);
+reset client_min_messages;
+
+-- Case 3: partitioned table
+CREATE TABLE analyze_modified (
+    tc1 int,
+    tc2 int
+) WITH (appendonly=true, compresstype=zstd, compresslevel=7)
+PARTITION BY RANGE (tc2)
+(
+    start (1) end (100) every(20)
+);
+
+-- no modfications, analyze skipping
+set client_min_messages to log;
+analyze verbose analyze_modified;
+reset client_min_messages;
+
+-- do analyze
+insert into analyze_modified select i,i from generate_series(1,99) i;
+select pg_sleep(1);
+set client_min_messages to log;
+analyze verbose analyze_modified;
+reset client_min_messages;
+
+update analyze_modified set tc2 = tc2 + 1 where tc2 between 10 and 20;
+select pg_sleep(1);
+set client_min_messages to log;
+analyze verbose analyze_modified;
+reset client_min_messages;
+
+delete from analyze_modified where tc1 between 30 and 50;
+select pg_sleep(1);
+set client_min_messages to log;
+analyze verbose analyze_modified;
+reset client_min_messages;
+
+-- do analyze every time
+set analyze_only_modified_relations to off;
+set client_min_messages to log;
+analyze verbose analyze_modified;
+analyze verbose analyze_modified;
+reset client_min_messages;
+set analyze_only_modified_relations to on;
+
+-- sub partition
+CREATE TABLE analyze_modified_sub (id int,y  int,m  int)
+DISTRIBUTED BY (id)
+PARTITION BY RANGE (y)
+    SUBPARTITION BY RANGE (m)
+(
+    PARTITION p1 START (2023) END (2024)
+    (
+        SUBPARTITION sp1 START (1) END (13)
+    )
+);
+INSERT INTO analyze_modified_sub VALUES (1, 2023, 1);
+select pg_sleep(1);
+set client_min_messages to log;
+analyze verbose analyze_modified_sub;
+reset client_min_messages;
+
+-- Case 4: inherit tables
+create table analyze_modified_base (i integer);
+create table analyze_modified_derived () inherits (analyze_modified_base);
+create table analyze_modified_more_derived (like analyze_modified_derived, b int) inherits (analyze_modified_derived);
+
+-- should analyze inheritance tree
+insert into analyze_modified_base (i) values (0);
+insert into analyze_modified_derived (i) values (1);
+select pg_sleep(1);
+
+set client_min_messages to log;
+analyze verbose analyze_modified_base;
+reset client_min_messages;
+
+-- start_ignore
+reset analyze_only_modified_relations;
+alter system set autovacuum = on;
+select gp_segment_id, pg_reload_conf() from gp_id union select gp_segment_id, pg_reload_conf() from gp_dist_random('gp_id');
+-- end_ignore

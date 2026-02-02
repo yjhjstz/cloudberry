@@ -10,6 +10,7 @@
 		"allow_dml_directory_table",
 		"allow_segment_DML",
 		"allow_system_table_mods",
+		"analyze_only_modified_relations",
 		"array_nulls",
 		"backtrace_functions",
 		"bytea_output",

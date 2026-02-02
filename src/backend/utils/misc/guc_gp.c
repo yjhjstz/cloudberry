@@ -34,6 +34,7 @@
 #include "cdb/cdbutil.h"
 #include "cdb/memquota.h"
 #include "cdb/ml_ipc.h"
+#include "commands/analyzeutils.h"
 #include "commands/defrem.h"
 #include "commands/vacuum.h"
 #include "commands/variable.h"
@@ -3460,6 +3461,16 @@ struct config_bool ConfigureNamesBool_gp[] =
 			NULL
 		},
 		&gp_enable_runtime_filter_pushdown,
+		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"analyze_only_modified_relations", PGC_USERSET, STATS_ANALYZE,
+			gettext_noop("Only analyze relations that have been modified since the last analyze."),
+			NULL
+		},
+		&analyze_only_modified_relations,
 		false,
 		NULL, NULL, NULL
 	},

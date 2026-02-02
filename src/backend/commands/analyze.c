@@ -161,6 +161,8 @@ typedef struct AnlIndexData
 /* Default statistics target (GUC parameter) */
 int			default_statistics_target = 100;
 
+bool		analyze_only_modified_relations = false;
+
 /* A few variables that don't seem worth passing around as parameters */
 static MemoryContext anl_context = NULL;
 static BufferAccessStrategy vac_strategy;
@@ -258,6 +260,8 @@ analyze_rel_internal(Oid relid, RangeVar *relation,
 	int			elevel;
 	AcquireSampleRowsFunc acquirefunc = NULL;
 	BlockNumber relpages = 0;
+	PgStat_StatTabEntry *tabentry = NULL;
+	bool		recursive;
 
 	/* Select logging level */
 	if (params->options & VACOPT_VERBOSE)
@@ -295,6 +299,27 @@ analyze_rel_internal(Oid relid, RangeVar *relation,
 		"analyze_after_hold_lock", DDLNotSpecified,
 		"", RelationGetRelationName(onerel));
 #endif
+
+	/*
+	 * If analyze_only_modified_relations is set, skip relations that have not
+	 * been modified since the last ANALYZE.
+	 */
+	recursive = onerel->rd_rel->relhassubclass && (!ctx || ctx->inherited);
+	if (IsNormalProcessingMode() &&
+		Gp_role != GP_ROLE_UTILITY &&
+		analyze_only_modified_relations &&
+		va_cols == NIL && !recursive)
+	{
+		tabentry = pgstat_fetch_stat_tabentry(relid);
+		if (tabentry == NULL || tabentry->changes_since_analyze == 0)
+		{
+			elog(elevel, "skipping analyze relation \"%s\", no data modifications since last analyze",
+				 get_rel_name(relid));
+
+			relation_close(onerel, ShareUpdateExclusiveLock);
+			return;
+		}
+	}
 
 	/*
 	 * analyze_rel can be called in 3 different contexts:  explicitly by the user

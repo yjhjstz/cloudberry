@@ -14,6 +14,8 @@
 
 #include "commands/vacuum.h"
 
+extern bool analyze_only_modified_relations;
+
 typedef struct TypInfo
 {
 	Oid typOid;
