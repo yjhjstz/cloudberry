@@ -43,18 +43,19 @@ findCmdInPath() {
 		CMD=`which $cmdtofind`
 		if [ $? -eq 0 ]; then
 				echo $CMD
-				return
+				return 0
 		fi
 		for pathel in ${CMDPATH[@]}
 				do
 				CMD=$pathel/$cmdtofind
 				if [ x"$CMD" != x"" ] && [ -f $CMD ]; then
 						echo $CMD
-						return
+						return 0
 				fi
 		done
+		# Command not found, return the command name as-is
 		echo $cmdtofind
-		return "Problem in gp_bash_functions, command '$cmdtofind' not found in COMMAND path. You will need to edit the script named gp_bash_functions.sh to properly locate the needed commands for your platform."
+		return 1
 }
 
 findMppPath() {
@@ -96,6 +97,18 @@ SED=`findCmdInPath sed`
 SLEEP=`findCmdInPath sleep`
 SORT=`findCmdInPath sort`
 SS=`findCmdInPath ss`
+
+# Platform-specific command aliases for macOS
+if [[ "$(uname -s)" == "Darwin" ]]; then
+	# On macOS, use ifconfig instead of ip command
+	if [ ! -x "$IP" ]; then
+		IP=`findCmdInPath ifconfig`
+	fi
+	# On macOS, use netstat instead of ss command
+	if [ ! -x "$SS" ]; then
+		SS=`findCmdInPath netstat`
+	fi
+fi
 SSH=`findCmdInPath ssh`
 TAIL=`findCmdInPath tail`
 TEE=`findCmdInPath tee`
