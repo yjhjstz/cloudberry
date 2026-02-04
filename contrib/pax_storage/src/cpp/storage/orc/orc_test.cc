@@ -447,7 +447,7 @@ TEST_F(OrcTest, GetTuple) {
   EXPECT_EQ(10UL, reader->GetGroupNums());
 
   for (int i = 0; i < 1000; i++) {
-    ASSERT_TRUE(reader->GetTuple(tuple_slot_empty, i));
+    ASSERT_TRUE(reader->GetTuple(tuple_slot_empty, i) == 1);
     if (i % 5 == 0) {
       EXPECT_TRUE(tuple_slot_empty->tts_isnull[0]);
       EXPECT_TRUE(tuple_slot_empty->tts_isnull[1]);
@@ -458,8 +458,8 @@ TEST_F(OrcTest, GetTuple) {
     EXPECT_EQ(DatumGetInt32(tuple_slot_empty->tts_values[2]), i);
   }
 
-  ASSERT_FALSE(reader->GetTuple(tuple_slot_empty, 1000));
-  ASSERT_FALSE(reader->GetTuple(tuple_slot_empty, 10000));
+  ASSERT_TRUE(reader->GetTuple(tuple_slot_empty, 1000) == -1);
+  ASSERT_TRUE(reader->GetTuple(tuple_slot_empty, 10000) == -1);
   reader->Close();
 
   DeleteTestTupleTableSlot(tuple_slot_empty);

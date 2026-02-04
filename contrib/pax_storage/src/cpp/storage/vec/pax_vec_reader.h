@@ -54,7 +54,7 @@ class PaxVecReader : public MicroPartitionReaderProxy {
 
   bool ReadTuple(TupleTableSlot *slot) override;
 
-  bool GetTuple(TupleTableSlot *slot, size_t row_index) override;
+  int GetTuple(TupleTableSlot *slot, size_t row_index) override;
 
   size_t GetGroupNums() override;
 

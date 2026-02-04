@@ -264,3 +264,73 @@ select length(v2), length(v4) from pax_toasttest_t2;
 (2 rows)
 
 drop table pax_toasttest_t2;
+set pax.enable_toast = on;
+set optimizer = off;
+set enable_seqscan = off;
+set enable_indexscan = off;
+set enable_indexonlyscan = off;
+set enable_bitmapscan = on;
+set work_mem="64kB";
+create table pax_toasttest_t3(a int, b text);
+insert into pax_toasttest_t3 select i, repeat('b_', 5000) from generate_series(1, 506841)i;
+create index on pax_toasttest_t3(a);
+create index on pax_toasttest_t3(a);
+explain select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=511.19..511.20 rows=1 width=24)
+   ->  Gather Motion 3:1  (slice1; segments: 3)  (cost=511.12..511.17 rows=3 width=24)
+         ->  Partial Aggregate  (cost=511.12..511.13 rows=1 width=24)
+               ->  Bitmap Heap Scan on pax_toasttest_t3  (cost=261.54..469.79 rows=5511 width=36)
+                     Recheck Cond: (a >= 0)
+                     ->  Bitmap Index Scan on pax_toasttest_t3_a_idx1  (cost=0.00..260.16 rows=5511 width=0)
+                           Index Cond: (a >= 0)
+ Optimizer: Postgres query optimizer
+(8 rows)
+
+select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+ count  | count  | count  
+--------+--------+--------
+ 506841 | 506841 | 506841
+(1 row)
+
+delete from pax_toasttest_t3 where a % 1000 = 0;
+explain select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=511.19..511.20 rows=1 width=24)
+   ->  Gather Motion 3:1  (slice1; segments: 3)  (cost=511.12..511.17 rows=3 width=24)
+         ->  Partial Aggregate  (cost=511.12..511.13 rows=1 width=24)
+               ->  Bitmap Heap Scan on pax_toasttest_t3  (cost=261.54..469.79 rows=5511 width=36)
+                     Recheck Cond: (a >= 0)
+                     ->  Bitmap Index Scan on pax_toasttest_t3_a_idx1  (cost=0.00..260.16 rows=5511 width=0)
+                           Index Cond: (a >= 0)
+ Optimizer: Postgres query optimizer
+(8 rows)
+
+select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+ count  | count  | count  
+--------+--------+--------
+ 506335 | 506335 | 506335
+(1 row)
+
+update pax_toasttest_t3 set b = null where a % 1010 = 0;
+explain select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=511.19..511.20 rows=1 width=24)
+   ->  Gather Motion 3:1  (slice1; segments: 3)  (cost=511.12..511.17 rows=3 width=24)
+         ->  Partial Aggregate  (cost=511.12..511.13 rows=1 width=24)
+               ->  Bitmap Heap Scan on pax_toasttest_t3  (cost=261.54..469.79 rows=5511 width=36)
+                     Recheck Cond: (a >= 0)
+                     ->  Bitmap Index Scan on pax_toasttest_t3_a_idx1  (cost=0.00..260.16 rows=5511 width=0)
+                           Index Cond: (a >= 0)
+ Optimizer: Postgres query optimizer
+(8 rows)
+
+select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+ count  | count  | count  
+--------+--------+--------
+ 506335 | 506335 | 505839
+(1 row)
+

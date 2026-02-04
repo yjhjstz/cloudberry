@@ -149,7 +149,7 @@ std::pair<bool, size_t> OrcVecGroup::ReadTuple(TupleTableSlot *slot) {
   return {true, current_row_index_ - 1};
 }
 
-bool OrcVecGroup::GetTuple(TupleTableSlot *slot, size_t row_index) {
+int OrcVecGroup::GetTuple(TupleTableSlot *slot, size_t row_index) {
   size_t index = 0;
   size_t natts = 0;
   size_t column_nums = 0;
@@ -158,13 +158,13 @@ bool OrcVecGroup::GetTuple(TupleTableSlot *slot, size_t row_index) {
   Assert(slot);
 
   if (row_index >= pax_columns_->GetRows()) {
-    return false;
+    return -1;
   }
 
   // if tuple has been deleted, return false;
   if (micro_partition_visibility_bitmap_ &&
       micro_partition_visibility_bitmap_->Test(row_offset_ + row_index)) {
-    return false;
+    return 0;
   }
 
   natts = static_cast<size_t>(slot->tts_tupleDescriptor->natts);
@@ -193,7 +193,7 @@ bool OrcVecGroup::GetTuple(TupleTableSlot *slot, size_t row_index) {
         GetColumnDatum(column, row_index);
   }
 
-  return true;
+  return 1;
 }
 
 

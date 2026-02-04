@@ -83,10 +83,10 @@ struct ScanAuxContext {
 void PaxAuxRelationSetNewFilenode(Oid aux_relid);
 bool IsMicroPartitionVisible(Relation pax_rel, BlockNumber block,
                              Snapshot snapshot);
-void FetchMicroPartitionAuxRow(Relation rel, Snapshot snapshot, int block_id,
+bool FetchMicroPartitionAuxRow(Relation rel, Snapshot snapshot, int block_id,
                                void (*callback)(Datum *values, bool *isnull,
                                                 void *arg),
-                               void *arg);
+                               void *arg, bool missing_ok);
 }  // namespace paxc
 
 namespace pax {
@@ -127,7 +127,6 @@ void UpdateStatistics(Oid aux_relid, int block_id,
 bool IsMicroPartitionVisible(Relation pax_rel, BlockNumber block,
                              Snapshot snapshot);
 
-pax::MicroPartitionMetadata PaxGetMicroPartitionMetadata(Relation rel,
-                                                         Snapshot snapshot,
-                                                         int block_id);
+bool PaxGetMicroPartitionMetadata(Relation rel, Snapshot snapshot, int block_id,
+                                  pax::MicroPartitionMetadata &metadata);
 }  // namespace cbdb

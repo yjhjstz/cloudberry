@@ -164,7 +164,7 @@ class MicroPartitionReader {
     // Other `MicroPartitionReader` can quickly perform
     // some operations, like filter, convert format...
     // ------------------------------------------
-    virtual bool GetTuple(TupleTableSlot *slot, size_t row_index) = 0;
+    virtual int GetTuple(TupleTableSlot *slot, size_t row_index) = 0;
 
     // Direct get datum from columns by column index + row index
     virtual std::pair<Datum, bool> GetColumnValue(TupleDesc desc,
@@ -207,6 +207,11 @@ class MicroPartitionReader {
     std::shared_ptr<Bitmap8> visibility_bitmap = nullptr;
 
     TupleDesc tuple_desc = nullptr;
+
+    bool use_prefetch;
+
+    ReaderOptions()
+        : use_prefetch(pax_enable_prefetch) {}
   };
   MicroPartitionReader() = default;
 
@@ -233,7 +238,11 @@ class MicroPartitionReader {
   // index. The group index will not be changed, and won't have any middle state
   // in this process.
   // ------------------------------------------
-  virtual bool GetTuple(TupleTableSlot *slot, size_t row_index) = 0;
+  //
+  // returns -1 if row_index is out of range.
+  // returns 0 if the tuple is invisible.
+  // returns 1 if the tuple is visible.
+  virtual int GetTuple(TupleTableSlot *slot, size_t row_index) = 0;
 
   virtual size_t GetTupleCountsInGroup(size_t group_index) = 0;
 
@@ -246,6 +255,8 @@ class MicroPartitionReader {
 
   virtual void PrefetchGroup(size_t group_index, const std::vector<bool> &proj_cols) {}
 
+  static std::unique_ptr<MicroPartitionReader> CreateReader(FileSystem *fs,
+      const MicroPartitionMetadata &metadata);
 #ifdef VEC_BUILD
  private:
   friend class PaxVecReader;
@@ -272,7 +283,7 @@ class MicroPartitionReaderProxy : public MicroPartitionReader {
   // not. We may optimize to avoid creating the map relation later.
   bool ReadTuple(TupleTableSlot *slot) override;
 
-  bool GetTuple(TupleTableSlot *slot, size_t row_index) override;
+  int GetTuple(TupleTableSlot *slot, size_t row_index) override;
 
   size_t GetGroupNums() override;
 

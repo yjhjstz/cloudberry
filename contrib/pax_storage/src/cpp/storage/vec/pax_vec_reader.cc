@@ -133,7 +133,7 @@ retry_read_group:
   return true;
 }
 
-bool PaxVecReader::GetTuple(TupleTableSlot *slot, size_t row_index) {
+int PaxVecReader::GetTuple(TupleTableSlot *slot, size_t row_index) {
   CBDB_RAISE(cbdb::CException::ExType::kExTypeLogicError);
 }
 

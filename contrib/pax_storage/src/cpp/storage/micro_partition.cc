@@ -68,7 +68,7 @@ bool MicroPartitionReaderProxy::ReadTuple(TupleTableSlot *slot) {
   return reader_->ReadTuple(slot);
 }
 
-bool MicroPartitionReaderProxy::GetTuple(TupleTableSlot *slot,
+int MicroPartitionReaderProxy::GetTuple(TupleTableSlot *slot,
                                          size_t row_index) {
   Assert(reader_);
   return reader_->GetTuple(slot, row_index);
@@ -98,5 +98,6 @@ std::unique_ptr<MicroPartitionReader::Group>
 MicroPartitionReaderProxy::ReadGroup(size_t index) {
   return reader_->ReadGroup(index);
 }
+
 
 }  // namespace pax

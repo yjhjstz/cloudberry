@@ -96,3 +96,28 @@ select length(v2), length(v4) from pax_toasttest_t2;
 
 
 drop table pax_toasttest_t2;
+
+set pax.enable_toast = on;
+set optimizer = off;
+set enable_seqscan = off;
+set enable_indexscan = off;
+set enable_indexonlyscan = off;
+set enable_bitmapscan = on;
+set work_mem="64kB";
+
+create table pax_toasttest_t3(a int, b text);
+insert into pax_toasttest_t3 select i, repeat('b_', 5000) from generate_series(1, 506841)i;
+create index on pax_toasttest_t3(a);
+create index on pax_toasttest_t3(a);
+
+explain select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+
+delete from pax_toasttest_t3 where a % 1000 = 0;
+explain select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+
+update pax_toasttest_t3 set b = null where a % 1010 = 0;
+explain select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+select count(*), count(a), count(b) from pax_toasttest_t3 where a >= 0;
+

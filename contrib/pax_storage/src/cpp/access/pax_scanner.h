@@ -48,8 +48,11 @@ class PaxIndexScanDesc final {
  public:
   explicit PaxIndexScanDesc(Relation rel);
   ~PaxIndexScanDesc();
-  bool FetchTuple(ItemPointer tid, Snapshot snapshot, TupleTableSlot *slot,
-                  bool *call_again, bool *all_dead);
+  // -1: EOF the offset is out of range
+  // 0: invisible
+  // 1: visible
+  int FetchTuple(ItemPointer tid, Snapshot snapshot, TupleTableSlot *slot,
+                 bool *call_again, bool *all_dead);
 
   // release internal reader
   void Release();
@@ -63,9 +66,9 @@ class PaxIndexScanDesc final {
   bool OpenMicroPartition(BlockNumber block, Snapshot snapshot);
 
   IndexFetchTableData base_;
-  BlockNumber current_block_ = InvalidBlockNumber;
   std::unique_ptr<MicroPartitionReader> reader_;
   std::string rel_path_;
+  BlockNumber current_block_ = InvalidBlockNumber;
 };
 
 class PaxScanDesc {

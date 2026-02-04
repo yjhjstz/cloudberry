@@ -137,6 +137,9 @@ class TableWriter {
 class TableReader final {
  public:
   struct ReaderOptions {
+    ReaderOptions(){
+      use_prefetch = pax::pax_enable_prefetch;
+    }
     Oid table_space_id = 0;
 
     std::shared_ptr<DataBuffer<char>> reused_buffer;
@@ -145,12 +148,12 @@ class TableReader final {
     // But pass into micro partition reader
     std::shared_ptr<PaxFilter> filter;
 
-    bool use_prefetch = true; // disabled when analyze scan
+    bool use_prefetch; // disabled when analyze scan
 
 #ifdef VEC_BUILD
     bool is_vec = false;
-    TupleDesc tuple_desc = nullptr;
     bool vec_build_ctid = false;
+    TupleDesc tuple_desc = nullptr;
 #endif
   };
 
@@ -166,7 +169,7 @@ class TableReader final {
 
   bool ReadTuple(TupleTableSlot *slot);
 
-  bool GetTuple(TupleTableSlot *slot, ScanDirection direction,
+  int GetTuple(TupleTableSlot *slot, ScanDirection direction,
                 const size_t offset);
 
   // deprecate:

@@ -37,6 +37,7 @@
 #include "storage/local_file_system.h"
 #include "storage/micro_partition.h"
 #include "storage/micro_partition_iterator.h"
+#include "storage/micro_partition_metadata.h"
 #include "storage/micro_partition_stats.h"
 #include "storage/orc/porc.h"
 #include "storage/pax.h"
@@ -101,13 +102,6 @@ static inline int ChooseCheapColumn(TupleDesc desc) {
   return 0;
 }
 
-static inline bool CheckExists(Relation rel, ItemPointer tid, Snapshot snapshot,
-                               bool *all_dead) {
-  CBDB_WRAP_START;
-  { return paxc::IndexUniqueCheck(rel, tid, snapshot, all_dead); }
-  CBDB_WRAP_END;
-}
-
 PaxIndexScanDesc::PaxIndexScanDesc(Relation rel) : base_{.rel = rel} {
   Assert(rel);
   Assert(&base_ == reinterpret_cast<IndexFetchTableData *>(this));
@@ -117,12 +111,13 @@ PaxIndexScanDesc::PaxIndexScanDesc(Relation rel) : base_{.rel = rel} {
 
 PaxIndexScanDesc::~PaxIndexScanDesc() {}
 
-bool PaxIndexScanDesc::FetchTuple(ItemPointer tid, Snapshot snapshot,
+int PaxIndexScanDesc::FetchTuple(ItemPointer tid, Snapshot snapshot,
                                   TupleTableSlot *slot, bool *call_again,
                                   bool *all_dead) {
   BlockNumber block = pax::GetBlockNumber(*tid);
+  int rc;
   if (block != current_block_ || !reader_) {
-    if (!OpenMicroPartition(block, snapshot)) return false;
+    if (!OpenMicroPartition(block, snapshot)) return -1;
   }
 
   Assert(current_block_ == block && reader_);
@@ -131,12 +126,11 @@ bool PaxIndexScanDesc::FetchTuple(ItemPointer tid, Snapshot snapshot,
 
   try {
     ExecClearTuple(slot);
-    if (CheckExists(GetRelation(), tid, snapshot, all_dead) &&
-        reader_->GetTuple(slot, pax::GetTupleOffset(*tid))) {
+
+    rc = reader_->GetTuple(slot, pax::GetTupleOffset(*tid));
+    if (rc > 0) {
       SetBlockNumber(&slot->tts_tid, block);
       ExecStoreVirtualTuple(slot);
-
-      return true;
     }
   } catch (cbdb::CException &e) {
     e.AppendDetailMessage(
@@ -144,30 +138,50 @@ bool PaxIndexScanDesc::FetchTuple(ItemPointer tid, Snapshot snapshot,
     CBDB_RERAISE(e);
   }
 
-  return false;
+  return rc;
 }
 
 bool PaxIndexScanDesc::OpenMicroPartition(BlockNumber block,
                                           Snapshot snapshot) {
   bool ok;
+  pax::MicroPartitionMetadata metadata;
 
   Assert(block != current_block_);
 
-  ok = cbdb::IsMicroPartitionVisible(base_.rel, block, snapshot);
-  if (ok) {
+  ok = cbdb::GetMicroPartitionMetadata(base_.rel, snapshot, block, metadata);
+  if (!ok) return false;
+  {
     MicroPartitionReader::ReaderOptions options;
+    std::unique_ptr<File> data_file;
+    std::unique_ptr<File> toast_file;
 
     auto block_name = std::to_string(block);
     auto file_name = cbdb::BuildPaxFilePath(rel_path_, block_name);
-    auto file = Singleton<LocalFileSystem>::GetInstance()->Open(file_name,
-                                                                fs::kReadMode);
-    auto reader = std::make_unique<OrcReader>(std::move(file));
+    auto fs = Singleton<LocalFileSystem>::GetInstance();
+    data_file = fs->Open(file_name, fs::kReadMode);
+    if (metadata.GetExistToast()) {
+      auto toast_file_name = metadata.GetFileName() + TOAST_FILE_SUFFIX;
+      toast_file = fs->Open(toast_file_name, fs::kReadMode);
+    }
+    if (!metadata.GetVisibilityBitmapFile().empty()) {
+      auto const &visibility_bitmap_file = metadata.GetVisibilityBitmapFile();
+      auto file = fs->Open(visibility_bitmap_file, fs::kReadMode);
+      auto file_length = file->FileLength();
+
+      auto bm = std::make_shared<Bitmap8>(file_length * 8);
+      file->ReadN(bm->Raw().bitmap, file_length);
+      file->Close();
+      options.visibility_bitmap = std::move(bm);
+    }
+
+    auto reader = std::make_unique<OrcReader>(std::move(data_file), std::move(toast_file));
     reader->Open(options);
     if (reader_) {
       reader_->Close();
     }
     reader_ = std::move(reader);
     current_block_ = block;
+
   }
 
   return ok;
@@ -182,6 +196,8 @@ void PaxIndexScanDesc::Release() {
 
 bool PaxScanDesc::BitmapNextBlock(struct TBMIterateResult *tbmres) {
   cindex_ = 0;
+
+  if (tbmres->ntuples == 0) return false;
   if (!index_desc_) {
     index_desc_ = std::make_unique<PaxIndexScanDesc>(rs_base_.rs_rd);
   }
@@ -193,26 +209,33 @@ bool PaxScanDesc::BitmapNextBlock(struct TBMIterateResult *tbmres) {
 bool PaxScanDesc::BitmapNextTuple(struct TBMIterateResult *tbmres,
                                   TupleTableSlot *slot) {
   ItemPointerData tid;
-  if (tbmres->ntuples < 0) {
-    // lossy bitmap. The maximum value of the last 16 bits in CTID is
-    // 0x7FFF + 1, i.e. 0x8000. See layout of ItemPointerData in PAX
-    if (cindex_ > 0X8000) elog(ERROR, "unexpected offset in pax");
+  int numTuples;
+  OffsetNumber off;
+  int rc;
+  bool lossy;
 
-    ItemPointerSet(&tid, tbmres->blockno, cindex_);
-  }
-  while (cindex_ < tbmres->ntuples) {
+  lossy = (tbmres->ntuples == -1);
+  numTuples = lossy ? INT16_MAX + 1 : tbmres->ntuples;
+
+  while (cindex_ < numTuples) {
     // The maximum value of the last 16 bits in CTID is 0x7FFF + 1,
     // i.e. 0x8000. See layout of ItemPointerData in PAX
-    if (tbmres->offsets[cindex_] > 0X8000)
+    off = lossy ? cindex_ + 1 : tbmres->offsets[cindex_];
+    if (unlikely(off > 0X8000))
       elog(ERROR, "unexpected offset in pax");
-    ItemPointerSet(&tid, tbmres->blockno, tbmres->offsets[cindex_]);
+    ItemPointerSet(&tid, tbmres->blockno, off);
 
     ++cindex_;
     // invisible tuple should be skipped and fetch next tuple
-    if (index_desc_->FetchTuple(&tid, rs_base_.rs_snapshot, slot, nullptr,
-                                nullptr)) {
-      return true;
-    }
+    rc = index_desc_->FetchTuple(&tid, rs_base_.rs_snapshot, slot, nullptr,
+                                 nullptr);
+
+    // invisible, tuples may found with higher offset
+    if (rc == 0) continue;
+
+    // 1: visible tuple
+    // -1: no tuple left in the current block.
+    return rc > 0;
   }
   return false;
 }

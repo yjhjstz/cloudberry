@@ -156,7 +156,7 @@ class OrcReader : public MicroPartitionReader {
 
   bool ReadTuple(TupleTableSlot *cslot) override;
 
-  bool GetTuple(TupleTableSlot *slot, size_t row_index) override;
+  int GetTuple(TupleTableSlot *slot, size_t row_index) override;
 
   size_t GetGroupNums() override;
 

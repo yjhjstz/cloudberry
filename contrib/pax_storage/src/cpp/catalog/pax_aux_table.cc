@@ -562,10 +562,10 @@ static void CPaxCopyPaxBlockEntry(Relation old_relation,
   }
 }
 
-void FetchMicroPartitionAuxRow(Relation rel, Snapshot snapshot, int block_id,
+bool FetchMicroPartitionAuxRow(Relation rel, Snapshot snapshot, int block_id,
                                void (*callback)(Datum *values, bool *isnull,
                                                 void *arg),
-                               void *arg) {
+                               void *arg, bool missing_ok) {
   ::paxc::ScanAuxContext context;
   HeapTuple tuple;
   Oid aux_relid;
@@ -577,9 +577,12 @@ void FetchMicroPartitionAuxRow(Relation rel, Snapshot snapshot, int block_id,
   context.BeginSearchMicroPartition(aux_relid, InvalidOid, snapshot,
                                     AccessShareLock, block_id);
   tuple = context.SearchMicroPartitionEntry();
-  if (!HeapTupleIsValid(tuple))
+  if (!HeapTupleIsValid(tuple)) {
+    if (missing_ok) goto end;
+
     elog(ERROR, "get micro partition \"%d\" failed for relation(%u)", block_id,
          RelationGetRelid(rel));
+  }
 
   bool should_free_stats = false;
   struct varlena *flat_stats = nullptr;
@@ -603,7 +606,9 @@ void FetchMicroPartitionAuxRow(Relation rel, Snapshot snapshot, int block_id,
   AssertImply(should_free_stats, flat_stats);
   if (should_free_stats) pfree(flat_stats);
 
+end:
   context.EndSearchMicroPartition(NoLock);
+  return HeapTupleIsValid(tuple);
 }
 }  // namespace paxc
 
@@ -690,17 +695,20 @@ static void FetchMicroPartitionAuxRowCallbackWrapper(Datum *values,
   CBDB_END_TRY();
 }
 
-pax::MicroPartitionMetadata PaxGetMicroPartitionMetadata(Relation rel,
-                                                         Snapshot snapshot,
-                                                         int block_id) {
+bool PaxGetMicroPartitionMetadata(Relation rel, Snapshot snapshot,
+                                  int block_id,
+                                  pax::MicroPartitionMetadata &metadata) {
   CBDB_WRAP_START;
   {
     FetchMicroPartitionAuxRowContext ctx;
+    bool result;
     ctx.rel = rel;
-    paxc::FetchMicroPartitionAuxRow(rel, snapshot, block_id,
+    result =  paxc::FetchMicroPartitionAuxRow(rel, snapshot, block_id,
                                     FetchMicroPartitionAuxRowCallbackWrapper,
-                                    &ctx);
-    return ctx.info;
+                                    &ctx, true);
+
+    if (result) metadata = std::move(ctx.info);
+    return result;
   }
   CBDB_WRAP_END;
 }

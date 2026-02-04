@@ -452,7 +452,7 @@ bool TableReader::ReadTuple(TupleTableSlot *slot) {
   return true;
 }
 
-bool TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
+int TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
                            size_t offset) {
   MicroPartitionReader::ReaderOptions options;
   ReaderFlags reader_flags = FLAGS_EMPTY;
@@ -460,11 +460,10 @@ bool TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
   size_t max_row_index;
   size_t remaining_offset = offset;
   std::unique_ptr<File> toast_file;
-  bool ok;
 
   if (!reader_) {
     AdvanceReader(false);
-    if (is_empty_) return false;
+    if (is_empty_) return -1;
   }
 
   Assert(direction == ForwardScanDirection);
@@ -477,8 +476,7 @@ bool TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
     current_block_row_index_ = row_index + remaining_offset;
     SetBlockNumber(&slot->tts_tid,
                    current_block_metadata_.GetMicroPartitionId());
-    ok = reader_->GetTuple(slot, current_block_row_index_);
-    return ok;
+    return reader_->GetTuple(slot, current_block_row_index_);
   }
 
   // There are not enough lines remaining in the current block and we need to
@@ -551,8 +549,7 @@ bool TableReader::GetTuple(TupleTableSlot *slot, ScanDirection direction,
   current_block_row_index_ = remaining_offset - 1;
   SetBlockNumber(&slot->tts_tid, current_block_metadata_.GetMicroPartitionId());
 
-  ok = reader_->GetTuple(slot, current_block_row_index_);
-  return ok;
+  return reader_->GetTuple(slot, current_block_row_index_);
 }
 
 std::unique_ptr<MicroPartitionReader> TableReader::OpenFile2(const MicroPartitionMetadata &meta) const {
@@ -562,6 +559,7 @@ std::unique_ptr<MicroPartitionReader> TableReader::OpenFile2(const MicroPartitio
 
   options.filter = reader_options_.filter;
   options.reused_buffer = reader_options_.reused_buffer;
+  options.use_prefetch = use_prefetch_;
 
   // load visibility map
   std::string visibility_bitmap_file = meta.GetVisibilityBitmapFile();
@@ -726,8 +724,13 @@ void TableDeleter::DeleteWithVisibilityMap(
     auto it = iterator->Next();
 
     auto block_id = it.GetMicroPartitionId();
-    auto micro_partition_metadata =
-        cbdb::GetMicroPartitionMetadata(rel_, snapshot_, block_id);
+    pax::MicroPartitionMetadata micro_partition_metadata;
+    bool ok = cbdb::GetMicroPartitionMetadata(rel_, snapshot_, block_id, micro_partition_metadata);
+    CBDB_CHECK(ok, cbdb::CException::kExTypeLogicError,
+               fmt("Fail to get micro partition metadata "
+                   "[block_id=%d, rel_path=%s]",
+                   block_id, rel_path.c_str()));
+
     int generate = 0;
     char visimap_file_name[128];
 
@@ -853,6 +856,7 @@ std::unique_ptr<TableReader> TableDeleter::OpenReader(
   TableReader::ReaderOptions reader_options{};
 
   reader_options.table_space_id = rel_->rd_rel->reltablespace;
+  reader_options.use_prefetch = pax::pax_enable_prefetch;
   auto reader =
       std::make_unique<TableReader>(std::move(iterator), reader_options);
   reader->Open();

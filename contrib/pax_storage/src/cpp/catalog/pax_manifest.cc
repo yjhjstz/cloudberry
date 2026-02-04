@@ -391,22 +391,27 @@ bool IsMicroPartitionVisible(Relation pax_rel, BlockNumber block,
   return visible;
 }
 
-void GetMicroPartitionMetadata(Relation rel, Snapshot snapshot, int block_id,
+bool GetMicroPartitionMetadata(Relation rel, Snapshot snapshot, int block_id,
                                pax::MicroPartitionMetadata &info) {
   auto mrel = manifest_open(rel);
   auto tuple = manifest_find(mrel, snapshot, block_id);
+  bool result = tuple != nullptr;
 
-  CBDB_TRY();
-  {
-    auto rel_path = cbdb::BuildPaxDirectoryPath(rel->rd_node,
-                                               rel->rd_backend);
-    info = pax::ManifestTupleToValue(rel_path, mrel, tuple);
+  if (result) {
+    CBDB_TRY();
+    {
+      auto rel_path = cbdb::BuildPaxDirectoryPath(rel->rd_node,
+                                                rel->rd_backend);
+      info = pax::ManifestTupleToValue(rel_path, mrel, tuple);
+    }
+    CBDB_CATCH_DEFAULT();
+    CBDB_END_TRY();
+
+    manifest_free_tuple(tuple);
   }
-  CBDB_CATCH_DEFAULT();
-  CBDB_END_TRY();
 
-  manifest_free_tuple(tuple);
   manifest_close(mrel);
+  return result;
 }
 
 } // namespace internal
@@ -449,17 +454,14 @@ bool IsMicroPartitionVisible(Relation pax_rel, BlockNumber block,
   CBDB_WRAP_END;
 }
 
-pax::MicroPartitionMetadata GetMicroPartitionMetadata(Relation rel,
-                                                      Snapshot snapshot,
-                                                      int block_id) {
-  pax::MicroPartitionMetadata info;
-
+bool GetMicroPartitionMetadata(Relation rel, Snapshot snapshot, int block_id,
+                               pax::MicroPartitionMetadata &info) {
   CBDB_WRAP_START;
   {
-    paxc::internal::GetMicroPartitionMetadata(rel, snapshot, block_id, info);
+    return paxc::internal::GetMicroPartitionMetadata(rel, snapshot, block_id, info);
   }
   CBDB_WRAP_END;
-  return info;
+  return false;
 }
 
 } // namespace cbdb
@@ -766,10 +768,10 @@ bool IsMicroPartitionVisible(Relation pax_rel, BlockNumber block,
   CBDB_WRAP_END;
 }
 
-pax::MicroPartitionMetadata GetMicroPartitionMetadata(Relation rel,
-                                                      Snapshot snapshot,
-                                                      int block_id) {
-  return cbdb::PaxGetMicroPartitionMetadata(rel, snapshot, block_id);
+bool GetMicroPartitionMetadata(Relation rel, Snapshot snapshot,
+                               int block_id,
+                               pax::MicroPartitionMetadata &info) {
+  return cbdb::PaxGetMicroPartitionMetadata(rel, snapshot, block_id, info);
 }
 
 } // namespace cbdb

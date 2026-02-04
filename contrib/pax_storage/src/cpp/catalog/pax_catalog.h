@@ -91,9 +91,8 @@ void InsertOrUpdateMicroPartitionEntry(const pax::WriteSummary &summary);
 void DeleteMicroPartitionEntry(Oid pax_relid, Snapshot snapshot, int block_id);
 bool IsMicroPartitionVisible(Relation pax_rel, BlockNumber block,
                              Snapshot snapshot);
-pax::MicroPartitionMetadata GetMicroPartitionMetadata(Relation rel,
-                                                      Snapshot snapshot,
-                                                      int block_id);
+bool GetMicroPartitionMetadata(Relation rel, Snapshot snapshot, int block_id,
+                               pax::MicroPartitionMetadata &info);
 }
 
 namespace paxc {

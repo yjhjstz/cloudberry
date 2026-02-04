@@ -180,7 +180,7 @@ void OrcReader::Open(const ReaderOptions &options) {
   // Must not open twice.
   Assert(is_closed_);
 
-  use_prefetch_ = pax::pax_enable_prefetch;
+  use_prefetch_ = options.use_prefetch;
   // prefetch group must not reuse buffer
   if (!use_prefetch_ && options.reused_buffer) {
     CBDB_CHECK(options.reused_buffer->IsMemTakeOver(),
@@ -261,7 +261,7 @@ retry_read_group:
   return true;
 }
 
-bool OrcReader::GetTuple(TupleTableSlot *slot, size_t row_index) {
+int OrcReader::GetTuple(TupleTableSlot *slot, size_t row_index) {
   int32 group_index = -1;
   size_t nums_of_group;
   int left, right;
@@ -295,7 +295,7 @@ bool OrcReader::GetTuple(TupleTableSlot *slot, size_t row_index) {
   }
 
   if (group_index == -1) {
-    return false;
+    return -1;
   }
 
   // group_offset have been inited in loop
@@ -303,10 +303,12 @@ bool OrcReader::GetTuple(TupleTableSlot *slot, size_t row_index) {
   cached_group_ = ReadGroup(group_index);
 
 found:
-  auto ok =
+  int rc =
       cached_group_->GetTuple(slot, row_index - cached_group_->GetRowOffset());
   SetTupleOffset(&slot->tts_tid, row_index);
-  return ok;
+
+  Assert(rc >= 0);
+  return rc;
 }
 
 void OrcReader::PrefetchGroup(size_t group_index,

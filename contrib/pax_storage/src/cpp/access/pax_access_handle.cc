@@ -172,7 +172,7 @@ bool CCPaxAccessMethod::IndexFetchTuple(struct IndexFetchTableData *scan,
   CBDB_TRY();
   {
     auto desc = PaxIndexScanDesc::FromBase(scan);
-    return desc->FetchTuple(tid, snapshot, slot, call_again, all_dead);
+    return desc->FetchTuple(tid, snapshot, slot, call_again, all_dead) > 0;
   }
   CBDB_CATCH_DEFAULT();
   CBDB_FINALLY({});

@@ -54,7 +54,7 @@ class OrcGroup : public MicroPartitionReader::Group {
 
   virtual std::pair<bool, size_t> ReadTuple(TupleTableSlot *slot) override;
 
-  virtual bool GetTuple(TupleTableSlot *slot, size_t row_index) override;
+  virtual int GetTuple(TupleTableSlot *slot, size_t row_index) override;
 
   std::pair<Datum, bool> GetColumnValue(TupleDesc desc, size_t column_index,
                                         size_t row_index) override;
@@ -97,7 +97,7 @@ class OrcVecGroup final : public OrcGroup {
   // `ReadTuple`
   virtual std::pair<bool, size_t> ReadTuple(TupleTableSlot *slot) override;
 
-  virtual bool GetTuple(TupleTableSlot *slot, size_t row_index) override;
+  virtual int GetTuple(TupleTableSlot *slot, size_t row_index) override;
 
   // Used to get the no missing column
   std::pair<Datum, bool> GetColumnValueNoMissing(size_t column_index,
