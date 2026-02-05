@@ -451,7 +451,7 @@ CPartitionPropagationSpec::AppendEnforcers(CMemoryPool *mp,
 		}
 
 		CExpression *part_selector = nullptr;
-		if (fParallelScan)
+		if (fParallelScan && GPOS_FTRACE(EopttraceEnableParallelAppendScan))
 		{
 			ULONG ulParallelWorkers = 0;
 			if (pop_scan)
