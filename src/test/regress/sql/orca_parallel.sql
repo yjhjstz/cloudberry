@@ -107,6 +107,17 @@ select * from t1 where a in (
     )
 );
 
+-- Union 
+explain select a, b from t0 union all select '1' as a, '2' as b;
+
+explain select '1' as a, '2' as b
+union all
+select a, b from t0;
+
+explain select a, b from t0
+union all
+select a, b from t1;
+
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
 reset parallel_setup_cost;
