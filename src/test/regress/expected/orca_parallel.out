@@ -463,6 +463,45 @@ explain (costs off) select count(*), sum(b) from t0;
  Optimizer: Postgres query optimizer
 (5 rows)
 
+-- Union 
+explain select a, b from t0 union all select '1' as a, '2' as b;
+                                      QUERY PLAN                                      
+--------------------------------------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)  (cost=0.00..72667.43 rows=5000006 width=8)
+   ->  Parallel Append  (cost=0.00..14334.03 rows=833334 width=8)
+         ->  Result  (cost=0.00..0.02 rows=1 width=8)
+               One-Time Filter: (gp_execution_segment() = 0)
+               ->  Result  (cost=0.00..0.01 rows=1 width=8)
+         ->  Parallel Seq Scan on t0  (cost=0.00..10167.33 rows=833333 width=8)
+ Optimizer: Postgres query optimizer
+(7 rows)
+
+explain select '1' as a, '2' as b
+union all
+select a, b from t0;
+                                      QUERY PLAN                                      
+--------------------------------------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)  (cost=0.00..72667.43 rows=5000006 width=8)
+   ->  Parallel Append  (cost=0.00..14334.03 rows=833334 width=8)
+         ->  Result  (cost=0.00..0.02 rows=1 width=8)
+               One-Time Filter: (gp_execution_segment() = 0)
+               ->  Result  (cost=0.00..0.01 rows=1 width=8)
+         ->  Parallel Seq Scan on t0  (cost=0.00..10167.33 rows=833333 width=8)
+ Optimizer: Postgres query optimizer
+(7 rows)
+
+explain select a, b from t0
+union all
+select a, b from t1;
+                                      QUERY PLAN                                      
+--------------------------------------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)  (cost=0.00..72669.75 rows=5000100 width=8)
+   ->  Parallel Append  (cost=0.00..14335.25 rows=833350 width=8)
+         ->  Parallel Seq Scan on t0  (cost=0.00..10167.33 rows=833333 width=8)
+         ->  Parallel Seq Scan on t1  (cost=0.00..1.17 rows=17 width=8)
+ Optimizer: Postgres query optimizer
+(5 rows)
+
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
 reset parallel_setup_cost;
