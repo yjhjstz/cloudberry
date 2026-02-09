@@ -251,6 +251,7 @@ public:
 		ExfFullOuterJoin2HashJoin,
 		ExfFullJoinCommutativity,
 		ExfSplitWindowFunc,
+		ExfImplementParallelSequenceProject,
 		ExfInvalid,
 		ExfSentinel = ExfInvalid
 	};

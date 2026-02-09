@@ -159,6 +159,7 @@ enum Edxlopid
 	EdxlopPhysicalPartitionSelector,
 	EdxlopPhysicalTVF,
 	EdxlopPhysicalWindow,
+	EdxlopPhysicalParallelWindow,
 
 	EdxlopPhysicalCTEProducer,
 	EdxlopPhysicalCTEConsumer,
