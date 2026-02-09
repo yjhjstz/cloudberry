@@ -271,6 +271,9 @@ enum EOptTraceFlag
 	// disable parallel group aggregate (streaming) alternatives
 	EopttraceDisableParallelGroupAgg = 103058,
 
+	// disable parallel window alternatives
+	EopttraceDisableParallelWindow = 103059,
+
 	///////////////////////////////////////////////////////
 	///////////////////// statistics flags ////////////////
 	//////////////////////////////////////////////////////

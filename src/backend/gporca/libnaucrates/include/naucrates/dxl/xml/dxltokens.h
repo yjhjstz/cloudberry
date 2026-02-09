@@ -127,6 +127,7 @@ enum Edxltoken
 	EdxltokenPhysicalDynamicIndexScan,
 	EdxltokenPhysicalTVF,
 	EdxltokenPhysicalWindow,
+	EdxltokenPhysicalParallelWindow,
 	EdxltokenPhysicalPartitionSelector,
 	EdxltokenPhysicalPartitionSelectorId,
 	EdxltokenPhysicalPartitionSelectorScanId,

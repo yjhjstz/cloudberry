@@ -66,6 +66,7 @@
 #include "gpopt/operators/CPhysicalScalarAgg.h"
 #include "gpopt/operators/CPhysicalSequenceProject.h"
 #include "gpopt/operators/CPhysicalHashSequenceProject.h"
+#include "gpopt/operators/CPhysicalParallelSequenceProject.h"
 #include "gpopt/operators/CPhysicalSort.h"
 #include "gpopt/operators/CPhysicalSplit.h"
 #include "gpopt/operators/CPhysicalSpool.h"
@@ -146,6 +147,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalTableScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalParallelTableScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalWindow.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelWindow.h"
 #include "naucrates/dxl/operators/CDXLScalarAggref.h"
 #include "naucrates/dxl/operators/CDXLScalarArray.h"
 #include "naucrates/dxl/operators/CDXLScalarArrayCoerceExpr.h"
@@ -438,6 +440,7 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
 			break;
+		case COperator::EopPhysicalParallelSequenceProject:
 		case COperator::EopPhysicalHashSequenceProject:
 		case COperator::EopPhysicalSequenceProject:
 			dxlnode = CTranslatorExprToDXL::PdxlnWindow(
@@ -7863,9 +7866,21 @@ CTranslatorExprToDXL::PdxlnWindow(CExpression *pexprSeqPrj,
 	CDXLNode *filter_dxlnode = PdxlnFilter(nullptr /* pdxlnCond */);
 
 	// construct a Window node
-	CDXLPhysicalWindow *pdxlopWindow =
-		GPOS_NEW(m_mp) CDXLPhysicalWindow(m_mp, colids, pdrgpdxlwk,
-			fWindowHashAgg);
+	CDXLPhysicalWindow *pdxlopWindow = nullptr;
+	if (COperator::EopPhysicalParallelSequenceProject ==
+		pexprSeqPrj->Pop()->Eopid())
+	{
+		auto *popParallel =
+			CPhysicalParallelSequenceProject::PopConvert(pexprSeqPrj->Pop());
+		ULONG parallel_workers = popParallel->UlParallelWorkers();
+		pdxlopWindow = GPOS_NEW(m_mp) CDXLPhysicalParallelWindow(
+			m_mp, colids, pdrgpdxlwk, fWindowHashAgg, parallel_workers);
+	}
+	else
+	{
+		pdxlopWindow = GPOS_NEW(m_mp)
+			CDXLPhysicalWindow(m_mp, colids, pdrgpdxlwk, fWindowHashAgg);
+	}
 	CDXLNode *pdxlnWindow = GPOS_NEW(m_mp) CDXLNode(m_mp, pdxlopWindow);
 	pdxlnWindow->SetProperties(dxl_properties);
 

@@ -212,7 +212,8 @@ public:
 	PopConvert(COperator *pop)
 	{
 		GPOS_ASSERT(nullptr != pop);
-		GPOS_ASSERT(EopPhysicalSequenceProject == pop->Eopid());
+		GPOS_ASSERT(EopPhysicalSequenceProject == pop->Eopid() ||
+					EopPhysicalParallelSequenceProject == pop->Eopid());
 
 		return dynamic_cast<CPhysicalSequenceProject *>(pop);
 	}

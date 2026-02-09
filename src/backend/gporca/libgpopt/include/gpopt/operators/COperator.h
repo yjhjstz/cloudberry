@@ -215,6 +215,7 @@ public:
 		EopPhysicalCTEConsumer,
 		EopPhysicalSequenceProject,
 		EopPhysicalHashSequenceProject,
+		EopPhysicalParallelSequenceProject,
 		EopPhysicalDynamicIndexScan,
 
 		EopPhysicalAppendTableScan,
