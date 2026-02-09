@@ -19,7 +19,6 @@ SUBDIRS = \
 		btree_gin	\
 		btree_gist	\
 		citext		\
-		cloudberry_fdw \
 		dblink		\
 		dict_int	\
 		dict_xsyn	\
@@ -36,7 +35,6 @@ SUBDIRS = \
 		old_snapshot	\
 		pageinspect	\
 		passwordcheck	\
-		postgres_fdw \
 		pg_buffercache	\
 		pg_freespacemap \
 		pg_prewarm	\
@@ -55,8 +53,6 @@ SUBDIRS = \
 		tsm_system_rows \
 		tsm_system_time \
 		unaccent	\
-		unionstore_ext  \
-		unionstore_walredo \
 		vacuumlo
 
 # Cloudberry-specific additions (to ease merge pain).
