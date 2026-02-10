@@ -29,6 +29,7 @@
 
 #include "gpos/base.h"
 
+#include "gpopt/base/CDistributionSpecNonSingleton.h"
 #include "gpopt/base/CDistributionSpecHashedWorker.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
@@ -57,7 +58,9 @@ CPhysicalParallelSequenceProject::CPhysicalParallelSequenceProject(
 	  m_ulParallelWorkers(ulParallelWorkers)
 {
 	GPOS_ASSERT(ulParallelWorkers > 0);
-	GPOS_ASSERT(COperator::EsptypeGlobalOneStep == sptype);
+	GPOS_ASSERT(COperator::EsptypeGlobalOneStep == sptype ||
+				COperator::EsptypeGlobalTwoStep == sptype ||
+				COperator::EsptypeLocal == sptype);
 }
 
 
@@ -113,8 +116,8 @@ CPhysicalParallelSequenceProject::HashValue() const
 //
 //	@doc:
 //		Compute required distribution of child.
-//		Request EdtHashedWorker on PARTITION BY columns for intra-segment
-//		parallel execution.
+//		- Local phase: any distribution (each worker processes independently)
+//		- Global phases: EdtHashedWorker on PARTITION BY columns
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
@@ -126,7 +129,6 @@ CPhysicalParallelSequenceProject::PdsRequired(
 {
 	GPOS_ASSERT(0 == child_index);
 	GPOS_ASSERT(0 == ulOptReq);
-	GPOS_ASSERT(COperator::EsptypeGlobalOneStep == m_sptype);
 	GPOS_ASSERT(!exprhdl.HasOuterRefs());
 
 	// Defensive: singleton execution
@@ -135,7 +137,13 @@ CPhysicalParallelSequenceProject::PdsRequired(
 		return PdsRequireSingleton(mp, exprhdl, pdsRequired, child_index);
 	}
 
-	// Core logic: construct EdtHashedWorker from PARTITION BY columns
+	// Local phase: accept any distribution, each worker processes independently
+	if (COperator::EsptypeLocal == m_sptype)
+	{
+		return GPOS_NEW(mp) CDistributionSpecNonSingleton(false);
+	}
+
+	// Global phases (OneStep/TwoStep): construct EdtHashedWorker from PARTITION BY columns
 	GPOS_ASSERT(CDistributionSpec::EdtHashed == m_pds->Edt());
 	CDistributionSpecHashed *pdshashed =
 		CDistributionSpecHashed::PdsConvert(m_pds);
@@ -160,7 +168,7 @@ CPhysicalParallelSequenceProject::PdsRequired(
 //	@doc:
 //		Check if optimization context is valid.
 //		Reject NL Join inner child (needs rewindability).
-//		Verify child provides worker-level hash distribution.
+//		Verify child provides worker-level distribution.
 //
 //---------------------------------------------------------------------------
 BOOL
@@ -171,11 +179,6 @@ CPhysicalParallelSequenceProject::FValidContext(
 	GPOS_ASSERT(nullptr != poc);
 	GPOS_ASSERT(nullptr != pdrgpocChild);
 	GPOS_ASSERT(1 == pdrgpocChild->Size());
-
-	if (COperator::EsptypeGlobalOneStep != m_sptype)
-	{
-		return false;
-	}
 
 	// Reject NL Join inner child (needs rewindability)
 	if (poc->Prpp()->Per()->PrsRequired()->IsOriginNLJoin())

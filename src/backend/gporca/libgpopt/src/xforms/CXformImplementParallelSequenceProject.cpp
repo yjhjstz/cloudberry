@@ -84,9 +84,8 @@ CXformImplementParallelSequenceProject::
 //		3. Parallel operators exist (e.g. Parallel Scan generated)
 //		4. No subqueries in scalar child
 //		5. No outer refs
-//		6. GlobalOneStep type only
-//		7. Has PARTITION BY columns (EdtHashed)
-//		8. PARTITION BY columns are hashable and comparable
+//		6. GlobalOneStep, GlobalTwoStep, or Local type
+//		7. For Global phases: has PARTITION BY columns (EdtHashed) that are hashable
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
@@ -118,15 +117,26 @@ CXformImplementParallelSequenceProject::Exfp(
 		return CXform::ExfpNone;
 	}
 
-	// Only support GlobalOneStep
 	CLogicalSequenceProject *popSeqPrj =
 		CLogicalSequenceProject::PopConvert(exprhdl.Pop());
-	if (COperator::EsptypeGlobalOneStep != popSeqPrj->Pspt())
+	COperator::ESPType sptype = popSeqPrj->Pspt();
+
+	// Reject unsupported types
+	if (COperator::EsptypeGlobalOneStep != sptype &&
+		COperator::EsptypeGlobalTwoStep != sptype &&
+		COperator::EsptypeLocal != sptype)
 	{
 		return CXform::ExfpNone;
 	}
 
-	// Must have PARTITION BY (EdtHashed)
+	// Local phase: no PARTITION BY hashability checks needed
+	// (uses CDistributionSpecAny, each worker processes independently)
+	if (COperator::EsptypeLocal == sptype)
+	{
+		return CXform::ExfpHigh;
+	}
+
+	// Global phases: must have PARTITION BY (EdtHashed) with hashable columns
 	CDistributionSpec *pds = popSeqPrj->Pds();
 	if (CDistributionSpec::EdtHashed != pds->Edt())
 	{
@@ -180,12 +190,6 @@ CXformImplementParallelSequenceProject::Transform(CXformContext *pxfctxt,
 
 	CLogicalSequenceProject *popLogical =
 		CLogicalSequenceProject::PopConvert(pexpr->Pop());
-
-	// Only support GlobalOneStep
-	if (COperator::EsptypeGlobalOneStep != popLogical->Pspt())
-	{
-		return;
-	}
 
 	// extract components
 	CExpression *pexprRelational = (*pexpr)[0];
