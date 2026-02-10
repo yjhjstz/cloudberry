@@ -2128,6 +2128,13 @@ CCostModelGPDB::CostParallelSequenceProject(CMemoryPool *mp,
 			->Get();
 	GPOS_ASSERT(0 < dTupDefaultProcCostUnit);
 
+	// GlobalTwoStep with force-split: assign minimal cost to favor two-phase split
+	if (GPOS_FTRACE(EopttraceForceSplitWindowFunc) &&
+		popPSP->Pspt() == COperator::EsptypeGlobalTwoStep)
+	{
+		return CCost(dTupDefaultProcCostUnit);
+	}
+
 	const DOUBLE num_rows_outer = pci->PdRows()[0];
 	const DOUBLE dWidthOuter = pci->GetWidth()[0];
 
