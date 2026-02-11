@@ -2089,9 +2089,10 @@ CCostModelGPDB::CostSequenceProject(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		ulSortCols += pos->UlSortColumns();
 	}
 
+	ULONG ulCostFactor = std::max(ulSortCols, (ULONG) 1);
 	// we process (sorted window of) input tuples to compute window function values
 	CCost costLocal =
-		CCost(pci->NumRebinds() * (ulSortCols * num_rows_outer * dWidthOuter *
+		CCost(pci->NumRebinds() * (ulCostFactor * num_rows_outer * dWidthOuter *
 								   dTupDefaultProcCostUnit));
 	CCost costChild =
 		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
@@ -2147,8 +2148,9 @@ CCostModelGPDB::CostParallelSequenceProject(CMemoryPool *mp,
 		ulSortCols += pos->UlSortColumns();
 	}
 
+	ULONG ulCostFactor = std::max(ulSortCols, (ULONG) 1);
 	CDouble dBaseCost =
-		ulSortCols * num_rows_outer * dWidthOuter * dTupDefaultProcCostUnit;
+		ulCostFactor * num_rows_outer * dWidthOuter * dTupDefaultProcCostUnit;
 
 	CCost costChild =
 		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
@@ -2207,10 +2209,10 @@ CCostModelGPDB::CostHashSequenceProject(CMemoryPool *mp, CExpressionHandle &expr
 		COrderSpec *pos = (*pdrgpos)[ul];
 		ulSortCols += pos->UlSortColumns();
 	}
-
+	ULONG ulCostFactor = std::max(ulSortCols, (ULONG) 1);
 	// we process (sorted window of) input tuples to compute window function values
 	CCost costLocal =
-		CCost(pci->NumRebinds() * (ulSortCols * num_rows_outer * dWidthOuter *
+		CCost(pci->NumRebinds() * (ulCostFactor * num_rows_outer * dWidthOuter *
 								   dTupDefaultProcCostUnit));
 	CCost costChild =
 		CostChildren(mp, exprhdl, pci, pcmgpdb->GetCostModelParams());
