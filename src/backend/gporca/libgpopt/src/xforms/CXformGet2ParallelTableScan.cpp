@@ -94,12 +94,9 @@ CXformGet2ParallelTableScan::Exfp(CExpressionHandle &exprhdl) const
 	CLogicalGet *popGet = CLogicalGet::PopConvert(exprhdl.Pop());
 	CTableDescriptor *ptabdesc = popGet->Ptabdesc();
 
-	// Don't use parallel scan for replicated tables
-	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrReplicated ||
-		ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly ||
-		COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
+	// Don't use parallel scan for master-only tables
+	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly)
 	{
-		//FIXME: Should we consider replicated tables.
 		return CXform::ExfpNone;
 	}
 

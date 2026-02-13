@@ -119,6 +119,14 @@ CXformGbAgg2ParallelHashAgg::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
+	// Don't use parallel hash agg if input has outer references AND query has replicated tables
+	// Replicated tables with parallel execution can cause distribution conflicts
+	// when combined with outer references in worker-level aggregation
+	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
+	{
+		return CXform::ExfpNone;
+	}
+
 	// High promise for parallel hash aggregation
 	return CXform::ExfpHigh;
 }

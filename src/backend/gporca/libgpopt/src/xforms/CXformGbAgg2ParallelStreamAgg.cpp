@@ -94,6 +94,11 @@ CXformGbAgg2ParallelStreamAgg::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
+	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
+	{
+		return CXform::ExfpNone;
+	}
+
 	CLogicalGbAgg *popAgg = CLogicalGbAgg::PopConvert(exprhdl.Pop());
 	CColRefArray *colref_array = popAgg->Pdrgpcr();
 

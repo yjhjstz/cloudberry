@@ -32,18 +32,18 @@ using namespace gpos;
 //		CDistributionSpecReplicatedWorkers
 //
 //	@doc:
-//		Distribution specification for worker-level replication
-//		Used for Broadcast Workers Motion
+//		Distribution specification for replicated table data split among workers
 //
 //		Semantics:
-//		- Data is replicated across all workers WITHIN each segment
+//		- Segment-level: data is replicated across all segments (each segment has full data)
+//		- Worker-level: each worker has a portion of the segment's data
 //		- Does NOT cross segment boundaries
-//		- Each worker in a segment has a complete copy of that segment's data
 //
-//		Example with 6 segments, 2 workers per segment:
-//		  Before: Seg0.W0 has rows 0-50, Seg0.W1 has rows 51-100
-//		  After:  Seg0.W0 has rows 0-100, Seg0.W1 has rows 0-100
-//		          (Seg0.W0 and W1 exchange data locally, no network transfer)
+//		Example with 3 segments, 2 workers per segment (table has rows 0-100):
+//		  Seg0.W0 has rows 0-50, Seg0.W1 has rows 51-100
+//		  Seg1.W0 has rows 0-50, Seg1.W1 has rows 51-100
+//		  Seg2.W0 has rows 0-50, Seg2.W1 has rows 51-100
+//		  (Each segment has all rows 0-100, split among its workers)
 //
 //---------------------------------------------------------------------------
 class CDistributionSpecReplicatedWorkers : public CDistributionSpec
