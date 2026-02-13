@@ -19,6 +19,7 @@
 
 #include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 
+#include "gpopt/base/CDistributionSpecNonSingleton.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -112,10 +113,19 @@ CDistributionSpecReplicatedWorkers::FSatisfies(const CDistributionSpec *pds) con
 		return true;
 	}
 
-	// ReplicatedWorkers satisfies universal requirements
-	if (EdtAny == pds->Edt() || EdtNonSingleton == pds->Edt())
+	if (EdtAny == pds->Edt())
 	{
 		return true;
+	}
+
+	// ReplicatedWorkers is a replicated distribution (data duplicated on every
+	// segment).  Respect the FAllowReplicated flag of NonSingleton requirements
+	// so that operators like Parallel UNION ALL can force a motion to eliminate
+	// duplicates (consistent with CDistributionSpecReplicated::FSatisfies).
+	if (EdtNonSingleton == pds->Edt())
+	{
+		return CDistributionSpecNonSingleton::PdsConvert(pds)
+			->FAllowReplicated();
 	}
 
 	return false;

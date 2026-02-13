@@ -32,6 +32,7 @@
 #include "gpopt/base/CDistributionSpec.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecRandom.h"
+#include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CUtils.h"
@@ -83,9 +84,19 @@ CPhysicalParallelTableScan::CPhysicalParallelTableScan(CMemoryPool *mp,
 	// Create worker-level distribution based on table's segment distribution
 	if (ulParallelWorkers > 0 && nullptr != m_pds)
 	{
-		// Create worker-level random distribution using the table's distribution as base
-		// The base CPhysicalScan already sets up m_pds from the table descriptor
-		m_pdsWorkerDistribution = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulParallelWorkers, m_pds);
+		if (CDistributionSpec::EdtStrictReplicated == m_pds->Edt() ||
+			CDistributionSpec::EdtTaintedReplicated == m_pds->Edt())
+		{
+			// Replicated table: each worker scans a portion of the segment's full data.
+			// ReplicatedWorkers triggers FDuplicateHazardDistributionSpec -> true,
+			// which restricts Gather to 1 segment (avoiding duplicate results).
+			m_pdsWorkerDistribution = CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulParallelWorkers);
+		}
+		else
+		{
+			// Non-replicated table: create WorkerRandom with table's distribution as base
+			m_pdsWorkerDistribution = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulParallelWorkers, m_pds);
+		}
 	}
 }
 
