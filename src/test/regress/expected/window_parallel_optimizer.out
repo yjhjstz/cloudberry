@@ -63,19 +63,19 @@ EXPLAIN(COSTS OFF)
 SELECT depname, empno, salary, sum(salary) OVER (PARTITION BY depname) FROM empsalary ORDER BY depname, salary;
                                QUERY PLAN                               
 ------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
+ Gather Motion 6:1  (slice1; segments: 6)
    Merge Key: depname, salary
    ->  Sort
          Sort Key: depname, salary
-         ->  WindowAgg
+         ->  Parallel WindowAgg
                Partition By: depname
                ->  Sort
                      Sort Key: depname
-                     ->  Redistribute Motion 6:3  (slice2; segments: 6)
+                     ->  Redistribute Motion 6:6  (slice2; segments: 6)
                            Hash Key: depname
                            ->  Parallel Seq Scan on empsalary
  Optimizer: GPORCA
-(12 rows)
+(13 rows)
 
 SELECT depname, empno, salary, sum(salary) OVER (PARTITION BY depname) FROM empsalary ORDER BY depname, salary;
   depname  | empno | salary |  sum  
@@ -191,16 +191,16 @@ EXPLAIN(COSTS OFF)
 SELECT depname, empno, salary, sum(salary) OVER w FROM empsalary WINDOW w AS (PARTITION BY depname);
                             QUERY PLAN                            
 ------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)
-   ->  WindowAgg
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel WindowAgg
          Partition By: depname
          ->  Sort
                Sort Key: depname
-               ->  Redistribute Motion 6:3  (slice2; segments: 6)
+               ->  Redistribute Motion 6:6  (slice2; segments: 6)
                      Hash Key: depname
                      ->  Parallel Seq Scan on empsalary
  Optimizer: GPORCA
-(9 rows)
+(10 rows)
 
 SELECT depname, empno, salary, sum(salary) OVER w FROM empsalary WINDOW w AS (PARTITION BY depname);
   depname  | empno | salary |  sum  
@@ -561,20 +561,21 @@ SELECT empno, depname, salary, bonus, depadj, MIN(bonus) OVER (ORDER BY empno), 
  WindowAgg
    ->  WindowAgg
          Order By: empno
-         ->  Gather Motion 3:1  (slice1; segments: 3)
+         ->  Gather Motion 6:1  (slice1; segments: 6)
                Merge Key: empno
                ->  Result
                      ->  Sort
                            Sort Key: empno
-                           ->  WindowAgg
+                           ->  Parallel WindowAgg
                                  Partition By: depname
                                  ->  Sort
                                        Sort Key: depname
-                                       ->  Redistribute Motion 6:3  (slice2; segments: 6)
+                                       ->  Redistribute Motion 6:6  (slice2; segments: 6)
                                              Hash Key: depname
+                                             Hash Module: 3
                                              ->  Parallel Seq Scan on empsalary
  Optimizer: GPORCA
-(16 rows)
+(17 rows)
 
 SELECT empno, depname, salary, bonus, depadj, MIN(bonus) OVER (ORDER BY empno), MAX(depadj) OVER () FROM(
 	SELECT *,
