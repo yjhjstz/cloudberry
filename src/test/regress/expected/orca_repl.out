@@ -1,0 +1,106 @@
+-- Test ORCA parallel execution with replicated tables
+create schema orca_repl;
+set search_path=orca_repl, public;
+set parallel_setup_cost=0;
+set max_parallel_workers_per_gather=2;
+set enable_parallel = on;
+set optimizer = on;
+-- Replicated-Replicated join
+drop table if exists rep_a, rep_b;
+NOTICE:  table "rep_a" does not exist, skipping
+NOTICE:  table "rep_b" does not exist, skipping
+create table rep_a (id int, val text) distributed replicated;
+create table rep_b (id int, data int) distributed replicated;
+insert into rep_a select i, 'v' || i from generate_series(1, 10) i;
+insert into rep_b select i, i*10 from generate_series(1, 5000) i;
+analyze rep_a;
+analyze rep_b;
+explain (verbose, costs off) select * from rep_a join rep_b on rep_a.id = rep_b.id;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 2:1  (slice1; segments: 2)
+   Output: rep_a.id, rep_a.val, rep_b.id, rep_b.data
+   ->  Parallel Hash Join
+         Output: rep_a.id, rep_a.val, rep_b.id, rep_b.data
+         Hash Cond: (rep_b.id = rep_a.id)
+         ->  Parallel Seq Scan on orca_repl.rep_b
+               Output: rep_b.id, rep_b.data
+         ->  Parallel Hash
+               Output: rep_a.id, rep_a.val
+               ->  Parallel Seq Scan on orca_repl.rep_a
+                     Output: rep_a.id, rep_a.val
+ Settings: enable_parallel = 'on', optimizer = 'on', parallel_setup_cost = '0'
+ Optimizer: GPORCA
+(13 rows)
+
+select * from rep_a join rep_b on rep_a.id = rep_b.id;
+ id | val | id | data 
+----+-----+----+------
+  1 | v1  |  1 |   10
+  2 | v2  |  2 |   20
+  3 | v3  |  3 |   30
+  4 | v4  |  4 |   40
+  5 | v5  |  5 |   50
+  6 | v6  |  6 |   60
+  7 | v7  |  7 |   70
+  8 | v8  |  8 |   80
+  9 | v9  |  9 |   90
+ 10 | v10 | 10 |  100
+(10 rows)
+
+-- Distributed-Replicated join
+drop table if exists rep_t, dist_t;
+NOTICE:  table "rep_t" does not exist, skipping
+NOTICE:  table "dist_t" does not exist, skipping
+create table rep_t (id int, val text) distributed replicated;
+create table dist_t (id int, info text) distributed by (id);
+insert into rep_t select i, 'v' || i from generate_series(1, 10) i;
+insert into dist_t select i, 'info' || i from generate_series(1, 5000) i;
+analyze rep_t;
+analyze dist_t;
+explain (verbose, costs off) select * from dist_t join rep_t on dist_t.id = rep_t.id;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   Output: dist_t.id, dist_t.info, rep_t.id, rep_t.val
+   ->  Parallel Hash Join
+         Output: dist_t.id, dist_t.info, rep_t.id, rep_t.val
+         Hash Cond: (dist_t.id = rep_t.id)
+         ->  Parallel Seq Scan on orca_repl.dist_t
+               Output: dist_t.id, dist_t.info
+         ->  Parallel Hash
+               Output: rep_t.id, rep_t.val
+               ->  Parallel Seq Scan on orca_repl.rep_t
+                     Output: rep_t.id, rep_t.val
+ Settings: enable_parallel = 'on', optimizer = 'on', parallel_setup_cost = '0'
+ Optimizer: GPORCA
+(13 rows)
+
+select * from dist_t join rep_t on dist_t.id = rep_t.id;
+ id |  info  | id | val 
+----+--------+----+-----
+  1 | info1  |  1 | v1
+  2 | info2  |  2 | v2
+  3 | info3  |  3 | v3
+  4 | info4  |  4 | v4
+  7 | info7  |  7 | v7
+  8 | info8  |  8 | v8
+  5 | info5  |  5 | v5
+  6 | info6  |  6 | v6
+  9 | info9  |  9 | v9
+ 10 | info10 | 10 | v10
+(10 rows)
+
+-- cleanup
+reset enable_parallel;
+reset max_parallel_workers_per_gather;
+reset parallel_setup_cost;
+reset optimizer;
+-- start_ignore
+drop schema orca_repl cascade;
+NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to table rep_a
+drop cascades to table rep_b
+drop cascades to table rep_t
+drop cascades to table dist_t
+-- end_ignore

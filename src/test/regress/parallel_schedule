@@ -188,4 +188,4 @@ test: stats
 # orca parallel
 test: orca_parallel
 # test of tag
-test: window_parallel
+test: orca_repl
