@@ -1225,14 +1225,37 @@ CPhysicalHashJoin::FValidContext(CMemoryPool *,  // mp
 					{
 						CDistributionSpec *pds = pdpplan->Pds();
 						if (CDistributionSpec::EdtWorkerRandom == pds->Edt() ||
-							CDistributionSpec::EdtHashedWorker == pds->Edt())
+							CDistributionSpec::EdtHashedWorker == pds->Edt() ||
+							CDistributionSpec::EdtReplicatedWorkers == pds->Edt())
 						{
-							// Regular HashJoin cannot handle WorkerRandom input
-							// Reject this context so ORCA will try ParallelHashJoin or add Motion
-							// GPOS_TRACE(GPOS_WSZ_LIT("Regular HashJoin cannot handle WorkerRandom input"));
+							// Regular HashJoin cannot handle worker-level input
 							return false;
 						}
 					}
+#if 1
+					// If the child is a motion, check its child's
+					// distribution. Motions convert worker-level
+					// distributions to segment-level, hiding parallel
+					// operators from the direct check above.
+					if (nullptr != pccBest->Pgexpr() &&
+						CUtils::FPhysicalMotion(pccBest->Pgexpr()->Pop()))
+					{
+						COptimizationContextArray *pdrgpocMotion = pccBest->Pdrgpoc();
+						if (nullptr != pdrgpocMotion && pdrgpocMotion->Size() > 0)
+						{
+							CCostContext *pccChild = (*pdrgpocMotion)[0]->PccBest();
+							if (nullptr != pccChild &&
+								nullptr != pccChild->Pdpplan())
+							{
+								CDistributionSpec *pdsChild = pccChild->Pdpplan()->Pds();
+								if (CDistributionSpec::EdtReplicatedWorkers == pdsChild->Edt())
+								{
+									return false;
+								}
+							}
+						}
+					}
+#endif
 				}
 			}
 		}

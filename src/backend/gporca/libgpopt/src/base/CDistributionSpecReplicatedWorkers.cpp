@@ -20,6 +20,7 @@
 #include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 
 #include "gpopt/base/CDistributionSpecNonSingleton.h"
+#include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -126,6 +127,18 @@ CDistributionSpecReplicatedWorkers::FSatisfies(const CDistributionSpec *pds) con
 	{
 		return CDistributionSpecNonSingleton::PdsConvert(pds)
 			->FAllowReplicated();
+	}
+
+	// ReplicatedWorkers(N) satisfies WorkerRandom[N, X]:
+	// - Segment level: replicated data is a superset of any distribution
+	// - Worker level: N workers collectively hold all segment data
+	// Parallel hash join uses shared hash tables, so workers cooperatively
+	// build one hash table from their portions — no broadcast needed.
+	if (EdtWorkerRandom == pds->Edt())
+	{
+		const CDistributionSpecWorkerRandom *pdsWorkerRandom =
+			CDistributionSpecWorkerRandom::PdsConvert(pds);
+		return m_ulWorkers == pdsWorkerRandom->UlWorkers();
 	}
 
 	return false;

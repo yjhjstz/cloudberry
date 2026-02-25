@@ -393,6 +393,28 @@ CPhysicalParallelHashJoin::Ped(CMemoryPool *mp, CExpressionHandle &exprhdl,
 							mp, ulWorkers, pdsMatch), dmatch);
 				}
 			}
+			else if (CDistributionSpec::EdtReplicatedWorkers == pdsFirst->Edt())
+			{
+				// Inner child is ReplicatedWorkers (replicated table with parallel scan).
+				// Request outer as WorkerRandom[N, Hashed(outer_key)] so that
+				// outer's ReplicatedWorkers(N) satisfies it directly (no motion needed).
+				CDistributionSpecReplicatedWorkers *pdsRepFirst =
+					CDistributionSpecReplicatedWorkers::PdsConvert(pdsFirst);
+				ULONG ulWorkers = pdsRepFirst->UlWorkers();
+
+				// Get the inner's requested hashed spec, create matching for outer
+				CDistributionSpecHashed *pdsHashedInnerReq =
+					PdshashedRequired(mp, child_index, ulOptReq);
+				ULONG ulFirstChild = (EceoRightToLeft == Eceo()) ? 1 : 0;
+				CDistributionSpecHashed *pdsHashedOuter =
+					PdshashedMatching(mp, pdsHashedInnerReq, ulFirstChild);
+				pdsHashedInnerReq->Release();
+				pdsHashedOuter->ComputeEquivHashExprs(mp, exprhdl);
+
+				return GPOS_NEW(mp) CEnfdDistribution(
+					CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
+						mp, ulWorkers, pdsHashedOuter), dmatch);
+			}
 		}
 
 		// Default: use base class logic for non-WorkerRandom first child
@@ -666,8 +688,6 @@ CPhysicalParallelHashJoin::FValidContext(
 	// If parent requires REWINDABLE (e.g., NL join inner child), reject early.
 	if (prsRequired->IsOriginNLJoin())
 	{
-		// Parent requires rewindability but ParallelHashJoin cannot provide it.
-		// Reject this plan so the optimizer can choose alternatives or add Spool.
 		return false;
 	}
 
@@ -695,19 +715,11 @@ CPhysicalParallelHashJoin::FValidContext(
 		// Validate extracted worker counts
 		if (0 == m_ulProbeWorkers || 0 == m_ulBuildWorkers)
 		{
-			// Invalid worker counts extracted - reject this optimization context
 			return false;
 		}
 	}
 
 	// Lightweight pruning based on children required distributions (when available).
-	// Do NOT attempt to inspect derived child properties here. We only reject
-	// obviously incompatible contexts to reduce search:
-	//   - Disallow singleton/replicated requirements for either child (parallel hash
-	//     join expects segment-distributed inputs).
-	//   - The outer/probe side should allow parallelism: its required distribution
-	//     must be Either Any or WorkerRandom. If it is explicitly constrained to a
-	//     non-parallel distribution, prune this context.
 	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
 	{
 		CEnfdDistribution *pedOuter = (*pdrgpocChild)[0]->Prpp()->Ped();
@@ -731,32 +743,25 @@ CPhysicalParallelHashJoin::FValidContext(
 			return false;
 		}
 
-		// Outer/probe side must allow parallelism: require Any or WorkerRandom.
+		// Outer/probe side must allow parallelism
 		if (dtOuter != CDistributionSpec::EdtAny &&
 			dtOuter != CDistributionSpec::EdtWorkerRandom &&
-			dtOuter != CDistributionSpec::EdtHashedWorker)
+			dtOuter != CDistributionSpec::EdtHashedWorker &&
+			dtOuter != CDistributionSpec::EdtReplicatedWorkers &&
+			dtOuter != CDistributionSpec::EdtNonSingleton &&
+			dtOuter != CDistributionSpec::EdtHashed)
 		{
 			return false;
 		}
 
-		// Inner/build side validation:
-		// - We allow Any, WorkerRandom, or Hashed distributions
-		// - Hashed is allowed because parallel hash join can work when:
-		//   1. Both children have compatible segment-level hashed distributions
-		//   2. Workers share the hash table built from segment-local data
-		// - We only reject obviously incompatible distributions
-		//
-		// Note: We do NOT require inner to be WorkerRandom. The EpetDistribution()
-		// logic (lines 541-593) handles cases where inner has HASHED distribution
-		// and our derived WorkerRandom's base distribution satisfies parent requirements.
+		// Inner/build side validation
 		if (dtInner != CDistributionSpec::EdtAny &&
 			dtInner != CDistributionSpec::EdtWorkerRandom &&
 			dtInner != CDistributionSpec::EdtReplicatedWorkers &&
 			dtInner != CDistributionSpec::EdtHashed &&
-			dtInner != CDistributionSpec::EdtHashedWorker)
+			dtInner != CDistributionSpec::EdtHashedWorker &&
+			dtInner != CDistributionSpec::EdtNonSingleton)
 		{
-			// Inner child requires a distribution incompatible with parallel hash join
-			// (e.g., coordinator-only distribution, universal distribution, etc.)
 			return false;
 		}
 	}
