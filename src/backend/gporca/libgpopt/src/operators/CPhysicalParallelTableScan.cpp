@@ -90,7 +90,9 @@ CPhysicalParallelTableScan::CPhysicalParallelTableScan(CMemoryPool *mp,
 			// Replicated table: each worker scans a portion of the segment's full data.
 			// ReplicatedWorkers triggers FDuplicateHazardDistributionSpec -> true,
 			// which restricts Gather to 1 segment (avoiding duplicate results).
-			m_pdsWorkerDistribution = CDistributionSpecReplicatedWorkers::PdsCreate(mp, ulParallelWorkers);
+			// Pass m_pds as base to distinguish from BroadcastWorkers origin.
+			m_pdsWorkerDistribution = CDistributionSpecReplicatedWorkers::PdsCreate(
+				mp, ulParallelWorkers, false /*ignore_broadcast_threshold*/, m_pds);
 		}
 		else
 		{
@@ -225,8 +227,33 @@ CPhysicalParallelTableScan::EpetDistribution(CExpressionHandle & /*exprhdl*/,
 		return CEnfdProp::EpetUnnecessary;
 	}
 
-	// Neither distribution satisfies the requirement
-	// Motion enforcement will be needed on the output
+	// For replicated table parallel scans: prohibit ALL segment-level distribution
+	// requirements. Only worker-level requests (from parallel-aware operators like
+	// ParallelHashJoin) should use this scan. Segment-level motions (HashDistribute,
+	// Broadcast, etc.) would make the ParallelTableScan's plan the cheapest in the
+	// optimization context, but the parent's FValidContext would then reject it.
+	// Since ORCA keeps only ONE best plan per context, the valid regular TableScan
+	// plan (which is more expensive) becomes unreachable. Prohibiting here ensures
+	// the regular TableScan wins in all segment-level contexts.
+	if (nullptr != m_pdsWorkerDistribution &&
+		CDistributionSpec::EdtReplicatedWorkers == m_pdsWorkerDistribution->Edt())
+	{
+		const CDistributionSpecReplicatedWorkers *pdsRW =
+			CDistributionSpecReplicatedWorkers::PdsConvert(m_pdsWorkerDistribution);
+		if (pdsRW->FFromReplicatedTable())
+		{
+			CDistributionSpec::EDistributionType edtReq = ped->PdsRequired()->Edt();
+			if (CDistributionSpec::EdtWorkerRandom != edtReq &&
+				CDistributionSpec::EdtReplicatedWorkers != edtReq &&
+				CDistributionSpec::EdtHashedWorker != edtReq &&
+				CDistributionSpec::EdtAny != edtReq)
+			{
+				return CEnfdProp::EpetProhibited;
+			}
+		}
+	}
+
+	// Worker-level motion enforcement needed (e.g., HashDistributeWorkers)
 	return CEnfdProp::EpetRequired;
 }
 

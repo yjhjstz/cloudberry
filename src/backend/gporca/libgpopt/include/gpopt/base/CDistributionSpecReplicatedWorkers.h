@@ -53,6 +53,8 @@ private:
 	ULONG m_ulWorkers;
 	// Ignore broadcast threshold when costing (similar to Replicated)
 	BOOL m_ignore_broadcast_threshold;
+	// Base segment-level distribution (e.g., Replicated for table scan, nullptr for broadcast/requirement)
+	CDistributionSpec *m_pdsSegmentBase;
 
 	// Private copy ctor
 	CDistributionSpecReplicatedWorkers(const CDistributionSpecReplicatedWorkers &);
@@ -60,7 +62,8 @@ private:
 public:
 	// Ctor
 	CDistributionSpecReplicatedWorkers(ULONG ulWorkers,
-									   BOOL ignore_broadcast_threshold = false);
+									   BOOL ignore_broadcast_threshold = false,
+									   CDistributionSpec *pdsSegmentBase = nullptr);
 
 	// Dtor
 	~CDistributionSpecReplicatedWorkers() override;
@@ -83,6 +86,22 @@ public:
 	FIgnoreBroadcastThreshold() const
 	{
 		return m_ignore_broadcast_threshold;
+	}
+
+	// Accessor: base segment-level distribution
+	CDistributionSpec *
+	PdsSegmentBase() const
+	{
+		return m_pdsSegmentBase;
+	}
+
+	// Check if this distribution originated from a replicated table scan
+	BOOL
+	FFromReplicatedTable() const
+	{
+		return nullptr != m_pdsSegmentBase &&
+			   (CDistributionSpec::EdtStrictReplicated == m_pdsSegmentBase->Edt() ||
+				CDistributionSpec::EdtTaintedReplicated == m_pdsSegmentBase->Edt());
 	}
 
 	// Does this distribution match the given one?
@@ -109,7 +128,8 @@ public:
 	// Factory method
 	static CDistributionSpecReplicatedWorkers *PdsCreate(CMemoryPool *mp,
 														  ULONG ulWorkers,
-														  BOOL ignore_broadcast_threshold = false);
+														  BOOL ignore_broadcast_threshold = false,
+														  CDistributionSpec *pdsSegmentBase = nullptr);
 
 	// Conversion function
 	static CDistributionSpecReplicatedWorkers *

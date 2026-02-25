@@ -1232,12 +1232,17 @@ CPhysicalHashJoin::FValidContext(CMemoryPool *,  // mp
 							return false;
 						}
 					}
-#if 1
 					// If the child is a motion, check its child's
 					// distribution. Motions convert worker-level
 					// distributions to segment-level, hiding parallel
 					// operators from the direct check above.
-					if (nullptr != pccBest->Pgexpr() &&
+					// Exception: when child's required distribution is
+					// Singleton, the motion is a Gather which properly
+					// collects all worker data into a single stream.
+					CDistributionSpec *pdsRequired =
+						pocChild->Prpp()->Ped()->PdsRequired();
+					if (CDistributionSpec::EdtSingleton != pdsRequired->Edt() &&
+						nullptr != pccBest->Pgexpr() &&
 						CUtils::FPhysicalMotion(pccBest->Pgexpr()->Pop()))
 					{
 						COptimizationContextArray *pdrgpocMotion = pccBest->Pdrgpoc();
@@ -1255,7 +1260,6 @@ CPhysicalHashJoin::FValidContext(CMemoryPool *,  // mp
 							}
 						}
 					}
-#endif
 				}
 			}
 		}

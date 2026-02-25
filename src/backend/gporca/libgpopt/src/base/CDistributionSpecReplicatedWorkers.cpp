@@ -20,6 +20,7 @@
 #include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 
 #include "gpopt/base/CDistributionSpecNonSingleton.h"
+#include "gpopt/base/CDistributionSpecReplicated.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
@@ -37,11 +38,17 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers::CDistributionSpecReplicatedWorkers(
-	ULONG ulWorkers, BOOL ignore_broadcast_threshold)
+	ULONG ulWorkers, BOOL ignore_broadcast_threshold,
+	CDistributionSpec *pdsSegmentBase)
 	: m_ulWorkers(ulWorkers),
-	  m_ignore_broadcast_threshold(ignore_broadcast_threshold)
+	  m_ignore_broadcast_threshold(ignore_broadcast_threshold),
+	  m_pdsSegmentBase(pdsSegmentBase)
 {
 	GPOS_ASSERT(ulWorkers > 0);
+	if (nullptr != m_pdsSegmentBase)
+	{
+		m_pdsSegmentBase->AddRef();
+	}
 }
 
 //---------------------------------------------------------------------------
@@ -54,6 +61,7 @@ CDistributionSpecReplicatedWorkers::CDistributionSpecReplicatedWorkers(
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers::~CDistributionSpecReplicatedWorkers()
 {
+	CRefCount::SafeRelease(m_pdsSegmentBase);
 }
 
 //---------------------------------------------------------------------------
@@ -66,13 +74,14 @@ CDistributionSpecReplicatedWorkers::~CDistributionSpecReplicatedWorkers()
 //---------------------------------------------------------------------------
 CDistributionSpecReplicatedWorkers *
 CDistributionSpecReplicatedWorkers::PdsCreate(CMemoryPool *mp, ULONG ulWorkers,
-											  BOOL ignore_broadcast_threshold)
+											  BOOL ignore_broadcast_threshold,
+											  CDistributionSpec *pdsSegmentBase)
 {
 	GPOS_ASSERT(nullptr != mp);
 	GPOS_ASSERT(ulWorkers > 0);
 
 	return GPOS_NEW(mp)
-		CDistributionSpecReplicatedWorkers(ulWorkers, ignore_broadcast_threshold);
+		CDistributionSpecReplicatedWorkers(ulWorkers, ignore_broadcast_threshold, pdsSegmentBase);
 }
 
 //---------------------------------------------------------------------------
@@ -94,7 +103,10 @@ CDistributionSpecReplicatedWorkers::Matches(const CDistributionSpec *pds) const
 	const CDistributionSpecReplicatedWorkers *pdsReplicatedWorkers =
 		CDistributionSpecReplicatedWorkers::PdsConvert(pds);
 
-	return m_ulWorkers == pdsReplicatedWorkers->m_ulWorkers;
+	return m_ulWorkers == pdsReplicatedWorkers->m_ulWorkers &&
+		   ((nullptr == m_pdsSegmentBase && nullptr == pdsReplicatedWorkers->m_pdsSegmentBase) ||
+			(nullptr != m_pdsSegmentBase && nullptr != pdsReplicatedWorkers->m_pdsSegmentBase &&
+			 m_pdsSegmentBase->Matches(pdsReplicatedWorkers->m_pdsSegmentBase)));
 }
 
 //---------------------------------------------------------------------------
@@ -108,13 +120,13 @@ CDistributionSpecReplicatedWorkers::Matches(const CDistributionSpec *pds) const
 BOOL
 CDistributionSpecReplicatedWorkers::FSatisfies(const CDistributionSpec *pds) const
 {
-	// Direct match
-	if (Matches(pds))
+	if (EdtAny == pds->Edt())
 	{
 		return true;
 	}
 
-	if (EdtAny == pds->Edt())
+	// Direct match (exact, including base distribution)
+	if (Matches(pds))
 	{
 		return true;
 	}
@@ -201,6 +213,11 @@ IOstream &
 CDistributionSpecReplicatedWorkers::OsPrint(IOstream &os) const
 {
 	os << "REPLICATED_WORKERS(workers=" << m_ulWorkers << ")";
+	if (nullptr != m_pdsSegmentBase)
+	{
+		os << " base:";
+		m_pdsSegmentBase->OsPrint(os);
+	}
 	return os;
 }
 
