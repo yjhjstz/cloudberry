@@ -125,10 +125,15 @@ CDistributionSpecReplicatedWorkers::FSatisfies(const CDistributionSpec *pds) con
 		return true;
 	}
 
-	// Direct match (exact, including base distribution)
-	if (Matches(pds))
+	// ReplicatedWorkers satisfies ReplicatedWorkers if worker count matches,
+	// regardless of base distribution. E.g., a replicated table scan derives
+	// ReplicatedWorkers(N, base=StrictReplicated) which satisfies a join's
+	// requirement of ReplicatedWorkers(N, base=nullptr).
+	if (EdtReplicatedWorkers == pds->Edt())
 	{
-		return true;
+		const CDistributionSpecReplicatedWorkers *pdsReq =
+			CDistributionSpecReplicatedWorkers::PdsConvert(pds);
+		return m_ulWorkers == pdsReq->UlWorkers();
 	}
 
 	// ReplicatedWorkers is a replicated distribution (data duplicated on every
