@@ -31,6 +31,20 @@ analyze dist_t;
 explain (verbose, costs off) select * from dist_t join rep_t on dist_t.id = rep_t.id;
 select * from dist_t join rep_t on dist_t.id = rep_t.id;
 
+-- Anti Semi Join (NOT IN) with replicated inner table
+drop table if exists notin_outer, notin_inner_repl;
+create table notin_outer(a int, b int) with(parallel_workers=2) distributed by (a);
+create table notin_inner_repl(c2 int) with(parallel_workers=2) distributed replicated;
+insert into notin_outer select i, i+1 from generate_series(1, 1000) i;
+insert into notin_inner_repl values (1), (2), (3), (null), (5), (null), (10), (20);
+analyze notin_outer;
+analyze notin_inner_repl;
+
+-- NOT IN with nullable inner key
+explain (costs off) select * from notin_outer where a not in (select c2 from notin_inner_repl);
+-- NOT IN with non-null inner key filter
+explain (costs off) select * from notin_outer where a not in (select c2 from notin_inner_repl where c2 is not null);
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;

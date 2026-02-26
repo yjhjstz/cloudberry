@@ -91,6 +91,43 @@ select * from dist_t join rep_t on dist_t.id = rep_t.id;
  10 | info10 | 10 | v10
 (10 rows)
 
+-- Anti Semi Join (NOT IN) with replicated inner table
+drop table if exists notin_outer, notin_inner_repl;
+NOTICE:  table "notin_outer" does not exist, skipping
+NOTICE:  table "notin_inner_repl" does not exist, skipping
+create table notin_outer(a int, b int) with(parallel_workers=2) distributed by (a);
+create table notin_inner_repl(c2 int) with(parallel_workers=2) distributed replicated;
+insert into notin_outer select i, i+1 from generate_series(1, 1000) i;
+insert into notin_inner_repl values (1), (2), (3), (null), (5), (null), (10), (20);
+analyze notin_outer;
+analyze notin_inner_repl;
+-- NOT IN with nullable inner key
+explain (costs off) select * from notin_outer where a not in (select c2 from notin_inner_repl);
+                        QUERY PLAN                        
+----------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel Hash Left Anti Semi (Not-In) Join
+         Hash Cond: (notin_outer.a = notin_inner_repl.c2)
+         ->  Parallel Seq Scan on notin_outer
+         ->  Parallel Hash
+               ->  Parallel Seq Scan on notin_inner_repl
+ Optimizer: GPORCA
+(7 rows)
+
+-- NOT IN with non-null inner key filter
+explain (costs off) select * from notin_outer where a not in (select c2 from notin_inner_repl where c2 is not null);
+                        QUERY PLAN                        
+----------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel Hash Left Anti Semi (Not-In) Join
+         Hash Cond: (notin_outer.a = notin_inner_repl.c2)
+         ->  Parallel Seq Scan on notin_outer
+         ->  Parallel Hash
+               ->  Parallel Seq Scan on notin_inner_repl
+                     Filter: (NOT (c2 IS NULL))
+ Optimizer: GPORCA
+(8 rows)
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
@@ -98,9 +135,11 @@ reset parallel_setup_cost;
 reset optimizer;
 -- start_ignore
 drop schema orca_repl cascade;
-NOTICE:  drop cascades to 4 other objects
+NOTICE:  drop cascades to 6 other objects
 DETAIL:  drop cascades to table rep_a
 drop cascades to table rep_b
 drop cascades to table rep_t
 drop cascades to table dist_t
+drop cascades to table notin_outer
+drop cascades to table notin_inner_repl
 -- end_ignore
