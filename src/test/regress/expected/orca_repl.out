@@ -165,6 +165,62 @@ explain (costs off) select * from loj_repl left join loj_dist on loj_repl.c = lo
  Optimizer: GPORCA
 (8 rows)
 
+-- Left Semi Join (IN / EXISTS) with replicated inner table
+drop table if exists semi_dist, semi_repl;
+NOTICE:  table "semi_dist" does not exist, skipping
+NOTICE:  table "semi_repl" does not exist, skipping
+create table semi_dist(a int, b int) with(parallel_workers=2) distributed by (a);
+create table semi_repl(c int, d int) with(parallel_workers=2) distributed replicated;
+insert into semi_dist select i, i+1 from generate_series(1, 5000) i;
+insert into semi_repl select i, i*10 from generate_series(1, 20) i;
+analyze semi_dist;
+analyze semi_repl;
+-- IN subquery: distributed outer, replicated inner
+explain (costs off) select * from semi_dist where a in (select c from semi_repl);
+                    QUERY PLAN                    
+--------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel Hash Semi Join
+         Hash Cond: (semi_dist.a = semi_repl.c)
+         ->  Parallel Seq Scan on semi_dist
+         ->  Parallel Hash
+               ->  Parallel Seq Scan on semi_repl
+ Optimizer: GPORCA
+(7 rows)
+
+-- EXISTS subquery: distributed outer, replicated inner
+explain (costs off) select * from semi_dist where exists (select c from semi_repl where semi_dist.a = semi_repl.c);
+                    QUERY PLAN                    
+--------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel Hash Semi Join
+         Hash Cond: (semi_dist.a = semi_repl.c)
+         ->  Parallel Seq Scan on semi_dist
+               Filter: (NOT (a IS NULL))
+         ->  Parallel Hash
+               ->  Parallel Seq Scan on semi_repl
+ Optimizer: GPORCA
+(8 rows)
+
+-- Replicated outer, distributed inner (should not use parallel semi join)
+explain (costs off) select * from semi_repl where c in (select a from semi_dist);
+                               QUERY PLAN                               
+------------------------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel Hash Join
+         Hash Cond: (semi_dist.a = semi_repl.c)
+         ->  Redistribute Motion 3:6  (slice2; segments: 3)
+               Hash Module: 3
+               ->  HashAggregate
+                     Group Key: semi_dist.a
+                     ->  Redistribute Motion 6:3  (slice3; segments: 6)
+                           Hash Key: semi_dist.a
+                           ->  Parallel Seq Scan on semi_dist
+         ->  Parallel Hash
+               ->  Parallel Seq Scan on semi_repl
+ Optimizer: GPORCA
+(13 rows)
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
@@ -172,7 +228,7 @@ reset parallel_setup_cost;
 reset optimizer;
 -- start_ignore
 drop schema orca_repl cascade;
-NOTICE:  drop cascades to 8 other objects
+NOTICE:  drop cascades to 10 other objects
 DETAIL:  drop cascades to table rep_a
 drop cascades to table rep_b
 drop cascades to table rep_t
@@ -181,4 +237,6 @@ drop cascades to table notin_outer
 drop cascades to table notin_inner_repl
 drop cascades to table loj_dist
 drop cascades to table loj_repl
+drop cascades to table semi_dist
+drop cascades to table semi_repl
 -- end_ignore

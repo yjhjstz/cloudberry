@@ -59,6 +59,22 @@ explain (costs off) select * from loj_dist left join loj_repl on loj_dist.a = lo
 -- Replicated left join distributed (replicated as outer)
 explain (costs off) select * from loj_repl left join loj_dist on loj_repl.c = loj_dist.a;
 
+-- Left Semi Join (IN / EXISTS) with replicated inner table
+drop table if exists semi_dist, semi_repl;
+create table semi_dist(a int, b int) with(parallel_workers=2) distributed by (a);
+create table semi_repl(c int, d int) with(parallel_workers=2) distributed replicated;
+insert into semi_dist select i, i+1 from generate_series(1, 5000) i;
+insert into semi_repl select i, i*10 from generate_series(1, 20) i;
+analyze semi_dist;
+analyze semi_repl;
+
+-- IN subquery: distributed outer, replicated inner
+explain (costs off) select * from semi_dist where a in (select c from semi_repl);
+-- EXISTS subquery: distributed outer, replicated inner
+explain (costs off) select * from semi_dist where exists (select c from semi_repl where semi_dist.a = semi_repl.c);
+-- Replicated outer, distributed inner (should not use parallel semi join)
+explain (costs off) select * from semi_repl where c in (select a from semi_dist);
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
