@@ -38,6 +38,8 @@
 #include "gpopt/base/CDistributionSpecNonReplicated.h"
 #include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
+#include "gpopt/base/CCostContext.h"
+#include "gpopt/base/CDrvdPropPlan.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
@@ -763,6 +765,55 @@ CPhysicalParallelHashJoin::FValidContext(
 			dtInner != CDistributionSpec::EdtNonSingleton)
 		{
 			return false;
+		}
+	}
+
+	// Verify that the selected child plans actually derive worker-level
+	// distributions. UlExtractWorkersFromGroup scans ALL expressions in the
+	// child group and may find a ParallelTableScan even when the context has
+	// selected a non-parallel operator (e.g. IndexScan) as the best plan.
+	// That causes each worker to execute the same IndexScan independently,
+	// producing duplicate rows. The derived distribution of PccBest() is the
+	// definitive check: only WorkerRandom / ReplicatedWorkers / HashedWorker
+	// are valid worker-level distributions.
+	if (nullptr != pdrgpocChild && pdrgpocChild->Size() >= 2)
+	{
+		COptimizationContext *pocOuter = (*pdrgpocChild)[0];
+		COptimizationContext *pocInner = (*pdrgpocChild)[1];
+
+		if (nullptr != pocOuter && nullptr != pocInner)
+		{
+			CCostContext *pccOuter = pocOuter->PccBest();
+			CCostContext *pccInner = pocInner->PccBest();
+
+			if (nullptr != pccOuter && nullptr != pccInner)
+			{
+				CDrvdPropPlan *pdpOuter = pccOuter->Pdpplan();
+				CDrvdPropPlan *pdpInner = pccInner->Pdpplan();
+
+				if (nullptr != pdpOuter && nullptr != pdpInner)
+				{
+					CDistributionSpec::EDistributionType dtOuter =
+						pdpOuter->Pds()->Edt();
+					CDistributionSpec::EDistributionType dtInner =
+						pdpInner->Pds()->Edt();
+
+					BOOL fOuterWorkerLevel =
+						dtOuter == CDistributionSpec::EdtWorkerRandom ||
+						dtOuter == CDistributionSpec::EdtReplicatedWorkers ||
+						dtOuter == CDistributionSpec::EdtHashedWorker;
+
+					BOOL fInnerWorkerLevel =
+						dtInner == CDistributionSpec::EdtWorkerRandom ||
+						dtInner == CDistributionSpec::EdtReplicatedWorkers ||
+						dtInner == CDistributionSpec::EdtHashedWorker;
+
+					if (!fOuterWorkerLevel || !fInnerWorkerLevel)
+					{
+						return false;
+					}
+				}
+			}
 		}
 	}
 
