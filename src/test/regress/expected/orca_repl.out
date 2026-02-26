@@ -128,6 +128,43 @@ explain (costs off) select * from notin_outer where a not in (select c2 from not
  Optimizer: GPORCA
 (8 rows)
 
+-- Left Outer Join with replicated table
+drop table if exists loj_dist, loj_repl;
+NOTICE:  table "loj_dist" does not exist, skipping
+NOTICE:  table "loj_repl" does not exist, skipping
+create table loj_dist(a int, b int) with(parallel_workers=2) distributed by (a);
+create table loj_repl(c int, d int) with(parallel_workers=2) distributed replicated;
+insert into loj_dist select i, i+1 from generate_series(1, 1000) i;
+insert into loj_repl select i, i*10 from generate_series(1, 5000) i;
+analyze loj_dist;
+analyze loj_repl;
+-- Distributed left join replicated (replicated as inner)
+explain (costs off) select * from loj_dist left join loj_repl on loj_dist.a = loj_repl.c;
+                   QUERY PLAN                    
+-------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel Hash Left Join
+         Hash Cond: (loj_dist.a = loj_repl.c)
+         ->  Parallel Seq Scan on loj_dist
+         ->  Parallel Hash
+               ->  Parallel Seq Scan on loj_repl
+ Optimizer: GPORCA
+(7 rows)
+
+-- Replicated left join distributed (replicated as outer)
+explain (costs off) select * from loj_repl left join loj_dist on loj_repl.c = loj_dist.a;
+                              QUERY PLAN                               
+-----------------------------------------------------------------------
+ Gather Motion 2:1  (slice1; segments: 2)
+   ->  Parallel Hash Left Join
+         Hash Cond: (loj_repl.c = loj_dist.a)
+         ->  Parallel Seq Scan on loj_repl
+         ->  Parallel Hash
+               ->  Broadcast Workers Motion 6:2  (slice2; segments: 6)
+                     ->  Parallel Seq Scan on loj_dist
+ Optimizer: GPORCA
+(8 rows)
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
@@ -135,11 +172,13 @@ reset parallel_setup_cost;
 reset optimizer;
 -- start_ignore
 drop schema orca_repl cascade;
-NOTICE:  drop cascades to 6 other objects
+NOTICE:  drop cascades to 8 other objects
 DETAIL:  drop cascades to table rep_a
 drop cascades to table rep_b
 drop cascades to table rep_t
 drop cascades to table dist_t
 drop cascades to table notin_outer
 drop cascades to table notin_inner_repl
+drop cascades to table loj_dist
+drop cascades to table loj_repl
 -- end_ignore

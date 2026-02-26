@@ -45,6 +45,20 @@ explain (costs off) select * from notin_outer where a not in (select c2 from not
 -- NOT IN with non-null inner key filter
 explain (costs off) select * from notin_outer where a not in (select c2 from notin_inner_repl where c2 is not null);
 
+-- Left Outer Join with replicated table
+drop table if exists loj_dist, loj_repl;
+create table loj_dist(a int, b int) with(parallel_workers=2) distributed by (a);
+create table loj_repl(c int, d int) with(parallel_workers=2) distributed replicated;
+insert into loj_dist select i, i+1 from generate_series(1, 1000) i;
+insert into loj_repl select i, i*10 from generate_series(1, 5000) i;
+analyze loj_dist;
+analyze loj_repl;
+
+-- Distributed left join replicated (replicated as inner)
+explain (costs off) select * from loj_dist left join loj_repl on loj_dist.a = loj_repl.c;
+-- Replicated left join distributed (replicated as outer)
+explain (costs off) select * from loj_repl left join loj_dist on loj_repl.c = loj_dist.a;
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
