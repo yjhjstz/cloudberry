@@ -322,7 +322,7 @@ CMemo::PexprExtractPlan(CMemoryPool *mp, CGroup *pgroupRoot,
 		poc = pgroupRoot->PocLookupBest(mp, ulSearchStages, prppInput);
 		GPOS_ASSERT(nullptr != poc);
 
-		pgexprBest = pgroupRoot->PgexprBest(poc);
+		pgexprBest = poc->PgexprBest();
 		if (nullptr != pgexprBest)
 		{
 			cost = poc->PccBest()->Cost();

@@ -75,6 +75,17 @@ explain (costs off) select * from semi_dist where exists (select c from semi_rep
 -- Replicated outer, distributed inner (should not use parallel semi join)
 explain (costs off) select * from semi_repl where c in (select a from semi_dist);
 
+-- Parallel HashAgg with replicated table
+-- Should NOT produce single-stage ParallelHashAgg on replicated table
+explain (costs off) select c, count(*) from semi_repl group by c;
+
+-- Parallel GroupAgg (StreamAgg) with replicated table
+set optimizer_enable_hashagg = off;
+set optimizer_enable_parallel_hashagg=off;
+explain (costs off) select c, count(*) from semi_repl group by c;
+reset optimizer_enable_parallel_hashagg;
+reset optimizer_enable_hashagg;
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
