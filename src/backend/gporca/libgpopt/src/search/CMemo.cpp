@@ -383,6 +383,13 @@ CMemo::PexprExtractPlan(CMemoryPool *mp, CGroup *pgroupRoot,
 
 		CExpression *pexprChild =
 			PexprExtractPlan(mp, pgroupChild, prppChild, ulSearchStages);
+		if (nullptr == pexprChild)
+		{
+			// Child plan extraction failed — propagate NULL upward.
+			// CEngine::PexprExtractPlan will raise ExmiNoPlanFound.
+			pdrgpexpr->Release();
+			return nullptr;
+		}
 		pdrgpexpr->Append(pexprChild);
 	}
 
