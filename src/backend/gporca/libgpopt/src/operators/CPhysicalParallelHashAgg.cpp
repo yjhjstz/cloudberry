@@ -333,7 +333,8 @@ CPhysicalParallelHashAgg::FValidContext(
 			// Local aggregate requires worker-level distribution from child
 			// Reject segment-level distributions (Random, Hashed, Singleton, etc.)
 			if (CDistributionSpec::EdtWorkerRandom != pdsChild->Edt() &&
-				CDistributionSpec::EdtHashedWorker != pdsChild->Edt())
+				CDistributionSpec::EdtHashedWorker != pdsChild->Edt() &&
+				CDistributionSpec::EdtReplicatedWorkers != pdsChild->Edt())
 			{
 				// Child provides segment-level distribution, not worker-level
 				// This would prevent proper parallel execution within each segment
@@ -342,7 +343,37 @@ CPhysicalParallelHashAgg::FValidContext(
 			}
 		}
 	}
-
+#if 0
+	// For replicated tables, reject single-stage Global ParallelHashAgg.
+	// All segments hold the same full data; single-stage parallel agg on
+	// every segment produces duplicates in Gather. Only two-stage
+	// (Local + Global) is correct: Local agg uses ParallelTableScan which
+	// derives ReplicatedWorkers, ensuring Gather collects from one segment.
+	if (FGlobal() && !FMultiStage())
+	{
+		COptimizationContext *pocChild = (*pdrgpocChild)[0];
+		if (pocChild)
+		{
+			CDrvdPropRelational *pdprel =
+				CDrvdPropRelational::GetRelationalProperties(
+					pocChild->Pgroup()->Pdp());
+			CTableDescriptorHashSet *ptds = pdprel->GetTableDescriptor();
+			if (ptds)
+			{
+				CTableDescriptorHashSetIter iter(ptds);
+				while (iter.Advance())
+				{
+					const CTableDescriptor *ptd = iter.Get();
+					if (IMDRelation::EreldistrReplicated ==
+						ptd->GetRelDistribution())
+					{
+						return false;
+					}
+				}
+			}
+		}
+	}
+#endif
 	return true;
 }
 

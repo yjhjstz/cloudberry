@@ -94,10 +94,8 @@ CXformGbAgg2ParallelStreamAgg::Exfp(CExpressionHandle &exprhdl) const
 		return CXform::ExfpNone;
 	}
 
-	if (COptCtxt::PoctxtFromTLS()->HasReplicatedTables())
-	{
-		return CXform::ExfpNone;
-	}
+	// Replicated tables are now handled correctly via ReplicatedWorkers
+	// distribution in PdsDerive and FValidContext, no need to disable here.
 
 	CLogicalGbAgg *popAgg = CLogicalGbAgg::PopConvert(exprhdl.Pop());
 	CColRefArray *colref_array = popAgg->Pdrgpcr();
