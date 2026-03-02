@@ -52,6 +52,7 @@
 #include "gpopt/operators/CPhysicalParallelHashJoin.h"
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
+#include "gpopt/operators/CPhysicalParallelIndexScan.h"
 #include "gpopt/operators/CPhysicalInnerIndexNLJoin.h"
 #include "gpopt/operators/CPhysicalLeftOuterIndexNLJoin.h"
 #include "gpopt/operators/CPhysicalLimit.h"
@@ -130,6 +131,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalParallelAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexOnlyScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexScan.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelIndexScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalLimit.h"
 #include "naucrates/dxl/operators/CDXLPhysicalMaterialize.h"
 #include "naucrates/dxl/operators/CDXLPhysicalMergeJoin.h"
@@ -392,6 +394,7 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 				pfDML);
 			break;
 		case COperator::EopPhysicalIndexScan:
+		case COperator::EopPhysicalParallelIndexScan:
 			dxlnode = CTranslatorExprToDXL::PdxlnIndexScan(
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
@@ -895,8 +898,21 @@ CTranslatorExprToDXL::PdxlnIndexScan(CExpression *pexprIndexScan,
 		(popIs->IndexScanDirection() == EForwardScan) ? EdxlisdForward
 													  : EdxlisdBackward;
 	// create the physical index scan operator
-	CDXLPhysicalIndexScan *dxl_op = GPOS_NEW(m_mp) CDXLPhysicalIndexScan(
-		m_mp, table_descr, dxl_index_descr, scan_direction);
+	COperator::EOperatorId op_id = pexprIndexScan->Pop()->Eopid();
+	CDXLPhysicalIndexScan *dxl_op = nullptr;
+	if (op_id == COperator::EopPhysicalParallelIndexScan)
+	{
+		CPhysicalParallelIndexScan *parallel_scan =
+			CPhysicalParallelIndexScan::PopConvert(pexprIndexScan->Pop());
+		dxl_op = GPOS_NEW(m_mp) CDXLPhysicalParallelIndexScan(
+			m_mp, table_descr, dxl_index_descr, scan_direction,
+			parallel_scan->UlParallelWorkers());
+	}
+	else
+	{
+		dxl_op = GPOS_NEW(m_mp) CDXLPhysicalIndexScan(
+			m_mp, table_descr, dxl_index_descr, scan_direction);
+	}
 	CDXLNode *pdxlnIndexScan = GPOS_NEW(m_mp) CDXLNode(m_mp, dxl_op);
 
 	// set properties
@@ -2809,6 +2825,7 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 
 	COperator::EOperatorId op_id = pexprIndexScan->Pop()->Eopid();
 	GPOS_ASSERT(COperator::EopPhysicalIndexScan == op_id ||
+				COperator::EopPhysicalParallelIndexScan == op_id ||
 				COperator::EopPhysicalIndexOnlyScan == op_id ||
 				COperator::EopPhysicalDynamicIndexOnlyScan == op_id ||
 				COperator::EopPhysicalDynamicIndexScan == op_id);
@@ -2820,6 +2837,12 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 	{
 		CPhysicalIndexScan *indexScan =
 			CPhysicalIndexScan::PopConvert(pexprIndexScan->Pop());
+		isGist = (indexScan->Pindexdesc()->IndexType() == IMDIndex::EmdindGist);
+	}
+	else if (COperator::EopPhysicalParallelIndexScan == op_id)
+	{
+		CPhysicalParallelIndexScan *indexScan =
+			CPhysicalParallelIndexScan::PopConvert(pexprIndexScan->Pop());
 		isGist = (indexScan->Pindexdesc()->IndexType() == IMDIndex::EmdindGist);
 	}
 	else if (COperator::EopPhysicalDynamicIndexOnlyScan == op_id)
@@ -2864,6 +2887,12 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 				PdxlnIndexScan(pexprNewIndexScan, colref_array, dxl_properties,
 							   pexprIndexScan->Prpp());
 		}
+		else if (COperator::EopPhysicalParallelIndexScan == op_id)
+		{
+			pdxlnIndexScan =
+				PdxlnIndexScan(pexprNewIndexScan, colref_array, dxl_properties,
+							   pexprIndexScan->Prpp());
+		}
 		else if (COperator::EopPhysicalIndexOnlyScan == op_id)
 		{
 			pdxlnIndexScan =
@@ -2892,6 +2921,11 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 	ULONG ulNonGatherMotions = 0;
 	BOOL fDML = false;
 	if (COperator::EopPhysicalIndexScan == op_id)
+	{
+		return PdxlnIndexScan(pexprIndexScan, colref_array, pdrgpdsBaseTables,
+							  &ulNonGatherMotions, &fDML);
+	}
+	else if (COperator::EopPhysicalParallelIndexScan == op_id)
 	{
 		return PdxlnIndexScan(pexprIndexScan, colref_array, pdrgpdsBaseTables,
 							  &ulNonGatherMotions, &fDML);
@@ -2999,6 +3033,7 @@ CTranslatorExprToDXL::PdxlnFromFilter(CExpression *pexprFilter,
 		}
 		case COperator::EopPhysicalIndexOnlyScan:
 		case COperator::EopPhysicalIndexScan:
+		case COperator::EopPhysicalParallelIndexScan:
 		case COperator::EopPhysicalDynamicIndexScan:
 		case COperator::EopPhysicalDynamicIndexOnlyScan:
 		{
@@ -5266,6 +5301,7 @@ UlIndexFilter(Edxlopid edxlopid)
 		case EdxlopPhysicalDynamicTableScan:
 			return EdxldtsIndexFilter;
 		case EdxlopPhysicalIndexScan:
+		case EdxlopPhysicalParallelIndexScan:
 		case EdxlopPhysicalDynamicIndexScan:
 		case EdxlopPhysicalDynamicIndexOnlyScan:
 			return EdxlisIndexFilter;
