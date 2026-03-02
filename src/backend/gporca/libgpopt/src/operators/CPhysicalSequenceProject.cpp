@@ -601,9 +601,9 @@ CPhysicalSequenceProject::FValidContext(
 	{
 		return false;
 	}
-
-	CDistributionSpec *pdsChild = pccBest->Pdpplan()->Pds();
 #if 0
+	CDistributionSpec *pdsChild = pccBest->Pdpplan()->Pds();
+
 	// Reject worker-level distributions for non-parallel SequenceProject
 	if (CDistributionSpec::EdtWorkerRandom == pdsChild->Edt() ||
 		CDistributionSpec::EdtHashedWorker == pdsChild->Edt())
