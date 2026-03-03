@@ -30,6 +30,7 @@
 #include "gpos/base.h"
 
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
+#include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpressionHandle.h"
 
@@ -57,11 +58,25 @@ CPhysicalParallelIndexScan::CPhysicalParallelIndexScan(
 	GPOS_ASSERT(ulParallelWorkers > 0);
 	GPOS_ASSERT(nullptr != m_pds);
 	// Create worker-level distribution
-	if (ulParallelWorkers > 0)
+	if (ulParallelWorkers > 0 && m_pds)
 	{
-		// Create worker-level random distribution using the table's distribution as base
-		// The base CPhysicalScan already sets up m_pds from the table descriptor
-		m_pdsWorkerDistribution = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulParallelWorkers, m_pds);
+		if (CDistributionSpec::EdtStrictReplicated == m_pds->Edt() ||
+			CDistributionSpec::EdtTaintedReplicated == m_pds->Edt())
+		{
+			// Replicated table: each worker scans a portion of the segment's full data.
+			// ReplicatedWorkers triggers FDuplicateHazardDistributionSpec -> true,
+			// which restricts Gather to 1 segment (avoiding duplicate results).
+			// Pass m_pds as base to distinguish from BroadcastWorkers origin.
+			m_pdsWorkerDistribution = CDistributionSpecReplicatedWorkers::PdsCreate(
+				mp, ulParallelWorkers, false /*ignore_broadcast_threshold*/, m_pds);
+		}
+		else
+		{
+			// Create worker-level random distribution using the table's distribution as base
+			// The base CPhysicalScan already sets up m_pds from the table descriptor
+			m_pdsWorkerDistribution = CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp, ulParallelWorkers, m_pds);
+		}
+		
 	}
 }
 
