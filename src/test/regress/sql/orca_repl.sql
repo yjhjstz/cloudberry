@@ -86,6 +86,43 @@ explain (costs off) select c, count(*) from semi_repl group by c;
 reset optimizer_enable_parallel_hashagg;
 reset optimizer_enable_hashagg;
 
+-- UNION ALL with replicated tables
+drop table if exists ua_repl1, ua_repl2;
+create table ua_repl1 (id int, val text) distributed replicated;
+create table ua_repl2 (id int, val text) distributed replicated;
+insert into ua_repl1 select i, 'a' || i from generate_series(1, 3) i;
+insert into ua_repl2 select i, 'b' || i from generate_series(4, 6) i;
+analyze ua_repl1;
+analyze ua_repl2;
+
+-- Basic UNION ALL: two replicated tables
+explain (costs off) select * from ua_repl1 union all select * from ua_repl2;
+select * from ua_repl1 union all select * from ua_repl2 order by id;
+
+-- UNION ALL with filter
+select * from ua_repl1 where id > 1 union all select * from ua_repl2 where id < 6 order by id;
+
+-- UNION (deduplicate) with replicated tables
+explain (costs off) select id from ua_repl1 union select id from ua_repl2;
+select id from ua_repl1 union select id from ua_repl2 order by id;
+
+-- UNION ALL: replicated + distributed
+drop table if exists ua_dist;
+create table ua_dist (id int, val text) distributed by (id);
+insert into ua_dist select i, 'd' || i from generate_series(10, 12) i;
+analyze ua_dist;
+
+explain (costs off) select * from ua_repl1 union all select * from ua_dist;
+select * from ua_repl1 union all select * from ua_dist order by id;
+
+-- UNION ALL: replicated + constant values
+explain (costs off) select * from ua_repl1 union all select 100, 'const';
+select * from ua_repl1 union all select 100, 'const' order by id;
+
+-- UNION ALL inside subquery with aggregation
+select count(*) from (select * from ua_repl1 union all select * from ua_repl2) t;
+
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;

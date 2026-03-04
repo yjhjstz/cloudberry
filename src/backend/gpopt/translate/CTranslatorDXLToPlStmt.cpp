@@ -8201,6 +8201,15 @@ CTranslatorDXLToPlStmt::ExtractParallelWorkersFromDXL(const CDXLNode *dxlnode)
 			CDXLPhysicalParallelIndexScan::Cast(dxlop);
 		return parallel_idx_scan_dxlop->UlParallelWorkers();
 	}
+	else if (EdxlopPhysicalParallelAppend == dxlop->GetDXLOperator())
+	{
+		// Return parallel workers directly from the parallel append operator.
+		// Parallel append children may contain dup-sensitive random motions
+		// (for replicated tables), which block recursive extraction.
+		CDXLPhysicalParallelAppend *parallel_append_dxlop =
+			CDXLPhysicalParallelAppend::Cast(dxlop);
+		return parallel_append_dxlop->UlParallelWorkers();
+	}
 	else if (EdxlopPhysicalTableScan == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalDynamicTableScan == dxlop->GetDXLOperator() ||
 			 EdxlopPhysicalIndexScan == dxlop->GetDXLOperator() ||
