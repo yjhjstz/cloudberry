@@ -123,6 +123,26 @@ select * from ua_repl1 union all select 100, 'const' order by id;
 select count(*) from (select * from ua_repl1 union all select * from ua_repl2) t;
 
 
+-- Window functions on replicated table
+-- Verifies that Parallel WindowAgg gets proper data redistribution
+-- (MotionHashDistributeWorkers or Redistribute Motion) so that each
+-- partition is processed by exactly one worker without duplication.
+drop table if exists win_repl;
+create table win_repl (id int, grp int, val text) distributed replicated;
+insert into win_repl values (1,1,'a'),(2,1,'b'),(3,2,'c'),(4,2,'d'),(5,2,'e');
+analyze win_repl;
+
+explain (costs off)
+select id, grp, val,
+       row_number() over (partition by grp) as rn,
+       sum(id) over (partition by grp) as s
+from win_repl;
+
+select id, grp, val,
+       row_number() over (partition by grp) as rn,
+       sum(id) over (partition by grp) as s
+from win_repl order by grp, id;
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;

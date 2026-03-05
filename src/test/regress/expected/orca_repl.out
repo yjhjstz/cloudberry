@@ -79,16 +79,16 @@ explain (verbose, costs off) select * from dist_t join rep_t on dist_t.id = rep_
 select * from dist_t join rep_t on dist_t.id = rep_t.id;
  id |  info  | id | val 
 ----+--------+----+-----
+  5 | info5  |  5 | v5
+  6 | info6  |  6 | v6
+  9 | info9  |  9 | v9
+ 10 | info10 | 10 | v10
   1 | info1  |  1 | v1
   2 | info2  |  2 | v2
   3 | info3  |  3 | v3
   4 | info4  |  4 | v4
   7 | info7  |  7 | v7
   8 | info8  |  8 | v8
-  5 | info5  |  5 | v5
-  6 | info6  |  6 | v6
-  9 | info9  |  9 | v9
- 10 | info10 | 10 | v10
 (10 rows)
 
 -- Anti Semi Join (NOT IN) with replicated inner table
@@ -280,10 +280,10 @@ explain (costs off) select * from ua_repl1 union all select * from ua_repl2;
  Gather Motion 6:1  (slice1; segments: 6)
    ->  Parallel Append
          ->  Result
-               One-Time Filter: (gp_execution_segment() = 2)
+               One-Time Filter: (gp_execution_segment() = 0)
                ->  Parallel Seq Scan on ua_repl1
          ->  Result
-               One-Time Filter: (gp_execution_segment() = 2)
+               One-Time Filter: (gp_execution_segment() = 1)
                ->  Parallel Seq Scan on ua_repl2
  Optimizer: GPORCA
 (9 rows)
@@ -322,10 +322,10 @@ explain (costs off) select id from ua_repl1 union select id from ua_repl2;
                      Hash Key: ua_repl1.id
                      ->  Parallel Append
                            ->  Result
-                                 One-Time Filter: (gp_execution_segment() = 0)
+                                 One-Time Filter: (gp_execution_segment() = 2)
                                  ->  Parallel Seq Scan on ua_repl1
                            ->  Result
-                                 One-Time Filter: (gp_execution_segment() = 2)
+                                 One-Time Filter: (gp_execution_segment() = 1)
                                  ->  Parallel Seq Scan on ua_repl2
  Optimizer: GPORCA
 (15 rows)
@@ -353,7 +353,7 @@ explain (costs off) select * from ua_repl1 union all select * from ua_dist;
  Gather Motion 6:1  (slice1; segments: 6)
    ->  Parallel Append
          ->  Result
-               One-Time Filter: (gp_execution_segment() = 0)
+               One-Time Filter: (gp_execution_segment() = 2)
                ->  Parallel Seq Scan on ua_repl1
          ->  Parallel Seq Scan on ua_dist
  Optimizer: GPORCA
@@ -380,7 +380,7 @@ explain (costs off) select * from ua_repl1 union all select 100, 'const';
                One-Time Filter: (gp_execution_segment() = 1)
                ->  Parallel Seq Scan on ua_repl1
          ->  Result
-               One-Time Filter: (gp_execution_segment() = 2)
+               One-Time Filter: (gp_execution_segment() = 1)
                ->  Result
  Optimizer: GPORCA
 (9 rows)
@@ -401,6 +401,47 @@ select count(*) from (select * from ua_repl1 union all select * from ua_repl2) t
      6
 (1 row)
 
+-- Window functions on replicated table
+-- Verifies that Parallel WindowAgg gets proper data redistribution
+-- (MotionHashDistributeWorkers or Redistribute Motion) so that each
+-- partition is processed by exactly one worker without duplication.
+drop table if exists win_repl;
+NOTICE:  table "win_repl" does not exist, skipping
+create table win_repl (id int, grp int, val text) distributed replicated;
+insert into win_repl values (1,1,'a'),(2,1,'b'),(3,2,'c'),(4,2,'d'),(5,2,'e');
+analyze win_repl;
+explain (costs off)
+select id, grp, val,
+       row_number() over (partition by grp) as rn,
+       sum(id) over (partition by grp) as s
+from win_repl;
+                            QUERY PLAN                            
+------------------------------------------------------------------
+ Gather Motion 6:1  (slice1; segments: 6)
+   ->  Parallel WindowAgg
+         Partition By: grp
+         ->  Sort
+               Sort Key: grp
+               ->  Redistribute Motion 2:6  (slice2; segments: 2)
+                     Hash Key: grp
+                     Hash Module: 3
+                     ->  Parallel Seq Scan on win_repl
+ Optimizer: GPORCA
+(10 rows)
+
+select id, grp, val,
+       row_number() over (partition by grp) as rn,
+       sum(id) over (partition by grp) as s
+from win_repl order by grp, id;
+ id | grp | val | rn | s  
+----+-----+-----+----+----
+  1 |   1 | a   |  1 |  3
+  2 |   1 | b   |  2 |  3
+  3 |   2 | c   |  1 | 12
+  4 |   2 | d   |  2 | 12
+  5 |   2 | e   |  3 | 12
+(5 rows)
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
@@ -408,7 +449,7 @@ reset parallel_setup_cost;
 reset optimizer;
 -- start_ignore
 drop schema orca_repl cascade;
-NOTICE:  drop cascades to 13 other objects
+NOTICE:  drop cascades to 14 other objects
 DETAIL:  drop cascades to table rep_a
 drop cascades to table rep_b
 drop cascades to table rep_t
@@ -422,4 +463,5 @@ drop cascades to table semi_repl
 drop cascades to table ua_repl1
 drop cascades to table ua_repl2
 drop cascades to table ua_dist
+drop cascades to table win_repl
 -- end_ignore
