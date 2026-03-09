@@ -100,8 +100,7 @@ CXformIndexOnlyGet2ParallelIndexOnlyScan::Exfp(
 							 ptabdesc->RetrieveRelStorageType() ==
 								 IMDRelation::ErelstorageMixedPartitioned;
 
-	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrReplicated ||
-		ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly)
+	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly)
 	{
 		return CXform::ExfpNone;
 	}

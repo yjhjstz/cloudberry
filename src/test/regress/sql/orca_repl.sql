@@ -143,6 +143,25 @@ select id, grp, val,
        sum(id) over (partition by grp) as s
 from win_repl order by grp, id;
 
+-- Index Scan on replicated table
+drop table if exists repl_idx;
+create table repl_idx(a int, b int, c text) with (parallel_workers=2) distributed replicated;
+create index repl_idx_a_idx on repl_idx(a);
+insert into repl_idx select i, i, 'text_'||i from generate_series(1, 10000) i;
+analyze repl_idx;
+
+-- parallel index scan on replicated table
+explain (verbose, costs off) select * from repl_idx where a < 1000;
+select count(*) from repl_idx where a < 1000;
+
+vacuum repl_idx;
+-- parallel index-only scan on replicated table (all columns covered by index)
+explain (verbose, costs off) select a from repl_idx where a < 1000;
+
+-- should NOT use index only scan (column c not covered by index)
+explain (verbose, costs off) select c from repl_idx where a < 1000;
+
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;

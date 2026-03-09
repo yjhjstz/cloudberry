@@ -442,6 +442,59 @@ from win_repl order by grp, id;
   5 |   2 | e   |  3 | 12
 (5 rows)
 
+-- Index Scan on replicated table
+drop table if exists repl_idx;
+NOTICE:  table "repl_idx" does not exist, skipping
+create table repl_idx(a int, b int, c text) with (parallel_workers=2) distributed replicated;
+create index repl_idx_a_idx on repl_idx(a);
+insert into repl_idx select i, i, 'text_'||i from generate_series(1, 10000) i;
+analyze repl_idx;
+-- parallel index scan on replicated table
+explain (verbose, costs off) select * from repl_idx where a < 1000;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 2:1  (slice1; segments: 2)
+   Output: a, b, c
+   ->  Parallel Index Scan using repl_idx_a_idx on orca_repl.repl_idx
+         Output: a, b, c
+         Index Cond: (repl_idx.a < 1000)
+ Settings: enable_parallel = 'on', optimizer = 'on', parallel_setup_cost = '0'
+ Optimizer: GPORCA
+(7 rows)
+
+select count(*) from repl_idx where a < 1000;
+ count 
+-------
+   999
+(1 row)
+
+vacuum repl_idx;
+-- parallel index-only scan on replicated table (all columns covered by index)
+explain (verbose, costs off) select a from repl_idx where a < 1000;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 2:1  (slice1; segments: 2)
+   Output: a
+   ->  Parallel Index Only Scan using repl_idx_a_idx on orca_repl.repl_idx
+         Output: a
+         Index Cond: (repl_idx.a < 1000)
+ Settings: enable_parallel = 'on', optimizer = 'on', parallel_setup_cost = '0'
+ Optimizer: GPORCA
+(7 rows)
+
+-- should NOT use index only scan (column c not covered by index)
+explain (verbose, costs off) select c from repl_idx where a < 1000;
+                                  QUERY PLAN                                   
+-------------------------------------------------------------------------------
+ Gather Motion 2:1  (slice1; segments: 2)
+   Output: c
+   ->  Parallel Index Scan using repl_idx_a_idx on orca_repl.repl_idx
+         Output: c
+         Index Cond: (repl_idx.a < 1000)
+ Settings: enable_parallel = 'on', optimizer = 'on', parallel_setup_cost = '0'
+ Optimizer: GPORCA
+(7 rows)
+
 -- cleanup
 reset enable_parallel;
 reset max_parallel_workers_per_gather;
@@ -449,7 +502,7 @@ reset parallel_setup_cost;
 reset optimizer;
 -- start_ignore
 drop schema orca_repl cascade;
-NOTICE:  drop cascades to 14 other objects
+NOTICE:  drop cascades to 15 other objects
 DETAIL:  drop cascades to table rep_a
 drop cascades to table rep_b
 drop cascades to table rep_t
@@ -464,4 +517,5 @@ drop cascades to table ua_repl1
 drop cascades to table ua_repl2
 drop cascades to table ua_dist
 drop cascades to table win_repl
+drop cascades to table repl_idx
 -- end_ignore

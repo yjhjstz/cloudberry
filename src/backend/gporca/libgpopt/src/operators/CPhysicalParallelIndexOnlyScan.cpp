@@ -32,6 +32,7 @@
 #include "gpopt/base/CDistributionSpec.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecRandom.h"
+#include "gpopt/base/CDistributionSpecReplicatedWorkers.h"
 #include "gpopt/base/CDistributionSpecWorkerRandom.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/CUtils.h"
@@ -66,9 +67,22 @@ CPhysicalParallelIndexOnlyScan::CPhysicalParallelIndexOnlyScan(
 {
 	GPOS_ASSERT(ulParallelWorkers > 0);
 	GPOS_ASSERT(nullptr != m_pds);
-	m_pdsWorkerDistribution =
-		CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(
-			mp, ulParallelWorkers, m_pds);
+
+	if (ulParallelWorkers > 0 && m_pds)
+	{
+		if (CDistributionSpec::EdtStrictReplicated == m_pds->Edt() ||
+			CDistributionSpec::EdtTaintedReplicated == m_pds->Edt())
+		{
+			m_pdsWorkerDistribution = CDistributionSpecReplicatedWorkers::PdsCreate(
+				mp, ulParallelWorkers, false /*ignore_broadcast_threshold*/, m_pds);
+		}
+		else
+		{
+			m_pdsWorkerDistribution =
+				CDistributionSpecWorkerRandom::PdsCreateWorkerRandom(mp,
+																	 ulParallelWorkers, m_pds);
+		}
+	}
 }
 
 //---------------------------------------------------------------------------
