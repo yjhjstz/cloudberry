@@ -51,6 +51,7 @@
 #include "gpopt/operators/CPhysicalHashJoin.h"
 #include "gpopt/operators/CPhysicalParallelHashJoin.h"
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
+#include "gpopt/operators/CPhysicalParallelIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalParallelIndexScan.h"
 #include "gpopt/operators/CPhysicalInnerIndexNLJoin.h"
@@ -130,6 +131,7 @@
 #include "naucrates/dxl/operators/CDXLPhysicalAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalParallelAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexOnlyScan.h"
+#include "naucrates/dxl/operators/CDXLPhysicalParallelIndexOnlyScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalIndexScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalParallelIndexScan.h"
 #include "naucrates/dxl/operators/CDXLPhysicalLimit.h"
@@ -400,6 +402,7 @@ CTranslatorExprToDXL::CreateDXLNode(CExpression *pexpr,
 				pfDML);
 			break;
 		case COperator::EopPhysicalIndexOnlyScan:
+		case COperator::EopPhysicalParallelIndexOnlyScan:
 			dxlnode = CTranslatorExprToDXL::PdxlnIndexOnlyScan(
 				pexpr, colref_array, pdrgpdsBaseTables, pulNonGatherMotions,
 				pfDML);
@@ -1018,9 +1021,22 @@ CTranslatorExprToDXL::PdxlnIndexOnlyScan(CExpression *pexprIndexOnlyScan,
 		(popIs->IndexScanDirection() == EForwardScan) ? EdxlisdForward
 													  : EdxlisdBackward;
 	// create the physical index scan operator
-	CDXLPhysicalIndexOnlyScan *dxl_op =
-		GPOS_NEW(m_mp) CDXLPhysicalIndexOnlyScan(
+	CDXLPhysicalIndexOnlyScan *dxl_op;
+	if (COperator::EopPhysicalParallelIndexOnlyScan ==
+		pexprIndexOnlyScan->Pop()->Eopid())
+	{
+		CPhysicalParallelIndexOnlyScan *popParallel =
+			CPhysicalParallelIndexOnlyScan::PopConvert(
+				pexprIndexOnlyScan->Pop());
+		dxl_op = GPOS_NEW(m_mp) CDXLPhysicalParallelIndexOnlyScan(
+			m_mp, table_descr, dxl_index_descr, scan_direction,
+			popParallel->UlParallelWorkers());
+	}
+	else
+	{
+		dxl_op = GPOS_NEW(m_mp) CDXLPhysicalIndexOnlyScan(
 			m_mp, table_descr, dxl_index_descr, scan_direction);
+	}
 	CDXLNode *pdxlnIndexOnlyScan = GPOS_NEW(m_mp) CDXLNode(m_mp, dxl_op);
 
 	// set properties
@@ -2827,6 +2843,7 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 	GPOS_ASSERT(COperator::EopPhysicalIndexScan == op_id ||
 				COperator::EopPhysicalParallelIndexScan == op_id ||
 				COperator::EopPhysicalIndexOnlyScan == op_id ||
+				COperator::EopPhysicalParallelIndexOnlyScan == op_id ||
 				COperator::EopPhysicalDynamicIndexOnlyScan == op_id ||
 				COperator::EopPhysicalDynamicIndexScan == op_id);
 
@@ -2851,7 +2868,8 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 			CPhysicalDynamicIndexOnlyScan::PopConvert(pexprIndexScan->Pop());
 		isGist = (indexScan->Pindexdesc()->IndexType() == IMDIndex::EmdindGist);
 	}
-	else if (COperator::EopPhysicalIndexOnlyScan != op_id)
+	else if (COperator::EopPhysicalIndexOnlyScan != op_id &&
+			 COperator::EopPhysicalParallelIndexOnlyScan != op_id)
 	{
 		CPhysicalDynamicIndexScan *indexScan =
 			CPhysicalDynamicIndexScan::PopConvert(pexprIndexScan->Pop());
@@ -2893,7 +2911,8 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 				PdxlnIndexScan(pexprNewIndexScan, colref_array, dxl_properties,
 							   pexprIndexScan->Prpp());
 		}
-		else if (COperator::EopPhysicalIndexOnlyScan == op_id)
+		else if (COperator::EopPhysicalIndexOnlyScan == op_id ||
+				 COperator::EopPhysicalParallelIndexOnlyScan == op_id)
 		{
 			pdxlnIndexScan =
 				PdxlnIndexOnlyScan(pexprNewIndexScan, colref_array,
@@ -2930,7 +2949,8 @@ CTranslatorExprToDXL::PdxlnIndexScanWithInlinedCondition(
 		return PdxlnIndexScan(pexprIndexScan, colref_array, pdrgpdsBaseTables,
 							  &ulNonGatherMotions, &fDML);
 	}
-	if (COperator::EopPhysicalIndexOnlyScan == op_id)
+	if (COperator::EopPhysicalIndexOnlyScan == op_id ||
+		COperator::EopPhysicalParallelIndexOnlyScan == op_id)
 	{
 		return PdxlnIndexOnlyScan(pexprIndexScan, colref_array,
 								  pdrgpdsBaseTables, &ulNonGatherMotions,
@@ -3032,6 +3052,7 @@ CTranslatorExprToDXL::PdxlnFromFilter(CExpression *pexprFilter,
 										   dxl_properties);
 		}
 		case COperator::EopPhysicalIndexOnlyScan:
+		case COperator::EopPhysicalParallelIndexOnlyScan:
 		case COperator::EopPhysicalIndexScan:
 		case COperator::EopPhysicalParallelIndexScan:
 		case COperator::EopPhysicalDynamicIndexScan:

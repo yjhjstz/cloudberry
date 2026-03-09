@@ -30,6 +30,7 @@
 #include "gpopt/operators/CPhysicalParallelHashAgg.h"
 #include "gpopt/operators/CPhysicalParallelStreamAgg.h"
 #include "gpopt/operators/CPhysicalIndexOnlyScan.h"
+#include "gpopt/operators/CPhysicalParallelIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalParallelIndexScan.h"
 #include "gpopt/operators/CPhysicalParallelTableScan.h"
@@ -2608,7 +2609,8 @@ CCostModelGPDB::CostIndexOnlyScan(CMemoryPool *mp GPOS_UNUSED,	  // mp
 
 	COperator *pop = exprhdl.Pop();
 	GPOS_ASSERT(COperator::EopPhysicalIndexOnlyScan == pop->Eopid() ||
-				COperator::EopPhysicalDynamicIndexOnlyScan == pop->Eopid());
+				COperator::EopPhysicalDynamicIndexOnlyScan == pop->Eopid() ||
+				COperator::EopPhysicalParallelIndexOnlyScan == pop->Eopid());
 
 	IMDId *rel_mdid = CPhysicalScan::PopConvert(pop)->Ptabdesc()->MDId();
 
@@ -2678,7 +2680,8 @@ CCostModelGPDB::CostIndexOnlyScan(CMemoryPool *mp GPOS_UNUSED,	  // mp
 
 	CColRefArray *pdrgpcrIndexColumns = nullptr;
 
-	if (COperator::EopPhysicalIndexOnlyScan == pop->Eopid())
+	if (COperator::EopPhysicalIndexOnlyScan == pop->Eopid() ||
+		COperator::EopPhysicalParallelIndexOnlyScan == pop->Eopid())
 	{
 		CPhysicalIndexOnlyScan *ptr = CPhysicalIndexOnlyScan::PopConvert(pop);
 		GetCommonIndexData(ptr, ulIndexKeys, ulIncludedColWidth,
@@ -3153,6 +3156,51 @@ CCostModelGPDB::CostParallelTableScan(CMemoryPool *mp,
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CCostModelGPDB::CostParallelIndexOnlyScan
+//
+//	@doc:
+//		Cost of parallel index only scan
+//
+//---------------------------------------------------------------------------
+CCost
+CCostModelGPDB::CostParallelIndexOnlyScan(CMemoryPool *mp,
+										  CExpressionHandle &exprhdl,
+										  const CCostModelGPDB *pcmgpdb,
+										  const SCostingInfo *pci)
+{
+	GPOS_ASSERT(nullptr != pcmgpdb);
+	GPOS_ASSERT(nullptr != pci);
+
+	COperator *pop = exprhdl.Pop();
+	GPOS_ASSERT(COperator::EopPhysicalParallelIndexOnlyScan == pop->Eopid());
+
+	CPhysicalParallelIndexOnlyScan *popParallel =
+		CPhysicalParallelIndexOnlyScan::PopConvert(pop);
+	ULONG ulWorkers = popParallel->UlParallelWorkers();
+
+	// If only 1 worker, use regular index only scan cost
+	if (ulWorkers <= 1)
+	{
+		return CostIndexOnlyScan(mp, exprhdl, pcmgpdb, pci);
+	}
+
+	// Get base index only scan cost
+	CCost costBase = CostIndexOnlyScan(mp, exprhdl, pcmgpdb, pci);
+
+	// Calculate parallel efficiency
+	CDouble dParallelEfficiency = CalculateParallelEfficiency(ulWorkers);
+
+	// Parallel cost = base cost / (workers * efficiency) + startup cost
+	CDouble dParallelCost =
+		costBase.Get() / (ulWorkers * dParallelEfficiency);
+
+	CDouble dWorkerStartupCost = GetWorkerStartupCost(pcmgpdb, ulWorkers);
+
+	return CCost(dParallelCost + pci->NumRebinds() * dWorkerStartupCost);
+}
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CCostModelGPDB::CalculateParallelEfficiency
 //
 //	@doc:
@@ -3299,6 +3347,11 @@ CCostModelGPDB::Cost(
 		case COperator::EopPhysicalIndexOnlyScan:
 		{
 			return CostIndexOnlyScan(m_mp, exprhdl, this, pci);
+		}
+
+		case COperator::EopPhysicalParallelIndexOnlyScan:
+		{
+			return CostParallelIndexOnlyScan(m_mp, exprhdl, this, pci);
 		}
 
 		case COperator::EopPhysicalIndexScan:
