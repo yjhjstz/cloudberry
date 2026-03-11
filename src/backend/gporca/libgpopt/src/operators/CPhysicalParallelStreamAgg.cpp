@@ -35,7 +35,6 @@
 #include "gpopt/base/CDistributionSpecSingleton.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/metadata/CTableDescriptor.h"
 #include "naucrates/md/IMDFunction.h"
 #include "naucrates/md/IMDRelation.h"
 

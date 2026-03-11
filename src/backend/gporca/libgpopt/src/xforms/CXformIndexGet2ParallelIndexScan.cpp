@@ -91,7 +91,6 @@ CXformIndexGet2ParallelIndexScan::Exfp(CExpressionHandle &exprhdl) const
 	// Don't use parallel scan for replicated tables
 	if (ptabdesc->GetRelDistribution() == IMDRelation::EreldistrMasterOnly)
 	{
-		//FIXME: Should we consider replicated tables.
 		return CXform::ExfpNone;
 	}
 
