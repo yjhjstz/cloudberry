@@ -971,10 +971,25 @@ check_collation_walker(Node *node, check_collation_context *context)
 		case T_WindowFunc:
 		case T_NullTest:
 		case T_NullIfExpr:
+		case T_SubLink:
+		{
+			/*
+			 * ORCA cannot propagate collation through SubPlan boundaries
+			 * (CColRefComputed doesn't carry collation).  If a SubLink's
+			 * output has non-default collation (including C), fall back to
+			 * ensure correct collation-sensitive operations (ORDER BY, etc.)
+			 * on the SubLink result.
+			 */
+			collation = exprCollation(node);
+			if (OidIsValid(collation) && DEFAULT_COLLATION_OID != collation)
+			{
+				context->foundNonDefaultCollation = 1;
+			}
+			break;
+		}
 		case T_CoerceToDomain:
 		case T_CoerceViaIO:
 		case T_ArrayCoerceExpr:
-		case T_SubLink:
 		case T_ArrayExpr:
 		case T_SubscriptingRef:
 		case T_RowExpr:
