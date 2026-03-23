@@ -606,6 +606,274 @@ SELECT string_agg(name, ',' ORDER BY name) FROM t_c_collation;
 (1 row)
 
 -- ======================================================================
+-- Test: LIKE / pattern matching with C collation
+-- ======================================================================
+-- LIKE is byte-based under C collation
+SELECT name FROM t_c_collation WHERE name LIKE 'a%' ORDER BY name;
+ name 
+------
+ abc
+(1 row)
+
+SELECT name FROM t_c_collation WHERE name LIKE 'A%' ORDER BY name;
+ name 
+------
+ ABC
+(1 row)
+
+-- BETWEEN uses C collation ordering
+-- Under C: 'D' < 'Z' < 'a', so BETWEEN 'A' AND 'Z' gets only uppercase
+SELECT name FROM t_c_collation WHERE name BETWEEN 'A' AND 'Z' ORDER BY name;
+ name 
+------
+ ABC
+ DEF
+ GHI
+(3 rows)
+
+-- ======================================================================
+-- Test: Index scan with C collation
+-- ======================================================================
+CREATE INDEX idx_c_name ON t_c_collation (name);
+ANALYZE t_c_collation;
+-- Index scan should respect C collation ordering
+SET enable_seqscan TO off;
+SELECT name FROM t_c_collation WHERE name > 'Z' ORDER BY name;
+ name 
+------
+ abc
+ def
+ ghi
+(3 rows)
+
+SELECT name FROM t_c_collation WHERE name <= 'Z' ORDER BY name;
+ name 
+------
+ ABC
+ DEF
+ GHI
+(3 rows)
+
+RESET enable_seqscan;
+DROP INDEX idx_c_name;
+-- ======================================================================
+-- Test: CASE expression with C collation comparison
+-- ======================================================================
+SELECT name,
+       CASE WHEN name < 'a' THEN 'uppercase' ELSE 'lowercase' END as case_type
+FROM t_c_collation
+ORDER BY name;
+ name | case_type 
+------+-----------
+ ABC  | uppercase
+ DEF  | uppercase
+ GHI  | uppercase
+ abc  | lowercase
+ def  | lowercase
+ ghi  | lowercase
+(6 rows)
+
+-- ======================================================================
+-- Test: Aggregate functions with C collation
+-- ======================================================================
+-- count with GROUP BY preserves C collation grouping
+SELECT name, count(*), sum(id)
+FROM t_c_collation GROUP BY name ORDER BY name;
+ name | count | sum 
+------+-------+-----
+ ABC  |     1 |   2
+ DEF  |     1 |   4
+ GHI  |     1 |   6
+ abc  |     1 |   1
+ def  |     1 |   3
+ ghi  |     1 |   5
+(6 rows)
+
+-- array_agg with ORDER BY should use C collation
+SELECT array_agg(name ORDER BY name) FROM t_c_collation;
+         array_agg         
+---------------------------
+ {ABC,DEF,GHI,abc,def,ghi}
+(1 row)
+
+-- min/max on varchar(50) COLLATE "C" column
+SELECT min(val), max(val) FROM t_c_collation;
+  min  |  max   
+-------+--------
+ APPLE | cherry
+(1 row)
+
+-- ======================================================================
+-- Test: LIMIT / OFFSET with C collation ORDER BY
+-- ======================================================================
+SELECT name FROM t_c_collation ORDER BY name LIMIT 3;
+ name 
+------
+ ABC
+ DEF
+ GHI
+(3 rows)
+
+SELECT name FROM t_c_collation ORDER BY name LIMIT 3 OFFSET 3;
+ name 
+------
+ abc
+ def
+ ghi
+(3 rows)
+
+-- ======================================================================
+-- Test: EXCEPT with C collation
+-- ======================================================================
+-- All uppercase names (< 'a' under C) except DEF
+SELECT name FROM t_c_collation WHERE name < 'a'
+EXCEPT
+SELECT name FROM t_c_collation WHERE name = 'DEF'
+ORDER BY name;
+ name 
+------
+ ABC
+ GHI
+(2 rows)
+
+-- ======================================================================
+-- Test: INSERT INTO ... SELECT preserves C collation
+-- ======================================================================
+CREATE TABLE t_c_copy (id int, name text COLLATE "C") DISTRIBUTED BY (id);
+INSERT INTO t_c_copy SELECT id, name FROM t_c_collation;
+SELECT name FROM t_c_copy ORDER BY name;
+ name 
+------
+ ABC
+ DEF
+ GHI
+ abc
+ def
+ ghi
+(6 rows)
+
+DROP TABLE t_c_copy;
+-- ======================================================================
+-- Test: CTAS with C collation column
+-- ======================================================================
+CREATE TABLE t_c_ctas AS SELECT id, name FROM t_c_collation DISTRIBUTED BY (id);
+-- Verify the new table inherits C collation
+SELECT name FROM t_c_ctas ORDER BY name;
+ name 
+------
+ ABC
+ DEF
+ GHI
+ abc
+ def
+ ghi
+(6 rows)
+
+DROP TABLE t_c_ctas;
+-- ======================================================================
+-- Test: Multiple aggregates in same query
+-- ======================================================================
+SELECT min(name), max(name), min(val), max(val),
+       count(DISTINCT name)
+FROM t_c_collation;
+ min | max |  min  |  max   | count 
+-----+-----+-------+--------+-------
+ ABC | ghi | APPLE | cherry |     6
+(1 row)
+
+-- ======================================================================
+-- Test: Window functions with C collation ordering
+-- ======================================================================
+-- lag/lead should follow C collation order
+SELECT name,
+       lag(name) OVER (ORDER BY name) as prev_name,
+       lead(name) OVER (ORDER BY name) as next_name
+FROM t_c_collation
+ORDER BY name;
+ name | prev_name | next_name 
+------+-----------+-----------
+ ABC  |           | DEF
+ DEF  | ABC       | GHI
+ GHI  | DEF       | abc
+ abc  | GHI       | def
+ def  | abc       | ghi
+ ghi  | def       | 
+(6 rows)
+
+-- ntile with C collation partitioning
+SELECT name,
+       ntile(2) OVER (ORDER BY name) as bucket
+FROM t_c_collation
+ORDER BY name;
+ name | bucket 
+------+--------
+ ABC  |      1
+ DEF  |      1
+ GHI  |      1
+ abc  |      2
+ def  |      2
+ ghi  |      2
+(6 rows)
+
+-- ======================================================================
+-- Test: Nested subquery with C collation
+-- ======================================================================
+SELECT name FROM t_c_collation
+WHERE name IN (SELECT name FROM t_c_collation WHERE name < 'a')
+ORDER BY name;
+ name 
+------
+ ABC
+ DEF
+ GHI
+(3 rows)
+
+-- Scalar subquery with min/max on C collation
+SELECT name,
+       (SELECT min(b.name) FROM t_c_collation b WHERE b.name > a.name) as next_min
+FROM t_c_collation a
+ORDER BY name;
+ name | next_min 
+------+----------
+ ABC  | DEF
+ DEF  | GHI
+ GHI  | abc
+ abc  | def
+ def  | ghi
+ ghi  | 
+(6 rows)
+
+-- ======================================================================
+-- Test: UPDATE/DELETE with C collation WHERE clause
+-- ======================================================================
+CREATE TABLE t_c_dml (id int, name text COLLATE "C") DISTRIBUTED BY (id);
+INSERT INTO t_c_dml SELECT id, name FROM t_c_collation;
+-- DELETE rows where name < 'a' (uppercase under C collation)
+DELETE FROM t_c_dml WHERE name < 'a';
+SELECT name FROM t_c_dml ORDER BY name;
+ name 
+------
+ abc
+ def
+ ghi
+(3 rows)
+
+-- Re-insert and UPDATE
+INSERT INTO t_c_dml SELECT id, name FROM t_c_collation WHERE name < 'a';
+UPDATE t_c_dml SET name = name || '_updated' WHERE name < 'a';
+SELECT name FROM t_c_dml ORDER BY name;
+    name     
+-------------
+ ABC_updated
+ DEF_updated
+ GHI_updated
+ abc
+ def
+ ghi
+(6 rows)
+
+DROP TABLE t_c_dml;
+-- ======================================================================
 -- Cleanup
 -- ======================================================================
 RESET optimizer_trace_fallback;
