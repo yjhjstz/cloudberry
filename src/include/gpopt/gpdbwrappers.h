@@ -535,7 +535,7 @@ TargetEntry *MakeTargetEntry(Expr *expr, AttrNumber resno, char *resname,
 
 // create a new var node
 Var *MakeVar(Index varno, AttrNumber varattno, Oid vartype, int32 vartypmod,
-			 Index varlevelsup);
+			 Oid varcollid, Index varlevelsup);
 
 Alias *MakeAlias(const char *aliasname, List *colnames);
 

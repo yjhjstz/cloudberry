@@ -1481,12 +1481,12 @@ gpdb::MakeTargetEntry(Expr *expr, AttrNumber resno, char *resname, bool resjunk)
 
 Var *
 gpdb::MakeVar(Index varno, AttrNumber varattno, Oid vartype, int32 vartypmod,
-			  Index varlevelsup)
+			  Oid varcollid, Index varlevelsup)
 {
 	GP_WRAP_START;
 	{
-		// GPDB_91_MERGE_FIXME: collation
-		Oid collation = TypeCollation(vartype);
+		Oid collation =
+			OidIsValid(varcollid) ? varcollid : TypeCollation(vartype);
 		return makeVar(varno, varattno, vartype, vartypmod, collation,
 					   varlevelsup);
 	}

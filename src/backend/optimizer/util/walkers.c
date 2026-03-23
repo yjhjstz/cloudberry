@@ -892,7 +892,8 @@ check_collation_in_list(List *colllist, check_collation_context *context)
 	foreach (lc, colllist)
 	{
 		Oid coll = lfirst_oid(lc);
-		if (InvalidOid != coll && DEFAULT_COLLATION_OID != coll)
+		if (InvalidOid != coll && DEFAULT_COLLATION_OID != coll &&
+			C_COLLATION_OID != coll)
 		{
 			context->foundNonDefaultCollation = 1;
 			break;
@@ -928,7 +929,8 @@ check_collation_walker(Node *node, check_collation_context *context)
 				if (collation != C_COLLATION_OID)
 					context->foundNonDefaultCollation = 1;
 			}
-			else if (InvalidOid != collation && DEFAULT_COLLATION_OID != collation)
+			else if (InvalidOid != collation && DEFAULT_COLLATION_OID != collation &&
+				 C_COLLATION_OID != collation)
 			{
 				context->foundNonDefaultCollation = 1;
 			}
@@ -946,7 +948,6 @@ check_collation_walker(Node *node, check_collation_context *context)
 		case T_WindowFunc:
 		case T_NullTest:
 		case T_NullIfExpr:
-		case T_RelabelType:
 		case T_CoerceToDomain:
 		case T_CoerceViaIO:
 		case T_ArrayCoerceExpr:
@@ -973,14 +974,49 @@ check_collation_walker(Node *node, check_collation_context *context)
 		case T_DMLActionExpr:
 			collation = exprCollation(node);
 			inputCollation = exprInputCollation(node);
-			if ((InvalidOid != collation && DEFAULT_COLLATION_OID != collation) ||
-				(InvalidOid != inputCollation && DEFAULT_COLLATION_OID != inputCollation))
+			if ((InvalidOid != collation && DEFAULT_COLLATION_OID != collation &&
+				 C_COLLATION_OID != collation) ||
+				(InvalidOid != inputCollation && DEFAULT_COLLATION_OID != inputCollation &&
+				 C_COLLATION_OID != inputCollation))
 			{
 				context->foundNonDefaultCollation = 1;
 			}
 			break;
+		case T_RelabelType:
+		{
+			/*
+			 * fold_constants() converts CollateExpr to RelabelType.
+			 * Detect expression-level COLLATE override by checking if the
+			 * RelabelType's collation differs from its argument's collation.
+			 * ORCA does not yet propagate expression-level collation, so
+			 * these must fall back to the Postgres planner.
+			 */
+			RelabelType *r = (RelabelType *) node;
+			if (OidIsValid(r->resultcollid) &&
+				r->resultcollid != exprCollation((Node *) r->arg))
+			{
+				context->foundNonDefaultCollation = 1;
+				break;
+			}
+			/* Normal type coercion: check like other expression nodes */
+			collation = exprCollation(node);
+			inputCollation = exprInputCollation(node);
+			if ((InvalidOid != collation && DEFAULT_COLLATION_OID != collation &&
+				 C_COLLATION_OID != collation) ||
+				(InvalidOid != inputCollation && DEFAULT_COLLATION_OID != inputCollation &&
+				 C_COLLATION_OID != inputCollation))
+			{
+				context->foundNonDefaultCollation = 1;
+			}
+			break;
+		}
 		case T_CollateClause:
-			/* unsupported */
+			/*
+			 * CollateClause is a raw parse node without a resolved OID.
+			 * Analyzed COLLATE expressions use T_CollateExpr instead,
+			 * which is handled above with the C_COLLATION_OID check.
+			 * Keep this as unconditional reject for safety.
+			 */
 			context->foundNonDefaultCollation = 1;
 			break;
 		case T_RangeTblEntry:

@@ -132,6 +132,8 @@ CMappingColIdVarPlStmt::VarFromDXLNodeScId(const CDXLScalarIdent *dxlop)
 	Index varno_old = 0;
 	AttrNumber attno_old = 0;
 
+	const TargetEntry *target_entry = nullptr;
+
 	const ULONG colid = dxlop->GetDXLColRef()->Id();
 	if (nullptr != m_base_table_context)
 	{
@@ -154,7 +156,7 @@ CMappingColIdVarPlStmt::VarFromDXLNodeScId(const CDXLScalarIdent *dxlop)
 		GPOS_ASSERT(nullptr != left_context);
 
 		// lookup column in the left child translation context
-		const TargetEntry *target_entry = left_context->GetTargetEntry(colid);
+		target_entry = left_context->GetTargetEntry(colid);
 
 		if (nullptr != target_entry)
 		{
@@ -220,9 +222,25 @@ CMappingColIdVarPlStmt::VarFromDXLNodeScId(const CDXLScalarIdent *dxlop)
 		}
 	}
 
+	Oid varcollid = InvalidOid;
+	if (nullptr != dxlop->MdidCollation() &&
+		dxlop->MdidCollation()->IsValid())
+	{
+		varcollid = CMDIdGPDB::CastMdid(dxlop->MdidCollation())->Oid();
+	}
+	else if (nullptr != target_entry)
+	{
+		// CDXLScalarIdent has no explicit collation (e.g., computed columns
+		// like partial aggregate results). Fall back to the child plan's
+		// TargetEntry expression collation so that Finalize Aggregates
+		// inherit the correct collation from the Partial Aggregate.
+		varcollid = gpdb::ExprCollation((Node *) target_entry->expr);
+	}
+
 	Var *var = gpdb::MakeVar(varno, attno,
 							 CMDIdGPDB::CastMdid(dxlop->MdidType())->Oid(),
 							 dxlop->TypeModifier(),
+							 varcollid,
 							 0	// varlevelsup
 	);
 

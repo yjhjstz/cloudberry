@@ -1182,7 +1182,7 @@ TranslateDXLIndexTList(const IMDRelation *md_rel, const IMDIndex *md_index,
 		Expr *indexvar = (Expr *) gpdb::MakeVar(
 			new_varno, col->AttrNum(),
 			CMDIdGPDB::CastMdid(col->MdidType())->Oid(),
-			col->TypeModifier() /*vartypmod*/, 0 /*varlevelsup*/);
+			col->TypeModifier() /*vartypmod*/, InvalidOid, 0 /*varlevelsup*/);
 		target_entry->expr = indexvar;
 
 		// Fix up proj list. Since index only scan does not read full tuples,
@@ -1218,7 +1218,7 @@ TranslateDXLIndexTList(const IMDRelation *md_rel, const IMDIndex *md_index,
 		Expr *indexvar = (Expr *) gpdb::MakeVar(
 			new_varno, col->AttrNum(),
 			CMDIdGPDB::CastMdid(col->MdidType())->Oid(),
-			col->TypeModifier() /*vartypmod*/, 0 /*varlevelsup*/);
+			col->TypeModifier() /*vartypmod*/, InvalidOid, 0 /*varlevelsup*/);
 		target_entry->expr = indexvar;
 
 		for (ULONG j = 0; j < table_descr->Arity(); j++)
@@ -3474,7 +3474,8 @@ CTranslatorDXLToPlStmt::TranslateDXLRedistributeMotionToResultHashFilters(
 			TargetEntry *te = (TargetEntry *) lfirst(lc);
 			Var *var = gpdb::MakeVar(
 				OUTER_VAR, te->resno, gpdb::ExprType((Node *) te->expr),
-				gpdb::ExprTypeMod((Node *) te->expr), 0 /* varlevelsup */);
+				gpdb::ExprTypeMod((Node *) te->expr), InvalidOid,
+				0 /* varlevelsup */);
 			TargetEntry *new_te =
 				gpdb::MakeTargetEntry((Expr *) var, ul, /* resno */
 									  te->resname, te->resjunk);
@@ -5118,7 +5119,7 @@ CTranslatorDXLToPlStmt::TranslateDXLAppend(
 		Var *var = gpdb::MakeVar(
 			idxVarno, attno,
 			CMDIdGPDB::CastMdid(sc_ident_dxlop->MdidType())->Oid(),
-			sc_ident_dxlop->TypeModifier(),
+			sc_ident_dxlop->TypeModifier(), InvalidOid,
 			0  // varlevelsup
 		);
 
@@ -5274,7 +5275,7 @@ CTranslatorDXLToPlStmt::TranslateDXLParallelAppend(
 		Var *var = gpdb::MakeVar(
 			idxVarno, attno,
 			CMDIdGPDB::CastMdid(sc_ident_dxlop->MdidType())->Oid(),
-			sc_ident_dxlop->TypeModifier(),
+			sc_ident_dxlop->TypeModifier(), InvalidOid,
 			0  // varlevelsup
 		);
 
@@ -5503,7 +5504,8 @@ CTranslatorDXLToPlStmt::TranslateDXLCTEConsumerToSharedScan(
 
 		Var *var =
 			gpdb::MakeVar(OUTER_VAR, varattno, oid_type,
-						  sc_ident_dxlop->TypeModifier(), 0 /* varlevelsup */);
+						  sc_ident_dxlop->TypeModifier(), InvalidOid,
+						  0 /* varlevelsup */);
 
 		CHAR *resname = CTranslatorUtils::CreateMultiByteCharStringFromWCString(
 			sc_proj_elem_dxlop->GetMdNameAlias()->GetMDName()->GetBuffer());
@@ -6991,7 +6993,7 @@ CTranslatorDXLToPlStmt::TranslateDXLProjectListToHashTargetList(
 		// create a Var expression for this target list entry expression
 		Var *var =
 			gpdb::MakeVar(OUTER_VAR, te_child->resno, oid_type, type_modifier,
-						  0	 // varlevelsup
+						  InvalidOid, 0  // varlevelsup
 			);
 
 		// set old varno and varattno since makeVar does not set them
@@ -7492,7 +7494,7 @@ CTranslatorDXLToPlStmt::AddJunkTargetEntryForColId(
 	INT type_modifier = gpdb::ExprTypeMod((Node *) target_entry->expr);
 	Var *var =
 		gpdb::MakeVar(OUTER_VAR, target_entry->resno, expr_oid, type_modifier,
-					  0	 // varlevelsup
+					  InvalidOid, 0  // varlevelsup
 		);
 	ULONG resno = gpdb::ListLength(*target_list) + 1;
 	CHAR *resname_str = PStrDup(resname);
@@ -8113,7 +8115,8 @@ CTranslatorDXLToPlStmt::TranslateNestLoopParamList(
 
 		Var *new_var =
 			gpdb::MakeVar(OUTER_VAR, target_entry->resno, old_var->vartype,
-						  old_var->vartypmod, 0 /*varlevelsup*/);
+						  old_var->vartypmod, old_var->varcollid,
+						  0 /*varlevelsup*/);
 		new_var->varnosyn = old_var->varnosyn;
 		new_var->varattnosyn = old_var->varattnosyn;
 
@@ -8162,7 +8165,7 @@ CTranslatorDXLToPlStmt::CreateDirectCopyTargetList(List *target_list)
 		Node *expr = (Node *) te->expr;
 
 		Var *var = gpdb::MakeVar(OUTER_VAR, te->resno, gpdb::ExprType(expr),
-				gpdb::ExprTypeMod(expr), 0 /* varlevelsup */);
+				gpdb::ExprTypeMod(expr), InvalidOid, 0 /* varlevelsup */);
 		TargetEntry *new_te = gpdb::MakeTargetEntry((Expr *) var, te->resno, te->resname, te->resjunk);
 
 		result_target_list = gpdb::LAppend(result_target_list, new_te);

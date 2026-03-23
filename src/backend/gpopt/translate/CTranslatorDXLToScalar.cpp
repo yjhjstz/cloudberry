@@ -726,9 +726,13 @@ CTranslatorDXLToScalar::TranslateDXLScalarAggrefToScalar(
 		aggref->aggfnoid, aggtranstype, inputTypes, numArguments);
 	aggref->aggtranstype = aggtranstype;
 
-	// GPDB_91_MERGE_FIXME: collation
+	// Set aggregate collation from input arguments when available,
+	// so that min/max etc. use the correct column-level collation.
 	aggref->inputcollid = gpdb::ExprCollation((Node *) args);
-	aggref->aggcollid = gpdb::TypeCollation(aggref->aggtype);
+	aggref->aggcollid =
+		OidIsValid(aggref->inputcollid)
+			? aggref->inputcollid
+			: gpdb::TypeCollation(aggref->aggtype);
 
 	return (Expr *) aggref;
 }
