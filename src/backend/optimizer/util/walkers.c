@@ -13,6 +13,7 @@
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
 #include "optimizer/walkers.h"
+#include "utils/lsyscache.h"
 
 /**
  * Plan node walker related methods.
@@ -942,10 +943,16 @@ check_collation_walker(Node *node, check_collation_context *context)
 			 * Normal string constants have constcollid = DEFAULT_COLLATION_OID.
 			 * Constants with explicit COLLATE (e.g., 'foo' COLLATE "C")
 			 * have a different constcollid that ORCA cannot propagate.
+			 *
+			 * To distinguish explicit COLLATE from inherent type collation
+			 * (e.g., '1505703298'::name where name type has C collation),
+			 * compare constcollid with the type's default collation.
+			 * A mismatch means an explicit COLLATE override was applied.
 			 */
 			Const *c = (Const *) node;
 			if (OidIsValid(c->constcollid) &&
-				c->constcollid != DEFAULT_COLLATION_OID)
+				c->constcollid != DEFAULT_COLLATION_OID &&
+				c->constcollid != get_typcollation(c->consttype))
 			{
 				context->foundNonDefaultCollation = 1;
 			}

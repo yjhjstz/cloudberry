@@ -27,9 +27,11 @@ select length(stringu1) into parallel_write
 drop table parallel_write;
 
 explain (costs off) create materialized view parallel_mat_view as
-    select length(stringu1) from tenk1 group by length(stringu1);
+    select length(stringu1) from tenk1 group by length(stringu1)
+    distributed by (length);
 create materialized view parallel_mat_view as
-    select length(stringu1) from tenk1 group by length(stringu1);
+    select length(stringu1) from tenk1 group by length(stringu1)
+    distributed by (length);
 create unique index on parallel_mat_view(length);
 refresh materialized view parallel_mat_view;
 refresh materialized view concurrently parallel_mat_view;
