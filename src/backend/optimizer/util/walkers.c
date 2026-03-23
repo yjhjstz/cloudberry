@@ -920,7 +920,6 @@ check_collation_walker(Node *node, check_collation_context *context)
 	switch (nodeTag(node))
 	{
 		case T_Var:
-		case T_Const:
 		case T_OpExpr:
 			type = exprType((node));
 			collation = exprCollation(node);
@@ -935,6 +934,23 @@ check_collation_walker(Node *node, check_collation_context *context)
 				context->foundNonDefaultCollation = 1;
 			}
 			break;
+		case T_Const:
+		{
+			/*
+			 * fold_constants() converts CollateExpr on a constant into a
+			 * Const with modified constcollid (no RelabelType wrapper).
+			 * Normal string constants have constcollid = DEFAULT_COLLATION_OID.
+			 * Constants with explicit COLLATE (e.g., 'foo' COLLATE "C")
+			 * have a different constcollid that ORCA cannot propagate.
+			 */
+			Const *c = (Const *) node;
+			if (OidIsValid(c->constcollid) &&
+				c->constcollid != DEFAULT_COLLATION_OID)
+			{
+				context->foundNonDefaultCollation = 1;
+			}
+			break;
+		}
 		case T_ScalarArrayOpExpr:
 		case T_DistinctExpr:
 		case T_BoolExpr:

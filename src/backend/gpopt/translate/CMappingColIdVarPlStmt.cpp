@@ -109,7 +109,19 @@ CMappingColIdVarPlStmt::ParamFromDXLNodeScId(const CDXLScalarIdent *dxlop)
 		param->paramid = elem->ParamId();
 		param->paramtype = CMDIdGPDB::CastMdid(elem->MdidType())->Oid();
 		param->paramtypmod = elem->TypeModifier();
-		param->paramcollid = gpdb::TypeCollation(param->paramtype);
+		// Derive paramcollid from CDXLScalarIdent's collation when
+		// available (e.g., SubPlan output referencing a C-collation
+		// aggregate), falling back to type-level collation.
+		if (nullptr != dxlop->MdidCollation() &&
+			dxlop->MdidCollation()->IsValid())
+		{
+			param->paramcollid =
+				CMDIdGPDB::CastMdid(dxlop->MdidCollation())->Oid();
+		}
+		else
+		{
+			param->paramcollid = gpdb::TypeCollation(param->paramtype);
+		}
 	}
 
 	return param;
