@@ -215,6 +215,43 @@ WHERE m.d_name > 'D'
 ORDER BY m.c_name;
 
 -- ======================================================================
+-- Test: Collation resolution for mixed-collation argument lists
+-- gpdb::ExprCollation(List) must match PG's merge_collation_state() rule:
+-- non-default implicit collation always beats default, regardless of
+-- argument order.  Previously the translator just returned the first
+-- non-InvalidOid collation, so (default, C) picked default — wrong.
+-- ======================================================================
+
+-- coalesce: DEFAULT column first, C column second
+-- Must sort in C byte order (A < B < a < b), not locale order (a < A < b < B)
+SELECT coalesce(d_name, c_name) AS r FROM t_mixed_collation ORDER BY coalesce(d_name, c_name);
+
+-- coalesce: C column first, DEFAULT column second (control — always worked)
+SELECT coalesce(c_name, d_name) AS r FROM t_mixed_collation ORDER BY coalesce(c_name, d_name);
+
+-- Verify both orders produce identical results
+SELECT coalesce(d_name, c_name) AS dc, coalesce(c_name, d_name) AS cd
+FROM t_mixed_collation
+ORDER BY coalesce(d_name, c_name);
+
+-- EXPLAIN must show COLLATE "C" on the sort key regardless of arg order
+EXPLAIN (COSTS OFF)
+SELECT * FROM t_mixed_collation ORDER BY coalesce(d_name, c_name);
+
+-- Operator expression: 'literal' || c_col  (DEFAULT || C → should pick C)
+SELECT d_name || c_name AS r FROM t_mixed_collation ORDER BY d_name || c_name;
+
+-- min/max with mixed-collation coalesce argument
+SELECT min(coalesce(d_name, c_name)), max(coalesce(d_name, c_name)) FROM t_mixed_collation;
+
+-- CASE result with mixed collation branches
+-- WHEN branch returns d_name (default), ELSE returns c_name (C).
+-- Output collation should be C.
+SELECT CASE WHEN id <= 3 THEN d_name ELSE c_name END AS r
+FROM t_mixed_collation
+ORDER BY CASE WHEN id <= 3 THEN d_name ELSE c_name END;
+
+-- ======================================================================
 -- Test: Expression-level COLLATE "C"
 -- ======================================================================
 
