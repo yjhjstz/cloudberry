@@ -1,0 +1,61 @@
+--
+-- ORCA: a wide scalar projection (many array subscripts) must be pushed BELOW
+-- the Gather Motion so it is computed in parallel on the segments, instead of
+-- being concentrated on a single coordinator process in a Result node ABOVE the
+-- Motion.
+--
+-- Before the CostComputeScalar fix, ORCA under-costed the projection (array
+-- subscripts added zero per-expression CPU cost) and preferred to gather the
+-- narrow base row first and compute the wide projection on the coordinator,
+-- producing a "Result -> Gather Motion -> Seq Scan" plan that runs the whole
+-- projection single-threaded. See CostComputeScalar in CCostModelGPDB.cpp.
+--
+create schema orca_wide_projection;
+set search_path to orca_wide_projection;
+set optimizer to on;
+create table wide_arr_proj (id int, arr text[]) distributed randomly;
+insert into wide_arr_proj
+select g, (select array_agg((g * 1000 + i)::text) from generate_series(1, 1000) i)
+from generate_series(1, 500) g;
+analyze wide_arr_proj;
+-- Returns true iff the plan for a projection of the first nelems array elements
+-- contains a Result node (i.e. the projection was placed above the Gather
+-- Motion on the coordinator). We expect false: the projection is pushed below
+-- the Motion, so there is no coordinator-side Result.
+create function arr_proj_result_on_top(nelems int) returns boolean as $$
+declare
+  sql  text;
+  ln   text;
+  seen boolean := false;
+begin
+  select 'explain (costs off) select ' ||
+         string_agg(format('arr[%s]', i), ', ') || ' from wide_arr_proj'
+    into sql
+    from generate_series(1, nelems) i;
+  for ln in execute sql loop
+    if ln like '%Result%' then
+      seen := true;
+    end if;
+  end loop;
+  return seen;
+end;
+$$ language plpgsql;
+-- The wide (1000-column) projection must be pushed below the Gather Motion.
+select arr_proj_result_on_top(1000) as result_on_top;
+ result_on_top 
+---------------
+ f
+(1 row)
+
+-- Sanity: a narrow projection is (and always was) pushed below the Motion too.
+select arr_proj_result_on_top(2) as narrow_result_on_top;
+ narrow_result_on_top 
+----------------------
+ f
+(1 row)
+
+drop function arr_proj_result_on_top(int);
+drop table wide_arr_proj;
+reset optimizer;
+reset search_path;
+drop schema orca_wide_projection;
