@@ -226,7 +226,7 @@ getFileContent(Oid spcId, char *scopedFileUrl)
 		ereport(ERROR,
 					(errcode(ERRCODE_OUT_OF_MEMORY),
 					 errmsg("out of memory"),
-					 errdetail("Failed to allocate %ld bytes memory.", fileSize)));
+					 errdetail("Failed to allocate %lld bytes memory.", (long long) fileSize)));
 	SET_VARSIZE(content, fileSize + VARHDRSZ);
 	data = VARDATA(content);
 

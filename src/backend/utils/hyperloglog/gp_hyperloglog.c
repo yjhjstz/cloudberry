@@ -565,7 +565,9 @@ gp_hll_compress_dense(GpHLLCounter hloglog)
     memset(dest,0,data_rawsize + 4);
 
 #pragma GCC diagnostic push
+#ifndef __clang__
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     data = malloc(data_rawsize);
     if (data == NULL){
         free(dest);

@@ -300,7 +300,7 @@ linterp_int64(PG_FUNCTION_ARGS)
 	else 
 	{
 		r = round(y0+p*(y1-y0));
-		if ( r < LONG_MIN || r > LONG_MAX )
+		if ( r < (double) LONG_MIN || r > (double) LONG_MAX )
 			ereport(ERROR,
 					(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
 					 errmsg("value \"%f\" is out of range for type bigint", r)));

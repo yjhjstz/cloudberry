@@ -8356,9 +8356,8 @@ add_paths_to_grouping_rel(PlannerInfo *root, RelOptInfo *input_rel,
 				else
 					dNumGroups = dNumGroupsTotal;
 
-				// if (parse->hasAggs)
-					add_path(grouped_rel, (Path *)
-							 create_agg_path(root,
+				add_path(grouped_rel, (Path *)
+						 create_agg_path(root,
 											 grouped_rel,
 											 path,
 											 grouped_rel->reltarget,

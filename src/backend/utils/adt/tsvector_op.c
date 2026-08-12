@@ -1203,7 +1203,9 @@ tsCompareString(char *a, int _lena, char *b, int _lenb, bool prefix)
 	{
 
 #pragma GCC diagnostic push
+#ifndef __clang__
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 
 		cmp = memcmp(a, b, Min((unsigned int) lena, (unsigned int) lenb));
 

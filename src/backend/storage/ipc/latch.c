@@ -902,7 +902,9 @@ ResetWaitEventSet(WaitEventSet **pset, MemoryContext context, int nevents)
 	*pset = set;
 	return;
 #endif
+#if defined(WAIT_USE_EPOLL)
 CREATE_NEW_EV:
+#endif
 	FreeWaitEventSet(*pset);
 	*pset = CreateWaitEventSet(context, nevents);
 

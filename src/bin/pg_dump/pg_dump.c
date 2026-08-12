@@ -5682,7 +5682,7 @@ binary_upgrade_set_type_oids_by_rel(Archive *fout,
 
 	if (OidIsValid(pg_type_oid))
 		binary_upgrade_set_type_oids_by_type_oid(fout, upgrade_buffer,
-												 pg_type_oid, InvalidOid, InvalidOid, false, false);
+												 pg_type_oid, InvalidOid, NULL, false, false);
 }
 
 /*

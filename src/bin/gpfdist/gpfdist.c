@@ -2560,7 +2560,7 @@ signal_register()
         gwarning(NULL,"signal event priority set failed");
 
     /* start watching this event */
-	if(evsignal_add(&gcb.signal_event, 0))
+    if(evsignal_add(&gcb.signal_event, 0))
         gfatal(NULL,"cannot set up event on signal register");
 
 }
