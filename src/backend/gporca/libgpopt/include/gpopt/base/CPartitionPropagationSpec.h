@@ -177,6 +177,12 @@ public:
 
 	BOOL ContainsAnyConsumers() const;
 
+	BOOL
+	IsEmpty() const
+	{
+		return 0 == m_part_prop_spec_infos->Size();
+	}
+
 	// equality check to determine compatibility of derived & required properties
 	BOOL Equals(const CPartitionPropagationSpec *ppps) const;
 
