@@ -1349,5 +1349,30 @@ select k from using_coerce_t1 left join using_coerce_t2 using(k) order by 1;
 select f2, count(*) from using_coerce_t1 left join using_coerce_t2 using(f2) group by f2 order by 1;
 select f2, count(*) from using_coerce_t1 x(x0,x1) left join (using_coerce_t1 left join using_coerce_t2 using(f2)) on (x0 = 'a') group by f2 order by 1;
 
+-- Quals are deliberately not flattened by flatten_join_alias_var_optimizer, so
+-- a predicate on the merged column references the computed join output column
+-- directly. Without a projection producing it ORCA fell back with
+-- "Attribute number N not found in project list".
+explain (costs off) select k from using_coerce_t1 left join using_coerce_t2 using(k) where k = 'a';
+select k from using_coerce_t1 left join using_coerce_t2 using(k) where k = 'a';
+select f2 from using_coerce_t1 join using_coerce_t2 using(f2) where f2 = 1;
+select k from using_coerce_t1 full join using_coerce_t2 using(k) where k = 'c';
+
 drop table using_coerce_t1;
 drop table using_coerce_t2;
+
+--
+-- Same, for a merged column that needs a real cast function (FuncExpr) rather
+-- than a binary-compatible relabel.
+--
+create table using_coerce_t3(k int, v int) distributed by (v);
+create table using_coerce_t4(k bigint, v int) distributed by (v);
+insert into using_coerce_t3 values (1, 1), (2, 2);
+insert into using_coerce_t4 values (1, 1), (3, 3);
+
+explain (costs off) select k from using_coerce_t3 left join using_coerce_t4 using(k) where k = 1;
+select k from using_coerce_t3 left join using_coerce_t4 using(k) where k = 1;
+select k from using_coerce_t3 full join using_coerce_t4 using(k) order by 1;
+
+drop table using_coerce_t3;
+drop table using_coerce_t4;
