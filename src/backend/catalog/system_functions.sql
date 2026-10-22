@@ -781,6 +781,14 @@ REVOKE EXECUTE ON FUNCTION gp_expand_lock_catalog() FROM public;
 
 REVOKE EXECUTE ON FUNCTION gp_expand_bump_version() FROM public;
 
+-- Adding a standby coordinator is reserved to superusers, like every other
+-- change to the segment configuration made by the management tools.  The
+-- function enforces that itself as well; this is defense in depth for new
+-- initdbs.
+REVOKE EXECUTE ON FUNCTION gp_add_master_standby(text, text, text) FROM public;
+
+REVOKE EXECUTE ON FUNCTION gp_add_master_standby(text, text, text, integer) FROM public;
+
 
 --
 -- We also set up some things as accessible to standard roles.
