@@ -999,3 +999,78 @@ SELECT * FROM testaddcol;
  1 | 5
 (5 rows)
 
+-- Indexes over a column a fast ADD COLUMN left missing.
+--
+-- The index build reads the column through the ordinary scan, so the entries
+-- for the rows in the missing region have to carry the value from
+-- attmissingval, and every way of reading the index back has to agree with a
+-- sequential scan.  Nothing covered this before: the existing index tests all
+-- build over columns present in every row.
+--
+-- The missing region is deliberately small so the planner has a reason to
+-- pick an index at all.  Answers are compared as booleans rather than
+-- printed, so they do not depend on which plan each optimizer settles on.
+CREATE TABLE aoco_missing_idx (a int, b text) USING ao_column DISTRIBUTED BY (a);
+INSERT INTO aoco_missing_idx SELECT i, 'x' || i FROM generate_series(1, 300) i;
+ALTER TABLE aoco_missing_idx ADD COLUMN c int DEFAULT 7;
+INSERT INTO aoco_missing_idx SELECT i, 'y' || i, i FROM generate_series(301, 30000) i;
+CREATE INDEX aoco_missing_idx_btree ON aoco_missing_idx(c);
+CREATE INDEX aoco_missing_idx_brin ON aoco_missing_idx USING brin (c) WITH (pages_per_range=8);
+ANALYZE aoco_missing_idx;
+-- the answers, taken with every index path shut off
+SET enable_indexscan = off;
+SET enable_bitmapscan = off;
+SET enable_indexonlyscan = off;
+CREATE TEMP TABLE aoco_missing_idx_seq AS
+SELECT (SELECT count(*) FROM aoco_missing_idx WHERE c = 7) AS eq_n,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c = 7) AS eq_s,
+       (SELECT count(*) FROM aoco_missing_idx WHERE c < 400) AS lt_n,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c < 400) AS lt_s,
+       (SELECT count(c) FROM aoco_missing_idx WHERE c = 7) AS only_n;
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+RESET enable_indexscan;
+RESET enable_bitmapscan;
+RESET enable_indexonlyscan;
+SET enable_seqscan = off;
+SELECT (SELECT count(*) FROM aoco_missing_idx WHERE c = 7) = eq_n AS eq_n_ok,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c = 7) = eq_s AS eq_s_ok,
+       (SELECT count(*) FROM aoco_missing_idx WHERE c < 400) = lt_n AS lt_n_ok,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c < 400) = lt_s AS lt_s_ok,
+       (SELECT count(c) FROM aoco_missing_idx WHERE c = 7) = only_n AS only_n_ok
+  FROM aoco_missing_idx_seq;
+ eq_n_ok | eq_s_ok | lt_n_ok | lt_s_ok | only_n_ok 
+---------+---------+---------+---------+-----------
+ t       | t       | t       | t       | t
+(1 row)
+
+RESET enable_seqscan;
+-- and again once the missing region has been deleted from and updated
+DELETE FROM aoco_missing_idx WHERE c = 7 AND a % 3 = 0;
+UPDATE aoco_missing_idx SET c = 999 WHERE c = 7 AND a % 5 = 0;
+VACUUM aoco_missing_idx;
+ANALYZE aoco_missing_idx;
+SET enable_indexscan = off;
+SET enable_bitmapscan = off;
+SET enable_indexonlyscan = off;
+CREATE TEMP TABLE aoco_missing_idx_seq2 AS
+SELECT (SELECT count(*) FROM aoco_missing_idx WHERE c = 7) AS eq_n,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c = 7) AS eq_s,
+       (SELECT count(*) FROM aoco_missing_idx WHERE c = 999) AS up_n,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c = 999) AS up_s;
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+RESET enable_indexscan;
+RESET enable_bitmapscan;
+RESET enable_indexonlyscan;
+SET enable_seqscan = off;
+SELECT (SELECT count(*) FROM aoco_missing_idx WHERE c = 7) = eq_n AS eq_n_ok,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c = 7) = eq_s AS eq_s_ok,
+       (SELECT count(*) FROM aoco_missing_idx WHERE c = 999) = up_n AS up_n_ok,
+       (SELECT sum(a) FROM aoco_missing_idx WHERE c = 999) = up_s AS up_s_ok
+  FROM aoco_missing_idx_seq2;
+ eq_n_ok | eq_s_ok | up_n_ok | up_s_ok 
+---------+---------+---------+---------
+ t       | t       | t       | t
+(1 row)
+
+RESET enable_seqscan;
+DROP TABLE aoco_missing_idx;
