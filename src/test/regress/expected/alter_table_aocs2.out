@@ -1074,3 +1074,52 @@ SELECT (SELECT count(*) FROM aoco_missing_idx WHERE c = 7) = eq_n AS eq_n_ok,
 
 RESET enable_seqscan;
 DROP TABLE aoco_missing_idx;
+-- ANALYZE over a column a fast ADD COLUMN left missing.
+--
+-- Half the rows take their value from attmissingval and never appear in the
+-- column's data file at all, so the sample has to pick them up through the
+-- same missing-value path the scan uses or the statistics come out skewed
+-- towards whatever was written after the ALTER.
+--
+-- The heap table alongside carries the same values and is the reference:
+-- its ANALYZE is untouched upstream code.  A statistics target of 1000 makes
+-- the sample cover the whole table, so both sides are exact and this does not
+-- depend on sampling luck.
+CREATE TABLE aoco_missing_stats (a int, b text) USING ao_column DISTRIBUTED BY (a);
+INSERT INTO aoco_missing_stats SELECT i, 'x' || i FROM generate_series(1, 30000) i;
+ALTER TABLE aoco_missing_stats ADD COLUMN c int DEFAULT 7;
+INSERT INTO aoco_missing_stats SELECT i, 'y' || i, i FROM generate_series(30001, 60000) i;
+CREATE TABLE heap_missing_stats (a int, b text, c int) DISTRIBUTED BY (a);
+INSERT INTO heap_missing_stats SELECT i, 'x' || i, 7 FROM generate_series(1, 30000) i;
+INSERT INTO heap_missing_stats SELECT i, 'y' || i, i FROM generate_series(30001, 60000) i;
+ALTER TABLE aoco_missing_stats ALTER COLUMN c SET STATISTICS 1000;
+ALTER TABLE heap_missing_stats ALTER COLUMN c SET STATISTICS 1000;
+ANALYZE aoco_missing_stats;
+ANALYZE heap_missing_stats;
+-- same statistics as the heap table, and the right ones: half the rows hold
+-- the missing value, nothing is null, and 30001 of 60000 values are distinct
+SELECT ao.null_frac = hp.null_frac AS null_frac_same,
+       ao.n_distinct = hp.n_distinct AS n_distinct_same,
+       (ao.most_common_vals::text::int[])[1] = (hp.most_common_vals::text::int[])[1] AS mcv_same,
+       ao.most_common_freqs[1] = hp.most_common_freqs[1] AS mcf_same,
+       ao.null_frac = 0 AS no_nulls,
+       (ao.most_common_vals::text::int[])[1] = 7 AS mcv_is_missing_value,
+       ao.most_common_freqs[1] = 0.5 AS mcv_is_half,
+       ao.n_distinct = -0.5000167::real AS n_distinct_right
+  FROM pg_stats ao, pg_stats hp
+ WHERE ao.tablename = 'aoco_missing_stats' AND ao.attname = 'c'
+   AND hp.tablename = 'heap_missing_stats' AND hp.attname = 'c';
+ null_frac_same | n_distinct_same | mcv_same | mcf_same | no_nulls | mcv_is_missing_value | mcv_is_half | n_distinct_right 
+----------------+-----------------+----------+----------+----------+----------------------+-------------+------------------
+ t              | t               | t        | t        | t        | t                    | t           | t
+(1 row)
+
+-- the row count itself has to be exact, not just the distribution
+SELECT (SELECT reltuples::bigint FROM pg_class WHERE oid = 'aoco_missing_stats'::regclass) = 60000 AS reltuples_ok;
+ reltuples_ok 
+--------------
+ t
+(1 row)
+
+DROP TABLE aoco_missing_stats;
+DROP TABLE heap_missing_stats;
