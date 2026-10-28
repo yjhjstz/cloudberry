@@ -21,9 +21,11 @@
 #include "access/aomd.h"
 #include "access/appendonlytid.h"
 #include "access/appendonlywriter.h"
+#include "access/genam.h"
 #include "access/heapam.h"
 #include "access/hio.h"
 #include "access/reloptions.h"
+#include "access/sysattr.h"
 #include "access/xact.h"
 #include "catalog/catalog.h"
 #include "catalog/gp_fastsequence.h"
@@ -43,6 +45,7 @@
 #include "fmgr.h"
 #include "miscadmin.h"
 #include "nodes/altertablenodes.h"
+#include "optimizer/optimizer.h"
 #include "pgstat.h"
 #include "storage/procarray.h"
 #include "storage/smgr.h"
@@ -4433,32 +4436,57 @@ aocs_writecol_reindex(Oid relid, List *newvals)
 	heap_close(OldHeap, NoLock);
 	foreach(lcindex, indexoidlist)
 	{
-		bool      reindex  = false;
-		Oid       indexoid = lfirst_oid(lcindex);
-		HeapTuple indexTuple;
+		bool       reindex = false;
+		Oid        indexoid = lfirst_oid(lcindex);
+		Relation   indexRel;
+		IndexInfo *indexInfo;
+		Bitmapset *indexattrs = NULL;
 
-		indexTuple = SearchSysCache1(INDEXRELID, ObjectIdGetDatum(indexoid));
-		if (!HeapTupleIsValid(indexTuple))	/* should not happen */
-			elog(ERROR, "cache lookup failed for index %u", indexoid);
-		int       indnatts = ((Form_pg_index) GETSTRUCT(indexTuple))->indnatts;
+		/*
+		 * Collect every column this index depends on.
+		 *
+		 * GPDB_PORT: upstream tested pg_index.indkey alone, which misses two
+		 * shapes.  An expression index stores InvalidAttrNumber in indkey and
+		 * keeps the column reference in indexprs; a partial index can
+		 * reference a column from its predicate only.  Either way the index
+		 * still has to be rebuilt when that column is rewritten: ATExecAddIndex()
+		 * skipped the build because tab->rewrite is set, expecting phase 3 to do
+		 * it, but the column-only rewrite returns before reindex_relation() and
+		 * this function is what stands in for it.  Missing an index therefore
+		 * leaves its freshly assigned relfilenode empty -- not even a btree
+		 * metapage -- and every later plan fails in _bt_getrootheight() with
+		 * "could not read block 0".
+		 */
+		indexRel = index_open(indexoid, AccessShareLock);
+		indexInfo = BuildIndexInfo(indexRel);
+
+		for (int i = 0; i < indexInfo->ii_NumIndexAttrs; ++i)
+		{
+			AttrNumber attno = indexInfo->ii_IndexAttrNumbers[i];
+
+			if (attno != InvalidAttrNumber)
+				indexattrs = bms_add_member(indexattrs,
+											attno - FirstLowInvalidHeapAttributeNumber);
+		}
+		pull_varattnos((Node *) indexInfo->ii_Expressions, 1, &indexattrs);
+		pull_varattnos((Node *) indexInfo->ii_Predicate, 1, &indexattrs);
+
+		index_close(indexRel, AccessShareLock);
+
 		foreach (lc, newvals)
 		{
 			newval = lfirst(lc);
 			if (newval->op == AOCSADDCOLUMN || newval->op == AOCSADDCOLUMN_MISSINGMODE)
 				continue;
-			AttrNumber rewrittenattnum = newval->attnum;
-			for (int i = 0; i < indnatts; ++i)
+			if (bms_is_member(newval->attnum - FirstLowInvalidHeapAttributeNumber,
+							  indexattrs))
 			{
-				if (rewrittenattnum == ((Form_pg_index) GETSTRUCT(indexTuple))->indkey.values[i])
-				{
-					reindex = true;
-					break;
-				}
-			}
-			if (reindex)
+				reindex = true;
 				break;
+			}
 		}
-		ReleaseSysCache(indexTuple);
+		bms_free(indexattrs);
+
 		if (reindex)
 		{
 			/*
